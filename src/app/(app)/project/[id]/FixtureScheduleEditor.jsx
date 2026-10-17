@@ -5,6 +5,9 @@ import PushToBidModal from './PushToBidModal';
 import { oversizeMessage, uploadErrorMessage } from '@/lib/uploadErrorMessage';
 import { appendUpload } from '@/lib/uploadClient';
 import { postParked } from '@/lib/parkedFetch';
+import { FilterButton } from '@/components/ui/FilterPanel';
+import SortHeader from '@/components/ui/SortHeader';
+import { BTN_COMPACT, BTN_COMPACT_PRIMARY, BTN_PRIMARY, BTN_SECONDARY, CARD, INPUT, LABEL, MODAL } from '@/components/ui/tokens';
 
 // ── Location tags — matches Peer Review Matrix exactly ───────────────────────
 const LOCATION_TAGS = [
@@ -24,7 +27,7 @@ const LOCATION_TAG_COLORS = {
   garage:   'bg-teal-600 text-white',
   boh:      'bg-orange-100 text-orange-700',
   amenity:  'bg-green-500 text-white',
-  exterior: 'bg-emerald-100 text-emerald-700',
+  exterior: 'bg-green-100 text-green-700',
   controls: 'bg-violet-100 text-violet-700',
   other:    'bg-slate-100 text-slate-500',
 };
@@ -93,7 +96,7 @@ function Cell({ value, colKey, readOnly, isAlternate, onSave }) {
     return (
       <input
         ref={inputRef}
-        className="w-full h-full px-1.5 py-1 text-xs bg-blue-50 border border-blue-300 rounded outline-none"
+        className="w-full h-full px-1.5 py-1 text-xs bg-orange-50 border border-orange-300 rounded outline-none"
         value={local}
         onChange={e => setLocal(e.target.value)}
         onBlur={commit}
@@ -112,8 +115,8 @@ function Cell({ value, colKey, readOnly, isAlternate, onSave }) {
         className={`px-1.5 py-1 text-xs flex items-start gap-1.5 min-h-[28px] ${readOnly ? '' : 'cursor-text hover:bg-slate-50'}`}
         onClick={startEdit}
       >
-        <span className="ml-3 text-slate-500 whitespace-nowrap font-mono font-semibold">{local || <span className="italic text-slate-300">—</span>}</span>
-        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-400 uppercase tracking-wide shrink-0 mt-0.5">ALT</span>
+        <span className="ml-3 text-slate-500 whitespace-nowrap font-mono font-semibold">{local || <span className="italic text-slate-400">—</span>}</span>
+        <span className="text-[11px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-400 uppercase tracking-wide shrink-0 mt-0.5">ALT</span>
       </div>
     );
   }
@@ -122,20 +125,20 @@ function Cell({ value, colKey, readOnly, isAlternate, onSave }) {
   if (colKey === 'type') {
     return (
       <div
-        className={`px-1.5 py-1.5 text-xs rounded min-h-[28px] whitespace-nowrap font-mono font-semibold leading-snug ${readOnly ? 'text-slate-600' : 'cursor-text hover:bg-slate-50 text-slate-700'} ${!local ? 'text-slate-300' : ''}`}
+        className={`px-1.5 py-1.5 text-xs rounded min-h-[28px] whitespace-nowrap font-mono font-semibold leading-snug ${readOnly ? 'text-slate-600' : 'cursor-text hover:bg-slate-50 text-slate-700'} ${!local ? 'text-slate-400' : ''}`}
         onClick={startEdit}
       >
-        {local || (readOnly ? '—' : <span className="italic font-normal text-slate-300">—</span>)}
+        {local || (readOnly ? '—' : <span className="italic font-normal text-slate-400">—</span>)}
       </div>
     );
   }
 
   return (
     <div
-      className={`px-1.5 py-1.5 text-xs rounded min-h-[28px] whitespace-normal break-words leading-snug ${readOnly ? 'text-slate-600' : 'cursor-text hover:bg-slate-50 text-slate-700'} ${!local ? 'text-slate-300' : ''}`}
+      className={`px-1.5 py-1.5 text-xs rounded min-h-[28px] whitespace-normal break-words leading-snug ${readOnly ? 'text-slate-600' : 'cursor-text hover:bg-slate-50 text-slate-700'} ${!local ? 'text-slate-400' : ''}`}
       onClick={startEdit}
     >
-      {local || (readOnly ? '—' : <span className="italic text-slate-300">—</span>)}
+      {local || (readOnly ? '—' : <span className="italic text-slate-400">—</span>)}
     </div>
   );
 }
@@ -154,8 +157,8 @@ function LocationCell({ value, readOnly, onSave }) {
 
   if (readOnly) {
     return tag
-      ? <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold whitespace-nowrap ${LOCATION_TAG_COLORS[tag.id]}`}>{tag.label}</span>
-      : <span className="text-xs text-slate-400">{value || '—'}</span>;
+      ? <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold whitespace-nowrap ${LOCATION_TAG_COLORS[tag.id]}`}>{tag.label}</span>
+      : <span className="text-xs text-slate-500">{value || '—'}</span>;
   }
 
   return (
@@ -163,7 +166,7 @@ function LocationCell({ value, readOnly, onSave }) {
       <button
         type="button"
         onClick={() => setOpen(o => !o)}
-        className={`px-2 py-0.5 rounded-full text-[10px] font-semibold cursor-pointer whitespace-nowrap transition-colors ${
+        className={`px-2 py-0.5 rounded-full text-[11px] font-semibold cursor-pointer whitespace-nowrap transition-colors ${
           tag ? LOCATION_TAG_COLORS[tag.id] : 'bg-slate-100 text-slate-400 hover:bg-slate-200 italic'
         }`}
       >
@@ -173,9 +176,9 @@ function LocationCell({ value, readOnly, onSave }) {
         <div className="absolute top-full left-0 mt-1 w-36 bg-white rounded-lg shadow-xl border border-slate-200 z-50 overflow-hidden py-1">
           <button
             onClick={() => { onSave(null); setOpen(false); }}
-            className="w-full text-left px-3 py-1.5 hover:bg-slate-50 text-xs text-slate-400 italic"
+            className="w-full text-left px-3 py-1.5 hover:bg-slate-50 text-xs text-slate-500 italic"
           >
-            — Clear —
+            Clear
           </button>
           {LOCATION_TAGS.map(t => (
             <button
@@ -183,7 +186,7 @@ function LocationCell({ value, readOnly, onSave }) {
               onClick={() => { onSave(t.id); setOpen(false); }}
               className={`w-full text-left px-3 py-1.5 hover:bg-slate-50 flex items-center gap-2 ${value === t.id ? 'bg-slate-50' : ''}`}
             >
-              <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${LOCATION_TAG_COLORS[t.id]}`}>
+              <span className={`px-2 py-0.5 rounded-full text-[11px] font-semibold ${LOCATION_TAG_COLORS[t.id]}`}>
                 {t.label}
               </span>
             </button>
@@ -196,7 +199,7 @@ function LocationCell({ value, readOnly, onSave }) {
 
 function DragHandle({ dragging }) {
   return (
-    <div className={`cursor-grab active:cursor-grabbing flex items-center justify-center w-5 text-slate-300 hover:text-slate-500 ${dragging ? 'text-blue-400' : ''}`}>
+    <div className={`cursor-grab active:cursor-grabbing flex items-center justify-center w-5 text-slate-500 hover:text-slate-700 ${dragging ? 'text-orange-500' : ''}`}>
       <svg viewBox="0 0 10 16" className="w-2.5 h-4 fill-current">
         <circle cx="3" cy="2"  r="1.5" />
         <circle cx="7" cy="2"  r="1.5" />
@@ -254,13 +257,13 @@ function ParseFromPdfModal({ projectId, onParsed, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-xl w-full max-w-md">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
           <div>
             <h2 className="font-semibold text-slate-800">Parse Fixture Schedule from PDF</h2>
-            <p className="text-xs text-slate-400 mt-0.5">Upload 1–3 pages containing the fixture schedule table</p>
+            <p className="text-xs text-slate-500 mt-0.5">Upload 1 to 3 pages containing the fixture schedule table</p>
           </div>
-          <button className="text-slate-400 hover:text-slate-600" onClick={onClose} disabled={parsing}>
+          <button className="text-slate-500 hover:text-slate-700" onClick={onClose} disabled={parsing}>
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -275,20 +278,20 @@ function ParseFromPdfModal({ projectId, onParsed, onClose }) {
             onDragLeave={() => setDragging(false)}
             onDrop={onDrop}
             className={`border-2 border-dashed rounded-xl p-8 flex flex-col items-center gap-2 transition-colors ${
-              parsing  ? 'border-blue-200 bg-blue-50 pointer-events-none' :
-              dragging ? 'border-blue-400 bg-blue-50 cursor-copy' :
+              parsing  ? 'border-orange-200 bg-orange-50 pointer-events-none' :
+              dragging ? 'border-orange-400 bg-orange-50 cursor-copy' :
               file     ? 'border-green-300 bg-green-50 cursor-pointer' :
                          'border-slate-200 hover:border-slate-400 hover:bg-slate-50 cursor-pointer'
             }`}
           >
             {parsing ? (
               <>
-                <svg className="animate-spin w-7 h-7 text-blue-500" viewBox="0 0 24 24" fill="none">
+                <svg className="animate-spin w-7 h-7 text-orange-500" viewBox="0 0 24 24" fill="none">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
                 </svg>
-                <p className="text-sm font-medium text-blue-700">Parsing with AI…</p>
-                <p className="text-xs text-blue-500">This may take 15–30 seconds</p>
+                <p className="text-sm font-medium text-slate-700">Parsing with AI…</p>
+                <p className="text-xs text-slate-500">This may take 15 to 30 seconds</p>
               </>
             ) : file ? (
               <>
@@ -296,7 +299,7 @@ function ParseFromPdfModal({ projectId, onParsed, onClose }) {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
                 </svg>
                 <p className="text-sm font-semibold text-slate-800 truncate max-w-full px-4 text-center">{file.name}</p>
-                <p className="text-xs text-slate-400">Click to change file</p>
+                <p className="text-xs text-slate-500">Click to change file</p>
               </>
             ) : (
               <>
@@ -304,7 +307,7 @@ function ParseFromPdfModal({ projectId, onParsed, onClose }) {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
                 </svg>
                 <p className="text-sm text-slate-600">Drop PDF or click to browse</p>
-                <p className="text-xs text-slate-400">PDF only · max 3 pages</p>
+                <p className="text-xs text-slate-500">PDF only · max 3 pages</p>
               </>
             )}
             <input
@@ -316,7 +319,7 @@ function ParseFromPdfModal({ projectId, onParsed, onClose }) {
             />
           </div>
 
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-slate-500">
             Extract just the fixture schedule pages from the full drawing set in Bluebeam or Acrobat before uploading.
             The AI will map each row to ILC's canonical fixture schedule columns.
           </p>
@@ -334,7 +337,7 @@ function ParseFromPdfModal({ projectId, onParsed, onClose }) {
               Cancel
             </button>
             <button
-              className="text-sm px-5 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40 transition-colors flex items-center gap-2"
+              className="text-sm px-5 py-2 rounded-lg bg-orange-500 text-white hover:bg-orange-600 disabled:opacity-40 transition-colors flex items-center gap-2"
               onClick={doParse}
               disabled={!file || parsing}
             >
@@ -426,13 +429,13 @@ function ShareModal({ projectId, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-xl w-full max-w-md overflow-hidden">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
           <div>
             <h2 className="font-semibold text-slate-800">Share Fixture Schedule</h2>
-            <p className="text-xs text-slate-400 mt-0.5">Share a live link with external consultants</p>
+            <p className="text-xs text-slate-500 mt-0.5">Share a live link with external consultants</p>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
+          <button onClick={onClose} className="text-slate-500 hover:text-slate-700">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -455,7 +458,7 @@ function ShareModal({ projectId, onClose }) {
                 <div className="flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-green-500" />
                   <span className="text-xs font-semibold text-green-700 uppercase tracking-wide">Active link</span>
-                  <span className={`ml-auto text-[10px] font-bold px-2 py-0.5 rounded-full border ${share.permission === 'edit' ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-slate-100 text-slate-500 border-slate-200'}`}>
+                  <span className={`ml-auto text-[11px] font-bold px-2 py-0.5 rounded-full border ${share.permission === 'edit' ? 'bg-orange-50 text-orange-700 border-orange-200' : 'bg-slate-100 text-slate-500 border-slate-200'}`}>
                     {share.permission === 'edit' ? '✎ Edit' : '👁 View only'}
                   </span>
                 </div>
@@ -474,7 +477,7 @@ function ShareModal({ projectId, onClose }) {
                   </button>
                 </div>
                 {share.lastViewedAt && (
-                  <p className="text-[10px] text-green-600">Last viewed: {new Date(share.lastViewedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+                  <p className="text-[11px] text-green-600">Last viewed: {new Date(share.lastViewedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
                 )}
               </div>
 
@@ -495,14 +498,14 @@ function ShareModal({ projectId, onClose }) {
                     placeholder="recipient@firm.com"
                     value={emailTo}
                     onChange={e => setEmailTo(e.target.value)}
-                    className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300"
+                    className="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500"
                   />
                   <textarea
                     placeholder="Optional message…"
                     value={emailMsg}
                     onChange={e => setEmailMsg(e.target.value)}
                     rows={2}
-                    className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-300 resize-none"
+                    className="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500 resize-none"
                   />
                   <div className="flex gap-2">
                     <button onClick={() => setEmailMode(false)} className="flex-1 px-3 py-2 rounded-lg text-sm border border-slate-200 text-slate-600 hover:bg-slate-100 transition-colors">
@@ -511,12 +514,12 @@ function ShareModal({ projectId, onClose }) {
                     <button
                       onClick={sendEmail}
                       disabled={!emailTo.trim() || sending}
-                      className="flex-1 px-3 py-2 rounded-lg text-sm font-semibold bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                      className="flex-1 px-3 py-2 rounded-lg text-sm font-semibold bg-orange-500 text-white hover:bg-orange-600 disabled:opacity-50 transition-colors"
                     >
                       {sent ? '✓ Sent!' : sending ? 'Sending…' : 'Send Email'}
                     </button>
                   </div>
-                  <p className="text-[10px] text-slate-400">Or use your email client: <a href={`mailto:${emailTo}?subject=Fixture Schedule&body=${encodeURIComponent(`Hi,\n\n${emailMsg}\n\nView the fixture schedule here: ${shareUrl()}\n\nShared via ILC Studios Budget Platform`)}`} className="text-blue-500 underline" target="_blank" rel="noopener noreferrer">Open in Mail app ↗</a></p>
+                  <p className="text-[11px] text-slate-500">Or use your email client: <a href={`mailto:${emailTo}?subject=Fixture Schedule&body=${encodeURIComponent(`Hi,\n\n${emailMsg}\n\nView the fixture schedule here: ${shareUrl()}\n\nShared via ILC Studios Budget Platform`)}`} className="text-orange-600 underline" target="_blank" rel="noopener noreferrer">Open in Mail app ↗</a></p>
                 </div>
               )}
 
@@ -544,10 +547,10 @@ function ShareModal({ projectId, onClose }) {
                       { value: 'view', label: '👁  View only', desc: 'Can see the schedule but not edit' },
                       { value: 'edit', label: '✎  Can edit',  desc: 'Can update any cell directly' },
                     ].map(opt => (
-                      <label key={opt.value} className={`flex-1 flex flex-col gap-1 rounded-xl border p-3 cursor-pointer transition-colors ${permission === opt.value ? 'border-blue-400 bg-blue-50' : 'border-slate-200 hover:border-slate-300'}`}>
+                      <label key={opt.value} className={`flex-1 flex flex-col gap-1 rounded-lg border p-3 cursor-pointer transition-colors ${permission === opt.value ? 'border-orange-400 bg-orange-50' : 'border-slate-200 hover:border-slate-300'}`}>
                         <input type="radio" name="perm" value={opt.value} checked={permission === opt.value} onChange={() => setPermission(opt.value)} className="hidden" />
                         <span className="text-sm font-semibold text-slate-700">{opt.label}</span>
-                        <span className="text-[10px] text-slate-400">{opt.desc}</span>
+                        <span className="text-[11px] text-slate-500">{opt.desc}</span>
                       </label>
                     ))}
                   </div>
@@ -555,7 +558,7 @@ function ShareModal({ projectId, onClose }) {
                 <button
                   onClick={generate}
                   disabled={generating}
-                  className="w-full py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-50 transition-colors"
+                  className="w-full py-2.5 rounded-lg bg-orange-500 text-white text-sm font-semibold hover:bg-orange-600 disabled:opacity-50 transition-colors"
                 >
                   {generating ? 'Creating link…' : 'Create share link'}
                 </button>
@@ -582,8 +585,8 @@ function MfrSelectCell({ value, manufacturers, readOnly, onSave, onOpenCreate })
 
   if (readOnly) {
     return (
-      <div className="px-1.5 py-1.5 text-xs text-blue-700 font-medium whitespace-normal break-words min-h-[28px]">
-        {value || <span className="text-slate-300 italic">—</span>}
+      <div className="px-1.5 py-1.5 text-xs text-slate-800 font-medium whitespace-normal break-words min-h-[28px]">
+        {value || <span className="text-slate-400 italic">—</span>}
       </div>
     );
   }
@@ -594,9 +597,9 @@ function MfrSelectCell({ value, manufacturers, readOnly, onSave, onOpenCreate })
     <div ref={ref} className="relative">
       <div
         onClick={() => { setOpen(o => !o); setQ(''); }}
-        className="px-1.5 py-1.5 text-xs cursor-pointer hover:bg-slate-50 rounded min-h-[28px] text-blue-700 font-medium whitespace-normal break-words"
+        className="px-1.5 py-1.5 text-xs cursor-pointer hover:bg-slate-50 rounded min-h-[28px] text-slate-800 font-medium whitespace-normal break-words"
       >
-        {value || <span className="text-slate-300 italic">Select mfr…</span>}
+        {value || <span className="text-slate-400 italic">Select mfr…</span>}
       </div>
       {open && (
         <div className="absolute top-full left-0 mt-0.5 w-56 bg-white rounded-lg shadow-xl border border-slate-200 z-50 overflow-hidden">
@@ -605,7 +608,7 @@ function MfrSelectCell({ value, manufacturers, readOnly, onSave, onOpenCreate })
               autoFocus
               value={q}
               onChange={e => setQ(e.target.value)}
-              className="w-full text-xs border border-slate-200 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-400"
+              className="w-full text-xs border border-slate-200 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-orange-500"
               placeholder="Search manufacturers…"
               onKeyDown={e => e.key === 'Escape' && setOpen(false)}
             />
@@ -613,16 +616,16 @@ function MfrSelectCell({ value, manufacturers, readOnly, onSave, onOpenCreate })
           <div className="max-h-48 overflow-y-auto">
             {filtered.length > 0 ? filtered.map(m => (
               <button key={m.id} onClick={() => { onSave(m.name); setOpen(false); setQ(''); }}
-                className={`w-full text-left px-3 py-1.5 text-xs hover:bg-blue-50 hover:text-blue-700 transition-colors ${value === m.name ? 'bg-blue-50 text-blue-700 font-semibold' : ''}`}>
+                className={`w-full text-left px-3 py-1.5 text-xs hover:bg-orange-50 hover:text-orange-700 transition-colors ${value === m.name ? 'bg-orange-50 text-orange-700 font-semibold' : ''}`}>
                 {m.name}
               </button>
             )) : (
-              <p className="px-3 py-2 text-xs text-slate-400 italic">No match</p>
+              <p className="px-3 py-2 text-xs text-slate-500 italic">No match</p>
             )}
           </div>
           <div className="border-t border-slate-100 p-1.5">
             <button onClick={() => { setOpen(false); onOpenCreate(); }}
-              className="w-full text-left px-2 py-1 text-xs text-blue-600 hover:bg-blue-50 rounded font-semibold transition-colors">
+              className="w-full text-left px-2 py-1 text-xs text-orange-600 hover:bg-orange-50 rounded font-semibold transition-colors">
               + New Manufacturer
             </button>
           </div>
@@ -654,19 +657,19 @@ function NewMfrModal({ onCreated, onClose }) {
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-xl w-full max-w-sm p-6">
         <h3 className="font-bold text-slate-900 mb-4">New Manufacturer</h3>
         <form onSubmit={submit} className="space-y-3">
           <div>
             <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Name *</label>
             <input autoFocus value={name} onChange={e => setName(e.target.value)}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
               placeholder="e.g. Lithonia Lighting" />
           </div>
           <div>
             <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Website</label>
             <input value={website} onChange={e => setWebsite(e.target.value)}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
               placeholder="https://" />
           </div>
           {err && <p className="text-xs text-red-600">{err}</p>}
@@ -674,7 +677,7 @@ function NewMfrModal({ onCreated, onClose }) {
             <button type="button" onClick={onClose}
               className="flex-1 px-4 py-2 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-slate-50">Cancel</button>
             <button type="submit" disabled={saving}
-              className="flex-1 px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 disabled:opacity-60">
+              className="flex-1 px-4 py-2 rounded-lg bg-orange-500 text-white text-sm font-semibold hover:bg-orange-600 disabled:opacity-60">
               {saving ? 'Saving…' : 'Create'}
             </button>
           </div>
@@ -976,9 +979,9 @@ export default function FixtureScheduleEditor({ projectId, serviceType }) {
 
       {/* ── Parse banner ───────────────────────────────────────────────────── */}
       {parseBanner && (
-        <div className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-xl px-4 py-3">
-          <div className="flex items-center gap-2 text-sm text-blue-800">
-            <svg className="w-4 h-4 text-blue-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <div className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-lg px-4 py-3">
+          <div className="flex items-center gap-2 text-sm text-slate-700">
+            <svg className="w-4 h-4 text-slate-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             <span>
@@ -988,7 +991,7 @@ export default function FixtureScheduleEditor({ projectId, serviceType }) {
               )}
             </span>
           </div>
-          <button className="text-blue-400 hover:text-blue-600" onClick={() => setParseBanner(null)}>
+          <button className="text-slate-500 hover:text-slate-700" onClick={() => setParseBanner(null)}>
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -998,11 +1001,11 @@ export default function FixtureScheduleEditor({ projectId, serviceType }) {
 
       {/* ── Flagged rows warning ────────────────────────────────────────────── */}
       {!isReadOnly && flaggedCount > 0 && (
-        <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-amber-800">
+        <div className="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-800">
           <svg className="w-4 h-4 text-amber-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
           </svg>
-          <span><strong>{flaggedCount}</strong> row{flaggedCount !== 1 ? 's' : ''} flagged for review — highlighted in amber below. Edit any cell to clear the flag.</span>
+          <span><strong>{flaggedCount}</strong> row{flaggedCount !== 1 ? 's' : ''} flagged for review, highlighted in amber below. Edit any cell to clear the flag.</span>
         </div>
       )}
 
@@ -1011,7 +1014,7 @@ export default function FixtureScheduleEditor({ projectId, serviceType }) {
         <div className="flex items-center gap-2 flex-wrap">
           {/* Version selector */}
           <select
-            className="text-xs border border-slate-200 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-200"
+            className="text-xs border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500"
             value={selectedId}
             onChange={e => setSelectedId(e.target.value)}
           >
@@ -1034,17 +1037,17 @@ export default function FixtureScheduleEditor({ projectId, serviceType }) {
                   onChange={e => setRenameInput(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter') renameVersion(activeSchedule.id); if (e.key === 'Escape') { setRenamingVerId(null); setRenameInput(''); } }}
                   placeholder="Label (optional)"
-                  className="text-xs border border-blue-300 rounded-md px-2 py-1 w-32 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                  className="text-xs border border-slate-300 rounded-lg px-2 py-1 w-32 focus:outline-none focus:ring-2 focus:ring-orange-500"
                 />
-                <button onClick={() => renameVersion(activeSchedule.id)} className="text-xs px-2 py-1 rounded-md bg-blue-600 text-white hover:bg-blue-700">Save</button>
-                <button onClick={() => { setRenamingVerId(null); setRenameInput(''); }} className="text-xs px-2 py-1 rounded-md border border-slate-200 text-slate-500 hover:bg-slate-50">Cancel</button>
+                <button onClick={() => renameVersion(activeSchedule.id)} className="text-xs font-semibold px-2 py-1 rounded-lg bg-orange-500 text-white hover:bg-orange-600">Save</button>
+                <button onClick={() => { setRenamingVerId(null); setRenameInput(''); }} className="text-xs font-semibold px-2 py-1 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50">Cancel</button>
               </div>
             ) : (
               <div className="flex items-center gap-1">
                 <button
                   onClick={() => { setRenamingVerId(activeSchedule.id); setRenameInput(activeSchedule.submissionTag || ''); }}
                   title="Rename this version"
-                  className="p-1.5 rounded text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                  className="p-1.5 rounded text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors"
                 >
                   <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -1053,7 +1056,7 @@ export default function FixtureScheduleEditor({ projectId, serviceType }) {
                 <button
                   onClick={() => setDeleteConfirm({ id: activeSchedule.id, label: `v${activeSchedule.version}${activeSchedule.submissionTag ? ` · ${activeSchedule.submissionTag}` : ''}` })}
                   title="Delete this version"
-                  className="p-1.5 rounded text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                  className="p-1.5 rounded text-slate-500 hover:text-red-600 hover:bg-red-50 transition-colors"
                 >
                   <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -1089,32 +1092,24 @@ export default function FixtureScheduleEditor({ projectId, serviceType }) {
               placeholder="Search all fields…"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              className="text-xs pl-7 pr-3 py-1.5 rounded-lg border border-slate-200 bg-white text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-200 w-44"
+              className="text-xs pl-7 pr-3 py-1.5 rounded-lg border border-slate-300 bg-white text-slate-700 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500 w-44"
             />
             {searchQuery && (
-              <button onClick={() => setSearchQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500">
+              <button onClick={() => setSearchQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-700">
                 <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
             )}
           </div>
 
           {/* Condition filter toggle */}
-          <button
-            className={`text-xs px-3 py-1.5 rounded-lg border transition-colors flex items-center gap-1.5 ${
-              showFilters || activeConditions.length > 0
-                ? 'border-blue-400 bg-blue-50 text-blue-700'
-                : 'border-slate-200 text-slate-600 hover:bg-slate-50'
-            }`}
+          <FilterButton
+            count={activeConditions.length}
+            open={showFilters}
             onClick={() => setShowFilters(v => !v)}
-          >
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2a1 1 0 01-.293.707L13 13.414V19a1 1 0 01-.553.894l-4 2A1 1 0 017 21v-7.586L3.293 6.707A1 1 0 013 6V4z" />
-            </svg>
-            Filter{activeConditions.length > 0 ? ` (${activeConditions.length})` : ''}
-          </button>
+          />
 
           <button
-            className="text-xs px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
+            className={BTN_COMPACT}
             onClick={() => setShowInternal(v => !v)}
           >
             {showInternal ? 'Hide' : 'Show'} Internal Notes
@@ -1122,7 +1117,7 @@ export default function FixtureScheduleEditor({ projectId, serviceType }) {
 
           <a
             href={`/api/projects/${projectId}/fixture-schedule/export?version=${isReadOnly ? activeSchedule?.version : 'draft'}`}
-            className="text-xs px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors flex items-center gap-1.5 no-underline"
+            className={`${BTN_COMPACT} no-underline`}
             download
           >
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -1132,7 +1127,7 @@ export default function FixtureScheduleEditor({ projectId, serviceType }) {
           </a>
 
           <button
-            className="text-xs px-3 py-1.5 rounded-lg border border-blue-200 text-blue-700 bg-blue-50 hover:bg-blue-100 transition-colors flex items-center gap-1.5"
+            className={BTN_COMPACT}
             onClick={() => setShowShare(true)}
           >
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -1143,7 +1138,7 @@ export default function FixtureScheduleEditor({ projectId, serviceType }) {
 
           {!isReadOnly && (
             <button
-              className="text-xs px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors flex items-center gap-1.5"
+              className={BTN_COMPACT}
               onClick={() => setShowImport(true)}
             >
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -1156,7 +1151,7 @@ export default function FixtureScheduleEditor({ projectId, serviceType }) {
           {/* Parse from PDF — only for Peer Review / Bid Only */}
           {!isReadOnly && isAiServiceType && (
             <button
-              className="text-xs px-3 py-1.5 rounded-lg border border-blue-200 text-blue-700 bg-blue-50 hover:bg-blue-100 transition-colors flex items-center gap-1.5"
+              className={BTN_COMPACT}
               onClick={() => setShowParse(true)}
             >
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -1169,7 +1164,7 @@ export default function FixtureScheduleEditor({ projectId, serviceType }) {
           {!isReadOnly && (
             <>
               <button
-                className="text-xs px-3 py-1.5 rounded-lg bg-purple-600 text-white hover:bg-purple-700 transition-colors flex items-center gap-1.5 disabled:opacity-40"
+                className={BTN_COMPACT_PRIMARY}
                 disabled={items.length === 0}
                 onClick={() => setShowPush(true)}
               >
@@ -1185,29 +1180,29 @@ export default function FixtureScheduleEditor({ projectId, serviceType }) {
 
       {/* ── Empty state ─────────────────────────────────────────────────────── */}
       {items.length === 0 && !loading && (
-        <div className="bg-white rounded-2xl border border-slate-200 py-16 flex flex-col items-center gap-4 text-center px-8">
+        <div className={`${CARD} py-16 flex flex-col items-center gap-4 text-center px-8`}>
           <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center">
             <svg className="w-6 h-6 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z" />
             </svg>
           </div>
           {isReadOnly ? (
-            <p className="text-sm text-slate-400">No items in this version</p>
+            <p className="text-sm text-slate-500">No items in this version</p>
           ) : isAiServiceType ? (
             <>
-              <p className="text-sm text-slate-600 font-medium">No fixtures yet</p>
-              <p className="text-xs text-slate-400 max-w-xs">Upload a fixture schedule PDF to auto-populate this table, or add fixtures manually.</p>
+              <p className="text-sm text-slate-700 font-medium">No fixtures yet</p>
+              <p className="text-xs text-slate-500 max-w-xs">Upload a fixture schedule PDF to auto-populate this table, or add fixtures manually.</p>
               <div className="flex gap-2">
                 <button
                   onClick={() => setShowParse(true)}
-                  className="px-4 py-2 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition-colors"
+                  className={BTN_PRIMARY}
                 >
                   Parse from PDF
                 </button>
                 <button
                   onClick={addRow}
                   disabled={saving}
-                  className="px-4 py-2 rounded-lg border border-slate-200 text-slate-600 text-xs font-medium hover:bg-slate-50 transition-colors"
+                  className={BTN_SECONDARY}
                 >
                   + Add Fixture
                 </button>
@@ -1215,12 +1210,12 @@ export default function FixtureScheduleEditor({ projectId, serviceType }) {
             </>
           ) : (
             <>
-              <p className="text-sm text-slate-600 font-medium">No fixtures yet</p>
-              <p className="text-xs text-slate-400">Add your first fixture type to get started.</p>
+              <p className="text-sm text-slate-700 font-medium">No fixtures yet</p>
+              <p className="text-xs text-slate-500">Add your first fixture type to get started.</p>
               <button
                 onClick={addRow}
                 disabled={saving}
-                className="px-4 py-2 rounded-lg bg-purple-600 text-white text-xs font-semibold hover:bg-purple-700 transition-colors"
+                className={BTN_PRIMARY}
               >
                 + Add Fixture
               </button>
@@ -1231,25 +1226,25 @@ export default function FixtureScheduleEditor({ projectId, serviceType }) {
 
       {/* ── Condition filter builder ──────────────────────────────────────────── */}
       {showFilters && (
-        <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2.5">
+        <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 space-y-2.5">
           <div className="flex items-center justify-between mb-1">
-            <span className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Filter conditions</span>
-            <span className="text-[10px] text-slate-400">All conditions must match (AND)</span>
+            <span className={LABEL}>Filter conditions</span>
+            <span className="text-xs text-slate-500">All conditions must match (AND)</span>
           </div>
 
           {conditions.length === 0 && (
-            <p className="text-xs text-slate-400 italic">No conditions yet — click "Add condition" below.</p>
+            <p className="text-xs text-slate-500">No conditions yet. Click "Add condition" below.</p>
           )}
 
           {conditions.map((cond, i) => (
             <div key={cond.id} className="flex items-center gap-2 flex-wrap">
-              <span className="text-[10px] font-semibold text-slate-400 w-6 shrink-0 text-right">
+              <span className={`${LABEL} w-6 shrink-0 text-right`}>
                 {i === 0 ? 'If' : 'And'}
               </span>
               <select
                 value={cond.field}
                 onChange={e => updateCondition(cond.id, { field: e.target.value })}
-                className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-blue-200"
+                className={`${INPUT} w-auto py-1.5 text-xs`}
               >
                 {visibleCols.map(col => (
                   <option key={col.key} value={col.key}>{col.label}</option>
@@ -1258,7 +1253,7 @@ export default function FixtureScheduleEditor({ projectId, serviceType }) {
               <select
                 value={cond.op}
                 onChange={e => updateCondition(cond.id, { op: e.target.value })}
-                className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-blue-200"
+                className={`${INPUT} w-auto py-1.5 text-xs`}
               >
                 {FILTER_OPS.map(op => (
                   <option key={op.value} value={op.value}>{op.label}</option>
@@ -1270,12 +1265,12 @@ export default function FixtureScheduleEditor({ projectId, serviceType }) {
                   value={cond.value}
                   onChange={e => updateCondition(cond.id, { value: e.target.value })}
                   placeholder="value…"
-                  className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-blue-200 w-36"
+                  className={`${INPUT} w-36 py-1.5 text-xs`}
                 />
               )}
               <button
                 onClick={() => removeCondition(cond.id)}
-                className="text-slate-300 hover:text-red-400 transition-colors p-1 rounded hover:bg-red-50"
+                className="text-slate-500 hover:text-red-600 transition-colors p-1 rounded-lg hover:bg-red-50"
               >
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -1287,13 +1282,13 @@ export default function FixtureScheduleEditor({ projectId, serviceType }) {
           <div className="flex items-center gap-2 pt-1">
             <button
               onClick={addCondition}
-              className="text-xs px-3 py-1.5 rounded-lg border border-blue-300 text-blue-600 hover:bg-blue-50 transition-colors flex items-center gap-1.5"
+              className={BTN_COMPACT}
             >
               <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
               Add condition
             </button>
             {conditions.length > 0 && (
-              <button onClick={() => setConditions([])} className="text-xs text-slate-400 hover:text-red-500 transition-colors">
+              <button onClick={() => setConditions([])} className="text-xs font-semibold text-orange-600 hover:text-orange-700 transition-colors">
                 Clear all
               </button>
             )}
@@ -1303,7 +1298,7 @@ export default function FixtureScheduleEditor({ projectId, serviceType }) {
 
       {/* ── Table ──────────────────────────────────────────────────────────── */}
       {rawItems.length > 0 && (
-        <div className="bg-white rounded-2xl border border-slate-200 overflow-x-auto shadow-sm">
+        <div className={`${CARD} overflow-x-auto`}>
           <table className="w-full text-left border-collapse table-fixed">
             <colgroup>
               {!isReadOnly && <col style={{ width: '24px' }} />}  {/* + insert */}
@@ -1320,26 +1315,22 @@ export default function FixtureScheduleEditor({ projectId, serviceType }) {
                 {!isReadOnly && <th className="px-1" />}  {/* delete */}
                 {!isReadOnly && <th className="px-1" />}  {/* drag */}
                 {visibleCols.map(col => (
-                  <th key={col.key} className="px-1.5 pt-2.5 pb-1">
-                    <button
-                      onClick={() => toggleSort(col.key)}
-                      className="flex items-center gap-1 text-[11px] font-semibold text-slate-500 uppercase tracking-wider hover:text-slate-800 transition-colors w-full text-left"
-                    >
-                      {col.label}
-                      <span className={`shrink-0 ${sortCol === col.key ? 'text-blue-500' : 'text-slate-300'}`}>
-                        {sortCol === col.key && sortDir === 'asc'  ? '↑' :
-                         sortCol === col.key && sortDir === 'desc' ? '↓' : '⇅'}
-                      </span>
-                    </button>
-                  </th>
+                  <SortHeader
+                    key={col.key}
+                    label={col.label}
+                    field={col.key}
+                    sort={sortCol ? { key: sortCol, dir: sortDir } : null}
+                    onSort={toggleSort}
+                    className="px-1.5 pt-2.5 pb-1"
+                  />
                 ))}
               </tr>
             </thead>
             <tbody>
               {items.length === 0 && (
                 <tr>
-                  <td colSpan={visibleCols.length + (isReadOnly ? 0 : 2)} className="py-8 text-center text-xs text-slate-400">
-                    No rows match. <button onClick={() => { setConditions([]); setSearchQuery(''); }} className="underline hover:text-blue-500">Clear filters</button>
+                  <td colSpan={visibleCols.length + (isReadOnly ? 0 : 2)} className="py-8 text-center text-xs text-slate-500">
+                    No rows match. <button onClick={() => { setConditions([]); setSearchQuery(''); }} className="underline hover:text-orange-600">Clear filters</button>
                   </td>
                 </tr>
               )}
@@ -1347,7 +1338,7 @@ export default function FixtureScheduleEditor({ projectId, serviceType }) {
                 const rowBg = item.aiFlagged
                   ? 'bg-amber-50 border-amber-100'
                   : dragOverId === item.id
-                    ? 'bg-blue-50 border-slate-100'
+                    ? 'bg-orange-50 border-slate-100'
                     : idx % 2 === 0
                       ? 'bg-white border-slate-100'
                       : 'bg-slate-50/50 border-slate-100';
@@ -1367,7 +1358,7 @@ export default function FixtureScheduleEditor({ projectId, serviceType }) {
                     {!isReadOnly && (
                       <td className="px-0.5 py-1">
                         <button
-                          className="w-5 h-5 flex items-center justify-center rounded text-slate-300 hover:text-green-500 hover:bg-green-50 transition-colors"
+                          className="w-5 h-5 flex items-center justify-center rounded text-slate-400 hover:text-green-600 hover:bg-green-50 transition-colors"
                           onClick={() => addRow(item.id)}
                           disabled={saving}
                           title="Insert row below"
@@ -1382,7 +1373,7 @@ export default function FixtureScheduleEditor({ projectId, serviceType }) {
                     {!isReadOnly && (
                       <td className="px-1 py-1 w-8">
                         <button
-                          className="w-6 h-6 flex items-center justify-center rounded text-slate-300 hover:text-red-400 hover:bg-red-50 transition-colors"
+                          className="w-6 h-6 flex items-center justify-center rounded text-slate-400 hover:text-red-600 hover:bg-red-50 transition-colors"
                           onClick={() => deleteRow(item.id)}
                           title="Delete row"
                         >
@@ -1438,7 +1429,7 @@ export default function FixtureScheduleEditor({ projectId, serviceType }) {
 
       {/* ── Footer ─────────────────────────────────────────────────────────── */}
       {!isReadOnly && rawItems.length > 0 && (
-        <div className="flex items-center justify-between text-xs text-slate-400 px-1">
+        <div className="flex items-center justify-between text-xs text-slate-500 px-1">
           <span>
             {isFiltering
               ? `${items.length} of ${rawItems.length} rows · `
@@ -1446,7 +1437,7 @@ export default function FixtureScheduleEditor({ projectId, serviceType }) {
             Click any cell to edit · Drag to reorder
           </span>
           <button
-            className="text-purple-500 hover:text-purple-700 font-medium transition-colors flex items-center gap-1"
+            className="text-orange-600 hover:text-orange-700 font-semibold transition-colors flex items-center gap-1"
             onClick={() => addRow()}
             disabled={saving}
           >
@@ -1459,7 +1450,7 @@ export default function FixtureScheduleEditor({ projectId, serviceType }) {
       {/* ── Delete version confirm modal ───────────────────────────────────── */}
       {deleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-xl w-full max-w-sm p-6">
             <h3 className="text-base font-bold text-slate-800 mb-2">Delete version?</h3>
             <p className="text-sm text-slate-500 mb-1">
               You're about to permanently delete <strong className="text-slate-700">{deleteConfirm.label}</strong> of the fixture schedule.

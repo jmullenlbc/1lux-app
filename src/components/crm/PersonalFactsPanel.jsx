@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { PERSONAL_CATEGORIES, PERSONAL_LABEL } from '@/lib/contacts/personalFacts';
+import { TILE, INPUT, BTN_COMPACT_PRIMARY, HELPER } from '@/components/ui/tokens';
 
 /**
  * Personal things this person has mentioned: kids, golf, cold brew. Read out
@@ -41,15 +42,15 @@ export default function PersonalFactsPanel({ contactId, name }) {
     if (await send('POST', draft)) setDraft(d => ({ ...d, fact: '' }));
   }
 
-  if (!facts) return <p className="mt-2 text-xs text-slate-400">{err || 'Loading…'}</p>;
+  if (!facts) return <p className="mt-2 text-xs text-slate-500">{err || 'Loading...'}</p>;
   const live = facts.filter(f => !f.archivedAt);
   const away = facts.filter(f => f.archivedAt);
 
   return (
-    <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50/60 p-3">
+    <div className={`mt-2 ${TILE}`}>
       {intel.length > 0 && (
         <div className="mb-3">
-          <p className="text-[11px] text-slate-500 mb-1">Noted in meetings</p>
+          <p className={`${HELPER} mb-1`}>Noted in meetings</p>
           <ul className="space-y-1">
             {intel.map(i => (
               <li key={i.id} className="text-xs text-slate-700">
@@ -60,10 +61,10 @@ export default function PersonalFactsPanel({ contactId, name }) {
           </ul>
         </div>
       )}
-      <p className="text-[11px] text-slate-500 mb-2">
+      <p className={`${HELPER} mb-2`}>
         Things {name?.split(' ')[0] || 'they'} mentioned outside work. Picked up from sales notes, or add your own. Only staff see these.
       </p>
-      {live.length === 0 && <p className="text-xs text-slate-400 mb-2">Nothing yet.</p>}
+      {live.length === 0 && <p className="text-xs text-slate-500 mb-2">Nothing yet.</p>}
       <ul className="space-y-1 mb-2">
         {live.map(f => (
           <li key={f.id} className="group/f flex items-center gap-2 text-xs">
@@ -71,32 +72,32 @@ export default function PersonalFactsPanel({ contactId, name }) {
             <span className="text-slate-700">{f.fact}</span>
             {f.sourceNote && <span className="text-slate-300" title={`From the note "${f.sourceNote.title || 'untitled'}"`}>from a note</span>}
             <button onClick={() => send('PATCH', { factId: f.id, archived: true })} disabled={busy}
-              className="ml-auto text-slate-300 hover:text-amber-600 opacity-0 group-hover/f:opacity-100">Put away</button>
+              className="ml-auto text-slate-400 hover:text-orange-600 opacity-0 group-hover/f:opacity-100">Put away</button>
           </li>
         ))}
       </ul>
       <div className="flex gap-2">
         <select value={draft.category} onChange={e => setDraft(d => ({ ...d, category: e.target.value }))}
-          className="border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white">
+          className={`${INPUT} w-auto`}>
           {PERSONAL_CATEGORIES.map(c => <option key={c} value={c}>{PERSONAL_LABEL[c]}</option>)}
         </select>
         <input value={draft.fact} onChange={e => setDraft(d => ({ ...d, fact: e.target.value }))}
           onKeyDown={e => { if (e.key === 'Enter') add(); }} maxLength={200}
-          placeholder="e.g. Two kids who play soccer" className="flex-1 border border-slate-200 rounded-lg px-3 py-2 text-sm bg-white" />
+          placeholder="e.g. Two kids who play soccer" className={`${INPUT} flex-1`} />
         <button onClick={add} disabled={busy || !draft.fact.trim()}
-          className="px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white">Add</button>
+          className={`${BTN_COMPACT_PRIMARY} disabled:opacity-40`}>Add</button>
       </div>
       {err && <p className="text-xs text-red-600 mt-1">{err}</p>}
       {away.length > 0 && (
         <div className="mt-2">
-          <button onClick={() => setShowAway(s => !s)} className="text-[11px] text-slate-400 hover:underline">Put away ({away.length})</button>
+          <button onClick={() => setShowAway(s => !s)} className="text-[11px] text-slate-500 hover:underline">Put away ({away.length})</button>
           {showAway && (
             <ul className="mt-1 space-y-1">
               {away.map(f => (
                 <li key={f.id} className="flex items-center gap-2 text-xs text-slate-400">
                   <span className="line-through">{f.fact}</span>
                   <button onClick={() => send('PATCH', { factId: f.id, archived: false })} disabled={busy}
-                    className="text-amber-600 hover:underline">Restore</button>
+                    className="text-orange-600 hover:underline">Restore</button>
                 </li>
               ))}
             </ul>

@@ -8,7 +8,7 @@ export default function NewSubmissionModal({ projectId, tracker, onClose, onCrea
   const [saving, setSaving] = useState(false);
   const [error,  setError]  = useState('');
 
-  // Per-item spec overrides — optional
+  // Per-item spec overrides, optional
   const [specs, setSpecs] = useState(() =>
     (tracker?.items || []).map(item => {
       // Default to latest known version's spec
@@ -55,7 +55,7 @@ export default function NewSubmissionModal({ projectId, tracker, onClose, onCrea
         <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between">
           <div>
             <h2 className="text-base font-bold text-slate-800">New Submission</h2>
-            <p className="text-xs text-slate-400 mt-0.5">Records what was submitted and when — reviews are added separately</p>
+            <p className="text-xs text-slate-500 mt-0.5">Records what was submitted and when, reviews are added separately</p>
           </div>
           <button onClick={onClose} className="text-slate-300 hover:text-slate-500">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -76,8 +76,8 @@ export default function NewSubmissionModal({ projectId, tracker, onClose, onCrea
                   autoFocus
                   value={name}
                   onChange={e => setName(e.target.value)}
-                  placeholder="e.g. 265100-001.0 — Aug 2025, or Submission 1"
-                  className="w-full text-sm border border-slate-200 rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-amber-400"
+                  placeholder="e.g. 265100-001.0, Aug 2025, or Submission 1"
+                  className="w-full text-sm border border-slate-200 rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-orange-500"
                 />
               </div>
               <div>
@@ -86,7 +86,7 @@ export default function NewSubmissionModal({ projectId, tracker, onClose, onCrea
                   type="date"
                   value={date}
                   onChange={e => setDate(e.target.value)}
-                  className="w-full text-sm border border-slate-200 rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-amber-400"
+                  className="w-full text-sm border border-slate-200 rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-orange-500"
                 />
               </div>
               <div>
@@ -95,7 +95,7 @@ export default function NewSubmissionModal({ projectId, tracker, onClose, onCrea
                   value={notes}
                   onChange={e => setNotes(e.target.value)}
                   placeholder="Any context about this submission"
-                  className="w-full text-sm border border-slate-200 rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-amber-400"
+                  className="w-full text-sm border border-slate-200 rounded-xl px-3.5 py-2.5 focus:outline-none focus:border-orange-500"
                 />
               </div>
             </div>
@@ -104,16 +104,16 @@ export default function NewSubmissionModal({ projectId, tracker, onClose, onCrea
             <div>
               <div className="flex items-center justify-between mb-2">
                 <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Fixture Specs in This Submission</p>
-                <p className="text-xs text-slate-400">Update if spec changed from prior submission</p>
+                <p className="text-xs text-slate-500">Update if spec changed from prior submission</p>
               </div>
               <div className="border border-slate-200 rounded-xl overflow-hidden">
                 <table className="w-full text-xs">
                   <thead>
                     <tr className="bg-slate-50 border-b border-slate-200">
                       <th className="px-3 py-2 w-8"><input type="checkbox" checked className="accent-amber-500" readOnly /></th>
-                      <th className="px-3 py-2 text-left font-semibold text-slate-400 w-16">Type</th>
-                      <th className="px-3 py-2 text-left font-semibold text-slate-400">Manufacturer</th>
-                      <th className="px-3 py-2 text-left font-semibold text-slate-400">Catalog / Model</th>
+                      <th className="px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500 w-16">Type</th>
+                      <th className="px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500">Manufacturer</th>
+                      <th className="px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500">Catalog / Model</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -133,7 +133,7 @@ export default function NewSubmissionModal({ projectId, tracker, onClose, onCrea
                             value={s.manufacturer}
                             onChange={e => updateSpec(i, 'manufacturer', e.target.value)}
                             disabled={!s.include}
-                            className="w-full text-xs border border-slate-200 rounded px-2 py-1 focus:outline-none focus:border-amber-400 disabled:bg-slate-50 disabled:text-slate-300"
+                            className="w-full text-xs border border-slate-200 rounded px-2 py-1 focus:outline-none focus:border-orange-500 disabled:bg-slate-50 disabled:text-slate-300"
                             placeholder="Manufacturer"
                           />
                         </td>
@@ -142,7 +142,7 @@ export default function NewSubmissionModal({ projectId, tracker, onClose, onCrea
                             value={s.modelNumber}
                             onChange={e => updateSpec(i, 'modelNumber', e.target.value)}
                             disabled={!s.include}
-                            className="w-full text-xs border border-slate-200 rounded px-2 py-1 focus:outline-none focus:border-amber-400 disabled:bg-slate-50 disabled:text-slate-300"
+                            className="w-full text-xs border border-slate-200 rounded px-2 py-1 focus:outline-none focus:border-orange-500 disabled:bg-slate-50 disabled:text-slate-300"
                             placeholder="Catalog #"
                           />
                         </td>
@@ -156,7 +156,7 @@ export default function NewSubmissionModal({ projectId, tracker, onClose, onCrea
 
           {/* Footer */}
           <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-between sticky bottom-0 bg-white">
-            <button type="button" onClick={onClose} className="text-sm text-slate-400 hover:text-slate-600">Cancel</button>
+            <button type="button" onClick={onClose} className="text-sm text-slate-500 hover:text-slate-600">Cancel</button>
             <button
               type="submit"
               disabled={saving}

@@ -132,7 +132,7 @@ export default function ImportModal({ projectId, trackerId, onClose, onImported 
         <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between">
           <div>
             <h2 className="text-base font-bold text-slate-800">Import Fixture Schedule</h2>
-            <p className="text-xs text-slate-400 mt-0.5">CSV or Excel export · columns auto-detected</p>
+            <p className="text-xs text-slate-500 mt-0.5">CSV or Excel export · columns auto-detected</p>
           </div>
           <button onClick={onClose} className="text-slate-300 hover:text-slate-500">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -148,14 +148,14 @@ export default function ImportModal({ projectId, trackerId, onClose, onImported 
           {step === 'upload' && (
             <div
               onClick={() => fileRef.current?.click()}
-              className="border-2 border-dashed border-slate-200 rounded-xl p-12 text-center cursor-pointer hover:border-amber-300 hover:bg-amber-50/30 transition-colors"
+              className="border-2 border-dashed border-slate-200 rounded-xl p-12 text-center cursor-pointer hover:border-orange-300 hover:bg-orange-50/30 transition-colors"
             >
               <input ref={fileRef} type="file" accept=".csv,.tsv,.txt,.xlsx,.xls" onChange={handleFile} className="hidden" />
               <svg className="w-8 h-8 text-slate-300 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
               <p className="text-sm font-medium text-slate-600">Drop your fixture schedule here</p>
-              <p className="text-xs text-slate-400 mt-1">CSV or TSV · needs Type, Manufacturer, Catalog # columns</p>
+              <p className="text-xs text-slate-500 mt-1">CSV or TSV · needs Type, Manufacturer, Catalog # columns</p>
             </div>
           )}
 
@@ -173,9 +173,9 @@ export default function ImportModal({ projectId, trackerId, onClose, onImported 
                   <select
                     value={mapping[field] ?? ''}
                     onChange={e => setMapping(prev => ({ ...prev, [field]: e.target.value === '' ? undefined : Number(e.target.value) }))}
-                    className="flex-1 text-sm border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-amber-400"
+                    className="flex-1 text-sm border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-orange-500"
                   >
-                    <option value="">— skip —</option>
+                    <option value="">Skip</option>
                     {headers.map((h, i) => (
                       <option key={i} value={i}>{h}</option>
                     ))}
@@ -195,10 +195,10 @@ export default function ImportModal({ projectId, trackerId, onClose, onImported 
                 <table className="w-full text-xs">
                   <thead>
                     <tr className="bg-slate-50 border-b border-slate-200">
-                      <th className="px-3 py-2 text-left font-semibold text-slate-400">Type</th>
-                      <th className="px-3 py-2 text-left font-semibold text-slate-400">Description</th>
-                      <th className="px-3 py-2 text-left font-semibold text-slate-400">Manufacturer</th>
-                      <th className="px-3 py-2 text-left font-semibold text-slate-400">Model</th>
+                      <th className="px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500">Type</th>
+                      <th className="px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500">Description</th>
+                      <th className="px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500">Manufacturer</th>
+                      <th className="px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500">Model</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -207,13 +207,13 @@ export default function ImportModal({ projectId, trackerId, onClose, onImported 
                         <td className="px-3 py-2 font-semibold text-slate-700">{item.typeCode}</td>
                         <td className="px-3 py-2 text-slate-500 max-w-[200px] truncate">{item.description}</td>
                         <td className="px-3 py-2 text-slate-500">{item.manufacturer}</td>
-                        <td className="px-3 py-2 text-slate-400 max-w-[180px] truncate">{item.modelNumber}</td>
+                        <td className="px-3 py-2 text-slate-500 max-w-[180px] truncate">{item.modelNumber}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
                 {preview.length > 20 && (
-                  <p className="text-xs text-slate-400 px-3 py-2 bg-slate-50 border-t border-slate-100">
+                  <p className="text-xs text-slate-500 px-3 py-2 bg-slate-50 border-t border-slate-100">
                     …and {preview.length - 20} more
                   </p>
                 )}
@@ -223,14 +223,14 @@ export default function ImportModal({ projectId, trackerId, onClose, onImported 
 
           {step === 'importing' && (
             <div className="flex items-center justify-center py-12">
-              <p className="text-sm text-slate-400">Importing…</p>
+              <p className="text-sm text-slate-500">Importing…</p>
             </div>
           )}
         </div>
 
         {/* Footer */}
         <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-between">
-          <button onClick={onClose} className="text-sm text-slate-400 hover:text-slate-600">Cancel</button>
+          <button onClick={onClose} className="text-sm text-slate-500 hover:text-slate-600">Cancel</button>
           <div className="flex items-center gap-2">
             {step === 'map' && (
               <button onClick={buildPreview}
@@ -240,7 +240,7 @@ export default function ImportModal({ projectId, trackerId, onClose, onImported 
             )}
             {step === 'preview' && (
               <>
-                <button onClick={() => setStep('map')} className="text-sm text-slate-400 hover:text-slate-600">
+                <button onClick={() => setStep('map')} className="text-sm text-slate-500 hover:text-slate-600">
                   ← Back
                 </button>
                 <button onClick={doImport}

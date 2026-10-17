@@ -176,7 +176,7 @@ export default function ExteriorSection({ responses, projectData, allSections, p
   const wpEach          = wpPriceOv ?? (WPC.perFixture ?? 350);
   const wallpackProduct = wpQty * wpEach;
   const wpMath = !wpHasScale && wpQtyOv == null
-    ? 'no units or building count yet — $0'
+    ? 'no units or building count yet, $0'
     : `${wpQtyOv != null ? `${wpQty} (manual)` : `${wpBuildings} bldg${wpBuildings === 1 ? '' : 's'} × ${wpPerBuilding}${wpIsHorizontal && (WPC.clubhouse ?? 0) > 0 ? ` + ${WPC.clubhouse} clubhouse` : ''} = ${wpQty}`} × $${wpEach.toLocaleString()}${wpPriceOv != null ? ' (manual)' : ''}`;
 
   // Pathway lighting — mirrors the engine block wired 2026-09-04: $/unit by
@@ -224,7 +224,7 @@ export default function ExteriorSection({ responses, projectData, allSections, p
       : pathwayAsksBollards
       ? `${pedMath}${pathwaySolarSuffix}`
       : numUnitsPD <= 0 || pathwayRate <= 0
-      ? 'no units yet — $0'
+      ? 'no units yet, $0'
       : pathwayFloored
         ? `${numUnitsPD.toLocaleString()} units × $${pathwayRate}/unit = $${Math.round(numUnitsPD * pathwayRate).toLocaleString()}, floored at $${pathwayFloor.toLocaleString()}${pathwaySolarSuffix}`
         : `${numUnitsPD.toLocaleString()} units × $${pathwayRate}/unit${pathwaySolarSuffix}`;
@@ -265,11 +265,11 @@ export default function ExteriorSection({ responses, projectData, allSections, p
     // transparent." The lines still add up to siteFeat.product.
     ...(siteFeat.items.length
       ? siteFeat.items.map(i => ({
-          label: `Site feature — ${siteFeatureLineLabel(i)}`,
+          label: `Site feature, ${siteFeatureLineLabel(i)}`,
           math:  `${i.how} ${siteFeatureCostLine(i)}`,
           value: i.product,
         }))
-      : [{ label: 'Site features', math: 'none found on the site plan or typed in Project Data — $0', value: 0 }]),
+      : [{ label: 'Site features', math: 'none found on the site plan or typed in Project Data, $0', value: 0 }]),
     { label: 'Miscellaneous',        math: `${((P.exterior?.miscBufferPct ?? 0.05) * 100).toFixed(0)}% buffer of full exterior (incl. amenities + manual adder)`, value: miscBuffer },
   ];
   // Subtotal of the breakdown box = everything in the formula EXCEPT amenities
@@ -326,7 +326,7 @@ export default function ExteriorSection({ responses, projectData, allSections, p
 
       {/* Auto scope summary */}
       <div className="bg-slate-50 rounded-xl border border-slate-200 p-4">
-        <div className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Scope Inputs from Project Data</div>
+        <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Scope Inputs from Project Data</div>
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 text-center">
           {[
             { label: 'Exterior Amenity SF',    value: extSf > 0 ? extSf.toLocaleString() : '—' },
@@ -344,22 +344,22 @@ export default function ExteriorSection({ responses, projectData, allSections, p
         <div className="mt-3 grid grid-cols-2 gap-2 text-xs text-slate-400">
           <div>• Surface parking: 1 fixture per ~{sp.stallsPerFixture ?? 9} stalls × ${(sp.perFixture ?? 1325).toLocaleString()}/fixture (area light + 30ft pole)</div>
           <div>• Carports: 1 × 7" disk per every other bay (${P.exterior?.carport?.diskEveryOther ?? 30} ea)</div>
-          <div>• Building wallpacks: per-building rate by building type × ${WPC.perFixture ?? 350} each — covers exterior doors too</div>
+          <div>• Building wallpacks: per-building rate by building type × ${WPC.perFixture ?? 350} each, covers exterior doors too</div>
           <div>• Pathway lighting: {pathwayAsksBollards ? `bollards / pedestrian poles, 1 per ${pedFt} ft of walkway × $${pedEach.toLocaleString()} (${pedPerHome} per home with no walkway length)` : `$/unit by building type ($${pathwayRate || 0}/unit here), floored at $${pathwayFloor.toLocaleString()}`}; solar sites × {PW.solarMultiplier ?? 1.6}; a manual pathway entry replaces the model line</div>
           <div>• Landscape: ${landscapePct.toFixed(2)} per SF of the net lot (lot − building footprint), capped at ${landscapeCap.toLocaleString()}</div>
-          <div>• Site features: tennis / pickleball 4 area lights per court; dog park / playground $3,000 package (2 pedestrian poles); courtyard 1 pole per 30 ft; turf play 1 pole per 50 ft — counted off the site plan or typed in Project Data</div>
+          <div>• Site features: tennis / pickleball 4 area lights per court; dog park / playground $3,000 package (2 pedestrian poles); courtyard 1 pole per 30 ft; turf play 1 pole per 50 ft, counted off the site plan or typed in Project Data</div>
         </div>
       </div>
 
       {/* Site design level — base / upgraded / solar (mirrors the public intake question) */}
       <QuestionCard
         question="What level of design would you like on the site?"
-        note="Base design covers code-required site and parking lighting. Solar fixtures carry their own panel, battery and controller, so the area lighting runs higher on product — but install labor should be reduced dramatically because there's no trenching or running conduit and wire to the poles."
+        note="Base design covers code-required site and parking lighting. Solar fixtures carry their own panel, battery and controller, so the area lighting runs higher on product, but install labor should be reduced dramatically because there's no trenching or running conduit and wire to the poles."
         costSuffix=" total"
         options={[
           { value: 'base',     label: 'Base design',                                sub: 'Code-required site and parking lighting', cost: 0 },
           { value: 'upgraded', label: `Upgraded landscape and/or path lighting: ${upgradedMultCfg}× landscape and path lighting`, sub: 'Richer landscape and path lighting than the base design', cost: (upgradedMultCfg - 1) * (Math.min(landscapeRaw, landscapeCap) + (pathwayManual > 0 || pathwayDeclined ? 0 : pathwayBase)) },
-          { value: 'solar',    label: `Solar lighting — ${P.exterior?.solarMultiplier ?? 2.3}× area lighting, ${PW.solarMultiplier ?? 1.6}× pathway`, sub: 'Self-contained solar fixtures; labor drops dramatically (no trenching, conduit, or wire runs)', cost: solarExtra + (pathwayManual > 0 || pathwayDeclined ? 0 : pathwayBase * ((PW.solarMultiplier ?? 1.6) - 1)) },
+          { value: 'solar',    label: `Solar lighting, ${P.exterior?.solarMultiplier ?? 2.3}× area lighting, ${PW.solarMultiplier ?? 1.6}× pathway`, sub: 'Self-contained solar fixtures; labor drops dramatically (no trenching, conduit, or wire runs)', cost: solarExtra + (pathwayManual > 0 || pathwayDeclined ? 0 : pathwayBase * ((PW.solarMultiplier ?? 1.6) - 1)) },
         ]}
         value={answers.siteDesignLevel} impact={qc['exterior.siteDesignLevel']}
         onChange={val => {
@@ -369,8 +369,8 @@ export default function ExteriorSection({ responses, projectData, allSections, p
       />
       {solarSite && (
         <div className="rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800">
-          <span className="font-semibold">Solar site lighting</span> — area lighting priced at {solarMult}× conventional, pathway at {pathwaySolarMult}×.
-          Install labor should be reduced dramatically — no trenching, conduit, or wire runs to the poles.
+          <span className="font-semibold">Solar site lighting</span>, area lighting priced at {solarMult}× conventional, pathway at {pathwaySolarMult}×.
+          Install labor should be reduced dramatically, no trenching, conduit, or wire runs to the poles.
         </div>
       )}
 
@@ -398,10 +398,10 @@ export default function ExteriorSection({ responses, projectData, allSections, p
         note="Exterior amenities include pool deck, courtyards, and outdoor gathering areas. Pick the level that matches the outdoor program; the rate runs on the exterior amenity SF."
         costSuffix=" total"
         options={[
-          { value: 'low',       label: `$${rateMap.low}/SF — Low finish`,             sub: 'No pool',                cost: extSf * rateMap.low },
-          { value: 'lowMedium', label: `$${rateMap.lowMedium}/SF — Low-Medium finish`, sub: 'Basic pool lighting and basic pole mounted area lights',                       cost: extSf * rateMap.lowMedium },
-          { value: 'medium',    label: `$${rateMap.medium}/SF — Medium finish`,        sub: 'Elevated pool area and possible other amenity spaces, like courtyards and gathering areas',                     cost: extSf * rateMap.medium },
-          { value: 'high',      label: `$${rateMap.high}/SF — High finish`,            sub: 'Everything in the 3 per SF level plus multiple exterior amenity areas, including decks, large hang out areas and more', cost: extSf * rateMap.high },
+          { value: 'low',       label: `$${rateMap.low}/SF, Low finish`,             sub: 'No pool',                cost: extSf * rateMap.low },
+          { value: 'lowMedium', label: `$${rateMap.lowMedium}/SF, Low-Medium finish`, sub: 'Basic pool lighting and basic pole mounted area lights',                       cost: extSf * rateMap.lowMedium },
+          { value: 'medium',    label: `$${rateMap.medium}/SF, Medium finish`,        sub: 'Elevated pool area and possible other amenity spaces, like courtyards and gathering areas',                     cost: extSf * rateMap.medium },
+          { value: 'high',      label: `$${rateMap.high}/SF, High finish`,            sub: 'Everything in the 3 per SF level plus multiple exterior amenity areas, including decks, large hang out areas and more', cost: extSf * rateMap.high },
         ]}
         value={answers.amenityLevel} impact={qc['exterior.amenityLevel']}
         onChange={val => {
@@ -419,13 +419,13 @@ export default function ExteriorSection({ responses, projectData, allSections, p
           {
             value: 'afterSunset',
             label: '24hrs or after dark',
-            sub:   `${EA.nighttimeMultiplier ?? 2}× the exterior amenity budget — much higher light levels required`,
+            sub:   `${EA.nighttimeMultiplier ?? 2}× the exterior amenity budget, much higher light levels required`,
             cost:  extraFromNight,
           },
           {
             value: 'duskToDawn',
             label: 'Dusk to Dawn',
-            sub:   'Standard exterior amenity budget — lights run on the normal dusk-to-dawn schedule',
+            sub:   'Standard exterior amenity budget, lights run on the normal dusk-to-dawn schedule',
             cost:  0,
           },
         ]}
@@ -445,7 +445,7 @@ export default function ExteriorSection({ responses, projectData, allSections, p
           </p>
         </div>
         <div className="text-right shrink-0">
-          <div className="text-[10px] uppercase tracking-widest text-slate-400">Subtotal</div>
+          <div className="text-[11px] uppercase tracking-wide text-slate-500">Subtotal</div>
           <div className="text-xl font-bold text-slate-900 font-mono">{formatCurrency(amenityProduct)}</div>
         </div>
       </div>
@@ -458,12 +458,12 @@ export default function ExteriorSection({ responses, projectData, allSections, p
             <p className="text-[11px] text-slate-400">Auto-calculated · read-only · excludes amenities (shown above)</p>
           </div>
           <div className="text-right shrink-0">
-            <div className="text-[10px] uppercase tracking-widest text-slate-400">Subtotal</div>
+            <div className="text-[11px] uppercase tracking-wide text-slate-500">Subtotal</div>
             <div className="text-lg font-bold text-slate-900 font-mono">{formatCurrency(formulaBreakdownSubtotal)}</div>
           </div>
         </div>
         <p className="text-xs text-slate-400 mb-4">
-          Calculated live from your project data — these update automatically and can&apos;t be edited
+          Calculated live from your project data, these update automatically and can&apos;t be edited
           here. The math behind each line is shown in parentheses.
         </p>
         <div className="space-y-1.5">
@@ -494,12 +494,12 @@ export default function ExteriorSection({ responses, projectData, allSections, p
             </p>
           </div>
           <div className="text-right shrink-0">
-            <div className="text-[10px] uppercase tracking-widest text-slate-400">Line Total</div>
+            <div className="text-[11px] uppercase tracking-wide text-slate-500">Line Total</div>
             <div className="text-lg font-bold text-slate-900 font-mono">{formatCurrency(parkingProduct)}</div>
           </div>
         </div>
         <p className="text-xs text-slate-400 mb-4">
-          Every pole light on the site — the parking lot and any private drive — is one count.
+          Every pole light on the site, the parking lot and any private drive, is one count.
           Type the total you want and it replaces both automatic numbers. Leave it blank to keep
           the automatic count.
         </p>
@@ -539,7 +539,7 @@ export default function ExteriorSection({ responses, projectData, allSections, p
         </p>
         {areaQtyOv != null && (
           <p className="mt-2 text-xs text-amber-700">
-            Manual override in use — {parkingFixtures} area light{parkingFixtures === 1 ? '' : 's'} instead of the automatic {areaAutoQty}.
+            Manual override in use, {parkingFixtures} area light{parkingFixtures === 1 ? '' : 's'} instead of the automatic {areaAutoQty}.
             Clear the box to go back to automatic.
           </p>
         )}
@@ -551,16 +551,16 @@ export default function ExteriorSection({ responses, projectData, allSections, p
           <div>
             <p className="font-semibold text-slate-900">Building Wallpacks</p>
             <p className="text-[11px] text-slate-400">
-              Auto-counted from buildings ({wpMath}) — override either number below if the site says otherwise.
+              Auto-counted from buildings ({wpMath}), override either number below if the site says otherwise.
             </p>
           </div>
           <div className="text-right shrink-0">
-            <div className="text-[10px] uppercase tracking-widest text-slate-400">Line Total</div>
+            <div className="text-[11px] uppercase tracking-wide text-slate-500">Line Total</div>
             <div className="text-lg font-bold text-slate-900 font-mono">{formatCurrency(wallpackProduct)}</div>
           </div>
         </div>
         <p className="text-xs text-slate-400 mb-4">
-          Egress wallpacks at the building exterior doors — this is the one line for exterior
+          Egress wallpacks at the building exterior doors, this is the one line for exterior
           door fixtures (the old separate door-sconce line was folded in here). The count comes
           from the # of Buildings on Project Data and the building type&apos;s wallpacks-per-building
           rate. Leave a box blank to keep the automatic number.
@@ -600,8 +600,8 @@ export default function ExteriorSection({ responses, projectData, allSections, p
         {(wpQtyOv != null || wpPriceOv != null) && (
           <p className="mt-2 text-xs text-amber-700">
             Manual override in use
-            {wpQtyOv != null ? ` — quantity ${wpQty} instead of the automatic ${wpAutoQty}` : ''}
-            {wpPriceOv != null ? ` — $${wpEach.toLocaleString()} each instead of $${(WPC.perFixture ?? 350).toLocaleString()}` : ''}.
+            {wpQtyOv != null ? `, quantity ${wpQty} instead of the automatic ${wpAutoQty}` : ''}
+            {wpPriceOv != null ? `, $${wpEach.toLocaleString()} each instead of $${(WPC.perFixture ?? 350).toLocaleString()}` : ''}.
             Clear the box to go back to automatic.
           </p>
         )}
@@ -612,7 +612,7 @@ export default function ExteriorSection({ responses, projectData, allSections, p
         <div className="flex items-start justify-between gap-4 mb-1">
           <p className="font-semibold text-slate-900">Exterior Lighting Manual Adder</p>
           <div className="text-right shrink-0">
-            <div className="text-[10px] uppercase tracking-widest text-slate-400">Manual Total</div>
+            <div className="text-[11px] uppercase tracking-wide text-slate-500">Manual Total</div>
             <div className="text-lg font-bold text-slate-900 font-mono">{formatCurrency(manualTotal)}</div>
           </div>
         </div>
@@ -674,7 +674,7 @@ export default function ExteriorSection({ responses, projectData, allSections, p
         </div>
         {overrideActive && (
           <p className="mt-2 text-xs text-amber-700">
-            Override in use: {formatCurrency(overrideVal)} — the formula + manual adder above are ignored.
+            Override in use: {formatCurrency(overrideVal)}, the formula + manual adder above are ignored.
           </p>
         )}
       </div>
@@ -683,10 +683,10 @@ export default function ExteriorSection({ responses, projectData, allSections, p
       {isDesign && (
         <>
           <QuestionCard
-            question="Exterior door emergency lighting — wallpacks or decorative fixtures?"
+            question="Exterior door emergency lighting, wallpacks or decorative fixtures?"
             note="Code requires emergency lighting at exterior egress doors. Wallpacks are the lowest-cost option. Decorative sconces cost more but look better on finished facades."
             options={[
-              { value: 'wallpack',   label: 'Wallpacks — code-compliant, lowest cost',                   cost: 0 },
+              { value: 'wallpack',   label: 'Wallpacks, code-compliant, lowest cost',                   cost: 0 },
               { value: 'decorative', label: 'Decorative exterior sconces at egress doors',               sub: 'Adder over wallpack; better aesthetic', cost: 0 },
               { value: 'integrated', label: 'Integrated emergency module in architectural fixture',       sub: 'Premium option; cleanest appearance', cost: 0 },
             ]}
@@ -701,9 +701,9 @@ export default function ExteriorSection({ responses, projectData, allSections, p
             question="Exterior pole lighting control strategy?"
             note="All exterior pole lighting requires a control strategy. Photocell is standard; smart controls add cost but allow scheduling, dimming, and energy reporting."
             options={[
-              { value: 'photocell',    label: 'Photocell — dusk-to-dawn automatic control',           sub: 'Standard; included in base', cost: 0 },
-              { value: 'timeClock',    label: 'Time clock — scheduled on/off',                        sub: 'Allows after-hours shutoff', cost: 0 },
-              { value: 'smartControl', label: 'Smart / networked controls',                           sub: 'Scheduling, dimming, energy reporting — adder', cost: 0 },
+              { value: 'photocell',    label: 'Photocell, dusk-to-dawn automatic control',           sub: 'Standard; included in base', cost: 0 },
+              { value: 'timeClock',    label: 'Time clock, scheduled on/off',                        sub: 'Allows after-hours shutoff', cost: 0 },
+              { value: 'smartControl', label: 'Smart / networked controls',                           sub: 'Scheduling, dimming, energy reporting, adder', cost: 0 },
             ]}
             value={answers.exteriorPoleControl}
             onChange={val => {
@@ -713,13 +713,13 @@ export default function ExteriorSection({ responses, projectData, allSections, p
           />
 
           <QuestionCard
-            question="Site lighting type — what does the site require?"
+            question="Site lighting type, what does the site require?"
             note="Site type drives fixture selection and layout. Mixed sites may require a combination of strategies."
             options={[
               { value: 'pedestrian',    label: 'Pedestrian poles / bollards only',                     sub: 'Lower-height poles, path lights, bollards', cost: 0 },
               { value: 'areaLights',    label: 'Area lights on tall poles',                            sub: '25–30ft poles; parking lots and drive aisles', cost: 0 },
               { value: 'buildingMount', label: 'Building-mounted fixtures only',                       sub: 'Wall packs and wall-mounted fixtures', cost: 0 },
-              { value: 'mixed',         label: 'Mixed — combination of pole types and building-mount', sub: 'Most common for mid-rise and podium buildings', cost: 0 },
+              { value: 'mixed',         label: 'Mixed, combination of pole types and building-mount', sub: 'Most common for mid-rise and podium buildings', cost: 0 },
             ]}
             value={answers.siteType}
             onChange={val => {
@@ -732,8 +732,8 @@ export default function ExteriorSection({ responses, projectData, allSections, p
             question="Is city-required roadway lighting included in this scope?"
             note="Some jurisdictions require the developer to install and dedicate roadway lighting to the city. This is typically a separate line item and may require a different fixture spec. Informational."
             options={[
-              { value: 'no',  label: 'No — no roadway lighting required',         cost: 0 },
-              { value: 'yes', label: 'Yes — city-required roadway lighting in scope', sub: 'Note in project; coordinate with civil engineer', cost: 0 },
+              { value: 'no',  label: 'No, no roadway lighting required',         cost: 0 },
+              { value: 'yes', label: 'Yes, city-required roadway lighting in scope', sub: 'Note in project; coordinate with civil engineer', cost: 0 },
             ]}
             value={answers.roadwayLighting}
             onChange={val => {

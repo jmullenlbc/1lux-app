@@ -2,6 +2,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useDeskCount } from './useDeskCount';
+import { TAB_ACTIVE } from '@/components/ui/tokens';
 
 // Phone bottom bar (Mike 9-26): Desk, Notes, People, Search, and Menu for
 // everything else (opens the side menu). Hidden from tablet width up.
@@ -21,23 +22,23 @@ function Icon({ d }) {
 export default function MobileTabBar() {
   const pathname = usePathname() || '';
   const desk = useDeskCount(pathname);
-  const cell = 'flex-1 flex flex-col items-center justify-center gap-0.5 min-h-[56px] text-[11px] font-medium';
+  const cell = 'flex-1 flex flex-col items-center justify-center gap-0.5 min-h-[56px] text-[11px] font-semibold border-t-2';
   return (
     <nav className="md:hidden fixed bottom-0 inset-x-0 z-40 flex bg-white border-t border-slate-200 print:hidden"
       style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}>
       {TABS.map(t => {
         const on = t.match(pathname);
         return (
-          <Link key={t.href} href={t.href} className={`${cell} relative ${on ? 'text-amber-600' : 'text-slate-500'}`}>
+          <Link key={t.href} href={t.href} className={`${cell} relative ${on ? TAB_ACTIVE : 'border-transparent text-slate-500'}`}>
             <Icon d={t.d} />
             {t.label}
             {t.label === 'Desk' && desk > 0 && (
-              <span className="absolute top-1.5 left-1/2 ml-2 min-w-[18px] px-1 rounded-full bg-amber-500 text-white text-[10px] font-bold leading-[18px] text-center">{desk > 99 ? '99+' : desk}</span>
+              <span className="absolute top-1.5 left-1/2 ml-2 min-w-[18px] px-1 rounded-full bg-orange-500 text-white text-[11px] font-bold tabular-nums leading-[18px] text-center">{desk > 99 ? '99+' : desk}</span>
             )}
           </Link>
         );
       })}
-      <button type="button" onClick={() => window.dispatchEvent(new Event(OPEN_MENU))} className={`${cell} text-slate-500`}>
+      <button type="button" onClick={() => window.dispatchEvent(new Event(OPEN_MENU))} className={`${cell} border-transparent text-slate-500`}>
         <Icon d="M4 6h16M4 12h16M4 18h16" />
         Menu
       </button>

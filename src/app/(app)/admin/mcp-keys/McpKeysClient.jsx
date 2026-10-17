@@ -14,6 +14,7 @@
  */
 
 import { useCallback, useEffect, useState } from 'react';
+import { WidgetLoading } from '@/components/ui/WidgetFrame';
 
 const ROLE_LABEL = {
   SUPER_ADMIN: 'Super Admin',
@@ -87,7 +88,7 @@ export default function McpKeysClient({ users }) {
     // whatever was using it will start failing.
     const verb = revoked ? 'Turn off' : 'Turn back on';
     if (!window.confirm(`${verb} "${key.name}"? ${revoked
-      ? 'Anything using this key stops working immediately. The key cannot be recovered — a replacement has to be issued.'
+      ? 'Anything using this key stops working immediately. The key cannot be recovered, a replacement has to be issued.'
       : 'This key will start working again straight away.'}`)) return;
     try {
       const res = await fetch(`/api/admin/mcp-keys/${key.id}`, {
@@ -122,22 +123,22 @@ export default function McpKeysClient({ users }) {
       )}
 
       {freshToken && (
-        <div className="rounded-lg border-2 border-emerald-300 bg-emerald-50 p-5">
-          <h2 className="font-semibold text-emerald-900">
+        <div className="rounded-xl border border-green-200 bg-green-50 p-5">
+          <h2 className="font-semibold text-green-900">
             Key created for {freshToken.who}
           </h2>
-          <p className="text-sm text-emerald-800 mt-1">
+          <p className="text-sm text-green-800 mt-1">
             Copy it now. This is the only time it will ever be shown &mdash; nobody,
             including you, can look it up again afterwards.
           </p>
           <div className="mt-3 flex items-center gap-2">
-            <code className="flex-1 px-3 py-2 rounded border border-emerald-300 bg-white text-xs font-mono break-all text-slate-800">
+            <code className="flex-1 px-3 py-2 rounded-lg border border-green-200 bg-white text-xs font-mono break-all text-slate-800">
               {freshToken.token}
             </code>
             <button
               type="button"
               onClick={copy}
-              className="px-3 py-2 rounded bg-emerald-600 text-white text-sm font-medium hover:bg-emerald-700 whitespace-nowrap"
+              className="px-3 py-1.5 rounded-lg bg-orange-500 text-white text-xs font-semibold hover:bg-orange-600 whitespace-nowrap"
             >
               {copied ? 'Copied' : 'Copy'}
             </button>
@@ -145,14 +146,14 @@ export default function McpKeysClient({ users }) {
           <button
             type="button"
             onClick={() => setFreshToken(null)}
-            className="mt-3 text-sm text-emerald-800 underline"
+            className="mt-3 text-sm text-green-800 underline"
           >
             I have saved it &mdash; hide this
           </button>
         </div>
       )}
 
-      <form onSubmit={create} className="rounded-lg border border-slate-200 bg-white p-5">
+      <form onSubmit={create} className="rounded-xl border border-slate-200 bg-white shadow-sm p-5">
         <h2 className="font-semibold text-slate-900">Issue a new key</h2>
         <div className="mt-3 grid gap-3 sm:grid-cols-[1fr,1fr,auto] sm:items-end">
           <label className="block">
@@ -174,7 +175,7 @@ export default function McpKeysClient({ users }) {
               <option value="">Choose a person…</option>
               {users.map(u => (
                 <option key={u.id} value={u.id}>
-                  {(u.name || u.email)} — {ROLE_LABEL[u.role] || u.role}
+                  {(u.name || u.email)}, {ROLE_LABEL[u.role] || u.role}
                 </option>
               ))}
             </select>
@@ -182,7 +183,7 @@ export default function McpKeysClient({ users }) {
           <button
             type="submit"
             disabled={creating || !name.trim() || !userId}
-            className="px-4 py-2 rounded bg-slate-900 text-white text-sm font-medium disabled:opacity-40 whitespace-nowrap"
+            className="px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold disabled:opacity-40 whitespace-nowrap"
           >
             {creating ? 'Creating…' : 'Create key'}
           </button>
@@ -196,7 +197,7 @@ export default function McpKeysClient({ users }) {
       <section>
         <h2 className="font-semibold text-slate-900 mb-2">Active keys</h2>
         {loading ? (
-          <p className="text-sm text-slate-500">Loading…</p>
+          <WidgetLoading />
         ) : live.length === 0 ? (
           <p className="text-sm text-slate-500">No keys yet.</p>
         ) : (
@@ -219,7 +220,7 @@ export default function McpKeysClient({ users }) {
 
 function KeyTable({ rows, onToggle, actionLabel, muted }) {
   return (
-    <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+    <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
       <table className="min-w-full text-sm">
         <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
           <tr>
@@ -233,11 +234,11 @@ function KeyTable({ rows, onToggle, actionLabel, muted }) {
         </thead>
         <tbody className="divide-y divide-slate-100">
           {rows.map(k => (
-            <tr key={k.id} className={muted ? 'text-slate-400' : 'text-slate-700'}>
+            <tr key={k.id} className={muted ? 'text-slate-500' : 'text-slate-700'}>
               <td className="px-4 py-2 font-medium">{k.name}</td>
               <td className="px-4 py-2">
                 {k.user?.name || k.user?.email || 'Unknown'}
-                <span className="block text-xs text-slate-400">
+                <span className="block text-xs text-slate-500">
                   {ROLE_LABEL[k.user?.role] || k.user?.role || ''}
                 </span>
               </td>

@@ -86,7 +86,7 @@ export default function CorridorsSection({ responses, projectData, allSections, 
   );
   const stairwellProd = breezeway ? breezeway.product : stairwells * STAIR_EACH;
   const stairLabel    = breezeway
-    ? `Breezeway stairs (${stairwells} landings × $${breezeway.ratePerLanding.toLocaleString()} — ${BREEZEWAY_STYLES[breezeway.style].label.toLowerCase()})`
+    ? `Breezeway stairs (${stairwells} landings × $${breezeway.ratePerLanding.toLocaleString()}, ${BREEZEWAY_STYLES[breezeway.style].label.toLowerCase()})`
     : `Stairwells (${stairwells} landings × $${STAIR_EACH})`;
   const stairElevated = ans.stairwellDesign === 'elevated' ? stairwells * STAIR_ELEV : 0;
   const sconceRates   = {
@@ -160,7 +160,7 @@ export default function CorridorsSection({ responses, projectData, allSections, 
 
       {/* Scope summary */}
       <div className="bg-slate-50 rounded-xl border border-slate-200 p-4">
-        <div className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">
+        <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">
           {isDesign ? 'Corridor Scope' : 'Auto-Calculated Scope'}
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
@@ -186,9 +186,9 @@ export default function CorridorsSection({ responses, projectData, allSections, 
 
       {/* ── DESIGN-ONLY: Fire rating note ─────────────────────────────────── */}
       {isDesign && (
-        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-xs text-blue-800">
+        <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-xs text-orange-700">
           <p className="font-semibold mb-1">Fire-Rating Housing</p>
-          <p>Recessed fixtures in fire-rated corridor ceilings require 1-hour rated IC housings (air-tight). Surface-mount disks avoid this requirement entirely — factor into fixture type selection below.</p>
+          <p>Recessed fixtures in fire-rated corridor ceilings require 1-hour rated IC housings (air-tight). Surface-mount disks avoid this requirement entirely, factor into fixture type selection below.</p>
         </div>
       )}
 
@@ -198,7 +198,7 @@ export default function CorridorsSection({ responses, projectData, allSections, 
           question="Corridor ceiling fire-rating approach?"
           note="Surface-mount disks avoid fire-rated housing requirements and are significantly less expensive. This selection drives the fixture type recommendation below."
           options={[
-            { value: 'surfaceMount', label: 'Surface-mount fixtures — no fire-rated housing required', sub: 'Recommended for cost', cost: 0 },
+            { value: 'surfaceMount', label: 'Surface-mount fixtures, no fire-rated housing required', sub: 'Recommended for cost', cost: 0 },
             { value: '1hr',          label: '1-Hour rated corridor ceilings',                          sub: 'Requires IC-rated, air-tight housings for any recessed fixtures', cost: 0 },
             { value: '2hr',          label: '2-Hour rated corridor ceilings',                          sub: 'Most restrictive; limits fixture type options', cost: 0 },
           ]}
@@ -235,7 +235,7 @@ export default function CorridorsSection({ responses, projectData, allSections, 
       {/* ── DESIGN-ONLY: Spacing ─────────────────────────────────────────── */}
       {isDesign && (
         <QuestionCard
-          question={`Fixture spacing — ${ans.fixtureType === 'recessed' ? 'recessed downlights' : 'surface-mount disks'}?`}
+          question={`Fixture spacing, ${ans.fixtureType === 'recessed' ? 'recessed downlights' : 'surface-mount disks'}?`}
           note={`Tighter spacing = more fixtures, higher cost, better uniformity. ${corridorSf > 0 ? `(${corridorSf.toLocaleString()} SF of corridors)` : ''}`}
           costSuffix=" total"
           options={spacingOptions}
@@ -247,10 +247,10 @@ export default function CorridorsSection({ responses, projectData, allSections, 
       {/* ── DESIGN-ONLY: Corridor ends ────────────────────────────────────── */}
       {isDesign && (
         <QuestionCard
-          question="Corridor end treatments — any special fixtures at corridor terminations?"
+          question="Corridor end treatments, any special fixtures at corridor terminations?"
           note="Adding a sconce or decorative element at corridor dead-ends creates visual interest and makes long corridors feel less institutional."
           options={[
-            { value: 'none',        label: 'None — standard fixtures throughout',             cost: 0 },
+            { value: 'none',        label: 'None, standard fixtures throughout',             cost: 0 },
             { value: 'sconce',      label: 'Sconce at corridor ends',                         sub: 'Decorative accent at dead-ends', cost: 0 },
             { value: 'artLighting', label: 'Art / gallery lighting at corridor ends',         sub: 'Adjustable accent fixtures for artwork', cost: 0 },
           ]}
@@ -263,10 +263,10 @@ export default function CorridorsSection({ responses, projectData, allSections, 
       {isDesign && (
         <QuestionCard
           question="Any special corridor lighting requirements or design features?"
-          note="Informational — used for scoping notes. Examples: wayfinding accent strips, color-tunable fixtures, or architectural reveals."
+          note="Informational, used for scoping notes. Examples: wayfinding accent strips, color-tunable fixtures, or architectural reveals."
           options={[
-            { value: 'no',  label: 'No — standard corridor lighting',             cost: 0 },
-            { value: 'yes', label: 'Yes — special design features required',      sub: 'Describe in project notes', cost: 0 },
+            { value: 'no',  label: 'No, standard corridor lighting',             cost: 0 },
+            { value: 'yes', label: 'Yes, special design features required',      sub: 'Describe in project notes', cost: 0 },
           ]}
           value={ans.corridorSpecial}
           onChange={v => set('corridorSpecial', v)}
@@ -277,10 +277,10 @@ export default function CorridorsSection({ responses, projectData, allSections, 
       {isDesign && (
         <QuestionCard
           question="Elevator lobby elevated design?"
-          note="Elevator lobbies are a natural focal moment — adding a pendant or decorative fixture creates a design signature. Currently informational; cost TBD per project."
+          note="Elevator lobbies are a natural focal moment, adding a pendant or decorative fixture creates a design signature. Currently informational; cost TBD per project."
           options={[
-            { value: 'no',  label: 'Code minimum — match corridor fixtures',         cost: 0 },
-            { value: 'yes', label: 'Elevated design — decorative pendant or accent', cost: 0 },
+            { value: 'no',  label: 'Code minimum, match corridor fixtures',         cost: 0 },
+            { value: 'yes', label: 'Elevated design, decorative pendant or accent', cost: 0 },
           ]}
           value={ans.elevatorLobby}
           onChange={v => set('elevatorLobby', v)}
@@ -325,16 +325,16 @@ export default function CorridorsSection({ responses, projectData, allSections, 
               value: 'code',
               label: 'Code minimum',
               sub:   breezeway
-                ? `$${breezeway.ratePerLanding.toLocaleString()}/landing — ${BREEZEWAY_STYLES[breezeway.style].label.toLowerCase()}`
-                : `$${STAIR_EACH}/landing — 4ft LED strip w/ integrated battery backup`,
+                ? `$${breezeway.ratePerLanding.toLocaleString()}/landing, ${BREEZEWAY_STYLES[breezeway.style].label.toLowerCase()}`
+                : `$${STAIR_EACH}/landing, 4ft LED strip w/ integrated battery backup`,
               cost:  stairwellProd,
             },
             {
               value: 'elevated',
               label: 'Elevated design',
               sub:   breezeway
-                ? `$${(breezeway.ratePerLanding + STAIR_ELEV).toLocaleString()}/landing — aesthetic upgrade (+$${STAIR_ELEV}/landing)`
-                : `$${STAIR_EACH + STAIR_ELEV}/landing — aesthetic upgrade (+$${STAIR_ELEV}/landing)`,
+                ? `$${(breezeway.ratePerLanding + STAIR_ELEV).toLocaleString()}/landing, aesthetic upgrade (+$${STAIR_ELEV}/landing)`
+                : `$${STAIR_EACH + STAIR_ELEV}/landing, aesthetic upgrade (+$${STAIR_ELEV}/landing)`,
               cost:  stairwellProd + stairwells * STAIR_ELEV,
             },
           ]}
@@ -377,7 +377,7 @@ export default function CorridorsSection({ responses, projectData, allSections, 
       {/* ── DESIGN-ONLY: Garage questions (if garageSf > 0) ─────────────── */}
       {isDesign && garageSf > 0 && (
         <div>
-          <div className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Enclosed Garage</div>
+          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Enclosed Garage</div>
           <div className="space-y-4">
 
             <QuestionCard
@@ -387,14 +387,14 @@ export default function CorridorsSection({ responses, projectData, allSections, 
               options={[
                 {
                   value: 'standard',
-                  label: 'Standard — LED linear strips on grid',
-                  sub:   `$${P.designGarage?.baseMediumPerSf ?? 0.20}/SF — code-compliant, efficient`,
+                  label: 'Standard, LED linear strips on grid',
+                  sub:   `$${P.designGarage?.baseMediumPerSf ?? 0.20}/SF, code-compliant, efficient`,
                   cost:  garageSf * (P.designGarage?.baseMediumPerSf ?? 0.20),
                 },
                 {
                   value: 'enhanced',
-                  label: 'Enhanced — better uniformity and CRI',
-                  sub:   `$${P.designGarage?.baseHighPerSf ?? 0.25}/SF — improved tenant and safety experience`,
+                  label: 'Enhanced, better uniformity and CRI',
+                  sub:   `$${P.designGarage?.baseHighPerSf ?? 0.25}/SF, improved tenant and safety experience`,
                   cost:  garageSf * (P.designGarage?.baseHighPerSf ?? 0.25),
                 },
               ]}
@@ -406,7 +406,7 @@ export default function CorridorsSection({ responses, projectData, allSections, 
               question="Garage lighting controls?"
               note="Occupancy sensors in garages are code-required in most jurisdictions. Daylight harvesting adds cost but can generate energy credits."
               options={[
-                { value: 'occupancy',   label: 'Occupancy sensors only — code minimum',               sub: 'Required in most jurisdictions', cost: 0 },
+                { value: 'occupancy',   label: 'Occupancy sensors only, code minimum',               sub: 'Required in most jurisdictions', cost: 0 },
                 { value: 'daylighting', label: 'Occupancy + daylight harvesting sensors',              sub: `+$${P.designGarage?.daylightingAdderPerSf ?? 0.10}/SF; potential energy credit`, cost: garageSf * (P.designGarage?.daylightingAdderPerSf ?? 0.10) },
               ]}
               value={ans.garageControls || 'occupancy'}
@@ -420,13 +420,13 @@ export default function CorridorsSection({ responses, projectData, allSections, 
       {/* ── DESIGN-ONLY: Live cost breakdown ─────────────────────────────── */}
       {isDesign && (corridorSf > 0 || stairwells > 0 || numUnits > 0) && (
         <div className="bg-slate-50 rounded-xl border border-slate-200 p-4">
-          <div className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-2">Live Estimate</div>
+          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Live Budget</div>
           <div className="space-y-1.5 text-sm">
             {[
               { label: `Corridor fixtures (${corridorSf.toLocaleString()} SF × $${fixtureRate.toFixed(3)}/SF)`, value: corridorProd,   show: corridorSf > 0 },
               { label: stairLabel,                                                                                          value: stairwellProd,  show: stairwells > 0 },
               { label: `Stairwell elevated adder (${stairwells} × $${STAIR_ELEV})`,                                          value: stairElevated,  show: stairElevated > 0 },
-              { label: `Unit-entry sconces (${numUnits} × $${sconceEach})${sconceEach !== sconceMasterRate ? ' — overridden' : ''}`, value: sconceProd, show: sconceProd > 0 },
+              { label: `Unit-entry sconces (${numUnits} × $${sconceEach})${sconceEach !== sconceMasterRate ? ', overridden' : ''}`, value: sconceProd, show: sconceProd > 0 },
               { label: `Recessed accents (${numAccents} × $${ACCENT_EACH})`,                                                 value: accentProd,     show: accentProd > 0 },
             ].filter(r => r.show).map(row => (
               <div key={row.label} className="flex justify-between text-slate-600">
@@ -444,7 +444,7 @@ export default function CorridorsSection({ responses, projectData, allSections, 
 
       {/* Manual adder */}
       <div>
-        <div className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Manual Adder</div>
+        <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Manual Adder</div>
         <Input
           label="Corridors & Stairwells manual adder"
           type="number"

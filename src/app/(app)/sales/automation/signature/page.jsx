@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { redirect } from 'next/navigation';
+import { H1 } from '@/components/ui/tokens';
 import { getSession } from '@/lib/auth';
 import AutomationNav from '@/components/salesAutomation/AutomationNav';
 import SignatureClient from './SignatureClient';
@@ -21,7 +22,7 @@ export default async function SignaturePage() {
       <AutomationNav />
       <div className="max-w-5xl mx-auto">
       <div className="mb-5">
-        <h1 className="text-xl font-bold text-slate-900">Email Signature</h1>
+        <h1 className={H1}>Email Signature</h1>
         <p className="text-slate-500 text-sm mt-1 max-w-3xl">
           One signature for the whole company. Each person&rsquo;s name, title, email and cell are filled in
           from their profile, and it is added to the bottom of every email the bot drafts for them.

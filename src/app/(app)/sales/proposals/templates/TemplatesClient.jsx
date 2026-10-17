@@ -1,5 +1,8 @@
 'use client';
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { Chevron } from '@/components/ui/SortHeader';
+import { WidgetLoading, WidgetEmpty } from '@/components/ui/WidgetFrame';
+import { CARD, TILE, BTN_PRIMARY, BTN_COMPACT, INPUT, LABEL, H1, TH } from '@/components/ui/tokens';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -48,35 +51,35 @@ function RichToolbar({ editorRef, onInsertToken }) {
   return (
     <div className="flex items-center gap-0.5 flex-wrap px-2 py-1.5 border-b border-slate-200 bg-slate-50 rounded-t-lg">
       <button title="Bold"      onMouseDown={e => { e.preventDefault(); cmd('bold'); }}
-        className="px-2 py-1 rounded text-sm font-bold text-slate-500 hover:bg-slate-200 transition-colors">B</button>
+        className="px-2 py-1 rounded-lg text-sm font-bold text-slate-600 hover:bg-slate-100 transition-colors">B</button>
       <button title="Italic"    onMouseDown={e => { e.preventDefault(); cmd('italic'); }}
-        className="px-2 py-1 rounded text-sm italic text-slate-500 hover:bg-slate-200 transition-colors">I</button>
+        className="px-2 py-1 rounded-lg text-sm italic text-slate-600 hover:bg-slate-100 transition-colors">I</button>
       <button title="Underline" onMouseDown={e => { e.preventDefault(); cmd('underline'); }}
-        className="px-2 py-1 rounded text-sm underline text-slate-500 hover:bg-slate-200 transition-colors">U</button>
+        className="px-2 py-1 rounded-lg text-sm underline text-slate-600 hover:bg-slate-100 transition-colors">U</button>
       <div className="w-px h-4 bg-slate-300 mx-1" />
       <button title="H1" onMouseDown={e => { e.preventDefault(); cmd('formatBlock', 'h1'); }}
-        className="px-2 py-1 rounded text-sm font-bold text-slate-500 hover:bg-slate-200 transition-colors">H1</button>
+        className="px-2 py-1 rounded-lg text-sm font-bold text-slate-600 hover:bg-slate-100 transition-colors">H1</button>
       <button title="H2" onMouseDown={e => { e.preventDefault(); cmd('formatBlock', 'h2'); }}
-        className="px-2 py-1 rounded text-sm font-semibold text-slate-500 hover:bg-slate-200 transition-colors">H2</button>
+        className="px-2 py-1 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-100 transition-colors">H2</button>
       <button title="Paragraph" onMouseDown={e => { e.preventDefault(); cmd('formatBlock', 'p'); }}
-        className="px-2 py-1 rounded text-sm text-slate-500 hover:bg-slate-200 transition-colors">¶</button>
+        className="px-2 py-1 rounded-lg text-sm text-slate-600 hover:bg-slate-100 transition-colors">¶</button>
       <div className="w-px h-4 bg-slate-300 mx-1" />
       <button title="Bullet list" onMouseDown={e => { e.preventDefault(); cmd('insertUnorderedList'); }}
-        className="px-2 py-1 rounded text-sm text-slate-500 hover:bg-slate-200 transition-colors">• List</button>
+        className="px-2 py-1 rounded-lg text-sm text-slate-600 hover:bg-slate-100 transition-colors">• List</button>
       <button title="Numbered list" onMouseDown={e => { e.preventDefault(); cmd('insertOrderedList'); }}
-        className="px-2 py-1 rounded text-sm text-slate-500 hover:bg-slate-200 transition-colors">1. List</button>
+        className="px-2 py-1 rounded-lg text-sm text-slate-600 hover:bg-slate-100 transition-colors">1. List</button>
       <div className="w-px h-4 bg-slate-300 mx-1" />
       {/* Merge tokens */}
       <div className="relative group">
-        <button className="px-2 py-1 rounded text-[11px] font-mono text-violet-600 bg-violet-50 hover:bg-violet-100 transition-colors border border-violet-200">
+        <button className="px-2 py-1 rounded-lg text-xs font-mono text-violet-600 bg-violet-50 hover:bg-violet-100 transition-colors border border-violet-200">
           {'{…}'}
         </button>
-        <div className="absolute top-full left-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg z-20 hidden group-hover:block min-w-[160px]">
+        <div className={`absolute top-full left-0 mt-1 ${CARD} z-20 hidden group-hover:block min-w-[160px]`}>
           {MERGE_TOKENS.map(t => (
             <button key={t.token} onMouseDown={e => { e.preventDefault(); onInsertToken(t.token); }}
               className="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 flex items-center justify-between gap-4">
               <span className="text-slate-700">{t.label}</span>
-              <span className="text-[10px] font-mono text-violet-500">{t.token}</span>
+              <span className="text-xs font-mono text-violet-500">{t.token}</span>
             </button>
           ))}
         </div>
@@ -98,8 +101,7 @@ const TASK_COLS = [
 const HOUR_FIELDS = ['srHours', 'designerHours', 'salesHours', 'outsourceHours'];
 
 function TaskSortIcon({ active, dir }) {
-  if (!active) return <span className="ml-0.5 text-slate-300 text-[9px]">⇅</span>;
-  return <span className="ml-0.5 text-orange-500 text-[9px]">{dir === 'asc' ? '▲' : '▼'}</span>;
+  return <span className="ml-0.5 inline-flex align-middle"><Chevron dir={dir} active={active} /></span>;
 }
 
 function TaskTable({ tasks, onChange }) {
@@ -165,9 +167,9 @@ function TaskTable({ tasks, onChange }) {
   }, [sorted]);
 
   const fmt = v => v % 1 === 0 ? v : v.toFixed(1);
-  const inputCls = 'w-full text-xs bg-transparent border-0 focus:outline-none focus:ring-1 focus:ring-orange-300 rounded px-1 py-0.5';
-  const numCls   = 'w-14 text-xs text-right bg-transparent border-0 focus:outline-none focus:ring-1 focus:ring-orange-300 rounded px-1 py-0.5';
-  const thCls    = 'px-2 py-2.5 text-[10px] font-semibold text-slate-400 uppercase tracking-wide cursor-pointer select-none hover:text-slate-600 hover:bg-slate-100 transition-colors';
+  const inputCls = 'w-full text-xs bg-transparent border-0 focus:outline-none focus:ring-1 focus:ring-orange-500 rounded-lg px-1 py-0.5';
+  const numCls   = 'w-14 text-xs text-right bg-transparent border-0 focus:outline-none focus:ring-1 focus:ring-orange-500 rounded-lg px-1 py-0.5';
+  const thCls    = `${TH} cursor-pointer select-none hover:text-slate-800 hover:bg-slate-100 transition-colors`;
 
   return (
     <div className="space-y-3">
@@ -176,17 +178,17 @@ function TaskTable({ tasks, onChange }) {
         {HOUR_FIELDS.map(f => {
           const label = TASK_COLS.find(c => c.field === f)?.label || f;
           return (
-            <div key={f} className="bg-white border border-slate-200 rounded-xl px-3 py-2">
-              <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">{label}</div>
-              <div className="text-sm font-bold text-slate-800 mt-0.5">
-                {fmt(grandTotals[f])} <span className="text-[10px] font-normal text-slate-400">hrs</span>
+            <div key={f} className={TILE}>
+              <div className={LABEL}>{label}</div>
+              <div className="text-sm font-bold text-slate-800 mt-0.5 tabular-nums">
+                {fmt(grandTotals[f])} <span className="text-xs font-normal text-slate-500">hrs</span>
               </div>
             </div>
           );
         })}
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-slate-200">
+      <div className={`${CARD} overflow-x-auto`}>
         <table className="w-full text-xs">
           <thead>
             <tr className="bg-slate-50 border-b border-slate-200">
@@ -209,11 +211,11 @@ function TaskTable({ tasks, onChange }) {
               if (row.type === 'subtotal') {
                 return (
                   <tr key={`sub-${ri}`} className="bg-slate-50 border-t border-slate-200">
-                    <td className="px-3 py-1.5 text-[10px] font-bold text-slate-500 uppercase tracking-wide" colSpan={2}>
+                    <td className={`px-3 py-1.5 ${LABEL}`} colSpan={2}>
                       {row.area || '(no area)'} — subtotal
                     </td>
                     {HOUR_FIELDS.map(f => (
-                      <td key={f} className="px-2 py-1.5 text-right text-[11px] font-semibold text-slate-600">
+                      <td key={f} className="px-2 py-1.5 text-right text-xs font-semibold text-slate-600 tabular-nums">
                         {fmt(row.sub[f])}
                       </td>
                     ))}
@@ -251,7 +253,7 @@ function TaskTable({ tasks, onChange }) {
             <tr className="bg-slate-100 border-t-2 border-slate-300 font-bold">
               <td colSpan={2} className="px-3 py-2 text-xs text-slate-600">Grand Total</td>
               {HOUR_FIELDS.map(f => (
-                <td key={f} className="px-2 py-2 text-right text-xs text-slate-700">{fmt(grandTotals[f])}</td>
+                <td key={f} className="px-2 py-2 text-right text-xs text-slate-700 tabular-nums">{fmt(grandTotals[f])}</td>
               ))}
               <td />
             </tr>
@@ -260,7 +262,7 @@ function TaskTable({ tasks, onChange }) {
       </div>
 
       <button onClick={addTask}
-        className="text-xs text-slate-400 hover:text-slate-600 transition-colors flex items-center gap-1">
+        className="text-xs font-semibold text-slate-600 hover:text-slate-800 transition-colors flex items-center gap-1">
         <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
         </svg>
@@ -373,8 +375,9 @@ function TemplateEditor({ template, onSaved, onDeleted }) {
     onDeleted(template.id);
   }
 
-  const inputCls  = 'w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-400';
-  const labelCls  = 'block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1';
+  const inputCls  = INPUT;
+  const inputNarrow = INPUT.replace('w-full ', '');
+  const labelCls  = `block ${LABEL} mb-1`;
 
   const TABS = [
     { id: 'document',   label: 'Document' },
@@ -396,7 +399,7 @@ function TemplateEditor({ template, onSaved, onDeleted }) {
           />
           <div className="flex items-center gap-2 mt-1.5 flex-wrap">
             <select value={form.type} onChange={e => set('type', e.target.value)}
-              className="text-xs border border-slate-200 rounded-lg px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-orange-400">
+              className={`${inputNarrow} w-auto text-xs px-2 py-1`}>
               {PROPOSAL_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
             </select>
             <label className="flex items-center gap-1.5 text-xs text-slate-600 cursor-pointer">
@@ -405,7 +408,7 @@ function TemplateEditor({ template, onSaved, onDeleted }) {
               Default for type
             </label>
             {template?._count?.proposals != null && (
-              <span className="text-[11px] text-slate-400">{template._count.proposals} proposal{template._count.proposals !== 1 ? 's' : ''} using this</span>
+              <span className="text-xs text-slate-500">{template._count.proposals} proposal{template._count.proposals !== 1 ? 's' : ''} using this</span>
             )}
           </div>
         </div>
@@ -413,18 +416,18 @@ function TemplateEditor({ template, onSaved, onDeleted }) {
           {template?.id && (
             <>
               <button onClick={duplicate} title="Duplicate"
-                className="text-xs px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">
+                className={BTN_COMPACT}>
                 Copy
               </button>
               <button onClick={del} title="Delete"
-                className="text-xs px-3 py-1.5 rounded-lg border border-red-200 text-red-500 hover:bg-red-50 transition-colors">
+                className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-red-200 text-red-600 hover:bg-red-50 transition-colors">
                 Delete
               </button>
             </>
           )}
           <button onClick={save} disabled={saving}
-            className={`px-4 py-1.5 rounded-lg text-sm font-bold transition-colors disabled:opacity-50 ${
-              savedOk ? 'bg-emerald-500 text-white' : 'bg-orange-500 text-white hover:bg-orange-600'
+            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50 ${
+              savedOk ? 'bg-green-600 text-white' : 'bg-orange-500 text-white hover:bg-orange-600'
             }`}>
             {saving ? 'Saving…' : savedOk ? 'Saved ✓' : 'Save'}
           </button>
@@ -451,7 +454,7 @@ function TemplateEditor({ template, onSaved, onDeleted }) {
 
         {activeTab === 'document' && (
           <div>
-            <p className="text-xs text-slate-400 mb-2">
+            <p className="text-xs text-slate-500 mb-2">
               Use <span className="font-mono text-violet-600">{'{tokens}'}</span> for merge fields — click the <span className="font-mono">{'{…}'}</span> button to insert. Formatting toolbar below.
             </p>
             <RichToolbar editorRef={editorRef} onInsertToken={insertToken} />
@@ -474,12 +477,12 @@ function TemplateEditor({ template, onSaved, onDeleted }) {
                 <input type="number" min="0" max="100" step="0.5"
                   value={form.defaultAdderPct}
                   onChange={e => set('defaultAdderPct', e.target.value)}
-                  className="w-24 text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                  className={`${inputNarrow} w-24 tabular-nums`} />
                 <span className="text-sm text-slate-500">% overhead / profit margin added on top of labor</span>
               </div>
             </div>
             <div>
-              <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-2">
+              <p className={`${LABEL} mb-2`}>
                 Fee Breakdown — pre-populates when this template is chosen
               </p>
               <TaskTable tasks={form.tasks} onChange={v => set('tasks', v)} />
@@ -489,30 +492,30 @@ function TemplateEditor({ template, onSaved, onDeleted }) {
 
         {activeTab === 'milestones' && (
           <div className="space-y-4">
-            <p className="text-xs text-slate-400">Milestone payment split — shown on the client-facing PDF for Full Design proposals.</p>
+            <p className="text-xs text-slate-500">Milestone payment split — shown on the client-facing PDF for Full Design proposals.</p>
             <div className="space-y-2">
               {form.milestoneSplit.map((m, idx) => (
                 <div key={idx} className="flex items-center gap-2">
                   <input value={m.label} onChange={e => updateMilestone(idx, 'label', e.target.value)}
                     placeholder="Milestone label…"
-                    className="flex-1 text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-400" />
+                    className={`${inputNarrow} flex-1`} />
                   <input type="number" min="0" max="100" step="1"
                     value={m.pct} onChange={e => updateMilestone(idx, 'pct', parseFloat(e.target.value) || 0)}
-                    className="w-20 text-sm text-right border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-400" />
-                  <span className="text-sm text-slate-400">%</span>
+                    className={`${inputNarrow} w-20 text-right tabular-nums`} />
+                  <span className="text-sm text-slate-500">%</span>
                   <button onClick={() => removeMilestone(idx)} className="text-slate-300 hover:text-red-500 transition-colors">×</button>
                 </div>
               ))}
             </div>
             <div className="flex items-center justify-between">
               <button onClick={addMilestone}
-                className="text-xs text-slate-400 hover:text-slate-600 transition-colors flex items-center gap-1">
+                className="text-xs font-semibold text-slate-600 hover:text-slate-800 transition-colors flex items-center gap-1">
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
                 </svg>
                 Add milestone
               </button>
-              <span className={`text-xs font-semibold ${milestoneTotal === 100 ? 'text-emerald-600' : 'text-amber-600'}`}>
+              <span className={`text-xs font-semibold ${milestoneTotal === 100 ? 'text-green-600' : 'text-amber-600'}`}>
                 Total: {milestoneTotal}%
                 {milestoneTotal !== 100 && ` (should be 100%)`}
               </span>
@@ -531,7 +534,7 @@ function TemplateEditor({ template, onSaved, onDeleted }) {
                 placeholder="Not included in this scope: energy compliance calculations, emergency lighting systems…"
                 className={inputCls + ' resize-none'}
               />
-              <p className="text-[11px] text-slate-400 mt-1">Internal reference — not shown on PDF unless explicitly inserted in document body.</p>
+              <p className="text-xs text-slate-500 mt-1">Internal reference — not shown on PDF unless explicitly inserted in document body.</p>
             </div>
           </div>
         )}
@@ -589,18 +592,18 @@ export default function TemplatesClient({ embedded = false }) {
       {/* Header */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 bg-white shrink-0">
         <div>
-          <h1 className="text-lg font-bold text-slate-900">Proposal Templates</h1>
-          <p className="text-xs text-slate-400 mt-0.5">Manage document templates and fee breakdowns for proposals</p>
+          <h1 className={H1}>Proposal Templates</h1>
+          <p className="text-xs text-slate-500 mt-0.5">Manage document templates and fee breakdowns for proposals</p>
         </div>
         <div className="flex items-center gap-2">
           {!embedded && (
-            <a href="/sales/proposals" className="text-xs text-slate-500 hover:text-slate-700 transition-colors px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50">
+            <a href="/sales/proposals" className={BTN_COMPACT}>
               ← Back to Proposals
             </a>
           )}
           <button
             onClick={() => { setCreatingNew(true); setSelectedId(null); }}
-            className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-orange-500 text-white text-sm font-bold hover:bg-orange-600 transition-colors">
+            className={BTN_PRIMARY}>
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
             </svg>
@@ -618,12 +621,12 @@ export default function TemplatesClient({ embedded = false }) {
           <div className="px-3 py-2 border-b border-slate-100">
             <div className="flex gap-1 bg-slate-100 rounded-lg p-1">
               <button onClick={() => setTypeFilter('all')}
-                className={`flex-1 px-2 py-1 rounded-md text-[11px] font-semibold transition-colors ${typeFilter === 'all' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}>
+                className={`flex-1 px-2 py-1 rounded-lg text-xs font-semibold transition-colors ${typeFilter === 'all' ? 'bg-white text-orange-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
                 All
               </button>
               {PROPOSAL_TYPES.map(t => (
                 <button key={t.value} onClick={() => setTypeFilter(v => v === t.value ? 'all' : t.value)}
-                  className={`flex-1 px-2 py-1 rounded-md text-[11px] font-semibold transition-colors ${typeFilter === t.value ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500'}`}>
+                  className={`flex-1 px-2 py-1 rounded-lg text-xs font-semibold transition-colors ${typeFilter === t.value ? 'bg-white text-orange-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
                   {t.label.split(' ')[0]}
                 </button>
               ))}
@@ -632,13 +635,9 @@ export default function TemplatesClient({ embedded = false }) {
           {/* Template list */}
           <div className="flex-1 overflow-y-auto">
             {loading ? (
-              <div className="flex items-center justify-center py-10">
-                <div className="w-5 h-5 border-2 border-slate-200 border-t-orange-500 rounded-full animate-spin" />
-              </div>
+              <WidgetLoading />
             ) : filtered.length === 0 ? (
-              <div className="px-4 py-8 text-center text-xs text-slate-400">
-                {typeFilter !== 'all' ? 'No templates for this type' : 'No templates yet'}
-              </div>
+              <WidgetEmpty>{typeFilter !== 'all' ? 'No templates for this type' : 'No templates yet'}</WidgetEmpty>
             ) : (
               filtered.map(t => (
                 <button key={t.id} onClick={() => { setSelectedId(t.id); setCreatingNew(false); }}
@@ -647,14 +646,14 @@ export default function TemplatesClient({ embedded = false }) {
                   }`}>
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-sm font-semibold text-slate-800 truncate">{t.name}</span>
-                    {t.isDefault && <span className="text-[10px] text-amber-600 font-bold shrink-0">DEFAULT</span>}
+                    {t.isDefault && <span className="text-xs text-amber-600 font-semibold shrink-0">DEFAULT</span>}
                   </div>
                   <div className="flex items-center gap-2 mt-0.5">
-                    <span className="text-[10px] text-slate-400">
+                    <span className="text-xs text-slate-500">
                       {PROPOSAL_TYPES.find(p => p.value === t.type)?.label || t.type}
                     </span>
                     {t._count?.proposals > 0 && (
-                      <span className="text-[10px] text-slate-300">· {t._count.proposals} in use</span>
+                      <span className="text-xs text-slate-500">· {t._count.proposals} in use</span>
                     )}
                   </div>
                 </button>

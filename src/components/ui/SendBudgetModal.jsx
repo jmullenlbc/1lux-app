@@ -103,13 +103,13 @@ export default function SendBudgetModal({ projectId, projectName, totalBudget, o
                 />
                 <button
                   onClick={() => copyLink(result.shareUrl)}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${copied ? 'bg-green-600 text-white' : 'bg-slate-900 text-white hover:bg-slate-700'}`}
+                  className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${copied ? 'bg-green-600 text-white' : 'bg-orange-500 text-white hover:bg-orange-600'}`}
                 >
                   {copied ? 'Copied!' : 'Copy'}
                 </button>
               </div>
 
-              <div className="mt-4 pt-4 border-t border-slate-100 text-xs text-slate-400 space-y-1">
+              <div className="mt-4 pt-4 border-t border-slate-100 text-xs text-slate-500 space-y-1">
                 <div className="flex justify-between">
                   <span>Est. Budget</span>
                   <span className="font-semibold text-slate-600">{formatCurrency(totalBudget)}</span>
@@ -141,7 +141,7 @@ export default function SendBudgetModal({ projectId, projectName, totalBudget, o
                         placeholder="client@example.com"
                         value={email}
                         onChange={e => setEmail(i, e.target.value)}
-                        className="flex-1 text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                        className="flex-1 text-sm border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500"
                       />
                       {emails.length > 1 && (
                         <button
@@ -158,7 +158,7 @@ export default function SendBudgetModal({ projectId, projectName, totalBudget, o
                 </div>
                 <button
                   onClick={addEmail}
-                  className="mt-2 text-sm text-amber-600 hover:text-amber-700 font-medium flex items-center gap-1"
+                  className="mt-2 text-sm text-orange-600 hover:text-orange-700 font-semibold flex items-center gap-1"
                 >
                   <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
                     <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
@@ -177,7 +177,7 @@ export default function SendBudgetModal({ projectId, projectName, totalBudget, o
                   placeholder={`Hi,\n\nPlease find the conceptual lighting budget for ${projectName} attached below.`}
                   value={message}
                   onChange={e => setMessage(e.target.value)}
-                  className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none"
+                  className="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500 resize-none"
                 />
               </div>
 
@@ -187,7 +187,7 @@ export default function SendBudgetModal({ projectId, projectName, totalBudget, o
                   <div className="text-xs text-slate-500">Budget</div>
                   <div className="text-base font-bold text-slate-900">{formatCurrency(totalBudget)}</div>
                 </div>
-                <div className="text-xs text-slate-400 text-right">
+                <div className="text-xs text-slate-500 text-right">
                   <div>Recipients will see</div>
                   <div>a read-only summary</div>
                 </div>
@@ -227,7 +227,7 @@ export default function SendBudgetModal({ projectId, projectName, totalBudget, o
           {/* ── Past sends ── */}
           {sharesLoaded && pastShares && pastShares.length > 0 && (
             <div className="border-t border-slate-100 pt-5">
-              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-3">Previous Sends</h3>
+              <h3 className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-3">Previous Sends</h3>
               <div className="space-y-2">
                 {pastShares.map(s => {
                   const recipients = JSON.parse(s.sentTo || '[]');
@@ -238,14 +238,14 @@ export default function SendBudgetModal({ projectId, projectName, totalBudget, o
                         <div className="text-xs text-slate-600 font-medium truncate">
                           {recipients.length > 0 ? recipients.join(', ') : 'No recipients'}
                         </div>
-                        <div className="text-xs text-slate-400 mt-0.5">
+                        <div className="text-xs text-slate-500 mt-0.5">
                           {formatDate(s.sentAt)} · {s.viewCount || 0} view{s.viewCount !== 1 ? 's' : ''}
                           {s.lastViewedAt && ` · Last viewed ${formatDate(s.lastViewedAt)}`}
                         </div>
                       </div>
                       <button
                         onClick={() => copyLink(shareUrl)}
-                        className="text-xs text-amber-600 hover:text-amber-700 font-medium whitespace-nowrap"
+                        className="text-xs text-orange-600 hover:text-orange-700 font-semibold whitespace-nowrap"
                       >
                         Copy link
                       </button>

@@ -72,7 +72,7 @@ function PhaseTag({ phase }) {
 function PlaceholderTab({ icon, title, description, phase }) {
   return (
     <div className="flex flex-col items-center justify-center py-20 text-center">
-      <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mb-4">
+      <div className="w-16 h-16 rounded-xl bg-slate-100 flex items-center justify-center mb-4">
         <span className="text-3xl">{icon}</span>
       </div>
       <h3 className="font-semibold text-slate-700 mb-1">{title}</h3>
@@ -133,7 +133,7 @@ function ProjectSearch({ projectId }) {
       <div className="max-w-6xl mx-auto px-6">
         {!open ? (
           <button onClick={() => setOpen(true)}
-            className="flex items-center gap-2 py-2.5 text-sm text-slate-400 hover:text-amber-600 transition-colors">
+            className="flex items-center gap-2 py-2.5 text-sm text-slate-400 hover:text-orange-600 transition-colors">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 105 11a6 6 0 0012 0z" />
             </svg>
@@ -169,14 +169,14 @@ function ProjectSearch({ projectId }) {
                     <div className="flex items-center gap-2 mb-1.5">
                       <button
                         onClick={() => setViewingFile({ id: r.fileId, originalName: r.originalName })}
-                        className="text-xs font-semibold text-amber-700 hover:text-amber-600 truncate text-left">
+                        className="text-xs font-semibold text-orange-700 hover:text-orange-600 truncate text-left">
                         {r.originalName}
                       </button>
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-200 text-slate-500 shrink-0">
+                      <span className="text-[11px] px-1.5 py-0.5 rounded bg-slate-200 text-slate-500 shrink-0">
                         {TAB_LABELS[r.tab] || r.tab}
                       </span>
                       {r.tags?.map(tag => (
-                        <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded bg-amber-50 text-amber-600 shrink-0">{tag}</span>
+                        <span key={tag} className="text-[11px] px-1.5 py-0.5 rounded bg-amber-50 text-amber-600 shrink-0">{tag}</span>
                       ))}
                     </div>
                     {r.snippets.map((s, i) => (
@@ -226,7 +226,7 @@ function AutoTaggedFileTab({ title, subtitle, autoTag, files, projectId, tab, on
   const [viewingFile, setViewingFile] = useState(null);
   const [reparsing,   setReparsing]   = useState({}); // { fileId: true }
   const [reparseMsg,  setReparseMsg]  = useState({}); // { fileId: 'message' }
-  const [uploadErrors, setUploadErrors] = useState([]); // [{ id, msg }] — shown until dismissed
+  const [uploadErrors, setUploadErrors] = useState([]); // [{ id, msg }], shown until dismissed
   const [archiveAsk,  setArchiveAsk]  = useState(null); // the file being asked about
   const [archiving,   setArchiving]   = useState(false);
   const fileRef = useRef(null);
@@ -288,7 +288,7 @@ function AutoTaggedFileTab({ title, subtitle, autoTag, files, projectId, tab, on
       if (data.error) {
         setReparseMsg(prev => ({ ...prev, [fileId]: data.error }));
       } else {
-        setReparseMsg(prev => ({ ...prev, [fileId]: `✓ Found ${data.count} milestone${data.count !== 1 ? 's' : ''} — refresh to see Gantt` }));
+        setReparseMsg(prev => ({ ...prev, [fileId]: `✓ Found ${data.count} milestone${data.count !== 1 ? 's' : ''}, refresh to see Gantt` }));
       }
     } catch (e) {
       setReparseMsg(prev => ({ ...prev, [fileId]: 'Parse failed' }));
@@ -319,7 +319,7 @@ function AutoTaggedFileTab({ title, subtitle, autoTag, files, projectId, tab, on
           </div>
           {/* Stat widget */}
           <div className="bg-white border border-slate-200 rounded-xl px-5 py-4 inline-flex flex-col gap-1 min-w-[200px]">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{statLabel}</p>
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{statLabel}</p>
             {statValue
               ? <p className="text-2xl font-bold text-slate-800">{statValue}</p>
               : <p className="text-sm text-slate-300 italic">No {title.toLowerCase()} uploaded yet</p>}
@@ -333,7 +333,7 @@ function AutoTaggedFileTab({ title, subtitle, autoTag, files, projectId, tab, on
         onDrop={e => { e.preventDefault(); setDragging(false); upload(e.dataTransfer.files); }}
         onClick={() => fileRef.current?.click()}
         className={`border-2 border-dashed rounded-xl py-8 flex flex-col items-center gap-2 cursor-pointer transition-colors ${
-          dragging ? 'border-blue-400 bg-blue-50' : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+          dragging ? 'border-orange-400 bg-orange-50' : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50'
         }`}
       >
         <svg className="w-7 h-7 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -372,7 +372,7 @@ function AutoTaggedFileTab({ title, subtitle, autoTag, files, projectId, tab, on
       {files.length > 0 && (
         <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
           <div className="px-5 py-3 border-b border-slate-100">
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">{title} — {files.length} document{files.length !== 1 ? 's' : ''}</p>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">{title}, {files.length} document{files.length !== 1 ? 's' : ''}</p>
           </div>
           <div className="divide-y divide-slate-50">
             {files.map(f => {
@@ -389,7 +389,7 @@ function AutoTaggedFileTab({ title, subtitle, autoTag, files, projectId, tab, on
                   <div className="flex-1 min-w-0">
                     <button
                       onClick={() => isPdf && setViewingFile(f)}
-                      className="text-sm text-slate-800 hover:text-amber-600 transition-colors text-left block w-full truncate"
+                      className="text-sm text-slate-800 hover:text-orange-600 transition-colors text-left block w-full truncate"
                     >
                       {f.originalName}
                     </button>
@@ -406,14 +406,14 @@ function AutoTaggedFileTab({ title, subtitle, autoTag, files, projectId, tab, on
                   <span className="text-xs text-slate-400 shrink-0">{fmtDate(f.createdAt)}</span>
                   {/* Download */}
                   <a href={fileUrl} download={f.originalName}
-                    className="p-1.5 rounded-lg text-slate-300 hover:text-blue-500 hover:bg-blue-50 transition-colors shrink-0" title="Download">
+                    className="p-1.5 rounded-lg text-slate-300 hover:text-orange-600 hover:bg-orange-50 transition-colors shrink-0" title="Download">
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
                     </svg>
                   </a>
                   {/* Archive */}
                   <button onClick={() => setArchiveAsk(f)}
-                    className="p-1.5 rounded-lg text-slate-300 hover:text-amber-600 hover:bg-amber-50 transition-colors shrink-0" title="Archive">
+                    className="p-1.5 rounded-lg text-slate-300 hover:text-orange-600 hover:bg-amber-50 transition-colors shrink-0" title="Archive">
                     <ArchiveBoxIcon className="w-4 h-4" />
                   </button>
                 </div>
@@ -704,11 +704,11 @@ export default function ProjectHubClient({ userId, userRole, canEditMoney = fals
           {/* Breadcrumb + admin tools */}
           <div className="flex items-center justify-between gap-2 mb-3">
             <div className="flex items-center gap-2 text-xs text-slate-400">
-              <Link href="/dashboard" className="hover:text-amber-600 transition-colors">Dashboard</Link>
+              <Link href="/dashboard" className="hover:text-orange-600 transition-colors">Dashboard</Link>
               <span>›</span>
               {project.client && (
                 <>
-                  <Link href={`/clients/${project.client.id}`} className="text-slate-500 hover:text-amber-600 transition-colors">
+                  <Link href={`/clients/${project.client.id}`} className="text-slate-500 hover:text-orange-600 transition-colors">
                     {project.client.name}
                   </Link>
                   <span>›</span>
@@ -751,9 +751,9 @@ export default function ProjectHubClient({ userId, userRole, canEditMoney = fals
                       value={nameInput}
                       onChange={e => setNameInput(e.target.value)}
                       onKeyDown={e => { if (e.key === 'Enter') saveProjectName(); if (e.key === 'Escape') setEditingName(false); }}
-                      className="text-2xl font-bold text-slate-900 border-b-2 border-blue-400 bg-transparent outline-none leading-tight w-72"
+                      className="text-2xl font-bold text-slate-900 border-b-2 border-orange-400 bg-transparent outline-none leading-tight w-72"
                     />
-                    <button onClick={saveProjectName} className="text-xs px-2.5 py-1 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700">Save</button>
+                    <button onClick={saveProjectName} className="text-xs px-2.5 py-1 rounded-lg bg-orange-500 text-white font-semibold hover:bg-orange-600">Save</button>
                     <button onClick={() => setEditingName(false)} className="text-xs px-2.5 py-1 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50">Cancel</button>
                   </div>
                 ) : (
@@ -797,7 +797,7 @@ export default function ProjectHubClient({ userId, userRole, canEditMoney = fals
                     className="text-xs border border-red-200 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-red-400 w-56"
                     onKeyDown={e => e.key === 'Enter' && saveFlagNote()}
                   />
-                  <button onClick={saveFlagNote} className="text-xs text-red-500 font-medium hover:text-red-700">
+                  <button onClick={saveFlagNote} className="text-xs text-red-500 font-semibold hover:text-red-700">
                     {savingFlag ? 'Saving…' : 'Save'}
                   </button>
                 </div>
@@ -809,10 +809,10 @@ export default function ProjectHubClient({ userId, userRole, canEditMoney = fals
                   disabled={savingPhase}
                   value={phase}
                   onChange={e => updatePhase(e.target.value)}
-                  className="text-xs font-semibold border border-slate-200 rounded-lg px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-amber-400 text-slate-700 disabled:opacity-50"
+                  className="text-xs font-semibold border border-slate-200 rounded-lg px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-orange-500 text-slate-700 disabled:opacity-50"
                 >
                   {PROJECT_PHASES.map(p => (
-                    <option key={p.value} value={p.value}>{p.label} — {p.long}</option>
+                    <option key={p.value} value={p.value}>{p.label}, {p.long}</option>
                   ))}
                 </select>
 
@@ -821,7 +821,7 @@ export default function ProjectHubClient({ userId, userRole, canEditMoney = fals
                   disabled={savingSvc}
                   value={serviceType}
                   onChange={e => updateServiceType(e.target.value)}
-                  className="text-xs font-semibold border border-slate-200 rounded-lg px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-amber-400 text-slate-700 disabled:opacity-50"
+                  className="text-xs font-semibold border border-slate-200 rounded-lg px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-orange-500 text-slate-700 disabled:opacity-50"
                 >
                   <option value="">Service type…</option>
                   {serviceTypeOptions(serviceType).map(t => (
@@ -867,14 +867,14 @@ export default function ProjectHubClient({ userId, userRole, canEditMoney = fals
                       value={infoDraft.city}
                       onChange={e => setInfoDraft(d => ({ ...d, city: e.target.value }))}
                       placeholder="City"
-                      className="text-xs border border-slate-200 rounded-lg px-2 py-1 w-32 focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white"
+                      className="text-xs border border-slate-200 rounded-lg px-2 py-1 w-32 focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
                     />
                     <input
                       value={infoDraft.state}
                       onChange={e => setInfoDraft(d => ({ ...d, state: e.target.value.toUpperCase() }))}
                       placeholder="ST"
                       maxLength={2}
-                      className="text-xs border border-slate-200 rounded-lg px-2 py-1 w-14 focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white"
+                      className="text-xs border border-slate-200 rounded-lg px-2 py-1 w-14 focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
                     />
                     <input
                       value={infoDraft.zip}
@@ -882,12 +882,12 @@ export default function ProjectHubClient({ userId, userRole, canEditMoney = fals
                       placeholder="Zip"
                       inputMode="numeric"
                       maxLength={10}
-                      className="text-xs border border-slate-200 rounded-lg px-2 py-1 w-20 focus:outline-none focus:ring-2 focus:ring-amber-400 bg-white"
+                      className="text-xs border border-slate-200 rounded-lg px-2 py-1 w-20 focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
                     />
                     <select
                       value={infoDraft.buildingType}
                       onChange={e => setInfoDraft(d => ({ ...d, buildingType: e.target.value }))}
-                      className="text-xs border border-slate-200 rounded-lg px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-amber-400"
+                      className="text-xs border border-slate-200 rounded-lg px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-orange-500"
                     >
                       <option value="">Building type…</option>
                       {BUILDING_TYPES.map(t => (
@@ -916,7 +916,7 @@ export default function ProjectHubClient({ userId, userRole, canEditMoney = fals
                 <div className="flex -space-x-1">
                   {assignees.map(u => (
                     <div key={u.id}
-                      className="w-6 h-6 rounded-full bg-amber-100 text-amber-700 text-[10px] font-bold flex items-center justify-center border-2 border-white"
+                      className="w-6 h-6 rounded-full bg-amber-100 text-amber-700 text-[11px] font-bold flex items-center justify-center border-2 border-white"
                       title={u.name || u.email}>
                       {initials(u)}
                     </div>
@@ -924,7 +924,7 @@ export default function ProjectHubClient({ userId, userRole, canEditMoney = fals
                 </div>
                 <button
                   onClick={() => setShowAssignees(v => !v)}
-                  className="text-xs text-slate-400 hover:text-amber-600 transition-colors"
+                  className="text-xs text-slate-400 hover:text-orange-600 transition-colors"
                 >
                   {assignees.length === 0 ? '+ Assign people' : '+ Edit'}
                 </button>
@@ -942,7 +942,7 @@ export default function ProjectHubClient({ userId, userRole, canEditMoney = fals
                           onClick={() => assigned ? removeAssignee(u.id) : addAssignee(u.id)}
                           className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left transition-colors ${assigned ? 'bg-amber-50 text-amber-800' : 'hover:bg-slate-50 text-slate-700'}`}
                         >
-                          <div className="w-6 h-6 rounded-full bg-amber-100 text-amber-700 text-[10px] font-bold flex items-center justify-center shrink-0">
+                          <div className="w-6 h-6 rounded-full bg-amber-100 text-amber-700 text-[11px] font-bold flex items-center justify-center shrink-0">
                             {initials(u)}
                           </div>
                           <span className="text-xs truncate">{u.name || u.email}</span>
@@ -977,7 +977,7 @@ export default function ProjectHubClient({ userId, userRole, canEditMoney = fals
                 </div>
                 <button
                   onClick={() => { setClientId(assignedClient.id); setAssigningClient(true); }}
-                  className="text-[10px] text-slate-400 hover:text-amber-600 mt-1 transition-colors"
+                  className="text-[11px] text-slate-400 hover:text-orange-600 mt-1 transition-colors"
                 >
                   Change
                 </button>
@@ -988,7 +988,7 @@ export default function ProjectHubClient({ userId, userRole, canEditMoney = fals
                 <select
                   value={clientId}
                   onChange={e => setClientId(e.target.value)}
-                  className="w-full text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-400 mb-2"
+                  className="w-full text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500 mb-2"
                   autoFocus
                 >
                   <option value="">No client</option>
@@ -1017,7 +1017,7 @@ export default function ProjectHubClient({ userId, userRole, canEditMoney = fals
                 <div className="text-xs text-slate-400 mb-0.5">Client</div>
                 <button
                   onClick={() => { setClientId(''); setAssigningClient(true); }}
-                  className="text-xs text-amber-600 hover:text-amber-700 font-medium"
+                  className="text-xs text-orange-600 hover:text-orange-700 font-medium"
                 >
                   Assign client →
                 </button>
@@ -1095,14 +1095,14 @@ export default function ProjectHubClient({ userId, userRole, canEditMoney = fals
 
                 {/* Conceptual Budget */}
                 {budgetType === 'conceptual' ? (
-                  <Link href={wizardUrl} className="group flex flex-col gap-2 p-4 rounded-2xl border-2 border-amber-400 bg-amber-50 hover:bg-amber-100 transition-all">
+                  <Link href={wizardUrl} className="group flex flex-col gap-2 p-4 rounded-lg border-2 border-orange-400 bg-amber-50 hover:bg-amber-100 transition-all">
                     <div className="flex items-center justify-between">
-                      <div className="w-9 h-9 rounded-xl bg-amber-500 flex items-center justify-center">
+                      <div className="w-9 h-9 rounded-xl bg-orange-500 flex items-center justify-center">
                         <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 11h.01M12 11h.01M15 11h.01M4 19h16a2 2 0 002-2V7a2 2 0 00-2-2H4a2 2 0 00-2 2v10a2 2 0 002 2z" />
                         </svg>
                       </div>
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500 text-white">Active</span>
+                      <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-orange-500 text-white">Active</span>
                     </div>
                     <div>
                       <div className="text-sm font-semibold text-amber-800">Conceptual Budget</div>
@@ -1111,9 +1111,9 @@ export default function ProjectHubClient({ userId, userRole, canEditMoney = fals
                   </Link>
                 ) : (
                   <button onClick={() => convertBudgetType('conceptual')} disabled={convertLoading}
-                    className="group flex flex-col gap-2 p-4 rounded-2xl border-2 border-slate-200 bg-white hover:border-amber-300 hover:bg-amber-50 transition-all text-left disabled:opacity-60">
-                    <div className="w-9 h-9 rounded-xl bg-slate-100 group-hover:bg-amber-100 flex items-center justify-center">
-                      <svg className="w-4 h-4 text-slate-400 group-hover:text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                    className="group flex flex-col gap-2 p-4 rounded-xl border-2 border-slate-200 bg-white hover:border-amber-300 hover:bg-amber-50 transition-all text-left disabled:opacity-60">
+                    <div className="w-9 h-9 rounded-xl bg-slate-100 group-hover:bg-orange-100 flex items-center justify-center">
+                      <svg className="w-4 h-4 text-slate-400 group-hover:text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 11h.01M12 11h.01M15 11h.01M4 19h16a2 2 0 002-2V7a2 2 0 00-2-2H4a2 2 0 00-2 2v10a2 2 0 002 2z" />
                       </svg>
                     </div>
@@ -1126,14 +1126,14 @@ export default function ProjectHubClient({ userId, userRole, canEditMoney = fals
 
                 {/* Full Design Budget */}
                 {budgetType === 'design' ? (
-                  <Link href={wizardUrl} className="group flex flex-col gap-2 p-4 rounded-2xl border-2 border-amber-400 bg-amber-50 hover:bg-amber-100 transition-all">
+                  <Link href={wizardUrl} className="group flex flex-col gap-2 p-4 rounded-lg border-2 border-orange-400 bg-amber-50 hover:bg-amber-100 transition-all">
                     <div className="flex items-center justify-between">
-                      <div className="w-9 h-9 rounded-xl bg-amber-500 flex items-center justify-center">
+                      <div className="w-9 h-9 rounded-xl bg-orange-500 flex items-center justify-center">
                         <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z" />
                         </svg>
                       </div>
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500 text-white">Active</span>
+                      <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-orange-500 text-white">Active</span>
                     </div>
                     <div>
                       <div className="text-sm font-semibold text-amber-800">Full Design Questionnaire</div>
@@ -1142,9 +1142,9 @@ export default function ProjectHubClient({ userId, userRole, canEditMoney = fals
                   </Link>
                 ) : (
                   <button onClick={() => convertBudgetType('design')} disabled={convertLoading}
-                    className="group flex flex-col gap-2 p-4 rounded-2xl border-2 border-slate-200 bg-white hover:border-amber-300 hover:bg-amber-50 transition-all text-left disabled:opacity-60">
-                    <div className="w-9 h-9 rounded-xl bg-slate-100 group-hover:bg-amber-100 flex items-center justify-center">
-                      <svg className="w-4 h-4 text-slate-400 group-hover:text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                    className="group flex flex-col gap-2 p-4 rounded-xl border-2 border-slate-200 bg-white hover:border-amber-300 hover:bg-amber-50 transition-all text-left disabled:opacity-60">
+                    <div className="w-9 h-9 rounded-xl bg-slate-100 group-hover:bg-orange-100 flex items-center justify-center">
+                      <svg className="w-4 h-4 text-slate-400 group-hover:text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z" />
                       </svg>
                     </div>
@@ -1157,25 +1157,25 @@ export default function ProjectHubClient({ userId, userRole, canEditMoney = fals
 
                 {/* Budget Matrix (was Peer Review) */}
                 {budgetType === 'peer_review' ? (
-                  <Link href={wizardUrl} className="group flex flex-col gap-2 p-4 rounded-2xl border-2 border-blue-400 bg-blue-50 hover:bg-blue-100 transition-all">
+                  <Link href={wizardUrl} className="group flex flex-col gap-2 p-4 rounded-lg border-2 border-orange-400 bg-orange-50 hover:bg-orange-100 transition-all">
                     <div className="flex items-center justify-between">
-                      <div className="w-9 h-9 rounded-xl bg-blue-600 flex items-center justify-center">
+                      <div className="w-9 h-9 rounded-xl bg-orange-500 flex items-center justify-center">
                         <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                       </div>
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-600 text-white">Active</span>
+                      <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-orange-500 text-white">Active</span>
                     </div>
                     <div>
-                      <div className="text-sm font-semibold text-blue-800">Budget Matrix</div>
+                      <div className="text-sm font-semibold text-orange-700">Budget Matrix</div>
                       <div className="text-xs text-slate-400 mt-0.5">Line-by-line fixture matrix</div>
                     </div>
                   </Link>
                 ) : (
                   <button onClick={() => convertBudgetType('peer_review')} disabled={convertLoading}
-                    className="group flex flex-col gap-2 p-4 rounded-2xl border-2 border-slate-200 bg-white hover:border-blue-300 hover:bg-blue-50 transition-all text-left disabled:opacity-60">
-                    <div className="w-9 h-9 rounded-xl bg-slate-100 group-hover:bg-blue-100 flex items-center justify-center">
-                      <svg className="w-4 h-4 text-slate-400 group-hover:text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                    className="group flex flex-col gap-2 p-4 rounded-xl border-2 border-slate-200 bg-white hover:border-orange-300 hover:bg-orange-50 transition-all text-left disabled:opacity-60">
+                    <div className="w-9 h-9 rounded-xl bg-slate-100 group-hover:bg-orange-100 flex items-center justify-center">
+                      <svg className="w-4 h-4 text-slate-400 group-hover:text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
                     </div>
@@ -1199,7 +1199,7 @@ export default function ProjectHubClient({ userId, userRole, canEditMoney = fals
             />
 
             {/* ── Active budget card ──────────────────────────────────────── */}
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
               <div className="flex items-center justify-between p-5 border-b border-slate-100">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center">
@@ -1210,7 +1210,7 @@ export default function ProjectHubClient({ userId, userRole, canEditMoney = fals
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="font-semibold text-slate-900">{budgetMeta.label}</span>
-                      <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${budgetMeta.color}`}>
+                      <span className={`px-1.5 py-0.5 rounded text-[11px] font-bold ${budgetMeta.color}`}>
                         {project.budgetType === 'peer_review' ? 'Peer Review' : project.budgetType === 'design' ? 'Design' : 'Conceptual'}
                       </span>
                     </div>
@@ -1315,7 +1315,7 @@ export default function ProjectHubClient({ userId, userRole, canEditMoney = fals
             {/* Approval Tracker card */}
             <Link
               href={`/project/${project.id}/tracker`}
-              className="flex items-center justify-between p-5 bg-white border border-slate-200 rounded-2xl shadow-sm hover:border-amber-300 hover:shadow-md transition-all group"
+              className="flex items-center justify-between p-5 bg-white border border-slate-200 rounded-xl shadow-sm hover:border-amber-300 hover:shadow-md transition-all group"
             >
               <div className="flex items-center gap-4">
                 <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center shrink-0">
@@ -1328,7 +1328,7 @@ export default function ProjectHubClient({ userId, userRole, canEditMoney = fals
                   <p className="text-xs text-slate-400 mt-0.5">Track fixture approvals per type across all reviewers and submission rounds</p>
                 </div>
               </div>
-              <span className="text-sm font-semibold text-amber-500 group-hover:text-amber-600 transition-colors whitespace-nowrap">
+              <span className="text-sm font-semibold text-amber-500 group-hover:text-orange-600 transition-colors whitespace-nowrap">
                 Open Tracker →
               </span>
             </Link>
@@ -1346,7 +1346,7 @@ export default function ProjectHubClient({ userId, userRole, canEditMoney = fals
           <div className="space-y-5">
             <div>
               <h2 className="text-lg font-semibold text-slate-800">Construction Schedule</h2>
-              <p className="text-sm text-slate-400 mt-0.5">Upload a PDF — milestones auto-parse and the Gantt updates automatically</p>
+              <p className="text-sm text-slate-400 mt-0.5">Upload a PDF, milestones auto-parse and the Gantt updates automatically</p>
             </div>
             <CAScheduleCard
               files={filesByTab('ca')}
@@ -1413,7 +1413,7 @@ export default function ProjectHubClient({ userId, userRole, canEditMoney = fals
                   <div className="mt-3">
                     <AutoTaggedFileTab
                       title=""
-                      subtitle="Legacy CO PDF uploads — for reference only"
+                      subtitle="Legacy CO PDF uploads, for reference only"
                       autoTag="Change Order"
                       files={coFiles}
                       projectId={project.id}
@@ -1441,7 +1441,7 @@ export default function ProjectHubClient({ userId, userRole, canEditMoney = fals
           <div className="space-y-6">
             <div>
               <h2 className="text-lg font-semibold text-slate-800">Supply Contracts</h2>
-              <p className="text-sm text-slate-400 mt-0.5">Supply contracts · COIs · SOVs · Amendments — supply contracts auto-reviewed by Claude AI</p>
+              <p className="text-sm text-slate-400 mt-0.5">Supply contracts · COIs · SOVs · Amendments, supply contracts auto-reviewed by Claude AI</p>
             </div>
             <ContractWidgets
               projectId={project.id}
@@ -1484,8 +1484,8 @@ export default function ProjectHubClient({ userId, userRole, canEditMoney = fals
             </div>
 
             {/* Design criteria fields */}
-            <div className="bg-white border border-slate-200 rounded-2xl px-6 py-5 shadow-sm">
-              <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-4">Design Criteria</p>
+            <div className="bg-white border border-slate-200 rounded-xl px-6 py-5 shadow-sm">
+              <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-4">Design Criteria</p>
               {(() => {
                 const lines = (designInfo.codes || '').split('\n').map(l => l.trim()).filter(Boolean);
                 const extract = prefix => {
@@ -1509,8 +1509,8 @@ export default function ProjectHubClient({ userId, userRole, canEditMoney = fals
                   ].filter(Boolean).join('\n');
                   if (parts !== (designInfo.codes || '').trim()) saveDesignInfo('codes', parts);
                 }
-                const fieldCls = 'w-full text-sm font-semibold text-slate-800 bg-white border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent';
-                const labelCls = 'block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5';
+                const fieldCls = 'w-full text-sm font-semibold text-slate-800 bg-white border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent';
+                const labelCls = 'block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5';
                 return (
                   <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
                     {[
@@ -1645,12 +1645,12 @@ export default function ProjectHubClient({ userId, userRole, canEditMoney = fals
             <div className="flex items-center justify-between mb-5">
               <div>
                 <h2 className="text-lg font-semibold text-slate-800">Takeoffs</h2>
-                <p className="text-sm text-slate-400 mt-0.5">Fixture counts across submissions — tag each upload with its phase (SD, DD, CD, IFC…)</p>
+                <p className="text-sm text-slate-400 mt-0.5">Fixture counts across submissions, tag each upload with its phase (SD, DD, CD, IFC…)</p>
               </div>
             </div>
             <UnitMatrixUpload projectId={project.id} />
             <SiteDataUpload projectId={project.id} />
-            <div className="text-[10px] font-bold text-amber-600 uppercase tracking-wider mb-2">Fixture Takeoffs</div>
+            <div className="text-[11px] font-bold text-amber-600 uppercase tracking-wide mb-2">Fixture Takeoffs</div>
             <FileDropZone projectId={project.id} tab="takeoffs" initialFiles={filesByTab('takeoffs')} onFileAdded={onFileAdded} onFileDeleted={onFileDeleted} />
             <TakeoffDashboard files={filesByTab('takeoffs')} />
           </div>

@@ -36,8 +36,8 @@ function authorInitials(name) {
 
 function authorColor(email) {
   const colors = [
-    'bg-blue-500', 'bg-purple-500', 'bg-emerald-500',
-    'bg-amber-500', 'bg-rose-500', 'bg-cyan-500', 'bg-indigo-500',
+    'bg-blue-500', 'bg-purple-500', 'bg-green-500',
+    'bg-amber-500', 'bg-red-500', 'bg-cyan-500', 'bg-indigo-500',
   ];
   let hash = 0;
   for (const c of (email || '')) hash = (hash * 31 + c.charCodeAt(0)) & 0xffff;
@@ -97,7 +97,7 @@ function MarkdownChangelog({ nodes }) {
 
   return (
     <div className="space-y-5">
-      {/* Stats + search — identical layout to Deploy History */}
+      {/* Stats + search, identical layout to Deploy History */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-4 text-sm text-slate-500">
           <span><strong className="text-slate-700">{versionSections.length}</strong> versions</span>
@@ -108,14 +108,14 @@ function MarkdownChangelog({ nodes }) {
         <input
           type="text"
           placeholder="Search changelog notes…"
-          className="text-sm border border-slate-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-amber-200 w-56"
+          className="text-sm border border-slate-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-orange-500 w-56"
           value={search}
           onChange={e => setSearch(e.target.value)}
         />
       </div>
 
       {q && filtered.filter(s => !s.isTitle).length === 0 && (
-        <div className="text-center text-slate-400 text-sm py-10">No versions match your search</div>
+        <div className="text-center text-slate-500 text-sm py-10">No versions match your search</div>
       )}
 
       <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-0">
@@ -132,7 +132,7 @@ function MarkdownChangelog({ nodes }) {
             </h2>
           );
           if (node.type === 'h3') return (
-            <h3 key={idx} className="text-xs font-semibold text-slate-400 uppercase tracking-widest mt-4 mb-1.5">{node.text}</h3>
+            <h3 key={idx} className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mt-4 mb-1.5">{node.text}</h3>
           );
           if (node.type === 'li') return (
             <div key={idx} className={`flex items-start gap-2 py-0.5 ${node.nested ? 'pl-4' : ''}`}>
@@ -161,7 +161,7 @@ function CommitRow({ commit }) {
   return (
     <div className="group relative pl-8">
       {/* Timeline dot */}
-      <span className="absolute left-0 top-3.5 w-3 h-3 rounded-full border-2 border-white bg-slate-300 group-hover:bg-amber-400 transition-colors z-10" />
+      <span className="absolute left-0 top-3.5 w-3 h-3 rounded-full border-2 border-white bg-slate-300 group-hover:bg-orange-400 transition-colors z-10" />
 
       <div className="bg-white border border-slate-200 rounded-xl px-4 py-3 hover:border-slate-300 transition-colors">
         <div className="flex items-start justify-between gap-3 flex-wrap">
@@ -170,17 +170,17 @@ function CommitRow({ commit }) {
             <p className="text-sm font-medium text-slate-800 leading-snug">{commit.subject}</p>
             <div className="flex items-center gap-2.5 mt-1.5 flex-wrap">
               {/* Author avatar */}
-              <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-bold text-white ${authorColor(commit.email)}`}>
+              <span className={`inline-flex items-center justify-center w-5 h-5 rounded-full text-[11px] font-bold text-white ${authorColor(commit.email)}`}>
                 {authorInitials(commit.author)}
               </span>
               <span className="text-xs text-slate-500">{commit.author}</span>
               {isAI && (
-                <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-purple-100 text-purple-600">AI-assisted</span>
+                <span className="px-1.5 py-0.5 rounded text-[11px] font-semibold bg-purple-100 text-purple-600">AI-assisted</span>
               )}
               <span className="text-slate-300 text-xs">·</span>
-              <span className="text-xs text-slate-400 font-mono">{commit.hash}</span>
+              <span className="text-xs text-slate-500 font-mono">{commit.hash}</span>
               <span className="text-slate-300 text-xs">·</span>
-              <span className="text-xs text-slate-400" title={`${fmtDate(commit.date)} ${fmtTime(commit.date)}`}>
+              <span className="text-xs text-slate-500" title={`${fmtDate(commit.date)} ${fmtTime(commit.date)}`}>
                 {fmtRelative(commit.date)}
               </span>
             </div>
@@ -190,7 +190,7 @@ function CommitRow({ commit }) {
           {hasBody && (
             <button
               onClick={() => setOpen(v => !v)}
-              className="text-xs text-slate-400 hover:text-slate-600 flex items-center gap-1 shrink-0 mt-1"
+              className="text-xs text-slate-500 hover:text-slate-600 flex items-center gap-1 shrink-0 mt-1"
             >
               {open ? 'Less' : 'Details'}
               <svg className={`w-3.5 h-3.5 transition-transform ${open ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -218,8 +218,8 @@ function DeployHistory({ deployLog }) {
 
   if (!deployLog) {
     return (
-      <div className="bg-white rounded-xl border border-slate-200 p-10 text-center text-slate-400 text-sm">
-        Deploy log not available — it is generated during the Amplify build.
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-10 text-center text-slate-500 text-sm">
+        Deploy log not available, it is generated during the Amplify build.
         <br />
         <span className="text-xs mt-1 block">Run <code className="bg-slate-100 px-1 rounded">npm run dev:3000</code> locally to generate it for local development.</span>
       </div>
@@ -250,14 +250,14 @@ function DeployHistory({ deployLog }) {
         <input
           type="text"
           placeholder="Search commits…"
-          className="text-sm border border-slate-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-amber-200 w-56"
+          className="text-sm border border-slate-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-orange-500 w-56"
           value={search}
           onChange={e => setSearch(e.target.value)}
         />
       </div>
 
       {filtered.length === 0 && (
-        <div className="text-center text-slate-400 text-sm py-10">No commits match your search</div>
+        <div className="text-center text-slate-500 text-sm py-10">No commits match your search</div>
       )}
 
       {/* Timeline grouped by day */}
@@ -265,10 +265,10 @@ function DeployHistory({ deployLog }) {
         <div key={day}>
           {/* Day header */}
           <div className="flex items-center gap-3 mb-3 pl-8">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+            <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
               {new Date(day).toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
             </span>
-            <span className="text-xs bg-slate-100 text-slate-400 rounded-full px-2 py-0.5">{commits.length}</span>
+            <span className="text-xs bg-slate-100 text-slate-500 rounded-full px-2 py-0.5">{commits.length}</span>
           </div>
 
           {/* Timeline */}
@@ -320,7 +320,7 @@ export default function ChangelogClient({ nodes, deployLog }) {
             </svg>
             {t.label}
             {t.id === 'history' && deployLog && (
-              <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-700">
+              <span className="ml-1 px-1.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-50 text-amber-700">
                 {deployLog.length}
               </span>
             )}

@@ -1,5 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { TH, TD, CARD_PADDED, H1, CARD_TITLE } from '@/components/ui/tokens';
+import { WidgetLoading } from '@/components/ui/WidgetFrame';
 import AutomationNav from '@/components/salesAutomation/AutomationNav';
 import DisabledSection from '@/components/salesAutomation/DisabledSection';
 import ConfirmArchiveModal from '@/components/salesAutomation/ConfirmArchiveModal';
@@ -39,7 +41,7 @@ function CreatableSelect({ value, onChange, options, placeholder = 'Select or ty
   return (
     <div ref={ref} className="relative">
       <div
-        className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 bg-white flex items-center gap-2 cursor-pointer focus-within:ring-2 focus-within:ring-orange-400 focus-within:border-orange-400"
+        className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 bg-white flex items-center gap-2 cursor-pointer focus-within:ring-2 focus-within:ring-orange-500 focus-within:border-orange-400"
         onClick={() => setOpen(true)}
       >
         {!open && value ? (
@@ -64,7 +66,7 @@ function CreatableSelect({ value, onChange, options, placeholder = 'Select or ty
       {open && (
         <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-52 overflow-y-auto">
           {filtered.length === 0 && !isNew && (
-            <p className="px-3 py-2 text-xs text-slate-400">No options found</p>
+            <p className="px-3 py-2 text-xs text-slate-500">No options found</p>
           )}
           {filtered.map(opt => (
             <button key={opt} type="button"
@@ -215,10 +217,10 @@ function TemplateDrawer({ open, onClose, template, onSaved, onArchive, onRestore
       <div className={`fixed top-0 right-0 bottom-0 w-[480px] bg-white border-l border-slate-200 shadow-2xl flex flex-col z-50 transition-transform duration-200 ${open ? 'translate-x-0' : 'translate-x-full'}`}>
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 shrink-0">
-          <h2 className="text-sm font-bold text-slate-900">
+          <h2 className={CARD_TITLE}>
             {template ? 'Edit Template' : 'New Template'}
           </h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors">
+          <button onClick={onClose} className="text-slate-600 hover:bg-slate-100 rounded-lg p-1 transition-colors">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -234,7 +236,7 @@ function TemplateDrawer({ open, onClose, template, onSaved, onArchive, onRestore
               type="text"
               value={form.name}
               onChange={e => set('name', e.target.value)}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-400"
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-500"
               placeholder="e.g. Proposal Follow-Up – Developer"
             />
           </div>
@@ -243,7 +245,7 @@ function TemplateDrawer({ open, onClose, template, onSaved, onArchive, onRestore
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">
               Channel
-              <span className="ml-1.5 text-[10px] font-normal text-slate-400">type to add new</span>
+              <span className="ml-1.5 text-[11px] font-normal text-slate-400">type to add new</span>
             </label>
             <CreatableSelect
               value={form.channel}
@@ -257,7 +259,7 @@ function TemplateDrawer({ open, onClose, template, onSaved, onArchive, onRestore
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">
               Scenario
-              <span className="ml-1.5 text-[10px] font-normal text-slate-400">type to add new</span>
+              <span className="ml-1.5 text-[11px] font-normal text-slate-400">type to add new</span>
             </label>
             <CreatableSelect
               value={form.scenario}
@@ -274,7 +276,7 @@ function TemplateDrawer({ open, onClose, template, onSaved, onArchive, onRestore
               type="text"
               value={form.dealStage}
               onChange={e => set('dealStage', e.target.value)}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-400"
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-500"
               placeholder="e.g. QUALIFIED"
             />
           </div>
@@ -283,7 +285,7 @@ function TemplateDrawer({ open, onClose, template, onSaved, onArchive, onRestore
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">
               Client Type
-              <span className="ml-1.5 text-[10px] font-normal text-slate-400">type to add new</span>
+              <span className="ml-1.5 text-[11px] font-normal text-slate-400">type to add new</span>
             </label>
             <CreatableSelect
               value={form.clientType}
@@ -297,7 +299,7 @@ function TemplateDrawer({ open, onClose, template, onSaved, onArchive, onRestore
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">Service Type</label>
-              <select value={form.serviceType || ''} onChange={e => set('serviceType', e.target.value)} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white">
+              <select value={form.serviceType || ''} onChange={e => set('serviceType', e.target.value)} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white">
                 <option value="">Any</option>
                 <option value="fullDesign">Full Design</option>
                 <option value="designAssist">Design Assist</option>
@@ -308,7 +310,7 @@ function TemplateDrawer({ open, onClose, template, onSaved, onArchive, onRestore
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">Pipeline</label>
-              <select value={form.pipeline || ''} onChange={e => set('pipeline', e.target.value)} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white">
+              <select value={form.pipeline || ''} onChange={e => set('pipeline', e.target.value)} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white">
                 <option value="">Both</option>
                 <option value="DESIGN">Design</option>
                 <option value="PROCUREMENT">Procurement</option>
@@ -317,12 +319,12 @@ function TemplateDrawer({ open, onClose, template, onSaved, onArchive, onRestore
           </div>
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">Contact Role</label>
-            <input type="text" value={form.contactRole || ''} onChange={e => set('contactRole', e.target.value)} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-400" placeholder="e.g. owner, project manager (words from their job title)" />
+            <input type="text" value={form.contactRole || ''} onChange={e => set('contactRole', e.target.value)} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-500" placeholder="e.g. owner, project manager (words from their job title)" />
           </div>
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">Topic Words</label>
-            <input type="text" value={form.topicWords || ''} onChange={e => set('topicWords', e.target.value)} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-400" placeholder="e.g. peer review budget fixture schedule" />
-            <p className="text-[10px] text-slate-400 mt-1">Words that make the email writers reach for this template when an email is about the same thing.</p>
+            <input type="text" value={form.topicWords || ''} onChange={e => set('topicWords', e.target.value)} className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-500" placeholder="e.g. peer review budget fixture schedule" />
+            <p className="text-[11px] text-slate-500 mt-1">Words that make the email writers reach for this template when an email is about the same thing.</p>
           </div>
 
           {/* Subject — only for EMAIL */}
@@ -333,7 +335,7 @@ function TemplateDrawer({ open, onClose, template, onSaved, onArchive, onRestore
                 type="text"
                 value={form.subject}
                 onChange={e => set('subject', e.target.value)}
-                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-400"
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-500"
                 placeholder="Following up on {projectName}"
               />
             </div>
@@ -346,17 +348,17 @@ function TemplateDrawer({ open, onClose, template, onSaved, onArchive, onRestore
               rows={8}
               value={form.body}
               onChange={e => set('body', e.target.value)}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-400 font-mono resize-none"
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-500 font-mono resize-none"
               placeholder={`Hi {contactFirstName},\n\nI wanted to follow up on {projectName}...\n\nBest,\n{senderName}`}
             />
-            <p className="text-[10px] text-slate-400 mt-1 leading-relaxed">
+            <p className="text-[11px] text-slate-500 mt-1 leading-relaxed">
               Use <code className="bg-slate-100 px-1 rounded">{'{variable}'}</code> placeholders. Available:{' '}
               <span className="font-mono">{'{clientName}'}, {'{contactFirstName}'}, {'{projectName}'}, {'{dealStage}'}, {'{proposedTimes}'}, {'{lastActivitySummary}'}, {'{daysSinceContact}'}, {'{senderName}'}</span>
             </p>
           </div>
 
           {/* AI Direction */}
-          <div className="border border-amber-200 bg-amber-50/40 rounded-xl p-3">
+          <div className="border border-amber-200 bg-amber-50/40 rounded-lg p-3">
             <label className="block text-xs font-semibold text-amber-800 mb-1 flex items-center gap-1.5">
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
@@ -367,10 +369,10 @@ function TemplateDrawer({ open, onClose, template, onSaved, onArchive, onRestore
               rows={4}
               value={form.direction || ''}
               onChange={e => set('direction', e.target.value)}
-              className="w-full border border-amber-200 rounded-lg px-3 py-2 text-xs text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none leading-relaxed"
+              className="w-full border border-amber-200 rounded-lg px-3 py-2 text-xs text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-orange-500 resize-none leading-relaxed"
               placeholder={`Instructions for the AI when drafting. Examples:\n- If we had an in-person meeting in the last 30 days, open with a warm reference to it\n- If last note mentions something they promised, call it out\n- Keep under 4 sentences. End with a specific ask.\n- Never say "I hope this email finds you well"`}
             />
-            <p className="text-[10px] text-amber-700 mt-1">
+            <p className="text-[11px] text-amber-700 mt-1">
               The AI reads this before writing. The Body above is the starting point — the AI personalizes it using these instructions + relationship data.
             </p>
           </div>
@@ -400,7 +402,7 @@ function TemplateDrawer({ open, onClose, template, onSaved, onArchive, onRestore
         <div className="flex items-center justify-end gap-2 px-5 py-4 border-t border-slate-200 shrink-0">
           {template && (template.isActive ? (
             <button type="button" onClick={() => onArchive(template)}
-              className="mr-auto px-3 py-2 rounded-lg text-sm font-semibold text-amber-700 hover:bg-amber-50 transition-colors">
+              className="mr-auto px-3 py-2 rounded-lg text-sm font-semibold text-slate-700 hover:bg-slate-100 transition-colors">
               Archive
             </button>
           ) : (
@@ -419,9 +421,9 @@ function TemplateDrawer({ open, onClose, template, onSaved, onArchive, onRestore
           <button
             onClick={handleSave}
             disabled={saving}
-            className="px-4 py-2 rounded-lg bg-orange-600 text-white text-sm font-semibold hover:bg-orange-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+            className="px-4 py-2 rounded-lg bg-orange-500 text-white text-sm font-semibold hover:bg-orange-600 transition-colors disabled:opacity-50 flex items-center gap-2"
           >
-            {saving && <div className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />}
+            
             {saving ? 'Saving…' : 'Save'}
           </button>
         </div>
@@ -442,7 +444,7 @@ function TemplatesTable({ templates, onEdit, onArchive, onRestore }) {
           </svg>
         </div>
         <p className="text-sm font-semibold text-slate-700 mb-1">No templates yet</p>
-        <p className="text-xs text-slate-400">Add a template or seed the starter set.</p>
+        <p className="text-xs text-slate-500">Add a template or seed the starter set.</p>
       </div>
     );
   }
@@ -452,48 +454,48 @@ function TemplatesTable({ templates, onEdit, onArchive, onRestore }) {
       <table className="w-full text-xs">
         <thead>
           <tr className="border-b border-slate-100">
-            <th className="text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wide pb-2 pr-4">Name</th>
-            <th className="text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wide pb-2 pr-4">Scenario</th>
-            <th className="text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wide pb-2 pr-4">Client Type</th>
-            <th className="text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wide pb-2 pr-4">Stage</th>
-            <th className="text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wide pb-2 pr-4">Also only for</th>
-            <th className="text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wide pb-2 pr-4">Default</th>
-            <th className="text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wide pb-2 pr-4">Active</th>
-            <th className="pb-2"></th>
+            <th className={TH}>Name</th>
+            <th className={TH}>Scenario</th>
+            <th className={TH}>Client Type</th>
+            <th className={TH}>Stage</th>
+            <th className={TH}>Also only for</th>
+            <th className={TH}>Default</th>
+            <th className={TH}>Active</th>
+            <th className={TH}></th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-50">
           {templates.filter(t => t.isActive).length === 0 ? (
-            <tr><td colSpan={8} className="py-6 text-center text-xs text-slate-400">No active templates — they are all archived below.</td></tr>
+            <tr><td colSpan={8} className="py-6 text-center text-xs text-slate-500">No active templates — they are all archived below.</td></tr>
           ) : templates.filter(t => t.isActive).map(t => (
             <tr
               key={t.id}
               onClick={() => onEdit(t)}
               className="hover:bg-slate-50 cursor-pointer transition-colors group"
             >
-              <td className="py-2.5 pr-4 font-medium text-slate-800">{t.name}</td>
-              <td className="py-2.5 pr-4 text-slate-500 capitalize">{t.scenario?.replace(/_/g, ' ')}</td>
-              <td className="py-2.5 pr-4 text-slate-500">{t.clientType || 'Any'}</td>
-              <td className="py-2.5 pr-4 text-slate-500">{t.dealStage || <span className="text-slate-300">—</span>}</td>
-              <td className="py-2.5 pr-4 text-slate-500">{[t.serviceType && (SERVICE_LABELS[t.serviceType] || t.serviceType), t.pipeline && (t.pipeline === 'DESIGN' ? 'Design' : 'Procurement'), t.contactRole].filter(Boolean).join(', ') || <span className="text-slate-300">—</span>}</td>
-              <td className="py-2.5 pr-4">
+              <td className={`${TD} font-medium text-slate-800`}>{t.name}</td>
+              <td className={`${TD} text-slate-500 capitalize`}>{t.scenario?.replace(/_/g, ' ')}</td>
+              <td className={`${TD} text-slate-500`}>{t.clientType || 'Any'}</td>
+              <td className={`${TD} text-slate-500`}>{t.dealStage || <span className="text-slate-300">—</span>}</td>
+              <td className={`${TD} text-slate-500`}>{[t.serviceType && (SERVICE_LABELS[t.serviceType] || t.serviceType), t.pipeline && (t.pipeline === 'DESIGN' ? 'Design' : 'Procurement'), t.contactRole].filter(Boolean).join(', ') || <span className="text-slate-300">—</span>}</td>
+              <td className={TD}>
                 {t.isDefault
                   ? <span className="text-green-600 font-bold">✓</span>
                   : <span className="text-slate-300">—</span>}
               </td>
-              <td className="py-2.5 pr-4">
+              <td className={TD}>
                 <span className={`inline-block w-2 h-2 rounded-full ${t.isActive ? 'bg-green-500' : 'bg-slate-300'}`} />
               </td>
-              <td className="py-2.5 text-right">
+              <td className={`${TD} text-right tabular-nums`}>
                 <button
                   onClick={e => { e.stopPropagation(); onEdit(t); }}
-                  className="text-[11px] font-semibold text-slate-500 hover:text-orange-600 transition-colors opacity-0 group-hover:opacity-100 px-2 py-1 rounded hover:bg-orange-50"
+                  className="text-[11px] font-semibold text-slate-500 hover:text-orange-600 transition-colors opacity-0 group-hover:opacity-100 px-2 py-1 rounded-lg hover:bg-orange-50"
                 >
                   Edit
                 </button>
                 <button
                   onClick={e => { e.stopPropagation(); onArchive(t); }}
-                  className="text-[11px] font-semibold text-slate-500 hover:text-amber-700 transition-colors opacity-0 group-hover:opacity-100 px-2 py-1 rounded hover:bg-amber-50"
+                  className="text-[11px] font-semibold text-slate-500 hover:text-orange-600 transition-colors opacity-0 group-hover:opacity-100 px-2 py-1 rounded-lg hover:bg-orange-50"
                 >
                   Archive
                 </button>
@@ -504,15 +506,15 @@ function TemplatesTable({ templates, onEdit, onArchive, onRestore }) {
       </table>
 
       <DisabledSection count={templates.filter(t => !t.isActive).length} label="Archived templates">
-        <p className="text-[11px] text-slate-400 mb-1">Kept, never deleted. The bot does not use these until they are restored.</p>
+        <p className="text-[11px] text-slate-500 mb-1">Kept, never deleted. The bot does not use these until they are restored.</p>
         <div className="divide-y divide-slate-100">
           {templates.filter(t => !t.isActive).map(t => (
             <div key={t.id} className="w-full flex items-center gap-2 py-2">
               <button onClick={() => onEdit(t)} className="flex items-center gap-2 text-left min-w-0">
                 <span className="text-xs font-semibold text-slate-600">{t.name}</span>
-                <span className="text-[10px] text-slate-400 capitalize">{t.scenario?.replace(/_/g, ' ')}</span>
+                <span className="text-[11px] text-slate-500 capitalize">{t.scenario?.replace(/_/g, ' ')}</span>
               </button>
-              <button onClick={() => onRestore(t)} className="ml-auto text-[10px] text-green-700 font-semibold px-2 py-1 rounded hover:bg-green-50">Restore</button>
+              <button onClick={() => onRestore(t)} className="ml-auto text-[11px] text-green-700 font-semibold px-2 py-1 rounded hover:bg-green-50">Restore</button>
             </div>
           ))}
         </div>
@@ -640,10 +642,10 @@ export default function TemplatesPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
         <div>
-          <h1 className="text-xl font-bold text-slate-900">Templates</h1>
+          <h1 className={H1}>Templates</h1>
           <p className="text-xs text-slate-500 mt-0.5">Reusable message templates for email, LinkedIn, and meetings.</p>
         </div>
-        <button onClick={openNew} className="px-4 py-2 rounded-lg bg-orange-600 text-white text-sm font-semibold hover:bg-orange-700 transition-colors">
+        <button onClick={openNew} className="px-4 py-2 rounded-lg bg-orange-500 text-white text-sm font-semibold hover:bg-orange-600 transition-colors">
           + New Template
         </button>
       </div>
@@ -677,20 +679,18 @@ export default function TemplatesPage() {
           <button
             onClick={handleSeed}
             disabled={seeding}
-            className="px-4 py-2 rounded-lg bg-amber-500 text-white text-sm font-semibold hover:bg-amber-600 transition-colors disabled:opacity-50 flex items-center gap-2 shrink-0 ml-4"
+            className="px-4 py-2 rounded-lg bg-orange-500 text-white text-sm font-semibold hover:bg-orange-600 transition-colors disabled:opacity-50 flex items-center gap-2 shrink-0 ml-4"
           >
-            {seeding && <div className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />}
+            
             {seeding ? 'Seeding…' : 'Seed Starter Templates'}
           </button>
         </div>
       )}
 
       {/* Table card */}
-      <div className="bg-white border border-slate-200 rounded-xl p-5">
+      <div className={CARD_PADDED}>
         {loading ? (
-          <div className="flex items-center justify-center py-14">
-            <div className="w-5 h-5 border-2 border-slate-200 border-t-orange-500 rounded-full animate-spin" />
-          </div>
+          <WidgetLoading />
         ) : (
           <TemplatesTable templates={filtered} onEdit={openEdit} onArchive={setArchiving} onRestore={restore} />
         )}

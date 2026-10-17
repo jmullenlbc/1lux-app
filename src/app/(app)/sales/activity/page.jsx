@@ -4,6 +4,20 @@ import Link from 'next/link';
 import { bucketByPeriod, bucketCountsByPeriod } from '@/lib/activity/byPeriod';
 import SectionTabs, { ACTIVITY_TABS } from '@/components/ui/SectionTabs';
 import { formatMoney } from '@/lib/sales/expenses';
+import { FilterToolbar, FilterPanel, countFilters } from '@/components/ui/FilterPanel';
+import SortHeader, { Th, sortRows } from '@/components/ui/SortHeader';
+import StatTile from '@/components/ui/StatTile';
+import WidgetFrame, { WidgetEmpty, WidgetLoading } from '@/components/ui/WidgetFrame';
+import { useUrlView } from '@/lib/useUrlView';
+import { CARD_PADDED, CARD_TITLE, INPUT, H1, TD, TONE } from '@/components/ui/tokens';
+
+// A table that is not the page's main list keeps its own sort (one address
+// sort per page); the header chevrons draw the same either way.
+function useLocalSort(initial) {
+  const [sort, setSort] = useState(initial);
+  const toggleSort = useCallback((key) => setSort(prev => prev.key === key ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' }), []);
+  return { sort, toggleSort };
+}
 
 // ── Activity meta ─────────────────────────────────────────────────────────────
 
@@ -12,7 +26,7 @@ const ACTIVITY_META = {
   MEAL:       { emoji: '🍽', label: 'Meal',        color: 'bg-orange-50 text-orange-700 border-orange-200',  inPerson: true },
   LUNCH:      { emoji: '🍽', label: 'Meal',        color: 'bg-orange-50 text-orange-700 border-orange-200',  inPerson: true, legacy: true },  // notes written before the rename
   TRAVEL:     { emoji: '✈️', label: 'Travel',      color: 'bg-sky-50 text-sky-700 border-sky-200',           inPerson: false },
-  HAPPY_HOUR: { emoji: '🍺', label: 'Happy Hour',  color: 'bg-yellow-50 text-yellow-700 border-yellow-200',  inPerson: true },
+  HAPPY_HOUR: { emoji: '🍺', label: 'Happy Hour',  color: 'bg-amber-50 text-amber-700 border-amber-200',  inPerson: true },
   GOLF:       { emoji: '⛳', label: 'Golf',         color: 'bg-green-50 text-green-700 border-green-200',     inPerson: true },
   SITE_VISIT: { emoji: '🏗', label: 'Site Visit',  color: 'bg-blue-50 text-blue-700 border-blue-200',        inPerson: true },
   CALL:       { emoji: '📞', label: 'Call',         color: 'bg-slate-100 text-slate-600 border-slate-200',    inPerson: false },
@@ -35,7 +49,7 @@ function avatarColor(name) {
   for (let i = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h);
   const colors = [
     'bg-orange-500', 'bg-amber-500', 'bg-blue-500', 'bg-indigo-500',
-    'bg-emerald-500', 'bg-teal-500', 'bg-violet-500', 'bg-rose-500',
+    'bg-green-500', 'bg-teal-500', 'bg-violet-500', 'bg-red-500',
   ];
   return colors[Math.abs(h) % colors.length];
 }
@@ -189,7 +203,7 @@ function computeStats(notes, dateRange, selectedUserId = 'all', expenses = []) {
 function ActivityTypeBadge({ type }) {
   const meta = ACTIVITY_META[type] || ACTIVITY_META.OTHER;
   return (
-    <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[11px] font-medium border ${meta.color}`}>
+    <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-lg text-xs font-semibold border ${meta.color}`}>
       {meta.emoji} {meta.label}
     </span>
   );
@@ -198,14 +212,8 @@ function ActivityTypeBadge({ type }) {
 // ── SummaryCard ───────────────────────────────────────────────────────────────
 
 function SummaryCard({ value, label, sub, href }) {
-  const inner = (
-    <div className="bg-white border border-slate-200 rounded-xl p-4 hover:border-slate-300 transition-colors">
-      <div className="text-2xl font-bold text-slate-900">{value}</div>
-      <div className="text-sm font-medium text-slate-700 mt-0.5">{label}</div>
-      {sub && <div className="text-xs text-slate-400 mt-0.5">{sub}</div>}
-    </div>
-  );
-  if (href) return <Link href={href}>{inner}</Link>;
+  const inner = <StatTile label={label} value={value} sub={sub} className={href ? 'hover:border-orange-300 transition-colors h-full' : 'h-full'} />;
+  if (href) return <Link href={href} className="block">{inner}</Link>;
   return inner;
 }
 
@@ -229,7 +237,7 @@ function ActivityBarChart({ byType }) {
                 style={{ width: `${pct}%` }}
               />
             </div>
-            <span className="w-6 text-xs font-semibold text-slate-600 shrink-0">{count}</span>
+            <span className="w-6 text-xs font-semibold text-slate-600 shrink-0 tabular-nums">{count}</span>
           </div>
         );
       })}
@@ -275,47 +283,53 @@ function ByPeriodTable({ notes, userList, newPeople, expenses }) {
   );
 
   const cols = userList;
-  const th = 'text-[11px] font-semibold text-slate-500 uppercase tracking-wide pb-2 pr-3';
+  const { sort, toggleSort } = useLocalSort({ key: '', dir: 'asc' });
+  const sortedRows = useMemo(() => sortRows(rows, sort, {
+    period: r => r.key,
+    team:   r => Number(r.team) || 0,
+    ...Object.fromEntries(cols.map(u => [`u:${u.id}`, r => Number(r.perUser[u.id]) || 0])),
+  }), [rows, sort, cols]);
 
   return (
-    <div className="bg-white border border-slate-200 rounded-xl p-5">
-      <div className="flex items-center justify-between gap-3 flex-wrap mb-3">
-        <h2 className="text-sm font-bold text-slate-900">By {period === 'month' ? 'Month' : 'Quarter'}</h2>
+    <WidgetFrame
+      title={`By ${period === 'month' ? 'Month' : 'Quarter'}`}
+      actions={(
         <div className="flex items-center gap-2 flex-wrap">
-          <select value={metric} onChange={e => setMetric(e.target.value)} className="text-xs border border-slate-200 rounded-lg px-2 py-1 bg-white text-slate-700">
+          <select value={metric} onChange={e => setMetric(e.target.value)} className={`${INPUT} w-auto text-xs px-2 py-1`}>
             {PERIOD_METRICS.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
           </select>
-          <div className="flex gap-1 bg-slate-100 rounded-xl p-1">
+          <div className="flex gap-1 bg-slate-100 rounded-lg p-1">
             {[['month', 'By month'], ['quarter', 'By quarter']].map(([id, label]) => (
-              <button key={id} onClick={() => setPeriod(id)} className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${period === id ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>{label}</button>
+              <button key={id} onClick={() => setPeriod(id)} className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${period === id ? 'bg-white text-orange-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>{label}</button>
             ))}
           </div>
         </div>
-      </div>
+      )}
+    >
       <div className="overflow-x-auto">
         <table className="w-full text-xs">
           <thead>
             <tr className="border-b border-slate-100">
-              <th className={`text-left ${th}`}>{period === 'month' ? 'Month' : 'Quarter'}</th>
-              {cols.map(u => <th key={u.id} className={`text-right ${th}`}>{u.name}</th>)}
-              <th className={`text-right ${th}`}>Team</th>
+              <SortHeader field="period" label={period === 'month' ? 'Month' : 'Quarter'} sort={sort} onSort={toggleSort} />
+              {cols.map(u => <SortHeader key={u.id} field={`u:${u.id}`} label={u.name} sort={sort} onSort={toggleSort} align="right" />)}
+              <SortHeader field="team" label="Team" sort={sort} onSort={toggleSort} align="right" />
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-50">
-            {rows.map(r => (
+          <tbody className="divide-y divide-slate-100">
+            {sortedRows.map(r => (
               <tr key={r.key} className="hover:bg-slate-50">
-                <td className="py-1.5 pr-3 text-slate-700">{r.label}</td>
-                {cols.map(u => <td key={u.id} className="py-1.5 pr-3 text-right text-slate-500">{cell(r.perUser[u.id])}</td>)}
-                <td className="py-1.5 text-right font-semibold text-slate-700">{cell(r.team)}</td>
+                <td className={`${TD} tabular-nums`}>{r.label}</td>
+                {cols.map(u => <td key={u.id} className={`${TD} text-right text-slate-500 tabular-nums`}>{cell(r.perUser[u.id])}</td>)}
+                <td className={`${TD} text-right font-semibold tabular-nums`}>{cell(r.team)}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
       {isPeople && unassigned > 0 && (
-        <p className="text-[11px] text-slate-400 mt-2">{unassigned} of these people were added before the app recorded who added them, or came in from the website. They count in Team only.</p>
+        <p className="text-xs text-slate-500 mt-2">{unassigned} of these people were added before the app recorded who added them, or came in from the website. They count in Team only.</p>
       )}
-    </div>
+    </WidgetFrame>
   );
 }
 
@@ -337,38 +351,40 @@ function FirstProjectCost({ report, selectedUserId }) {
   const openRows = rows
     .filter(r => !r.won && (selectedUserId === 'all' || r.salesUserId === selectedUserId) && (r.meetings > 0 || r.spentCents > 0))
     .sort((a, b) => b.spentCents - a.spentCents || b.meetings - a.meetings);
-  const th = 'text-[11px] font-semibold text-slate-500 uppercase tracking-wide pb-2 pr-3';
+  const reps = useLocalSort({ key: '', dir: 'asc' });
+  const opens = useLocalSort({ key: '', dir: 'asc' });
+  const perUserSorted = sortRows(perUser, reps.sort, {
+    name:      u => u.userName || '',
+    won:       u => Number(u.wonClients) || 0,
+    meetings:  u => u.wonClients ? Number(u.avgMeetings) : null,
+    spent:     u => u.wonClients ? Number(u.avgSpentCents) || 0 : null,
+    days:      u => u.wonClients ? Number(u.avgDaysToWin) : null,
+    open:      u => Number(u.openClients) || 0,
+    openSpend: u => Number(u.openSpentCents) || 0,
+  });
+  const openSorted = sortRows(openRows, opens.sort, {
+    company:  r => r.clientName || '',
+    rep:      r => r.salesUserName || '',
+    meetings: r => Number(r.meetings) || 0,
+    inPerson: r => Number(r.inPerson) || 0,
+    spent:    r => Number(r.spentCents) || 0,
+    first:    r => r.firstTouchAt ? new Date(r.firstTouchAt).getTime() : null,
+  });
 
   return (
-    <div className="bg-white border border-slate-200 rounded-xl p-5">
-      <div className="flex items-center justify-between gap-3 flex-wrap mb-1">
-        <h2 className="text-sm font-bold text-slate-900">Cost to First Project</h2>
-        <span className="text-[11px] text-slate-400">Meetings and money before a company's first won project</span>
-      </div>
+    <WidgetFrame title="Cost to First Project" sub="Meetings and money before a company's first won project">
       {!s || s.wonClients === 0 ? (
-        <p className="text-xs text-slate-500 py-4 text-center">No company has a dated first win yet, so there is nothing to average. The open companies below show what has gone in so far.</p>
+        <WidgetEmpty>No company has a dated first win yet, so there is nothing to average. The open companies below show what has gone in so far.</WidgetEmpty>
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3">
-          <div className="rounded-lg bg-slate-50 px-3 py-2.5">
-            <div className="text-xl font-bold text-slate-900">{num(s.avgMeetings)}</div>
-            <div className="text-[11px] text-slate-500">Meetings to first project <span className="text-slate-400">(median {num(s.medianMeetings)})</span></div>
-          </div>
-          <div className="rounded-lg bg-slate-50 px-3 py-2.5">
-            <div className="text-xl font-bold text-slate-900">{num(s.avgInPerson)}</div>
-            <div className="text-[11px] text-slate-500">of them in person</div>
-          </div>
-          <div className="rounded-lg bg-slate-50 px-3 py-2.5">
-            <div className="text-xl font-bold text-slate-900">{formatMoney(s.avgSpentCents || 0)}</div>
-            <div className="text-[11px] text-slate-500">Spent to first project <span className="text-slate-400">(median {formatMoney(s.medianSpentCents || 0)})</span></div>
-          </div>
-          <div className="rounded-lg bg-slate-50 px-3 py-2.5">
-            <div className="text-xl font-bold text-slate-900">{num(s.avgDaysToWin, 0)}</div>
-            <div className="text-[11px] text-slate-500">Days from first meeting <span className="text-slate-400">({s.wonClients} won {s.wonClients === 1 ? 'company' : 'companies'})</span></div>
-          </div>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <StatTile inset label="Meetings to first project" value={num(s.avgMeetings)} sub={`median ${num(s.medianMeetings)}`} />
+          <StatTile inset label="Of them in person" value={num(s.avgInPerson)} />
+          <StatTile inset label="Spent to first project" value={formatMoney(s.avgSpentCents || 0)} sub={`median ${formatMoney(s.medianSpentCents || 0)}`} />
+          <StatTile inset label="Days from first meeting" value={num(s.avgDaysToWin, 0)} sub={`${s.wonClients} won ${s.wonClients === 1 ? 'company' : 'companies'}`} />
         </div>
       )}
       {s && s.approximatedClients > 0 && (
-        <p className="text-[11px] text-slate-400 mt-2">{s.approximatedClients} {s.approximatedClients === 1 ? 'company has' : 'companies have'} only a guessed win date and {s.approximatedClients === 1 ? 'is' : 'are'} left out of the averages.</p>
+        <p className="text-xs text-slate-500 mt-2">{s.approximatedClients} {s.approximatedClients === 1 ? 'company has' : 'companies have'} only a guessed win date and {s.approximatedClients === 1 ? 'is' : 'are'} left out of the averages.</p>
       )}
 
       {selectedUserId === 'all' && perUser.length > 0 && (
@@ -376,25 +392,25 @@ function FirstProjectCost({ report, selectedUserId }) {
           <table className="w-full text-xs">
             <thead>
               <tr className="border-b border-slate-100">
-                <th className={`text-left ${th}`}>Salesperson</th>
-                <th className={`text-right ${th}`}>Won</th>
-                <th className={`text-right ${th}`}>Avg meetings</th>
-                <th className={`text-right ${th}`}>Avg spent</th>
-                <th className={`text-right ${th}`}>Avg days</th>
-                <th className={`text-right ${th}`}>Open</th>
-                <th className={`text-right ${th}`}>Open spend</th>
+                <SortHeader field="name" label="Salesperson" sort={reps.sort} onSort={reps.toggleSort} />
+                <SortHeader field="won" label="Won" sort={reps.sort} onSort={reps.toggleSort} align="right" />
+                <SortHeader field="meetings" label="Avg meetings" sort={reps.sort} onSort={reps.toggleSort} align="right" />
+                <SortHeader field="spent" label="Avg spent" sort={reps.sort} onSort={reps.toggleSort} align="right" />
+                <SortHeader field="days" label="Avg days" sort={reps.sort} onSort={reps.toggleSort} align="right" />
+                <SortHeader field="open" label="Open" sort={reps.sort} onSort={reps.toggleSort} align="right" />
+                <SortHeader field="openSpend" label="Open spend" sort={reps.sort} onSort={reps.toggleSort} align="right" />
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-50">
-              {perUser.map(u => (
+            <tbody className="divide-y divide-slate-100">
+              {perUserSorted.map(u => (
                 <tr key={u.userId} className="hover:bg-slate-50">
-                  <td className="py-1.5 pr-3 font-medium text-slate-800">{u.userName}</td>
-                  <td className="py-1.5 pr-3 text-right text-slate-700">{u.wonClients}</td>
-                  <td className="py-1.5 pr-3 text-right text-slate-500">{u.wonClients ? num(u.avgMeetings) : '—'}</td>
-                  <td className="py-1.5 pr-3 text-right text-slate-500">{u.wonClients ? formatMoney(u.avgSpentCents || 0) : '—'}</td>
-                  <td className="py-1.5 pr-3 text-right text-slate-500">{u.wonClients ? num(u.avgDaysToWin, 0) : '—'}</td>
-                  <td className="py-1.5 pr-3 text-right text-slate-500">{u.openClients}</td>
-                  <td className="py-1.5 text-right text-slate-500">{formatMoney(u.openSpentCents || 0)}</td>
+                  <td className={`${TD} font-semibold text-slate-800`}>{u.userName}</td>
+                  <td className={`${TD} text-right tabular-nums`}>{u.wonClients}</td>
+                  <td className={`${TD} text-right text-slate-500 tabular-nums`}>{u.wonClients ? num(u.avgMeetings) : '—'}</td>
+                  <td className={`${TD} text-right text-slate-500 tabular-nums`}>{u.wonClients ? formatMoney(u.avgSpentCents || 0) : '—'}</td>
+                  <td className={`${TD} text-right text-slate-500 tabular-nums`}>{u.wonClients ? num(u.avgDaysToWin, 0) : '—'}</td>
+                  <td className={`${TD} text-right text-slate-500 tabular-nums`}>{u.openClients}</td>
+                  <td className={`${TD} text-right text-slate-500 tabular-nums`}>{formatMoney(u.openSpentCents || 0)}</td>
                 </tr>
               ))}
             </tbody>
@@ -412,23 +428,23 @@ function FirstProjectCost({ report, selectedUserId }) {
               <table className="w-full text-xs">
                 <thead>
                   <tr className="border-b border-slate-100">
-                    <th className={`text-left ${th}`}>Company</th>
-                    <th className={`text-left ${th}`}>Salesperson</th>
-                    <th className={`text-right ${th}`}>Meetings</th>
-                    <th className={`text-right ${th}`}>In person</th>
-                    <th className={`text-right ${th}`}>Spent so far</th>
-                    <th className={`text-left ${th}`}>First meeting</th>
+                    <SortHeader field="company" label="Company" sort={opens.sort} onSort={opens.toggleSort} />
+                    <SortHeader field="rep" label="Salesperson" sort={opens.sort} onSort={opens.toggleSort} />
+                    <SortHeader field="meetings" label="Meetings" sort={opens.sort} onSort={opens.toggleSort} align="right" />
+                    <SortHeader field="inPerson" label="In person" sort={opens.sort} onSort={opens.toggleSort} align="right" />
+                    <SortHeader field="spent" label="Spent so far" sort={opens.sort} onSort={opens.toggleSort} align="right" />
+                    <SortHeader field="first" label="First meeting" sort={opens.sort} onSort={opens.toggleSort} />
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-50">
-                  {openRows.map(r => (
+                <tbody className="divide-y divide-slate-100">
+                  {openSorted.map(r => (
                     <tr key={r.clientId} className="hover:bg-slate-50">
-                      <td className="py-1.5 pr-3"><Link href={`/clients/${r.clientId}`} className="font-medium text-slate-800 hover:text-orange-600">{r.clientName}</Link></td>
-                      <td className="py-1.5 pr-3 text-slate-500">{r.salesUserName || '—'}</td>
-                      <td className="py-1.5 pr-3 text-right text-slate-700">{r.meetings}</td>
-                      <td className="py-1.5 pr-3 text-right text-slate-500">{r.inPerson}</td>
-                      <td className="py-1.5 pr-3 text-right text-slate-700">{formatMoney(r.spentCents || 0)}</td>
-                      <td className="py-1.5 text-slate-500">{fmtDate(r.firstTouchAt)}</td>
+                      <td className={TD}><Link href={`/clients/${r.clientId}`} className="font-semibold text-slate-800 hover:text-orange-600">{r.clientName}</Link></td>
+                      <td className={`${TD} text-slate-500`}>{r.salesUserName || '—'}</td>
+                      <td className={`${TD} text-right tabular-nums`}>{r.meetings}</td>
+                      <td className={`${TD} text-right text-slate-500 tabular-nums`}>{r.inPerson}</td>
+                      <td className={`${TD} text-right tabular-nums`}>{formatMoney(r.spentCents || 0)}</td>
+                      <td className={`${TD} text-slate-500 tabular-nums`}>{fmtDate(r.firstTouchAt)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -437,11 +453,27 @@ function FirstProjectCost({ report, selectedUserId }) {
           )}
         </div>
       )}
-    </div>
+    </WidgetFrame>
   );
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────────
+
+const RANGES = [
+  { id: 'week',     label: 'This Week' },
+  { id: 'month',    label: 'This Month' },
+  { id: 'quarter',  label: 'This Quarter' },
+  { id: 'ytd',      label: 'YTD' },
+  { id: 'lastyear', label: 'Last Year' },
+];
+
+const FILTER_FIELDS = [
+  { key: 'rep',   label: 'Rep',        kind: 'pick' },
+  { key: 'range', label: 'Date range', kind: 'pick' },
+];
+const SORT_KEYS = ['name', 'inPerson', 'calls', 'other', 'spent'];
+const VIEW_FIELDS = [...FILTER_FIELDS, ...SORT_KEYS.map(k => ({ key: k, kind: 'sort' }))];
+const SORT_DEFAULT = { key: '', dir: 'asc' };
 
 export default function SalesActivityPage() {
   const [notes,          setNotes]          = useState([]);
@@ -450,8 +482,11 @@ export default function SalesActivityPage() {
   const [expenses,       setExpenses]       = useState([]);
   const [firstProject,   setFirstProject]   = useState(null);
   const [loading,        setLoading]        = useState(true);
-  const [dateRange,      setDateRange]      = useState('month');
-  const [selectedUserId, setSelectedUserId] = useState('all');
+  // Rep and date range live in the address (useUrlView). Blank range = this month.
+  const { filters, setFilter, clearFilters, sort, toggleSort } = useUrlView({ fields: VIEW_FIELDS, sortDefault: SORT_DEFAULT });
+  const [filtersOpen,    setFiltersOpen]    = useState(false);
+  const dateRange      = filters.range || 'month';
+  const selectedUserId = filters.rep   || 'all';
   const [err,            setErr]            = useState('');
 
   const load = useCallback(async () => {
@@ -503,13 +538,19 @@ export default function SalesActivityPage() {
 
   const stats = useMemo(() => computeStats(notes, dateRange, selectedUserId, expenses), [notes, dateRange, selectedUserId, expenses]);
 
-  const RANGES = [
-    { id: 'week',     label: 'This Week' },
-    { id: 'month',    label: 'This Month' },
-    { id: 'quarter',  label: 'This Quarter' },
-    { id: 'ytd',      label: 'YTD' },
-    { id: 'lastyear', label: 'Last Year' },
-  ];
+  const perUserSorted = useMemo(() => sortRows(stats.perUser, sort, {
+    name:     u => u.userName || '',
+    inPerson: u => u.inPersonCount,
+    calls:    u => u.callCount,
+    other:    u => u.otherCount,
+    spent:    u => u.spentCents || 0,
+  }), [stats.perUser, sort]);
+
+  const choices = {
+    rep:   userList.map(u => [u.id, u.name]),
+    range: RANGES.map(r => [r.id, r.label]),
+  };
+  const filterCount = countFilters(filters, FILTER_FIELDS);
 
   // Deduplicate: same title on same calendar day → keep first occurrence only
   const _seenRecent = new Set();
@@ -532,36 +573,25 @@ export default function SalesActivityPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-5 flex-wrap gap-3">
         <div>
-          <h1 className="text-xl font-bold text-slate-900">Sales Activity</h1>
+          <h1 className={H1}>Sales Activity</h1>
           <p className="text-xs text-slate-500 mt-0.5">Manually logged activities and what they cost, across your team</p>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          {/* User selector */}
-          {userList.length > 1 && (
-            <select
-              value={selectedUserId}
-              onChange={e => setSelectedUserId(e.target.value)}
-              className="text-sm border border-slate-200 rounded-lg px-3 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-400"
-            >
-              <option value="all">All Reps</option>
-              {userList.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
-            </select>
-          )}
-          {/* Date range filter */}
-          <div className="flex gap-1 bg-slate-100 rounded-xl p-1">
-            {RANGES.map(({ id, label }) => (
-              <button
-                key={id}
-                onClick={() => setDateRange(id)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                  dateRange === id ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
+      </div>
+
+      {/* Rep + date range filters */}
+      <div className="mb-5">
+        <FilterToolbar
+          count={filterCount}
+          open={filtersOpen}
+          onToggle={() => setFiltersOpen(o => !o)}
+          onClear={clearFilters}
+          noun="notes"
+        >
+          <span className="text-xs text-slate-500">
+            {RANGES.find(r => r.id === dateRange)?.label}{selectedUserId !== 'all' ? `, ${userList.find(u => u.id === selectedUserId)?.name || ''}` : ', All Reps'}
+          </span>
+        </FilterToolbar>
+        <FilterPanel open={filtersOpen} fields={FILTER_FIELDS} filters={{ ...filters, range: dateRange }} choices={choices} onChange={setFilter} />
       </div>
 
       {err && (
@@ -569,17 +599,15 @@ export default function SalesActivityPage() {
       )}
 
       {/* M365 notice */}
-      <div className="flex items-start gap-2.5 bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 mb-5 text-xs text-blue-700">
-        <svg className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <div className={`flex items-start gap-2.5 ${TONE.info} border rounded-lg px-4 py-3 mb-5 text-xs`}>
+        <svg className="w-4 h-4 text-slate-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z" />
         </svg>
         <span>Email and calendar activity coming when M365 is connected. Showing manually logged activities.</span>
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center py-20">
-          <div className="w-5 h-5 border-2 border-slate-200 border-t-orange-500 rounded-full animate-spin" />
-        </div>
+        <WidgetLoading />
       ) : (
         <div className="space-y-5">
 
@@ -613,39 +641,38 @@ export default function SalesActivityPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
 
             {/* Per-rep breakdown */}
-            <div className="bg-white border border-slate-200 rounded-xl p-5">
-              <h2 className="text-sm font-bold text-slate-900 mb-3">Per-Rep Breakdown</h2>
+            <WidgetFrame title="Per-Rep Breakdown">
               {stats.perUser.length === 0 ? (
-                <p className="text-xs text-slate-500 py-4 text-center">No activity logged in this period.</p>
+                <WidgetEmpty>No activity logged in this period.</WidgetEmpty>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-xs">
                     <thead>
                       <tr className="border-b border-slate-100">
-                        <th className="text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wide pb-2 pr-3">Name</th>
-                        <th className="text-right text-[11px] font-semibold text-slate-500 uppercase tracking-wide pb-2 pr-3">In-Person</th>
-                        <th className="text-right text-[11px] font-semibold text-slate-500 uppercase tracking-wide pb-2 pr-3">Calls</th>
-                        <th className="text-right text-[11px] font-semibold text-slate-500 uppercase tracking-wide pb-2 pr-3">Other</th>
-                        <th className="text-right text-[11px] font-semibold text-slate-500 uppercase tracking-wide pb-2 pr-3">Spent</th>
-                        <th className="text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wide pb-2">Types</th>
+                        <SortHeader field="name" label="Name" sort={sort} onSort={toggleSort} />
+                        <SortHeader field="inPerson" label="In-Person" sort={sort} onSort={toggleSort} align="right" />
+                        <SortHeader field="calls" label="Calls" sort={sort} onSort={toggleSort} align="right" />
+                        <SortHeader field="other" label="Other" sort={sort} onSort={toggleSort} align="right" />
+                        <SortHeader field="spent" label="Spent" sort={sort} onSort={toggleSort} align="right" />
+                        <Th>Types</Th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-50">
-                      {stats.perUser.map(u => (
+                    <tbody className="divide-y divide-slate-100">
+                      {perUserSorted.map(u => (
                         <tr key={u.userId} className="hover:bg-slate-50 transition-colors">
-                          <td className="py-2.5 pr-3">
+                          <td className={TD}>
                             <div className="flex items-center gap-2">
-                              <div className={`w-6 h-6 rounded-full shrink-0 flex items-center justify-center text-white text-[10px] font-bold ${avatarColor(u.userName)}`}>
+                              <div className={`w-6 h-6 rounded-full shrink-0 flex items-center justify-center text-white text-xs font-bold ${avatarColor(u.userName)}`}>
                                 {initials(u.userName)}
                               </div>
-                              <span className="font-medium text-slate-800 truncate max-w-[100px]">{u.userName}</span>
+                              <span className="font-semibold text-slate-800 truncate max-w-[100px]">{u.userName}</span>
                             </div>
                           </td>
-                          <td className="py-2.5 pr-3 text-right font-semibold text-slate-700">{u.inPersonCount}</td>
-                          <td className="py-2.5 pr-3 text-right text-slate-500">{u.callCount}</td>
-                          <td className="py-2.5 pr-3 text-right text-slate-500">{u.otherCount}</td>
-                          <td className="py-2.5 pr-3 text-right text-slate-500">{u.spentCents ? formatMoney(u.spentCents) : '—'}</td>
-                          <td className="py-2.5">
+                          <td className={`${TD} text-right font-semibold tabular-nums`}>{u.inPersonCount}</td>
+                          <td className={`${TD} text-right text-slate-500 tabular-nums`}>{u.callCount}</td>
+                          <td className={`${TD} text-right text-slate-500 tabular-nums`}>{u.otherCount}</td>
+                          <td className={`${TD} text-right text-slate-500 tabular-nums`}>{u.spentCents ? formatMoney(u.spentCents) : '—'}</td>
+                          <td className={TD}>
                             <div className="flex flex-wrap gap-1">
                               {Object.entries(u.byActivityType)
                                 .sort((a, b) => b[1] - a[1])
@@ -653,7 +680,7 @@ export default function SalesActivityPage() {
                                 .map(([type, count]) => {
                                   const meta = ACTIVITY_META[type] || ACTIVITY_META.OTHER;
                                   return (
-                                    <span key={type} className="text-[11px] text-slate-500">
+                                    <span key={type} className="text-xs text-slate-500 tabular-nums">
                                       {meta.emoji}×{count}
                                     </span>
                                   );
@@ -666,17 +693,16 @@ export default function SalesActivityPage() {
                   </table>
                 </div>
               )}
-            </div>
+            </WidgetFrame>
 
             {/* Activity Breakdown */}
-            <div className="bg-white border border-slate-200 rounded-xl p-5">
-              <h2 className="text-sm font-bold text-slate-900 mb-4">Activity Breakdown</h2>
+            <WidgetFrame title="Activity Breakdown">
               {Object.keys(stats.byType).length === 0 ? (
-                <p className="text-xs text-slate-500 py-4 text-center">No activity in this period.</p>
+                <WidgetEmpty>No activity in this period.</WidgetEmpty>
               ) : (
                 <ActivityBarChart byType={stats.byType} />
               )}
-            </div>
+            </WidgetFrame>
 
           </div>
 
@@ -690,10 +716,9 @@ export default function SalesActivityPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
 
             {/* Recent activity feed */}
-            <div className="bg-white border border-slate-200 rounded-xl p-5">
-              <h2 className="text-sm font-bold text-slate-900 mb-3">Recent Activity</h2>
+            <WidgetFrame title="Recent Activity">
               {recent10.length === 0 ? (
-                <p className="text-xs text-slate-500 py-4 text-center">No activity in this period.</p>
+                <WidgetEmpty>No activity in this period.</WidgetEmpty>
               ) : (
                 <div className="space-y-2.5">
                   {recent10.map(note => {
@@ -705,17 +730,17 @@ export default function SalesActivityPage() {
                         <span className="text-base shrink-0 mt-0.5">{meta.emoji}</span>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between gap-2">
-                            <span className="text-xs font-medium text-slate-800 line-clamp-1">
+                            <span className="text-xs font-semibold text-slate-800 line-clamp-1">
                               {note.title || `${meta.label}${contactName ? ' with ' + contactName : ''}`}
                             </span>
-                            <span className="text-[10px] text-slate-400 shrink-0">
+                            <span className="text-xs text-slate-500 shrink-0 tabular-nums">
                               {fmtDate(note.meetingDate || note.createdAt)}
                             </span>
                           </div>
                           {(note.createdBy?.name || dealTitle) && (
                             <div className="flex items-center gap-2 mt-0.5">
-                              {note.createdBy?.name && <span className="text-[10px] text-slate-400">{note.createdBy.name}</span>}
-                              {dealTitle && <span className="text-[10px] text-slate-400">· {dealTitle}</span>}
+                              {note.createdBy?.name && <span className="text-xs text-slate-500">{note.createdBy.name}</span>}
+                              {dealTitle && <span className="text-xs text-slate-500">· {dealTitle}</span>}
                             </div>
                           )}
                         </div>
@@ -724,21 +749,15 @@ export default function SalesActivityPage() {
                   })}
                 </div>
               )}
-            </div>
+            </WidgetFrame>
 
             {/* Upcoming next 2 weeks */}
-            <div className="bg-white border border-slate-200 rounded-xl p-5">
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="text-sm font-bold text-slate-900">Upcoming — Next 2 Weeks</h2>
-                <span className="text-[10px] text-slate-400 bg-slate-50 border border-slate-200 rounded-full px-2 py-0.5">
-                  From calendar
-                </span>
-              </div>
+            <WidgetFrame
+              title="Upcoming: Next 2 Weeks"
+              actions={<span className="text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-lg px-2 py-0.5">From calendar</span>}
+            >
               {upcoming.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-8 text-center">
-                  <p className="text-xs text-slate-400">No upcoming events in the next 2 weeks</p>
-                  <p className="text-[10px] text-slate-300 mt-1">Meetings with a date in the next two weeks show here</p>
-                </div>
+                <WidgetEmpty>No upcoming events in the next 2 weeks. Meetings with a date in the next two weeks show here.</WidgetEmpty>
               ) : (
                 <div className="space-y-2.5">
                   {upcoming.map(note => {
@@ -750,14 +769,14 @@ export default function SalesActivityPage() {
                         <span className="text-base shrink-0 mt-0.5">{meta.emoji}</span>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between gap-2">
-                            <span className="text-xs font-medium text-slate-800 line-clamp-1">
+                            <span className="text-xs font-semibold text-slate-800 line-clamp-1">
                               {note.title || `${meta.label}${contactName ? ' with ' + contactName : ''}`}
                             </span>
-                            <span className={`text-[10px] font-semibold shrink-0 ${daysUntil <= 2 ? 'text-orange-600' : 'text-slate-400'}`}>
+                            <span className={`text-xs font-semibold shrink-0 tabular-nums ${daysUntil <= 2 ? 'text-orange-600' : 'text-slate-500'}`}>
                               {daysUntil === 0 ? 'Today' : daysUntil === 1 ? 'Tomorrow' : `In ${daysUntil}d`}
                             </span>
                           </div>
-                          <p className="text-[10px] text-slate-400 mt-0.5">
+                          <p className="text-xs text-slate-500 mt-0.5 tabular-nums">
                             {new Date(note.meetingDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
                             {contactName && ` · ${contactName}`}
                           </p>
@@ -767,7 +786,7 @@ export default function SalesActivityPage() {
                   })}
                 </div>
               )}
-            </div>
+            </WidgetFrame>
 
           </div>
         </div>

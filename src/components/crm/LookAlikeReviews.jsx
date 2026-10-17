@@ -21,11 +21,11 @@ async function post(url, body) {
 
 function Btn({ children, onClick, tone = 'plain', disabled }) {
   const cls = tone === 'go'
-    ? 'bg-emerald-600 text-white hover:bg-emerald-700'
-    : 'border border-slate-200 text-slate-600 bg-white hover:bg-slate-50';
+    ? 'bg-green-600 text-white hover:bg-green-700'
+    : 'border border-slate-300 text-slate-700 bg-white hover:bg-slate-50';
   return (
     <button type="button" onClick={onClick} disabled={disabled}
-      className={`min-h-[40px] px-3 rounded-lg text-sm font-medium disabled:opacity-40 ${cls}`}>{children}</button>
+      className={`min-h-[40px] px-3 rounded-lg text-sm font-semibold disabled:opacity-40 ${cls}`}>{children}</button>
   );
 }
 
@@ -49,15 +49,15 @@ export function ReviewRow({ r, onDone }) {
   }
   return (
     <li className="rounded-xl border border-amber-200 bg-white p-3">
-      <div className="text-sm font-medium text-slate-800">{words.ask}</div>
+      <div className="text-sm font-semibold text-slate-800">{words.ask}</div>
       <p className="text-xs text-slate-500 mb-2">{r.reason}</p>
       <dl className="grid grid-cols-[auto,1fr] gap-x-3 gap-y-1 text-sm mb-2">
-        <dt className="text-slate-400">Web budget</dt>
+        <dt className="text-slate-500">Web budget</dt>
         <dd className="text-slate-700 min-w-0 break-words">{typed}{r.projectName ? <span className="text-slate-400"> · {r.projectName}</span> : null}</dd>
-        <dt className="text-slate-400">We have</dt>
+        <dt className="text-slate-500">We have</dt>
         <dd className="text-slate-700 min-w-0 break-words">{have.href ? <Link href={have.href} className="hover:underline">{have.text}</Link> : have.text}</dd>
       </dl>
-      {err && <p className="text-sm text-rose-600">{err}</p>}
+      {err && <p className="text-sm text-red-600">{err}</p>}
       <div className="flex flex-wrap gap-2">
         <Btn tone="go" disabled={busy} onClick={() => answer('same')}>{words.same}</Btn>
         <Btn disabled={busy} onClick={() => answer('different')}>{words.different}</Btn>
@@ -84,12 +84,12 @@ export default function LookAlikeReviews({ clientId, kind, title = 'Same person?
   useEffect(() => { load(); }, [load]);
   if (!reviews?.length && !note) return null;
   return (
-    <section className="rounded-xl border border-amber-200 bg-amber-50 p-3 md:p-4">
+    <section className="rounded-xl border border-amber-200 bg-amber-50 p-3 md:p-4 shadow-sm">
       <div className="flex items-baseline gap-2 mb-1">
         <h2 className="text-sm font-semibold text-slate-700">{title}</h2>
-        {reviews?.length ? <span className="text-xs text-slate-400">{reviews.length}</span> : null}
+        {reviews?.length ? <span className="text-xs text-slate-500 tabular-nums">{reviews.length}</span> : null}
       </div>
-      {note && <p className="text-xs text-emerald-700 mb-2">{note}</p>}
+      {note && <p className="text-xs text-green-700 mb-2">{note}</p>}
       {reviews?.length ? (
         <>
           <p className="text-xs text-slate-500 mb-2">A web budget looks like one we already have. Nothing is joined or made until somebody answers.</p>

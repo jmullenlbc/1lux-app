@@ -39,7 +39,7 @@ const FIELDS = [
       { key: 'numBathrooms',         label: '# of Bathrooms',                  type: 'number', placeholder: '200',      hint: 'Total bathroom count across all units' },
       { key: 'numVanities',          label: '# of Vanities',                   type: 'number', placeholder: '200',      hint: 'Usually equal to # of bathrooms' },
       { key: 'numEgressStairwells',  label: '# of Egress Stairwell Landings',  type: 'number', placeholder: '30',       hint: 'Count every landing, including the half-landing between floors: a stair serving 3 floors has 3 floor landings + 2 in-between = 5. Every landing gets a light. The drawing takeoff fills this in with 10% already added; if you type it yourself, add 10% on top.' },
-      { key: 'numFans',              label: '# of Ceiling Fans',               type: 'number', placeholder: '14',       hint: 'Total fan count — overrides unit-mix calculation. Leave blank to auto-calculate.' },
+      { key: 'numFans',              label: '# of Ceiling Fans',               type: 'number', placeholder: '14',       hint: 'Total fan count, overrides unit-mix calculation. Leave blank to auto-calculate.' },
       { key: 'numAccentDownlights',  label: '# of Recessed Downlight Accents', type: 'number', placeholder: '40',       hint: 'Adjustable recessed accents in corridors. $160 ea (1-hr fire rated).' },
     ],
   },
@@ -64,10 +64,10 @@ const FIELDS = [
   },
   { group: 'Area Breakdowns (SF)',
     fields: [
-      { key: 'unitsSf',           label: 'Units Gross SF',           type: 'number', placeholder: '95,000',  hint: 'Residential units only — used for base $0.38/SF calculation' },
+      { key: 'unitsSf',           label: 'Units Gross SF',           type: 'number', placeholder: '95,000',  hint: 'Residential units only, used for base $0.38/SF calculation' },
       { key: 'garageSf',          label: 'Enclosed Garage SF',       type: 'number', placeholder: '25,000',  hint: '0 if no enclosed garage' },
       { key: 'bohSf',             label: 'BOH / Core + Shell SF',    type: 'number', placeholder: '8,000',   hint: 'Mechanical, storage, bike room, trash, etc.' },
-      { key: 'corridorSf',        label: 'Corridor SF',              type: 'number', placeholder: '18,000', hint: 'Enclosed corridors and stairwells — or open-air breezeways on a walk-up' },
+      { key: 'corridorSf',        label: 'Corridor SF',              type: 'number', placeholder: '18,000', hint: 'Enclosed corridors and stairwells, or open-air breezeways on a walk-up' },
       { key: 'interiorAmenitySf', label: 'Interior Amenity SF',      type: 'number', placeholder: '5,000',   hint: 'Lobby, clubhouse, fitness, co-working, etc.' },
       { key: 'exteriorAmenitySf', label: 'Exterior Amenity SF',      type: 'number', placeholder: '8,000',   hint: 'Pool deck, courtyards, terraces, and other outdoor gathering areas' },
     ],
@@ -200,7 +200,7 @@ export default function ProjectDataSection({ projectId, projectData, responses =
         <h2 className="text-xl font-bold text-slate-900">Project Data</h2>
         <p className="text-slate-500 text-sm mt-1">
           Enter your project metrics. The budget updates live as you fill in data.
-          All fields are optional — enter what you have and refine later.
+          All fields are optional, enter what you have and refine later.
         </p>
       </div>
 
@@ -253,14 +253,14 @@ export default function ProjectDataSection({ projectId, projectData, responses =
       {/* ── DESIGN-ONLY Q&A ───────────────────────────────────────────────── */}
       {isDesign && (
         <div className="space-y-4">
-          <div className="text-xs font-semibold text-slate-400 uppercase tracking-widest">Project Intent &amp; Budget Strategy</div>
+          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Project Intent &amp; Budget Strategy</div>
 
           <QuestionCard
             question="Is this a buy-and-hold or build-and-sell project?"
             note="Buy-and-hold projects benefit from more durable fixtures with lower long-term maintenance cost. Build-and-sell projects can prioritize visual impact per dollar at sale."
             options={[
-              { value: 'buyHold',   label: 'Buy and hold — long-term ownership',     sub: 'Prioritize durability and low maintenance', cost: 0 },
-              { value: 'buildSell', label: 'Build and sell — exit at or near CO',     sub: 'Prioritize visual impact per dollar', cost: 0 },
+              { value: 'buyHold',   label: 'Buy and hold, long-term ownership',     sub: 'Prioritize durability and low maintenance', cost: 0 },
+              { value: 'buildSell', label: 'Build and sell, exit at or near CO',     sub: 'Prioritize visual impact per dollar', cost: 0 },
             ]}
             value={qAnswers.buyHold}
             onChange={v => {
@@ -275,7 +275,7 @@ export default function ProjectDataSection({ projectId, projectData, responses =
             options={[
               { value: 'ourScope', label: 'Include in ILC / lighting budget',           sub: 'We spec and supply switches/dimmers', cost: 0 },
               { value: 'ecScope',  label: "Electrical contractor's scope",               sub: 'EC supplies and installs; exclude from our budget', cost: 0 },
-              { value: 'tbd',      label: 'TBD — to be determined',                     cost: 0 },
+              { value: 'tbd',      label: 'TBD, to be determined',                     cost: 0 },
             ]}
             value={qAnswers.switchesDimmers}
             onChange={v => {

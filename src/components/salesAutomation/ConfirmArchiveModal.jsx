@@ -1,5 +1,6 @@
 'use client';
 import { useEffect } from 'react';
+import { H2 } from '@/components/ui/tokens';
 
 // ── Archive confirmation ─────────────────────────────────────────────────────
 // The amber "are you sure?" for anything that is archived instead of deleted:
@@ -72,13 +73,13 @@ export default function ConfirmArchiveModal({
               </svg>
             </div>
             <div className="min-w-0">
-              <h2 className="text-base font-bold text-slate-900">{title}</h2>
+              <h2 className={H2}>{title}</h2>
               {what && (
                 <p className="text-sm text-slate-600 mt-1 break-words line-clamp-4">“{what}”</p>
               )}
             </div>
           </div>
-          <div className="mt-4 rounded-lg bg-amber-50 border border-amber-100 px-3 py-2.5 text-sm text-amber-800 leading-relaxed">
+          <div className="mt-4 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2.5 text-sm text-amber-800 leading-relaxed">
             {body}
           </div>
         </div>
@@ -95,7 +96,7 @@ export default function ConfirmArchiveModal({
             type="button"
             onClick={onConfirm}
             disabled={busy}
-            className="flex-1 min-w-[8rem] px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white transition-colors disabled:opacity-60"
+            className="flex-1 min-w-[8rem] px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-500 text-white transition-colors disabled:opacity-60"
           >
             {busy ? 'Archiving…' : confirmLabel}
           </button>

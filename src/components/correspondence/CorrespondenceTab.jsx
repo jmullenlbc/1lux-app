@@ -17,7 +17,7 @@ const TAG_STYLES = {
   Contract:  'bg-amber-50 text-amber-700',
   Budget:    'bg-pink-50 text-pink-700',
   CO:        'bg-orange-50 text-orange-700',
-  PO:        'bg-emerald-50 text-emerald-700',
+  PO:        'bg-green-50 text-green-700',
   ESD:       'bg-teal-50 text-teal-700',
   Submittal: 'bg-indigo-50 text-indigo-700',
 };
@@ -96,7 +96,7 @@ function sanitizeHtml(html) {
 function TagChip({ tag, small }) {
   const cls = TAG_STYLES[tag] ?? 'bg-slate-100 text-slate-500';
   return (
-    <span className={`inline-block px-1.5 py-0.5 rounded text-[9px] font-semibold ${cls} ${small ? '' : ''}`}>
+    <span className={`inline-block px-1.5 py-0.5 rounded text-[11px] font-semibold ${cls} ${small ? '' : ''}`}>
       {tag}
     </span>
   );
@@ -138,7 +138,7 @@ function ThreadRow({ thread, selected, unread, onClick }) {
     >
       {/* Unread dot */}
       {unread && (
-        <span className="absolute top-3 right-3 w-[7px] h-[7px] bg-blue-500 rounded-full" />
+        <span className="absolute top-3 right-3 w-[7px] h-[7px] bg-orange-500 rounded-full" />
       )}
 
       {/* Row 1: avatar + sender + time */}
@@ -152,7 +152,7 @@ function ThreadRow({ thread, selected, unread, onClick }) {
         <span className={`flex-1 text-[11px] truncate ${unread ? 'font-semibold text-[#1a1a1a]' : 'text-[#4a4540]'}`}>
           {thread.senderName || thread.senderEmail}
         </span>
-        <span className="text-[10px] text-[#b8b2a8] shrink-0">
+        <span className="text-[11px] text-[#b8b2a8] shrink-0">
           {relativeTime(thread.latestReceivedAt)}
         </span>
       </div>
@@ -163,7 +163,7 @@ function ThreadRow({ thread, selected, unread, onClick }) {
       </div>
 
       {/* Row 3: preview */}
-      <div className="text-[10px] text-[#b8b2a8] truncate mb-1.5">
+      <div className="text-[11px] text-[#b8b2a8] truncate mb-1.5">
         {thread.latestPreview}
       </div>
 
@@ -172,7 +172,7 @@ function ThreadRow({ thread, selected, unread, onClick }) {
         <div className="flex gap-1 flex-wrap">
           {tags.map(t => <TagChip key={t} tag={t} small />)}
           {overflow > 0 && (
-            <span className="text-[9px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded font-medium">
+            <span className="text-[11px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded font-medium">
               +{overflow}
             </span>
           )}
@@ -208,7 +208,7 @@ function MessageCard({ message, isLatest, collapsed, onToggle, onUntag }) {
         ].join(' ')}
       >
         <div
-          className="w-[26px] h-[26px] rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0"
+          className="w-[26px] h-[26px] rounded-full flex items-center justify-center text-[11px] font-bold text-white shrink-0"
           style={{ background: color }}
         >
           {init}
@@ -219,14 +219,14 @@ function MessageCard({ message, isLatest, collapsed, onToggle, onUntag }) {
               {message.fromName || message.fromEmail}
             </span>
             {isLatest && (
-              <span className="text-[9px] font-semibold bg-[#dbeafe] text-[#1e40af] px-1.5 py-0.5 rounded">
+              <span className="text-[11px] font-semibold bg-[#dbeafe] text-[#1e40af] px-1.5 py-0.5 rounded">
                 New
               </span>
             )}
             {message.messageTags?.map(t => (
               <span
                 key={t.key}
-                className="text-[9px] font-semibold px-1.5 py-0.5 rounded border bg-white"
+                className="text-[11px] font-semibold px-1.5 py-0.5 rounded border bg-white"
                 style={{ borderColor: t.color || '#cbd5e1', color: t.color || '#475569' }}
               >
                 {t.label}
@@ -240,7 +240,7 @@ function MessageCard({ message, isLatest, collapsed, onToggle, onUntag }) {
             ))}
           </div>
           {!collapsed && (
-            <div className="text-[10px] text-[#9a9589]">
+            <div className="text-[11px] text-[#9a9589]">
               {message.fromEmail}{message.company ? ` · ${message.company}` : ''}
             </div>
           )}
@@ -251,13 +251,13 @@ function MessageCard({ message, isLatest, collapsed, onToggle, onUntag }) {
           )}
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          <span className="text-[10px] text-[#b8b2a8]">{fmtTime(message.receivedAt)}</span>
+          <span className="text-[11px] text-[#b8b2a8]">{fmtTime(message.receivedAt)}</span>
           {message.webUrl && (
             <a
               href={message.webUrl}
               target="_blank" rel="noreferrer"
               onClick={e => e.stopPropagation()}
-              className="text-[10px] text-blue-500 flex items-center gap-0.5 hover:text-blue-700"
+              className="text-[11px] text-blue-500 flex items-center gap-0.5 hover:text-orange-600"
             >
               Outlook →
             </a>
@@ -265,7 +265,7 @@ function MessageCard({ message, isLatest, collapsed, onToggle, onUntag }) {
           {!isLatest && (
             <button
               onClick={onToggle}
-              className="text-[10px] text-slate-400 hover:text-slate-600"
+              className="text-[11px] text-slate-400 hover:text-slate-600"
             >
               {collapsed ? '▼' : '▲'}
             </button>
@@ -291,9 +291,9 @@ function MessageCard({ message, isLatest, collapsed, onToggle, onUntag }) {
                   <span className="text-sm">{fileIcon(att.mimeType)}</span>
                   <span className="text-[11px] text-[#6b6560] flex-1">{att.filename}</span>
                   {att.size && (
-                    <span className="text-[10px] text-[#b8b2a8]">{fmtSize(att.size)}</span>
+                    <span className="text-[11px] text-[#b8b2a8]">{fmtSize(att.size)}</span>
                   )}
-                  <span className="text-[10px] text-[#b8b2a8] italic">Download coming soon</span>
+                  <span className="text-[11px] text-[#b8b2a8] italic">Download coming soon</span>
                 </div>
               ))}
             </div>
@@ -435,7 +435,7 @@ export default function CorrespondenceTab({ projectId, projectName }) {
         {/* Header */}
         <div className="flex items-center justify-between px-3 py-2.5 border-b border-[#ede9e2]">
           <span className="text-[11px] font-semibold uppercase tracking-wide text-[#6b6560]">Threads</span>
-          <span className="text-[10px] text-[#b8b2a8]">
+          <span className="text-[11px] text-[#b8b2a8]">
             {threads.length} total{totalUnread > 0 ? ` · ${totalUnread} unread` : ''}
           </span>
         </div>
@@ -451,7 +451,7 @@ export default function CorrespondenceTab({ projectId, projectName }) {
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Search correspondence…"
-              className="w-full text-[11px] border border-[#e8e4dc] rounded-md pl-6 pr-2 py-1.5 text-[#4a4540] bg-white outline-none focus:border-amber-300 placeholder:text-[#b8b2a8]"
+              className="w-full text-[11px] border border-[#e8e4dc] rounded-md pl-6 pr-2 py-1.5 text-[#4a4540] bg-white outline-none focus:border-orange-500 placeholder:text-[#b8b2a8]"
             />
           </div>
         </div>
@@ -461,7 +461,7 @@ export default function CorrespondenceTab({ projectId, projectName }) {
           <div className="px-2.5 py-2 border-b border-[#ede9e2] flex gap-1.5 flex-wrap">
             <button
               onClick={() => togglePill('All')}
-              className={`text-[10px] font-medium px-2 py-0.5 rounded-full border transition-colors ${
+              className={`text-[11px] font-medium px-2 py-0.5 rounded-full border transition-colors ${
                 activePills.includes('All')
                   ? 'bg-[#fef3c7] text-[#92400e] border-[#fde68a]'
                   : 'bg-white text-[#9a9589] border-[#e8e4dc] hover:border-[#d0ccc4]'
@@ -473,7 +473,7 @@ export default function CorrespondenceTab({ projectId, projectName }) {
               <button
                 key={tag}
                 onClick={() => togglePill(tag)}
-                className={`text-[10px] font-medium px-2 py-0.5 rounded-full border transition-colors ${
+                className={`text-[11px] font-medium px-2 py-0.5 rounded-full border transition-colors ${
                   activePills.includes(tag)
                     ? 'bg-[#fef3c7] text-[#92400e] border-[#fde68a]'
                     : 'bg-white text-[#9a9589] border-[#e8e4dc] hover:border-[#d0ccc4]'
@@ -505,7 +505,7 @@ export default function CorrespondenceTab({ projectId, projectName }) {
               <p className="text-xs text-slate-400 mb-2">No threads match this filter.</p>
               <button
                 onClick={() => { setSearch(''); setActivePills(['All']); }}
-                className="text-xs text-amber-600 hover:text-amber-700 font-medium"
+                className="text-xs text-orange-600 hover:text-orange-700 font-medium"
               >
                 Clear filters
               </button>
@@ -597,7 +597,7 @@ export default function CorrespondenceTab({ projectId, projectName }) {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
               <span className="text-[11px] text-[#9a9589] italic flex-1">
-                Replying from the platform is coming soon — use Outlook to respond for now
+                Replying from the platform is coming soon, use Outlook to respond for now
               </span>
               {selectedThread.webUrl ? (
                 <a

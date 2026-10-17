@@ -6,6 +6,7 @@ import { OPTION_LABELS } from '@/lib/pricing';
 import { normalizeAmenityLevel } from '@/lib/amenityLevel';
 import { loadPricing, pricingForProject } from '@/lib/pricingLoader';
 import ShareViewTracker from './ShareViewTracker';
+import { CARD, LABEL, NUM } from '@/components/ui/tokens';
 import SummaryBudgetBreakdown from '@/app/(app)/project/[id]/summary/SummaryBudgetBreakdown';
 import { SITE_FEATURE_INCLUDE, engineProjectData } from '@/lib/siteFeatureRows';
 
@@ -75,7 +76,7 @@ export default async function SharePage({ params }) {
       {/* Branded top bar */}
       <div className="bg-navy-950 px-6 py-3 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-lg bg-amber-500 flex items-center justify-center shrink-0">
+          <div className="w-7 h-7 rounded-lg bg-orange-500 flex items-center justify-center shrink-0">
             <svg viewBox="0 0 24 24" className="w-4 h-4 text-white" fill="currentColor">
               <path d="M9 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H9v1zm3-19C8.14 2 5 5.14 5 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.86-3.14-7-7-7z"/>
             </svg>
@@ -91,23 +92,22 @@ export default async function SharePage({ params }) {
 
         {/* Hero */}
         <div
-          className="rounded-2xl p-6 mb-6 text-white"
-          style={{ backgroundColor: '#0f172a' }}
+          className="rounded-xl p-5 mb-6 text-white bg-navy-950 shadow-sm"
         >
-          <div className="text-xs font-medium mb-1" style={{ color: '#94a3b8' }}>
-            ILC Studios — Conceptual Lighting &amp; Controls Budget
+          <div className="text-xs font-medium mb-1 text-slate-400">
+            ILC Studios: Conceptual Lighting &amp; Controls Budget
           </div>
           <div className="text-3xl font-bold tabular-nums mb-1">{formatCurrency(budget.totalWithControls)}</div>
-          <div className="text-lg font-semibold mb-3" style={{ color: '#e2e8f0' }}>{project.name}</div>
-          {project.location && <div className="text-sm mb-3" style={{ color: '#94a3b8' }}>{project.location}</div>}
+          <div className="text-lg font-semibold mb-3 text-slate-200">{project.name}</div>
+          {project.location && <div className="text-sm mb-3 text-slate-400">{project.location}</div>}
           <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm">
-            <div><span style={{ color: '#94a3b8' }}>Lighting Only: </span><span className="font-semibold">{formatCurrency(budget.subtotalLightingOnly)}</span></div>
-            <div><span style={{ color: '#94a3b8' }}>Controls: </span><span className="font-semibold">{formatCurrency(budget.controlsTotal)}</span></div>
-            {budget.perSf   > 0 && <div><span style={{ color: '#94a3b8' }}>$/SF: </span><span className="font-semibold">${budget.perSf.toFixed(2)}</span></div>}
-            {budget.perUnit > 0 && <div><span style={{ color: '#94a3b8' }}>$/Unit: </span><span className="font-semibold">{formatCurrency(budget.perUnit)}</span></div>}
+            <div><span className="text-slate-400">Lighting Only: </span><span className={`font-semibold ${NUM}`}>{formatCurrency(budget.subtotalLightingOnly)}</span></div>
+            <div><span className="text-slate-400">Controls: </span><span className={`font-semibold ${NUM}`}>{formatCurrency(budget.controlsTotal)}</span></div>
+            {budget.perSf   > 0 && <div><span className="text-slate-400">$/SF: </span><span className={`font-semibold ${NUM}`}>${budget.perSf.toFixed(2)}</span></div>}
+            {budget.perUnit > 0 && <div><span className="text-slate-400">$/Unit: </span><span className={`font-semibold ${NUM}`}>{formatCurrency(budget.perUnit)}</span></div>}
           </div>
-          <p className="text-xs mt-3" style={{ color: '#475569' }}>
-            Conceptual estimate only. {budget.salesTaxPct > 0
+          <p className="text-xs mt-3 text-slate-400">
+            Conceptual budget only. {budget.salesTaxPct > 0
               ? `Includes ${Math.round(budget.salesTaxPct * 10000) / 100}% sales tax on product.`
               : 'Does not include sales tax.'}
           </p>
@@ -116,7 +116,7 @@ export default async function SharePage({ params }) {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Project Data */}
           {projectDataRows.length > 0 && (
-            <div className="bg-white rounded-xl border border-slate-200 p-5">
+            <div className={`${CARD} p-5`}>
               <h3 className="font-semibold text-slate-900 mb-3">Project Data</h3>
               <div className="space-y-1.5">
                 {projectDataRows.map(r => (
@@ -130,19 +130,19 @@ export default async function SharePage({ params }) {
           )}
 
           {/* Budget Breakdown */}
-          <div className="bg-white rounded-xl border border-slate-200 p-5">
+          <div className={`${CARD} p-5`}>
             <h3 className="font-semibold text-slate-900 mb-3">Budget Breakdown</h3>
             <SummaryBudgetBreakdown budget={budget} />
           </div>
         </div>
 
         {/* Design Selections */}
-        <div className="bg-white rounded-xl border border-slate-200 p-5 mt-6">
+        <div className={`${CARD} p-5 mt-6`}>
           <h3 className="font-semibold text-slate-900 mb-4">Design Selections</h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4">
             {answerRows.map(group => (
               <div key={group.section}>
-                <div className="text-xs font-bold text-slate-400 uppercase tracking-widest mb-1 pb-1 border-b border-slate-100">{group.section}</div>
+                <div className={`${LABEL} mb-1 pb-1 border-b border-slate-100`}>{group.section}</div>
                 {group.rows.map(row => (
                   <div key={row.q} className="flex py-1 text-sm border-b border-slate-50">
                     <span className="text-slate-500 w-40 shrink-0">{row.q}</span>
@@ -156,12 +156,12 @@ export default async function SharePage({ params }) {
 
         {/* Footer */}
         <div className="mt-8 text-center">
-          <p className="text-xs text-slate-400 mb-3">
+          <p className="text-xs text-slate-500 mb-3">
             This is a conceptual budget prepared by ILC Studios for planning purposes only. Actual costs will vary.
           </p>
           <p className="text-sm text-slate-500">
             Questions? Contact{' '}
-            <a href="mailto:precon@ilcstudios.com" className="text-amber-600 hover:underline">precon@ilcstudios.com</a>
+            <a href="mailto:precon@ilcstudios.com" className="text-orange-600 hover:underline">precon@ilcstudios.com</a>
           </p>
         </div>
       </div>

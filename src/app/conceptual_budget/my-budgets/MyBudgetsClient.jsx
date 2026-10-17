@@ -15,11 +15,15 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { PORTAL_FIELDS, applyPortalView, activeFilterCount, portalChoices } from '@/lib/intake/portalFilter';
 import Link from 'next/link';
 import { formatCurrency } from '@/lib/format';
+import { useUrlView } from '@/lib/useUrlView';
+import { FilterToolbar, FilterPanel } from '@/components/ui/FilterPanel';
+import { SortSelect } from '@/components/ui/SortHeader';
+import { WidgetLoading } from '@/components/ui/WidgetFrame';
+import { BTN_PRIMARY, BTN_SECONDARY, CARD_PADDED, H1, H2, INPUT, LABEL, HELPER, NUM, TH, TD } from '@/components/ui/tokens';
 
 const EMAIL_KEY = 'ilc.conceptualBudget.portalEmail';
-const BTN = 'px-4 py-2 text-sm font-semibold rounded-lg';
-const ORANGE = `${BTN} bg-orange-500 hover:bg-orange-600 text-white disabled:opacity-50`;
-const PLAIN = `${BTN} border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 disabled:opacity-50`;
+const ORANGE = BTN_PRIMARY;
+const PLAIN = BTN_SECONDARY;
 
 function readEmail() { try { return localStorage.getItem(EMAIL_KEY) || ''; } catch { return ''; } }
 function writeEmail(v) { try { if (v) localStorage.setItem(EMAIL_KEY, v); else localStorage.removeItem(EMAIL_KEY); } catch {} }
@@ -45,8 +49,7 @@ export default function MyBudgetsClient() {
   const [busyId, setBusyId] = useState(null);
   // Filter and sort (Mike 10-16): a funnel button opens the panel, every
   // card field is a filter, one select picks the sort.
-  const [filters, setFilters] = useState({});
-  const [sort, setSort] = useState({ key: '', dir: 'asc' });
+  const { filters, setFilter, clearFilters, sort, setSort, ready } = useUrlView({ fields: PORTAL_FIELDS, sortDefault: { key: '', dir: 'asc' } });
   const [filtersOpen, setFiltersOpen] = useState(false);
 
   const load = useCallback(async (who) => {
@@ -118,33 +121,32 @@ export default function MyBudgetsClient() {
   const allGroups = data?.groups || [];
   const asks = data?.asks || [];
   const total = allGroups.reduce((n, g) => n + g.budgets.length, 0);
-  const groups = useMemo(() => applyPortalView(allGroups, filters, sort), [allGroups, filters, sort]);
+  const groups = useMemo(() => (ready ? applyPortalView(allGroups, filters, sort) : allGroups), [allGroups, filters, sort, ready]);
   const shown = groups.reduce((n, g) => n + g.budgets.length, 0);
   const choices = useMemo(() => portalChoices(allGroups), [allGroups]);
   const activeFilters = activeFilterCount(filters);
-  const setFilter = (key, v) => setFilters(f => ({ ...f, [key]: v }));
 
   return (
     <main className="min-h-screen bg-slate-50">
       <div className="max-w-3xl mx-auto px-4 py-8 sm:py-12">
         <div className="flex flex-wrap items-baseline justify-between gap-2 mb-6">
-          <h1 className="text-2xl font-bold text-slate-900">My company&apos;s budgets</h1>
+          <h1 className={H1}>My company&apos;s budgets</h1>
           <Link href="/conceptual_budget" className="text-sm font-semibold text-orange-600 hover:text-orange-700">Start a new budget</Link>
         </div>
 
         {!email && (
-          <form onSubmit={submitEmail} className="bg-white rounded-2xl border border-slate-200 p-6">
+          <form onSubmit={submitEmail} className={CARD_PADDED}>
             <p className="text-sm text-slate-700">Type your work email. We will show every budget anyone at your company has started here.</p>
-            <p className="text-xs text-slate-500 mt-1">Work emails only. A personal email such as gmail.com is not accepted.</p>
+            <p className={`${HELPER} mt-1`}>Work emails only. A personal email such as gmail.com is not accepted.</p>
             <div className="mt-4 flex flex-wrap gap-2">
               <input
                 type="email" required autoComplete="email" value={typed} onChange={e => setTyped(e.target.value)}
                 placeholder="you@yourcompany.com"
-                className="flex-1 min-w-[220px] rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                className={`${INPUT} flex-1 min-w-[220px]`}
               />
               <button type="submit" className={ORANGE} disabled={loading}>{loading ? 'Looking...' : 'Show my budgets'}</button>
             </div>
-            {err && <p className="mt-3 text-sm text-rose-600">{err}</p>}
+            {err && <p className="mt-3 text-sm text-red-600">{err}</p>}
           </form>
         )}
 
@@ -154,11 +156,11 @@ export default function MyBudgetsClient() {
               <span>Showing budgets from everyone at <span className="font-semibold text-slate-800">{data?.domain || email.split('@').pop()}</span>, as {email}.</span>
               <button type="button" className="text-xs font-semibold text-slate-500 hover:text-slate-700 underline" onClick={forget}>Not you?</button>
             </div>
-            {err && <p className="mb-4 text-sm text-rose-600">{err}</p>}
+            {err && <p className="mb-4 text-sm text-red-600">{err}</p>}
             {loading && !data && <p className="text-sm text-slate-500">Looking...</p>}
 
             {asks.length > 0 && (
-              <section className="mb-6 rounded-2xl border border-amber-300 bg-amber-50 p-4">
+              <section className="mb-6 rounded-xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
                 <h2 className="text-sm font-semibold text-slate-900">Quick question</h2>
                 <ul className="mt-2 space-y-3">
                   {asks.map(a => (
@@ -176,48 +178,28 @@ export default function MyBudgetsClient() {
 
             {data && total > 0 && (
               <div className="mb-4">
-                <div className="flex flex-wrap items-center gap-2">
-                  <button type="button" className={`${PLAIN} inline-flex items-center gap-2`} onClick={() => setFiltersOpen(o => !o)} aria-expanded={filtersOpen}>
-                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 5h18l-7 8v6l-4-2v-4L3 5z" />
-                    </svg>
-                    Filter{activeFilters ? ` (${activeFilters})` : ''}
-                  </button>
-                  <label className="inline-flex items-center gap-2 text-sm text-slate-600">
-                    Sort by
-                    <select value={sort.key} onChange={e => setSort(s => ({ ...s, key: e.target.value }))} className="rounded-lg border border-slate-300 bg-white px-2 py-2 text-sm">
-                      <option value="">Newest first</option>
-                      {PORTAL_FIELDS.map(f => <option key={f.key} value={f.key}>{f.label}</option>)}
-                    </select>
-                  </label>
-                  {sort.key && (
-                    <button type="button" className={PLAIN} onClick={() => setSort(s => ({ ...s, dir: s.dir === 'asc' ? 'desc' : 'asc' }))}>
-                      {sort.dir === 'asc' ? 'Low to high' : 'High to low'}
-                    </button>
-                  )}
-                  <span className="text-xs text-slate-500">{shown === total ? `${total} budgets` : `${shown} of ${total} budgets`}</span>
-                  {activeFilters > 0 && (
-                    <button type="button" className="text-xs font-semibold text-slate-500 hover:text-slate-700 underline" onClick={() => setFilters({})}>Clear filters</button>
-                  )}
-                </div>
-                {filtersOpen && (
-                  <div className="mt-3 bg-white rounded-2xl border border-slate-200 p-4 grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-3 text-sm">
-                    {PORTAL_FIELDS.map(f => (
-                      <FilterBox key={f.key} field={f} value={filters[f.key]} choices={choices[f.key]} onChange={v => setFilter(f.key, v)} />
-                    ))}
-                  </div>
-                )}
+                <FilterToolbar
+                  count={activeFilters}
+                  open={filtersOpen}
+                  onToggle={() => setFiltersOpen(o => !o)}
+                  onClear={clearFilters}
+                  shown={shown}
+                  total={total}
+                  noun="budgets"
+                  right={<SortSelect fields={PORTAL_FIELDS} sort={sort} onChange={setSort} />}
+                />
+                <FilterPanel open={filtersOpen} fields={PORTAL_FIELDS} filters={filters} choices={choices} onChange={setFilter} />
               </div>
             )}
 
             {data && total > 0 && shown === 0 && (
-              <div className="bg-white rounded-2xl border border-slate-200 p-6 text-sm text-slate-600">
+              <div className={`${CARD_PADDED} text-sm text-slate-600`}>
                 No budget matches these filters.
               </div>
             )}
 
             {data && total === 0 && (
-              <div className="bg-white rounded-2xl border border-slate-200 p-6 text-sm text-slate-600">
+              <div className={`${CARD_PADDED} text-sm text-slate-600`}>
                 Nobody at your company has started a budget here yet.{' '}
                 <Link href="/conceptual_budget" className="font-semibold text-orange-600 hover:text-orange-700">Start the first one</Link>.
               </div>
@@ -225,22 +207,22 @@ export default function MyBudgetsClient() {
 
             {groups.map(g => (
               <section key={g.key} className="mb-6">
-                <h2 className="text-base font-semibold text-slate-900 mb-2">{g.name}{g.budgets.length > 1 ? ` (${g.budgets.length} budgets)` : ''}</h2>
+                <h2 className={`${H2} mb-2`}>{g.name}{g.budgets.length > 1 ? ` (${g.budgets.length} budgets)` : ''}</h2>
                 <ul className="space-y-3">
                   {g.budgets.map(b => (
-                    <li key={b.id} className="bg-white rounded-2xl border border-slate-200 p-4">
+                    <li key={b.id} className={CARD_PADDED}>
                       <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-3 text-sm">
                         <Field label="Description" value={b.budgetName || 'Budget'} strong />
                         <Field label="Location" value={[b.city, b.state].filter(Boolean).join(', ')} />
                         <Field label="Building type" value={b.buildingTypeLabel} />
-                        <Field label="Units" value={b.unitCount ? Number(b.unitCount).toLocaleString() : ''} />
-                        <Field label="Gross SF" value={b.grossSf ? Number(b.grossSf).toLocaleString() : ''} />
-                        <Field label="Budget" value={b.estimate ? formatCurrency(b.estimate) : ''} strong />
+                        <Field label="Units" value={b.unitCount ? Number(b.unitCount).toLocaleString() : ''} num />
+                        <Field label="Gross SF" value={b.grossSf ? Number(b.grossSf).toLocaleString() : ''} num />
+                        <Field label="Budget" value={b.estimate ? formatCurrency(b.estimate) : ''} strong num />
                         <Field label="Status" value={b.stage?.label} />
                         <Field label="Copied from" value={b.copiedFrom?.projectName} sub={b.copiedFrom?.email} />
-                        <Field label="Started" value={when(b.createdAt)} sub={b.createdBy} />
-                        <Field label="Last changed" value={b.changedAt && b.changedAt !== b.createdAt ? when(b.changedAt) : ''} sub={b.changedAt && b.changedAt !== b.createdAt ? b.changedBy : ''} />
-                        <Field label="Sent to ILC" value={b.sentAt ? when(b.sentAt) : ''} />
+                        <Field label="Started" value={when(b.createdAt)} sub={b.createdBy} num />
+                        <Field label="Last changed" value={b.changedAt && b.changedAt !== b.createdAt ? when(b.changedAt) : ''} sub={b.changedAt && b.changedAt !== b.createdAt ? b.changedBy : ''} num />
+                        <Field label="Sent to ILC" value={b.sentAt ? when(b.sentAt) : ''} num />
                       </div>
                       <div className="mt-3 flex flex-wrap gap-2">
                         {b.canOpen && (
@@ -255,7 +237,7 @@ export default function MyBudgetsClient() {
                       </div>
                       {history?.draftId === b.id && (
                         <div className="mt-3 pt-3 border-t border-slate-100 overflow-x-auto">
-                          {history.loading && <p className="text-xs text-slate-500">Loading...</p>}
+                          {history.loading && <WidgetLoading />}
                           {history.body && <HistoryList body={history.body} />}
                         </div>
                       )}
@@ -271,75 +253,31 @@ export default function MyBudgetsClient() {
   );
 }
 
-const INPUT = 'w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm';
-
-// One filter control, shaped by the field kind (text, pick, range, yes/no, date).
-function FilterBox({ field, value, choices, onChange }) {
-  const label = <div className="text-[11px] uppercase tracking-wide text-slate-500 mb-1">{field.label}</div>;
-  if (field.kind === 'text') {
-    return <div>{label}<input type="text" value={value || ''} onChange={e => onChange(e.target.value)} placeholder="Contains..." className={INPUT} /></div>;
-  }
-  if (field.kind === 'pick') {
-    return (
-      <div>{label}
-        <select value={value || ''} onChange={e => onChange(e.target.value)} className={INPUT}>
-          <option value="">Any</option>
-          {(choices || []).map(c => <option key={c} value={c}>{c}</option>)}
-        </select>
-      </div>
-    );
-  }
-  if (field.kind === 'yesno') {
-    return (
-      <div>{label}
-        <select value={value || ''} onChange={e => onChange(e.target.value)} className={INPUT}>
-          <option value="">Any</option>
-          <option value="yes">Yes</option>
-          <option value="no">No</option>
-        </select>
-      </div>
-    );
-  }
-  if (field.kind === 'range') {
-    const v = value || { min: '', max: '' };
-    return (
-      <div>{label}
-        <div className="flex gap-1">
-          <input type="number" value={v.min ?? ''} onChange={e => onChange({ ...v, min: e.target.value })} placeholder="Min" className={INPUT} />
-          <input type="number" value={v.max ?? ''} onChange={e => onChange({ ...v, max: e.target.value })} placeholder="Max" className={INPUT} />
-        </div>
-      </div>
-    );
-  }
-  // Dates sort but do not filter; the box just says so.
-  return <div>{label}<div className="text-xs text-slate-400 py-1.5">Sort only</div></div>;
-}
-
 // One labeled field: the label above the value, a dash when there is nothing to show.
-function Field({ label, value, sub, strong }) {
+function Field({ label, value, sub, strong, num }) {
   return (
     <div className="min-w-0">
-      <div className="text-[11px] uppercase tracking-wide text-slate-500">{label}</div>
-      <div className={strong ? 'font-semibold text-slate-900' : 'text-slate-800'}>{value || '-'}</div>
-      {sub ? <div className="text-xs text-slate-500 truncate">{sub}</div> : null}
+      <div className={LABEL}>{label}</div>
+      <div className={`${strong ? 'font-semibold text-slate-900' : 'text-slate-800'}${num ? ` ${NUM}` : ''}`}>{value || '-'}</div>
+      {sub ? <div className={`${HELPER} truncate`}>{sub}</div> : null}
     </div>
   );
 }
 
 function HistoryList({ body }) {
   const saves = (body.saves || []).filter(s => s.changes.length || s.kind !== 'save');
-  if (!saves.length) return <p className="text-xs text-slate-500">No changes recorded yet.</p>;
+  if (!saves.length) return <p className={HELPER}>No changes recorded yet.</p>;
   return (
     <table className="min-w-full text-xs">
       <thead>
-        <tr className="text-left uppercase tracking-wide text-slate-500 border-b border-slate-200">
-          <th className="px-2 py-1 font-semibold">When</th>
-          <th className="px-2 py-1 font-semibold">Who</th>
-          <th className="px-2 py-1 font-semibold">Action</th>
-          <th className="px-2 py-1 font-semibold">Step</th>
-          <th className="px-2 py-1 font-semibold">Field</th>
-          <th className="px-2 py-1 font-semibold">Before</th>
-          <th className="px-2 py-1 font-semibold">After</th>
+        <tr className="border-b border-slate-200">
+          <th className={TH}>When</th>
+          <th className={TH}>Who</th>
+          <th className={TH}>Action</th>
+          <th className={TH}>Step</th>
+          <th className={TH}>Field</th>
+          <th className={TH}>Before</th>
+          <th className={TH}>After</th>
         </tr>
       </thead>
       <tbody>
@@ -347,14 +285,14 @@ function HistoryList({ body }) {
           const action = s.kind === 'created' ? 'Started' : s.kind === 'copied' ? 'Copied' : 'Saved';
           const rows = s.changes.length ? s.changes : [null];
           return rows.map((c, i) => (
-            <tr key={s.id + ':' + i} className="border-b border-slate-100 align-top text-slate-700">
-              <td className="px-2 py-1 whitespace-nowrap">{i === 0 ? whenAt(s.savedAt) : ''}</td>
-              <td className="px-2 py-1">{i === 0 ? s.email : ''}</td>
-              <td className="px-2 py-1">{i === 0 ? action : ''}</td>
-              <td className="px-2 py-1">{i === 0 ? (s.step || '') : ''}</td>
-              <td className="px-2 py-1 font-medium">{c ? c.label : ''}</td>
-              <td className="px-2 py-1 text-slate-400">{c ? (c.before || '') : ''}</td>
-              <td className="px-2 py-1">{c ? (c.after || 'blank') : ''}</td>
+            <tr key={s.id + ':' + i} className="border-b border-slate-100 align-top">
+              <td className={`${TD} ${NUM} whitespace-nowrap`}>{i === 0 ? whenAt(s.savedAt) : ''}</td>
+              <td className={TD}>{i === 0 ? s.email : ''}</td>
+              <td className={TD}>{i === 0 ? action : ''}</td>
+              <td className={TD}>{i === 0 ? (s.step || '') : ''}</td>
+              <td className={`${TD} font-medium`}>{c ? c.label : ''}</td>
+              <td className={`${TD} text-slate-500`}>{c ? (c.before || '') : ''}</td>
+              <td className={TD}>{c ? (c.after || 'blank') : ''}</td>
             </tr>
           ));
         })}

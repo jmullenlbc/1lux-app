@@ -31,7 +31,7 @@ const TAG_COLORS = {
   boh:      'bg-orange-100 text-orange-700',
   office:   'bg-slate-200 text-slate-700',
   amenity:  'bg-green-500 text-white',
-  exterior: 'bg-emerald-100 text-emerald-700',
+  exterior: 'bg-green-100 text-green-700',
   controls: 'bg-violet-100 text-violet-700',
   other:    'bg-slate-100 text-slate-500',
   // legacy values
@@ -45,7 +45,7 @@ const TAG_ACTIVE = {
   boh:      'bg-orange-500',
   office:   'bg-slate-500',
   amenity:  'bg-green-500',
-  exterior: 'bg-emerald-500',
+  exterior: 'bg-green-500',
   controls: 'bg-violet-500',
   other:    'bg-slate-400',
   common:   'bg-blue-500',
@@ -120,7 +120,7 @@ function Cell({ value, placeholder, onSave, numeric, align = 'left', className =
         data-peer-cell={cellId} data-peer-field={field}
         tabIndex={cellId ? 0 : -1}
         onFocus={start} onClick={start}
-        className={`cursor-text min-h-[1.1rem] px-0.5 select-none rounded focus:outline-none focus:ring-1 focus:ring-amber-300 ${align === 'right' ? 'text-right' : ''} ${!display ? 'text-slate-300 text-[10px] italic' : ''} ${mono ? 'font-mono text-[10px]' : ''} ${className}`}>
+        className={`cursor-text min-h-[1.1rem] px-0.5 select-none rounded focus:outline-none focus:ring-2 focus:ring-orange-500 ${align === 'right' ? 'text-right' : ''} ${!display ? 'text-slate-300 text-[11px] italic' : ''} ${mono ? 'font-mono text-[11px]' : ''} ${className}`}>
         {display || placeholder}
       </div>
     );
@@ -130,7 +130,7 @@ function Cell({ value, placeholder, onSave, numeric, align = 'left', className =
       <textarea ref={ref} value={val} rows={4}
         onChange={e => setVal(e.target.value)}
         onBlur={commit} onKeyDown={handleKeyDown}
-        className={`w-full min-w-[340px] border border-amber-300 rounded px-1.5 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-amber-400 resize-none leading-snug ${className}`}
+        className={`w-full min-w-[340px] border border-amber-300 rounded px-1.5 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-orange-500 resize-none leading-snug ${className}`}
       />
     );
   }
@@ -138,7 +138,7 @@ function Cell({ value, placeholder, onSave, numeric, align = 'left', className =
     <input ref={ref} value={val} type={numeric ? 'number' : 'text'} step={numeric ? 'any' : undefined}
       onChange={e => setVal(e.target.value)}
       onBlur={commit} onKeyDown={handleKeyDown}
-      className={`w-full border border-amber-300 rounded px-1.5 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-amber-400 ${align === 'right' ? 'text-right' : ''} ${mono ? 'font-mono' : ''} ${className}`}
+      className={`w-full border border-amber-300 rounded px-1.5 py-0.5 text-xs focus:outline-none focus:ring-2 focus:ring-orange-500 ${align === 'right' ? 'text-right' : ''} ${mono ? 'font-mono' : ''} ${className}`}
     />
   );
 }
@@ -146,7 +146,7 @@ function Cell({ value, placeholder, onSave, numeric, align = 'left', className =
 function SelectCell({ value, options, placeholder, onSave, className = '' }) {
   return (
     <select value={value ?? ''} onChange={e => onSave(e.target.value || null)}
-      className={`w-full border-0 bg-transparent text-xs focus:outline-none focus:ring-1 focus:ring-amber-300 rounded px-0.5 cursor-pointer ${!value ? 'text-slate-300 italic' : ''} ${className}`}>
+      className={`w-full border-0 bg-transparent text-xs focus:outline-none focus:ring-2 focus:ring-orange-500 rounded px-0.5 cursor-pointer ${!value ? 'text-slate-300 italic' : ''} ${className}`}>
       <option value="">{placeholder}</option>
       {options.map(o => <option key={o} value={o}>{o}</option>)}
     </select>
@@ -169,7 +169,7 @@ function TagSelect({ value, onSave }) {
   return (
     <div ref={ref} className="relative">
       <button onClick={() => setOpen(o => !o)}
-        className={`px-2 py-0.5 rounded-full text-[10px] font-semibold cursor-pointer whitespace-nowrap ${tag ? TAG_COLORS[value] : 'bg-slate-100 text-slate-300 italic'}`}>
+        className={`px-2 py-0.5 rounded-full text-[11px] font-semibold cursor-pointer whitespace-nowrap ${tag ? TAG_COLORS[value] : 'bg-slate-100 text-slate-300 italic'}`}>
         {tag?.label || <span className="font-normal">Select…</span>}
       </button>
       {open && (
@@ -177,7 +177,7 @@ function TagSelect({ value, onSave }) {
           {LOCATION_TAGS.map(t => (
             <button key={t.id} onClick={() => { onSave(t.id); setOpen(false); }}
               className={`w-full text-left px-3 py-1.5 hover:bg-slate-50 flex items-center gap-2 ${value === t.id ? 'bg-slate-50' : ''}`}>
-              <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${TAG_COLORS[t.id]}`}>{t.label}</span>
+              <span className={`px-1.5 py-0.5 rounded-full text-[11px] font-semibold ${TAG_COLORS[t.id]}`}>{t.label}</span>
             </button>
           ))}
         </div>
@@ -189,14 +189,14 @@ function TagSelect({ value, onSave }) {
 // ── RFQ badge ─────────────────────────────────────────────────────────────────
 
 function RfqBadge({ status }) {
-  if (!status) return <span className="text-slate-300 text-[10px] italic">—</span>;
+  if (!status) return <span className="text-slate-300 text-[11px] italic">—</span>;
   const cls = {
     'Received':     'bg-green-100 text-green-700',
     'Budget Price': 'bg-amber-100 text-amber-700',
     'Pending':      'bg-slate-100 text-slate-500',
     'Needs Review': 'bg-red-100 text-red-600',
   }[status] || 'bg-slate-100 text-slate-500';
-  return <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${cls}`}>{status}</span>;
+  return <span className={`px-1.5 py-0.5 rounded-full text-[11px] font-semibold ${cls}`}>{status}</span>;
 }
 
 // ── Import Modal ──────────────────────────────────────────────────────────────
@@ -290,9 +290,9 @@ function ImportModal({ projectId, onImported, onClose }) {
           <div>
             <h2 className="text-base font-bold text-slate-900">Import Fixture Schedule</h2>
             <p className="text-xs text-slate-400 mt-0.5">
-              {step === 'upload'   && `Upload an electrical drawing PDF to extract the fixture schedule — ${READING_TIME_HINT.toLowerCase()}`}
+              {step === 'upload'   && `Upload an electrical drawing PDF to extract the fixture schedule, ${READING_TIME_HINT.toLowerCase()}`}
               {step === 'parsing'  && `Analyzing "${fileName}" with AI…`}
-              {step === 'preview'  && `${fixtures.length} fixture type${fixtures.length !== 1 ? 's' : ''} found in "${fileName}" — review and confirm`}
+              {step === 'preview'  && `${fixtures.length} fixture type${fixtures.length !== 1 ? 's' : ''} found in "${fileName}", review and confirm`}
               {step === 'importing' && 'Importing…'}
             </p>
           </div>
@@ -313,12 +313,12 @@ function ImportModal({ projectId, onImported, onClose }) {
                 onDrop={onDrop}
                 onClick={() => fileRef.current?.click()}
                 className={`w-full max-w-lg border-2 border-dashed rounded-xl p-12 flex flex-col items-center gap-3 cursor-pointer transition-colors ${
-                  dragging ? 'border-blue-400 bg-blue-50' : 'border-slate-200 hover:border-slate-400 hover:bg-slate-50'
+                  dragging ? 'border-orange-400 bg-orange-50' : 'border-slate-200 hover:border-slate-400 hover:bg-slate-50'
                 } ${step === 'parsing' ? 'pointer-events-none opacity-60' : ''}`}
               >
                 {step === 'parsing' ? (
                   <>
-                    <svg className="animate-spin w-8 h-8 text-blue-500" viewBox="0 0 24 24" fill="none">
+                    <svg className="animate-spin w-8 h-8 text-orange-500" viewBox="0 0 24 24" fill="none">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
                     </svg>
@@ -351,7 +351,7 @@ function ImportModal({ projectId, onImported, onClose }) {
                 <p className="font-semibold text-slate-500">Tips for best results:</p>
                 <p>• Upload the E-sheet or electrical schedule sheet, not the full drawing set</p>
                 <p>• Works with MEP fixture schedules (not interior design spec boards)</p>
-                <p>• Image-based or scanned PDFs cannot be parsed — use a text-based export</p>
+                <p>• Image-based or scanned PDFs cannot be parsed, use a text-based export</p>
               </div>
             </div>
           )}
@@ -386,7 +386,7 @@ function ImportModal({ projectId, onImported, onClose }) {
                 <div className="overflow-x-auto rounded-xl border border-slate-200">
                   <table className="w-full text-xs">
                     <thead className="bg-slate-50 border-b border-slate-200">
-                      <tr className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                      <tr className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">
                         <th className="px-3 py-2 text-left w-16">Type</th>
                         <th className="px-3 py-2 text-left">Description</th>
                         <th className="px-3 py-2 text-left w-36">Manufacturer</th>
@@ -408,7 +408,7 @@ function ImportModal({ projectId, onImported, onClose }) {
                               ? <span className="text-slate-600">{f.manufacturer}</span>
                               : <span className="text-slate-300 italic">TBD</span>}
                           </td>
-                          <td className="px-3 py-2 font-mono text-[10px] text-slate-500 max-w-[11rem] truncate" title={f.catalogNumber}>
+                          <td className="px-3 py-2 font-mono text-[11px] text-slate-500 max-w-[11rem] truncate" title={f.catalogNumber}>
                             {f.catalogNumber || <span className="text-slate-300 italic not-italic font-sans">TBD</span>}
                           </td>
                           <td className="px-3 py-2 text-right text-slate-500">
@@ -419,7 +419,7 @@ function ImportModal({ projectId, onImported, onClose }) {
                               value={f.section}
                               onChange={e => updateSection(idx, e.target.value)}
                               disabled={step === 'importing'}
-                              className="w-full text-xs border border-slate-200 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white"
+                              className="w-full text-xs border border-slate-200 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
                             >
                               {SECTION_OPTIONS.map(s => (
                                 <option key={s.id} value={s.id}>{s.label}</option>
@@ -466,13 +466,13 @@ function ImportModal({ projectId, onImported, onClose }) {
             </button>
             {step === 'preview' && fixtures.length > 0 && (
               <button onClick={confirmImport}
-                className="flex items-center gap-2 px-5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition-colors shadow-sm">
+                className="flex items-center gap-2 px-5 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold transition-colors shadow-sm">
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>
                 Import {fixtures.length} Fixture{fixtures.length !== 1 ? 's' : ''}
               </button>
             )}
             {step === 'importing' && (
-              <button disabled className="flex items-center gap-2 px-5 py-2 rounded-lg bg-blue-600 text-white text-sm font-semibold opacity-70">
+              <button disabled className="flex items-center gap-2 px-5 py-2 rounded-lg bg-orange-500 text-white text-sm font-semibold opacity-70">
                 <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/></svg>
                 Importing…
               </button>
@@ -550,15 +550,15 @@ function DuplicateBidButton({ projectId, currentVersion, onDuplicated }) {
                   onChange={e => setName(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && duplicate()}
                   placeholder="e.g. Best Price Version, Alternate Spec"
-                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
                 />
-                <p className="text-[10px] text-slate-400 mt-1">This becomes the version label in the version selector</p>
+                <p className="text-[11px] text-slate-400 mt-1">This becomes the version label in the version selector</p>
               </div>
               {err && <p className="text-xs text-red-600">{err}</p>}
               <div className="flex gap-2 pt-1">
                 <button onClick={() => setOpen(false)} className="flex-1 px-4 py-2 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-slate-50">Cancel</button>
                 <button onClick={duplicate} disabled={duplicating || !name.trim()}
-                  className="flex-1 px-4 py-2 rounded-lg bg-slate-800 text-white text-sm font-semibold hover:bg-slate-700 disabled:opacity-60 transition-colors">
+                  className="flex-1 px-4 py-2 rounded-lg bg-orange-500 text-white text-sm font-semibold hover:bg-orange-600 disabled:opacity-60 transition-colors">
                   {duplicating ? 'Duplicating…' : 'Duplicate'}
                 </button>
               </div>
@@ -632,13 +632,13 @@ function MfrPopup({ onCreated, onClose }) {
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1">Name *</label>
             <input autoFocus value={name} onChange={e => setName(e.target.value)}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
               placeholder="e.g. Lithonia Lighting" />
           </div>
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1">Website</label>
             <input value={website} onChange={e => setWeb(e.target.value)}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
               placeholder="https://" />
           </div>
           {err && <p className="text-xs text-red-600">{err}</p>}
@@ -646,7 +646,7 @@ function MfrPopup({ onCreated, onClose }) {
             <button type="button" onClick={onClose}
               className="flex-1 px-4 py-2 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-slate-50">Cancel</button>
             <button type="submit" disabled={saving}
-              className="flex-1 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold disabled:opacity-60">
+              className="flex-1 px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold disabled:opacity-60">
               {saving ? 'Saving…' : 'Create'}
             </button>
           </div>
@@ -686,13 +686,13 @@ function ProductPopup({ manufacturerId, manufacturerName, onCreated, onClose }) 
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1">Part Number *</label>
             <input autoFocus value={partNumber} onChange={e => setPart(e.target.value)}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-orange-500"
               placeholder="e.g. 2GTL-48-L840-A" />
           </div>
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1">Description</label>
             <input value={desc} onChange={e => setDesc(e.target.value)}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
               placeholder="Optional short description" />
           </div>
           {err && <p className="text-xs text-red-600">{err}</p>}
@@ -700,7 +700,7 @@ function ProductPopup({ manufacturerId, manufacturerName, onCreated, onClose }) 
             <button type="button" onClick={onClose}
               className="flex-1 px-4 py-2 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-slate-50">Cancel</button>
             <button type="submit" disabled={saving}
-              className="flex-1 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold disabled:opacity-60">
+              className="flex-1 px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold disabled:opacity-60">
               {saving ? 'Saving…' : 'Create'}
             </button>
           </div>
@@ -730,19 +730,19 @@ function MfrSelect({ item, manufacturers, onSelectMfr, onOpenCreate }) {
     <div ref={ref} className="relative">
       <div onClick={() => setOpen(o => !o)}
         className="cursor-pointer min-h-[1.1rem] px-0.5 text-blue-700 font-medium text-xs select-none truncate">
-        {selected?.name || item.propManufacturer || <span className="text-slate-300 italic text-[10px]">Manufacturer</span>}
+        {selected?.name || item.propManufacturer || <span className="text-slate-300 italic text-[11px]">Manufacturer</span>}
       </div>
       {open && (
         <div className="absolute top-full left-0 mt-1 w-56 bg-white rounded-lg shadow-xl border border-slate-200 z-50 overflow-hidden">
           <div className="p-2 border-b border-slate-100">
             <input autoFocus value={q} onChange={e => setQ(e.target.value)}
-              className="w-full text-xs border border-slate-200 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-400"
+              className="w-full text-xs border border-slate-200 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-orange-500"
               placeholder="Search manufacturers…" />
           </div>
           <div className="max-h-48 overflow-y-auto">
             {filtered.map(m => (
               <button key={m.id} onClick={() => { onSelectMfr(m); setOpen(false); setQ(''); }}
-                className="w-full text-left px-3 py-1.5 text-xs hover:bg-blue-50 hover:text-blue-700 transition-colors">
+                className="w-full text-left px-3 py-1.5 text-xs hover:bg-orange-50 hover:text-orange-700 transition-colors">
                 {m.name}
               </button>
             ))}
@@ -750,7 +750,7 @@ function MfrSelect({ item, manufacturers, onSelectMfr, onOpenCreate }) {
           </div>
           <div className="border-t border-slate-100 p-1.5">
             <button onClick={() => { setOpen(false); onOpenCreate(); }}
-              className="w-full text-left px-2 py-1 text-xs text-blue-600 hover:bg-blue-50 rounded font-semibold">
+              className="w-full text-left px-2 py-1 text-xs text-orange-600 hover:bg-orange-50 rounded font-semibold">
               + New Manufacturer
             </button>
           </div>
@@ -809,15 +809,15 @@ function ProductSelect({ item, manufacturers, onSelectProduct, onMfrProductAdded
   }
 
   if (!mfr) {
-    return <span className="text-slate-300 text-[10px] italic px-0.5">Select mfr first</span>;
+    return <span className="text-slate-300 text-[11px] italic px-0.5">Select mfr first</span>;
   }
 
   return (
     <div ref={ref} className="relative">
       {!open ? (
         <div onClick={handleOpen}
-          className="cursor-pointer min-h-[1.1rem] px-0.5 font-mono text-[10px] text-blue-700 select-none truncate">
-          {selected?.partNumber || item.propModel || <span className="text-slate-300 italic font-sans text-[10px]">Catalog #</span>}
+          className="cursor-pointer min-h-[1.1rem] px-0.5 font-mono text-[11px] text-blue-700 select-none truncate">
+          {selected?.partNumber || item.propModel || <span className="text-slate-300 italic font-sans text-[11px]">Catalog #</span>}
         </div>
       ) : (
         <input ref={inputRef} value={q} onChange={e => setQ(e.target.value)}
@@ -830,7 +830,7 @@ function ProductSelect({ item, manufacturers, onSelectProduct, onMfrProductAdded
             }
             if (e.key === 'Escape') { setOpen(false); setQ(''); }
           }}
-          className="w-full border border-amber-300 rounded px-1.5 py-0.5 text-[10px] font-mono focus:outline-none focus:ring-1 focus:ring-amber-400"
+          className="w-full border border-amber-300 rounded px-1.5 py-0.5 text-[11px] font-mono focus:outline-none focus:ring-2 focus:ring-orange-500"
         />
       )}
       {open && (
@@ -838,22 +838,22 @@ function ProductSelect({ item, manufacturers, onSelectProduct, onMfrProductAdded
           <div className="max-h-48 overflow-y-auto">
             {filtered.map(p => (
               <button key={p.id} onClick={() => { onSelectProduct(p); setOpen(false); setQ(''); }}
-                className="w-full text-left px-3 py-1.5 hover:bg-blue-50 transition-colors">
-                <span className="font-mono text-[10px] text-blue-700 font-semibold">{p.partNumber}</span>
-                {p.description && <span className="text-[10px] text-slate-400 ml-2 truncate">{p.description}</span>}
+                className="w-full text-left px-3 py-1.5 hover:bg-orange-50 transition-colors">
+                <span className="font-mono text-[11px] text-blue-700 font-semibold">{p.partNumber}</span>
+                {p.description && <span className="text-[11px] text-slate-400 ml-2 truncate">{p.description}</span>}
               </button>
             ))}
             {filtered.length === 0 && q && (
-              <p className="px-3 py-2 text-xs text-slate-400 italic">No match — press Enter to create</p>
+              <p className="px-3 py-2 text-xs text-slate-400 italic">No match, press Enter to create</p>
             )}
             {filtered.length === 0 && !q && (
-              <p className="px-3 py-2 text-xs text-slate-400 italic">No part numbers yet — start typing</p>
+              <p className="px-3 py-2 text-xs text-slate-400 italic">No part numbers yet, start typing</p>
             )}
           </div>
           {q.trim() && !exactMatch && (
             <div className="border-t border-slate-100 p-1.5">
               <button onClick={createInline} disabled={creating}
-                className="w-full text-left px-2 py-1 text-xs text-blue-600 hover:bg-blue-50 rounded font-semibold disabled:opacity-50">
+                className="w-full text-left px-2 py-1 text-xs text-orange-600 hover:bg-orange-50 rounded font-semibold disabled:opacity-50">
                 {creating ? 'Creating…' : `+ Create "${q.trim()}"`}
               </button>
             </div>
@@ -869,7 +869,7 @@ function ProductSelect({ item, manufacturers, onSelectProduct, onMfrProductAdded
 const EMAIL_TEMPLATES = {
   initial: {
     label: 'Initial Bid Submittal',
-    subject: (project) => `Lighting Budget – ${project.name}`,
+    subject: (project) => `Lighting Budget, ${project.name}`,
     body: (project) =>
 `Hi,
 
@@ -882,7 +882,7 @@ ILC Studios`,
   },
   followup: {
     label: 'Follow-Up',
-    subject: (project) => `Follow-Up: Lighting Budget – ${project.name}`,
+    subject: (project) => `Follow-Up: Lighting Budget, ${project.name}`,
     body: (project) =>
 `Hi,
 
@@ -895,7 +895,7 @@ ILC Studios`,
   },
   revised: {
     label: 'Revised Bid',
-    subject: (project) => `Revised Lighting Budget – ${project.name}`,
+    subject: (project) => `Revised Lighting Budget, ${project.name}`,
     body: (project) =>
 `Hi,
 
@@ -961,10 +961,10 @@ function EmailBidPopup({ project, onClose }) {
 
         {/* Template picker */}
         <div className="px-6 py-3 border-b border-slate-100 bg-slate-50 flex items-center gap-2 flex-shrink-0">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mr-1">Template:</span>
+          <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wide mr-1">Template:</span>
           {Object.entries(EMAIL_TEMPLATES).map(([key, t]) => (
             <button key={key} onClick={() => applyTemplate(key)}
-              className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${templateKey === key ? 'bg-blue-600 text-white' : 'bg-white border border-slate-200 text-slate-600 hover:border-slate-400'}`}>
+              className={`px-2.5 py-1 rounded-full text-xs font-medium transition-colors ${templateKey === key ? 'bg-orange-500 text-white' : 'bg-white border border-slate-200 text-slate-600 hover:border-slate-400'}`}>
               {t.label}
             </button>
           ))}
@@ -973,28 +973,28 @@ function EmailBidPopup({ project, onClose }) {
         {/* Form */}
         <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
           <div>
-            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">To</label>
+            <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-1">To</label>
             <input value={to} onChange={e => setTo(e.target.value)}
               placeholder="recipient@example.com"
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500" />
           </div>
           <div>
-            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">CC</label>
+            <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-1">CC</label>
             <input value={cc} onChange={e => setCc(e.target.value)}
               placeholder="cc@example.com"
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500" />
           </div>
           <div>
-            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Subject</label>
+            <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-1">Subject</label>
             <input value={subject} onChange={e => setSubject(e.target.value)}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500" />
           </div>
           <div>
-            <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Message</label>
+            <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-1">Message</label>
             <textarea value={body} onChange={e => setBody(e.target.value)} rows={10}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none" />
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-orange-500 resize-none" />
           </div>
-          <p className="text-[10px] text-slate-400">Tip: Print the Budget Matrix to PDF first, then attach it before sending.</p>
+          <p className="text-[11px] text-slate-400">Tip: Print the Budget Matrix to PDF first, then attach it before sending.</p>
         </div>
 
         {/* Footer */}
@@ -1009,7 +1009,7 @@ function EmailBidPopup({ project, onClose }) {
           <div className="flex items-center gap-2">
             <button onClick={onClose} className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 text-xs font-semibold hover:bg-slate-50 transition-colors">Cancel</button>
             <button onClick={openMailto}
-              className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition-colors">
+              className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold transition-colors">
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
               </svg>
@@ -1429,8 +1429,8 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
 
     // Add summary rows
     rows.push({});
-    rows.push({ 'Type': 'CN Subtotal — Lighting', 'CN Total': rawLighting });
-    rows.push({ 'Type': 'CN Subtotal — Controls', 'CN Total': rawControls });
+    rows.push({ 'Type': 'CN Subtotal, Lighting', 'CN Total': rawLighting });
+    rows.push({ 'Type': 'CN Subtotal, Controls', 'CN Total': rawControls });
     if (freightAmt > 0) rows.push({ 'Type': `Freight (${(freightPctVal*100).toFixed(0)}%)`, 'CN Total': freightAmt });
     if (warehousingAmt > 0) rows.push({ 'Type': `Warehousing (${(warehousingPctVal*100).toFixed(0)}%)`, 'CN Total': warehousingAmt });
     if (salesTaxAmt > 0) rows.push({ 'Type': `Sales Tax (${(salesTaxPctVal*100).toFixed(2)}%)`, 'CN Total': salesTaxAmt });
@@ -1450,7 +1450,7 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
 
     XLSX.utils.book_append_sheet(wb, ws, 'Budget Matrix');
     const safeName = project.name.replace(/[\\/:*?"<>|]/g, '_').slice(0, 40);
-    XLSX.writeFile(wb, `Budget Matrix – ${safeName}.xlsx`);
+    XLSX.writeFile(wb, `Budget Matrix, ${safeName}.xlsx`);
   }
 
   // ── Sort ────────────────────────────────────────────────────────────────────
@@ -1594,7 +1594,7 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
             <p className="text-sm text-slate-600 mb-4">
               This project was set up as a <strong>Design Bid</strong> matrix based on its service type.
               Switching to Peer Review view will show the Spec columns and hide the Design Bid layout.
-              No data will be deleted — you can switch back at any time.
+              No data will be deleted, you can switch back at any time.
             </p>
             <div className="flex gap-3 justify-end">
               <button
@@ -1605,7 +1605,7 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
               </button>
               <button
                 onClick={() => switchMatrixType('PEER_REVIEW')}
-                className="px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition-colors"
+                className="px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold transition-colors"
               >
                 Switch to Peer Review
               </button>
@@ -1624,7 +1624,7 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
           </Link>
           <div>
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: isDesignBid ? '#7c3aed' : '#2563eb' }}>
+              <span className="text-[11px] font-bold uppercase tracking-wide" style={{ color: isDesignBid ? '#7c3aed' : '#2563eb' }}>
                 {isDesignBid ? 'Design Bid Matrix' : 'Budget Matrix'}
               </span>
               {/* Version selector — matches Fixture Schedule pattern */}
@@ -1632,7 +1632,7 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
                 <select
                   value={selectedBidVer ?? 'live'}
                   onChange={e => setSelectedBidVer(e.target.value === 'live' ? null : e.target.value)}
-                  className="text-xs border border-slate-200 rounded-lg px-2.5 py-1 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-200"
+                  className="text-xs border border-slate-200 rounded-lg px-2.5 py-1 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500"
                 >
                   <option value="live">Current (live)</option>
                   {bidHistory.map(m => {
@@ -1651,7 +1651,7 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
                 </select>
               )}
               {selectedBidVer && (
-                <span className="text-[10px] px-2 py-0.5 rounded bg-slate-100 text-slate-500 font-medium">
+                <span className="text-[11px] px-2 py-0.5 rounded bg-slate-100 text-slate-500 font-medium">
                   Read-only snapshot
                 </span>
               )}
@@ -1666,9 +1666,9 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
                       onChange={e => setBudgetRenameInput(e.target.value)}
                       onKeyDown={e => { if (e.key === 'Enter') renameBudgetVersion(selectedBidVer); if (e.key === 'Escape') { setRenamingBudgetId(null); setBudgetRenameInput(''); } }}
                       placeholder="Label (optional)"
-                      className="text-xs border border-blue-300 rounded-md px-2 py-1 w-32 focus:outline-none focus:ring-1 focus:ring-blue-400"
+                      className="text-xs border border-slate-300 rounded-lg px-2 py-1 w-32 focus:outline-none focus:ring-2 focus:ring-orange-500"
                     />
-                    <button onClick={() => renameBudgetVersion(selectedBidVer)} className="text-xs px-2 py-1 rounded bg-blue-600 text-white hover:bg-blue-700">Save</button>
+                    <button onClick={() => renameBudgetVersion(selectedBidVer)} className="text-xs px-2 py-1 rounded bg-orange-500 text-white hover:bg-orange-600">Save</button>
                     <button onClick={() => { setRenamingBudgetId(null); setBudgetRenameInput(''); }} className="text-xs px-2 py-1 rounded border border-slate-200 text-slate-500 hover:bg-slate-50">Cancel</button>
                   </div>
                 ) : (
@@ -1685,7 +1685,7 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
                     <button
                       onClick={() => { const m = bidHistory.find(x => x.id === selectedBidVer); setDeleteBudgetConfirm({ id: selectedBidVer, label: `v${m?.version}${m?.submissionTag ? ` · ${m.submissionTag}` : ''}` }); }}
                       title="Archive this version"
-                      className="p-1.5 rounded text-slate-400 hover:text-amber-600 hover:bg-amber-50 transition-colors"
+                      className="p-1.5 rounded text-slate-400 hover:text-orange-600 hover:bg-amber-50 transition-colors"
                     >
                       <ArchiveBoxIcon />
                     </button>
@@ -1695,15 +1695,15 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
               <span className="text-slate-300">·</span>
               <span className="text-sm font-semibold text-slate-900">{project.name}</span>
             </div>
-            <p className="text-[10px] text-slate-400">
-              {selectedBidVer ? 'Read-only snapshot — select "Current (live)" to edit' : 'Click any cell to edit · Tab to advance'}
+            <p className="text-[11px] text-slate-400">
+              {selectedBidVer ? 'Read-only snapshot, select "Current (live)" to edit' : 'Click any cell to edit · Tab to advance'}
               {!selectedBidVer && bidHistory.length > 0 && ` · ${bidHistory.length} version${bidHistory.length !== 1 ? 's' : ''}`}
             </p>
           </div>
         </div>
         <div className="flex items-center gap-3">
           {saving && (
-            <div className="flex items-center gap-1.5 text-[10px] text-slate-400">
+            <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
               <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24" fill="none">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
@@ -1769,7 +1769,7 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
           </button>
           {/* Budget Settings */}
           <button onClick={() => setShowSettings(s => !s)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-colors ${showSettings ? 'bg-slate-900 border-slate-900 text-white' : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'}`}>
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-colors ${showSettings ? 'bg-orange-50 border-orange-400 text-orange-700' : 'border-slate-300 bg-white hover:bg-slate-50 text-slate-700'}`}>
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
             </svg>
@@ -1811,7 +1811,7 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
 
           {/* Gross SF — editable */}
           <div className="bg-white rounded-xl border border-slate-200 px-3 py-3">
-            <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">Total Gross SF</div>
+            <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-1">Total Gross SF</div>
             <Cell value={grossSf} placeholder="—" numeric
               onSave={v => patchProjectData('grossSf', v)}
               className="text-lg font-bold text-slate-700 w-full" />
@@ -1819,7 +1819,7 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
 
           {/* # Units — editable */}
           <div className="bg-white rounded-xl border border-slate-200 px-3 py-3">
-            <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1"># of Units</div>
+            <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-1"># of Units</div>
             <Cell value={numUnits} placeholder="—" numeric
               onSave={v => patchProjectData('numUnits', v)}
               className="text-lg font-bold text-slate-700 w-full" />
@@ -1827,45 +1827,45 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
 
           {/* Lighting subtotal */}
           <div className="bg-white rounded-xl border border-slate-200 px-3 py-3">
-            <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">Subtotal Lighting</div>
+            <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-1">Subtotal Lighting</div>
             <div className="text-lg font-bold text-slate-700">{rawLighting > 0 ? fmt(rawLighting) : '—'}</div>
-            <div className="text-[9px] text-slate-400 mt-0.5">{lightingItems.length} types</div>
+            <div className="text-[11px] text-slate-400 mt-0.5">{lightingItems.length} types</div>
           </div>
 
           {/* Controls subtotal */}
           <div className="bg-white rounded-xl border border-slate-200 px-3 py-3">
-            <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">Subtotal Controls</div>
+            <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-1">Subtotal Controls</div>
             <div className="text-lg font-bold text-violet-700">{rawControls > 0 ? fmt(rawControls) : '—'}</div>
-            <div className="text-[9px] text-slate-400 mt-0.5">{controlsItems.length} types</div>
+            <div className="text-[11px] text-slate-400 mt-0.5">{controlsItems.length} types</div>
           </div>
 
           {/* Grand total */}
           <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl px-3 py-3 text-white">
-            <div className="text-[9px] font-bold uppercase tracking-wider opacity-80 mb-1">Grand Total</div>
+            <div className="text-[11px] font-bold uppercase tracking-wide opacity-80 mb-1">Grand Total</div>
             <div className="text-lg font-bold">{grandTotal > 0 ? fmt(grandTotal) : '—'}</div>
-            <div className="text-[9px] opacity-70 mt-0.5">incl. tax · freight · ware</div>
+            <div className="text-[11px] opacity-70 mt-0.5">incl. tax · freight · ware</div>
           </div>
 
           {/* $/SF */}
           <div className="bg-white rounded-xl border border-slate-200 px-3 py-3">
-            <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">$/SF</div>
+            <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-1">$/SF</div>
             <div className="text-lg font-bold text-slate-700">
               {dollarPerSf != null
                 ? '$' + dollarPerSf.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
                 : <span className="text-slate-300 text-sm">—</span>}
             </div>
-            {!grossSf && <div className="text-[9px] text-slate-300 mt-0.5">Enter SF above</div>}
+            {!grossSf && <div className="text-[11px] text-slate-300 mt-0.5">Enter SF above</div>}
           </div>
 
           {/* $/Unit */}
           <div className="bg-white rounded-xl border border-slate-200 px-3 py-3">
-            <div className="text-[9px] font-bold text-slate-400 uppercase tracking-wider mb-1">$/Unit</div>
+            <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-1">$/Unit</div>
             <div className="text-lg font-bold text-slate-700">
               {dollarPerUnit != null
                 ? '$' + dollarPerUnit.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
                 : <span className="text-slate-300 text-sm">—</span>}
             </div>
-            {!numUnits && <div className="text-[9px] text-slate-300 mt-0.5">Enter units above</div>}
+            {!numUnits && <div className="text-[11px] text-slate-300 mt-0.5">Enter units above</div>}
           </div>
 
         </div>
@@ -1873,7 +1873,7 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
         {/* ── Settings panel ── */}
         {showSettings && (
           <div className="bg-white rounded-xl border border-slate-200 px-5 py-4 mb-4">
-            <h3 className="text-xs font-bold text-slate-700 mb-3 uppercase tracking-wider">Budget Settings</h3>
+            <h3 className="text-xs font-bold text-slate-700 mb-3 uppercase tracking-wide">Budget Settings</h3>
             <div className="grid grid-cols-4 gap-4">
               {[
                 { label: 'Freight %', val: freightPct, set: setFreightPct, field: 'freightPct', def: 6 },
@@ -1882,7 +1882,7 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
                 { label: 'Margin %', val: marginPct, set: setMarginPct, field: 'marginPct', def: 23 },
               ].map(({ label, val, set, field, def }) => (
                 <div key={field}>
-                  <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1">{label}</label>
+                  <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1">{label}</label>
                   <div className="flex items-center gap-1">
                     <Cell value={val != null ? Math.round(val * 100 * 100) / 100 : (def ?? '')}
                       placeholder={def != null ? String(def) : '—'} numeric
@@ -1890,7 +1890,7 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
                       className="w-full text-sm font-semibold text-slate-700" />
                     <span className="text-slate-400 text-sm">%</span>
                   </div>
-                  {def != null && <div className="text-[9px] text-slate-400 mt-0.5">Default: {def}%</div>}
+                  {def != null && <div className="text-[11px] text-slate-400 mt-0.5">Default: {def}%</div>}
                 </div>
               ))}
             </div>
@@ -1911,7 +1911,7 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
             <div className="mb-6 space-y-3">
               {/* Version header */}
               <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-50 border border-slate-200">
-                <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-slate-800 text-white">v{matrix.version}</span>
+                <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-slate-800 text-white">v{matrix.version}</span>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-slate-700">
                     Pushed {fmtDate(matrix.createdAt)}{matrix.submissionTag ? ` · ${matrix.submissionTag}` : ''}
@@ -1925,7 +1925,7 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
                   )}
                 </div>
                 <button onClick={() => setSelectedBidVer(null)}
-                  className="text-xs px-3 py-1.5 rounded-lg bg-slate-800 text-white hover:bg-slate-700 transition-colors font-semibold">
+                  className="text-xs px-3 py-1.5 rounded-lg bg-orange-500 text-white hover:bg-orange-600 transition-colors font-semibold">
                   Back to current
                 </button>
               </div>
@@ -1939,7 +1939,7 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
                         ? ['Type', 'Description', 'Location', 'Manufacturer', 'Part #', 'Qty', 'DN $/Unit', 'CN $/Unit', 'CN Total', 'Notes']
                         : ['Type', 'Description', 'Location', 'Spec Mfr', 'Spec #', 'Prop. Mfr', 'Prop. Spec', 'Qty', 'DN $/Unit', 'CN $/Unit', 'CN Total', 'Notes']
                       ).map(h => (
-                        <th key={h} className="px-3 py-2 text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">{h}</th>
+                        <th key={h} className="px-3 py-2 text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
                   </thead>
@@ -1952,8 +1952,8 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
                           className={`border-b last:border-0 ${isNew ? 'bg-green-50' : isRemoved ? 'bg-red-50' : idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/40'}`}>
                           <td className="px-3 py-2 font-semibold text-slate-800 whitespace-nowrap">
                             {item.type}
-                            {isNew && <span className="ml-1.5 text-[9px] font-bold text-green-600 bg-green-100 px-1.5 py-0.5 rounded-full">NEW</span>}
-                            {isRemoved && <span className="ml-1.5 text-[9px] font-bold text-red-500 bg-red-100 px-1.5 py-0.5 rounded-full">REMOVED</span>}
+                            {isNew && <span className="ml-1.5 text-[11px] font-bold text-green-600 bg-green-100 px-1.5 py-0.5 rounded-full">NEW</span>}
+                            {isRemoved && <span className="ml-1.5 text-[11px] font-bold text-red-500 bg-red-100 px-1.5 py-0.5 rounded-full">REMOVED</span>}
                           </td>
                           <td className="px-3 py-2 text-slate-600 max-w-[200px]">{item.description || '—'}</td>
                           <td className="px-3 py-2 text-slate-500">{item.locationTag || '—'}</td>
@@ -2005,17 +2005,17 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
               <div className="mt-4 flex justify-end">
                 <div className="w-80 bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
                   <div className="px-4 py-2.5 border-b border-slate-100">
-                    <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">Pricing Summary</p>
+                    <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Pricing Summary</p>
                   </div>
                   <table className="w-full text-sm">
                     <tbody>
                       <tr className="border-b border-slate-100">
-                        <td className="px-4 py-2 text-slate-600">CN Subtotal — Lighting</td>
+                        <td className="px-4 py-2 text-slate-600">CN Subtotal, Lighting</td>
                         <td className="px-4 py-2 text-right font-mono font-semibold text-slate-700">{rawLighting > 0 ? fmt(rawLighting) : '—'}</td>
                       </tr>
                       {rawControls > 0 && (
                         <tr className="border-b border-slate-100">
-                          <td className="px-4 py-2 text-violet-600">CN Subtotal — Controls</td>
+                          <td className="px-4 py-2 text-violet-600">CN Subtotal, Controls</td>
                           <td className="px-4 py-2 text-right font-mono font-semibold text-violet-600">{fmt(rawControls)}</td>
                         </tr>
                       )}
@@ -2047,7 +2047,7 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
                           <td className="px-4 py-2 text-right font-mono font-semibold text-violet-700">{fmt(subtotalControls)}</td>
                         </tr>
                       )}
-                      <tr className="bg-blue-600 text-white">
+                      <tr className="bg-orange-500 text-white">
                         <td className="px-4 py-3 font-bold">Grand Total</td>
                         <td className="px-4 py-3 text-right font-mono font-bold">{fmt(grandTotal)}</td>
                       </tr>
@@ -2062,12 +2062,12 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
         {/* ── Live view: location tabs + matrix (hidden when viewing a historical version) ── */}
         {!selectedBidVer && <><div className="flex gap-2 mb-4 flex-wrap">
           <button onClick={() => setActiveSection('all')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
-              activeSection === 'all' ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
+              activeSection === 'all' ? 'bg-orange-50 text-orange-700 border-orange-400' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
             }`}>
             All
             {items.length > 0 && (
-              <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${activeSection === 'all' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'}`}>
+              <span className={`rounded-full px-1.5 py-0.5 text-[11px] font-bold ${activeSection === 'all' ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'}`}>
                 {items.length}
               </span>
             )}
@@ -2079,15 +2079,15 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
             const isActive = s.id === activeSection;
             return (
               <button key={s.id} onClick={() => setActiveSection(s.id)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
-                  isActive ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
+                  isActive ? 'bg-orange-50 text-orange-700 border-orange-400' : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
                 }`}>
                 <span className={`w-2 h-2 rounded-full ${TAG_ACTIVE[s.id] || 'bg-slate-400'}`} />
                 {s.label}
-                <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${isActive ? 'bg-white/20 text-white' : TAG_COLORS[s.id]}`}>
+                <span className={`rounded-full px-1.5 py-0.5 text-[11px] font-bold ${isActive ? 'bg-white/20 text-white' : TAG_COLORS[s.id]}`}>
                   {cnt}
                 </span>
-                {tot > 0 && <span className={`text-[10px] ${isActive ? 'opacity-70' : 'text-blue-600 font-semibold'}`}>{fmt(tot)}</span>}
+                {tot > 0 && <span className={`text-[11px] ${isActive ? 'opacity-70' : 'text-blue-600 font-semibold'}`}>{fmt(tot)}</span>}
               </button>
             );
           })}
@@ -2099,7 +2099,7 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
             <table className="w-full text-xs" style={{ minWidth: '1440px' }}>
               <thead>
                 {/* Column labels */}
-                <tr className="border-b-2 border-slate-200 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                <tr className="border-b-2 border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wide">
                   {/* Drag handle + add-below column */}
                   <th className=" w-14 bg-slate-50 px-2 py-2"></th>
                   {[
@@ -2161,7 +2161,7 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
                           <p className="text-xs text-slate-300 mt-0.5">Use the + button on any row to add fixtures</p>
                         </div>
                         <button onClick={addItem} disabled={saving}
-                          className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition-colors">
+                          className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold transition-colors">
                           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
                           </svg>
@@ -2195,9 +2195,9 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
                           <tr key="controls-separator" className="border-t-2 border-violet-200">
                             <td colSpan={colCount} className="px-3 py-2 bg-violet-50">
                               <div className="flex items-center gap-2">
-                                <span className="text-[10px] font-bold text-violet-700 uppercase tracking-wider">Controls</span>
+                                <span className="text-[11px] font-bold text-violet-700 uppercase tracking-wide">Controls</span>
                                 {rawControls > 0 && (
-                                  <span className="text-[10px] text-violet-500 font-semibold">{fmt(rawControls)}</span>
+                                  <span className="text-[11px] text-violet-500 font-semibold">{fmt(rawControls)}</span>
                                 )}
                               </div>
                             </td>
@@ -2234,9 +2234,9 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
                               className={`group transition-colors
                                 ${dragItem?.id === item.id ? 'opacity-30 bg-slate-100' : ''}
                                 ${dragOverId === item.id && dragItem?.id !== item.id
-                                  ? 'border-t-[3px] border-blue-500 bg-blue-50'
+                                  ? 'border-t-[3px] border-orange-500 bg-orange-50'
                                   : ''}
-                                ${!dragItem && !isDeleting ? (isControls ? 'hover:bg-violet-50/20' : 'hover:bg-blue-50/20') : ''}
+                                ${!dragItem && !isDeleting ? (isControls ? 'hover:bg-violet-50/20' : 'hover:bg-orange-50/20') : ''}
                                 ${isDeleting ? 'opacity-40' : ''}`}>
 
                               {/* Drag handle + add-below */}
@@ -2248,7 +2248,7 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
                                     </svg>
                                   </span>
                                   <button onClick={() => addItemAfter(item)} disabled={saving}
-                                    className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-300 hover:text-blue-500 p-0.5"
+                                    className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-300 hover:text-orange-600 p-0.5"
                                     title="Add row below">
                                     <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                                       <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
@@ -2265,7 +2265,7 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
                               <td className="px-3 py-2 align-top">
                                 <Cell value={item.description} cellId={`${item.id}||description`}
                                   multiline placeholder="Fixture description" onSave={v => patch(item.id, { description: v })}
-                                  className="text-slate-600 w-full leading-snug text-[10px]" />
+                                  className="text-slate-600 w-full leading-snug text-[11px]" />
                               </td>
                               {activeSection === 'all' && (
                                 <td className="px-3 py-2 align-middle">
@@ -2347,7 +2347,7 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
                               <td className="px-3 py-2 align-middle bg-amber-50/30">
                                 <Cell value={item.internalNotes} cellId={`${item.id}||internalNotes`}
                                   placeholder="Internal only…" onSave={v => patch(item.id, { internalNotes: v })}
-                                  className="text-amber-800 w-full text-[10px]" />
+                                  className="text-amber-800 w-full text-[11px]" />
                               </td>
                               <td className="px-2 py-2 align-middle">
                                 <button onClick={() => deleteItem(item.id)} disabled={isDeleting}
@@ -2366,7 +2366,7 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
                         {/* Group subtotal */}
                         {groupItems.length > 0 && (
                           <tr className={`border-t border-slate-200 ${isControls ? 'bg-violet-50/60' : 'bg-slate-50'}`}>
-                            <td colSpan={activeSection === 'all' ? 13 : 12} className="px-3 py-2 text-right text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                            <td colSpan={activeSection === 'all' ? 13 : 12} className="px-3 py-2 text-right text-[11px] font-bold uppercase tracking-wide text-slate-500">
                               {activeSection === 'all'
                                 ? (isControls ? 'Controls Subtotal' : 'Fixtures Subtotal')
                                 : `${activeSec?.label} Subtotal`}
@@ -2387,13 +2387,13 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
 
                 {/* Grand subtotal row in All view when both groups have items */}
                 {activeSection === 'all' && lightingItems.length > 0 && controlsItems.length > 0 && (
-                  <tr className="bg-blue-600 text-white border-t-2 border-blue-700">
-                    <td colSpan={13} className="px-3 py-2 text-right text-[10px] font-bold uppercase tracking-wider opacity-80">
+                  <tr className="bg-slate-800 text-white border-t-2 border-slate-900">
+                    <td colSpan={13} className="px-3 py-2 text-right text-[11px] font-bold uppercase tracking-wide opacity-80">
                       Total L+C
                     </td>
                     <td className="px-3 py-2 text-right text-xs font-semibold opacity-80">{fmt(grandDNTotal)}</td>
                     <td></td>
-                    <td className="px-3 py-2 text-right text-xs font-bold border-r border-blue-500">{fmt(rawTotal)}</td>
+                    <td className="px-3 py-2 text-right text-xs font-bold border-r border-slate-600">{fmt(rawTotal)}</td>
                     <td colSpan={2}></td>
                     <td></td>
                   </tr>
@@ -2407,20 +2407,20 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
         {rawTotal > 0 && (
           <div className="mt-4 flex justify-end">
             <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden w-96 text-xs">
-              <div className="px-4 py-2 bg-slate-50 border-b border-slate-200 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+              <div className="px-4 py-2 bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wide">
                 Pricing Summary
               </div>
               <table className="w-full">
                 <tbody>
                   {rawLighting > 0 && (
                     <tr className="border-b border-slate-100">
-                      <td className="px-4 py-2 text-slate-600">CN Subtotal — Lighting</td>
+                      <td className="px-4 py-2 text-slate-600">CN Subtotal, Lighting</td>
                       <td className="px-4 py-2 text-right font-mono font-semibold text-slate-700">{fmt(rawLighting)}</td>
                     </tr>
                   )}
                   {rawControls > 0 && (
                     <tr className="border-b border-slate-100">
-                      <td className="px-4 py-2 text-slate-600">CN Subtotal — Controls</td>
+                      <td className="px-4 py-2 text-slate-600">CN Subtotal, Controls</td>
                       <td className="px-4 py-2 text-right font-mono font-semibold text-violet-700">{fmt(rawControls)}</td>
                     </tr>
                   )}
@@ -2452,7 +2452,7 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
                       <td className="px-4 py-2 text-right font-mono font-semibold text-violet-700">{fmt(subtotalControls)}</td>
                     </tr>
                   )}
-                  <tr className="bg-blue-600 text-white">
+                  <tr className="bg-orange-500 text-white">
                     <td className="px-4 py-3 font-bold text-sm">Grand Total</td>
                     <td className="px-4 py-3 text-right font-mono font-bold text-sm">{fmt(grandTotal)}</td>
                   </tr>
@@ -2645,13 +2645,13 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
                   <tbody>
                     {rawLighting > 0 && (
                       <tr>
-                        <td style={{ textAlign: 'right', color: GREY }}>Subtotal — Lighting</td>
+                        <td style={{ textAlign: 'right', color: GREY }}>Subtotal, Lighting</td>
                         <td style={{ textAlign: 'right', fontFamily: 'Courier New, monospace', minWidth: '90px' }}>{fmt(rawLighting)}</td>
                       </tr>
                     )}
                     {rawControls > 0 && (
                       <tr>
-                        <td style={{ textAlign: 'right', color: GREY }}>Subtotal — Controls</td>
+                        <td style={{ textAlign: 'right', color: GREY }}>Subtotal, Controls</td>
                         <td style={{ textAlign: 'right', fontFamily: 'Courier New, monospace' }}>{fmt(rawControls)}</td>
                       </tr>
                     )}
@@ -2702,7 +2702,7 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
 
             {/* ── FOOTER ── */}
             <div style={{ marginTop: '14px', paddingTop: '5px', borderTop: `1px solid ${BDRCLR}`, display: 'flex', justifyContent: 'space-between', fontSize: '6.5pt', color: '#999' }}>
-              <span>Confidential — ILC Studios LLC &nbsp;|&nbsp; 2301 Blake Street, Ste 100, Denver, CO 80205 &nbsp;|&nbsp; 720-248-8208</span>
+              <span>Confidential, ILC Studios LLC &nbsp;|&nbsp; 2301 Blake Street, Ste 100, Denver, CO 80205 &nbsp;|&nbsp; 720-248-8208</span>
               <span>Printed: {printDate}</span>
             </div>
 
@@ -2773,7 +2773,7 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
 
             {/* Footer */}
             <div style={{ paddingTop: '5px', borderTop: `1px solid ${BDRCLR}`, display: 'flex', justifyContent: 'space-between', fontSize: '6.5pt', color: '#999' }}>
-              <span>Confidential — ILC Studios LLC &nbsp;|&nbsp; 2301 Blake Street, Ste 100, Denver, CO 80205 &nbsp;|&nbsp; 720-248-8208</span>
+              <span>Confidential, ILC Studios LLC &nbsp;|&nbsp; 2301 Blake Street, Ste 100, Denver, CO 80205 &nbsp;|&nbsp; 720-248-8208</span>
               <span>Printed: {printDate}</span>
             </div>
 

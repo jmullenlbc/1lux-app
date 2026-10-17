@@ -13,6 +13,7 @@ import { controlsMathWords } from '@/lib/intake/controlsWords';
 import { formatCurrency } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import AlertMark from '@/components/ui/AlertMark';
+import { CARD, CARD_PADDED, CARD_TITLE, BTN_PRIMARY, BTN_SECONDARY, BTN_GHOST, BTN_COMPACT, H1, INPUT, LABEL, HELPER } from '@/components/ui/tokens';
 
 /**
  * Public conceptual-budget intake, the SAME experience as the internal
@@ -62,7 +63,7 @@ const CONFIRM_NOTE = 'We will confirm all numbers are correct and send you a bud
 // show until we hook up Microsoft email to it").
 const RESUME_LINK_ENABLED = false;
 // One look for every button in the summary page's top row.
-const topBtn = 'px-4 py-2 rounded-lg font-semibold text-sm border transition-colors';
+const topBtn = BTN_SECONDARY;
 const DRAFT_KEY = 'ilc.conceptualBudget.draft.v1';
 // This tab's visit id for the staff visitors page. sessionStorage, so a new
 // tab or a later day is a new visit; it holds an id and nothing else.
@@ -290,9 +291,9 @@ function FigureField({ label, labelRight, hint, note, children }) {
       <span className="block">
         <span className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5">
           <span className="text-sm font-semibold text-slate-700">{label}</span>
-          {labelRight && <span className="text-xs text-slate-400 shrink-0">{labelRight}</span>}
+          {labelRight && <span className="text-xs text-slate-500 shrink-0">{labelRight}</span>}
         </span>
-        {hint && <span className="block text-xs text-slate-400 mt-0.5">{hint}</span>}
+        {hint && <span className="block text-xs text-slate-500 mt-0.5">{hint}</span>}
       </span>
       <div className="mt-1.5">{children}</div>
       <div className={note ? 'mt-1.5' : undefined}>{note}</div>
@@ -311,18 +312,16 @@ function Field({ label, labelRight, hint, error, children }) {
           of squeezing the label into a one-word-per-line stack. */}
       <span className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5">
         <span className="text-sm font-semibold text-slate-700">{label}</span>
-        {labelRight && <span className="text-xs text-slate-400 shrink-0">{labelRight}</span>}
+        {labelRight && <span className="text-xs text-slate-500 shrink-0">{labelRight}</span>}
       </span>
-      {hint && <span className="block text-xs text-slate-400 mt-0.5">{hint}</span>}
+      {hint && <span className="block text-xs text-slate-500 mt-0.5">{hint}</span>}
       <div className="mt-1.5">{children}</div>
-      {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
+      {error && <p className="text-xs text-red-600 mt-1">{error}</p>}
     </label>
   );
 }
 
-const inputCls =
-  'w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-800 ' +
-  'placeholder:text-slate-300 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-100';
+const inputCls = INPUT;
 
 // Figure boxes hold 8 characters at most ("1,250,000"-ish), sized for that,
 // plus room for the ESTIMATE pill, rather than stretching across the column.
@@ -379,7 +378,7 @@ function PublicSectionNav({ steps = STEPS, currentStep, completedSteps, canNavig
           </div>
           <div className="min-w-0">
             <div className="text-sm font-semibold text-slate-900 leading-tight">ILC Studios</div>
-            <div className="text-xs text-slate-400">Conceptual Budget</div>
+            <div className="text-xs text-slate-500">Conceptual Budget</div>
           </div>
         </div>
         {projectName && (
@@ -400,7 +399,7 @@ function PublicSectionNav({ steps = STEPS, currentStep, completedSteps, canNavig
               className={cn(
                 'w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-left transition-colors text-sm',
                 isActive
-                  ? 'bg-navy-800 text-white'
+                  ? 'bg-orange-50 text-orange-700'
                   : isCompleted
                     ? 'text-slate-600 hover:bg-slate-50'
                     : enabled
@@ -410,7 +409,7 @@ function PublicSectionNav({ steps = STEPS, currentStep, completedSteps, canNavig
             >
               <div className={cn(
                 'w-5 h-5 rounded-full flex items-center justify-center shrink-0 text-xs font-semibold',
-                isActive      ? 'bg-amber-500 text-white'
+                isActive      ? 'bg-orange-500 text-white'
                 : isCompleted ? 'bg-green-500 text-white'
                 : 'bg-slate-100 text-slate-400',
               )}>
@@ -421,7 +420,7 @@ function PublicSectionNav({ steps = STEPS, currentStep, completedSteps, canNavig
                   : <span>{i + 1}</span>
                 }
               </div>
-              <span className={cn('leading-tight', isActive && 'font-medium')}>{step.short}</span>
+              <span className={cn('leading-tight', isActive && 'font-semibold')}>{step.short}</span>
             </button>
           );
         })}
@@ -431,7 +430,7 @@ function PublicSectionNav({ steps = STEPS, currentStep, completedSteps, canNavig
         <Link href={portalHref(email)} className="text-xs font-semibold text-orange-600 hover:text-orange-700">My company&apos;s budgets</Link>
       </div>
       <div className="px-4 py-3 border-t border-slate-100">
-        <p className="text-[11px] text-slate-400 leading-relaxed">{CONFIRM_NOTE}</p>
+        <p className="text-[11px] text-slate-500 leading-relaxed">{CONFIRM_NOTE}</p>
       </div>
     </aside>
   );
@@ -790,7 +789,7 @@ export default function IntakeClient() {
             title={showEst ? est.how || undefined : undefined}
           />
           {showEst && (
-            <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-700">
+            <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded bg-amber-100 px-1.5 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-amber-700">
               Estimate
             </span>
           )}
@@ -1192,8 +1191,8 @@ export default function IntakeClient() {
   //   corrected        , amber text with "Corrected, was X · undo".
   // Values + provenance only, nothing priced lives in a quantity row.
   const projectDataGrid = ({ heading, intro }) => (
-    <div className="bg-white rounded-xl border border-slate-200 p-5">
-      <h3 className="font-bold text-slate-900 mb-1">{heading}</h3>
+    <div className={CARD_PADDED}>
+      <h3 className={`${CARD_TITLE} mb-1`}>{heading}</h3>
       <p className="text-xs text-slate-500 mb-4">{intro}</p>
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-3">
         {correctableRows.map(row => {
@@ -1203,16 +1202,16 @@ export default function IntakeClient() {
           return (
             // Mike 10-14: green border = answered (read, estimated or typed);
             // orange border = still blank and waiting on the visitor.
-            <div key={row.key} className={cn('-mx-2 rounded-lg px-2 py-1 ring-1', needed ? 'bg-orange-50 ring-orange-400' : 'ring-emerald-300')}>
-              <div className={cn('flex flex-wrap items-center gap-x-1.5 text-xs', needed ? 'text-amber-800' : 'text-slate-400')}>
+            <div key={row.key} className={cn('-mx-2 rounded-lg px-2 py-1 ring-1', needed ? 'bg-orange-50 ring-orange-400' : 'ring-green-300')}>
+              <div className={cn('flex flex-wrap items-center gap-x-1.5 text-xs', needed ? 'text-amber-800' : 'text-slate-500')}>
                 <span>{row.label}</span>
                 {needed && (
-                  <span className="rounded bg-amber-200 px-1 py-px text-[10px] font-bold uppercase tracking-wide text-amber-900">
+                  <span className="rounded bg-amber-200 px-1 py-px text-[11px] font-semibold uppercase tracking-wide text-amber-900">
                     {row.key === 'exteriorAmenitySf' ? 'Required, 0 if none' : 'Needed'}
                   </span>
                 )}
                 {!needed && !edited && row.estimated && (
-                  <span className="text-slate-400" title={row.how || undefined}>(est.)</span>
+                  <span className="text-slate-500" title={row.how || undefined}>(est.)</span>
                 )}
                 {!needed && !edited && row.flag && (
                   <AlertMark label={row.flag} size={13} />
@@ -1224,7 +1223,7 @@ export default function IntakeClient() {
                 </div>
               ) : <input
                 className={cn(
-                  'w-full bg-transparent px-0 py-0.5 text-sm font-semibold tabular-nums border-0 border-b border-dashed focus:outline-none focus:ring-0 focus:border-solid focus:border-amber-400',
+                  'w-full bg-transparent px-0 py-0.5 text-sm font-semibold tabular-nums border-0 border-b border-dashed focus:outline-none focus:ring-0 focus:border-solid focus:border-orange-500',
                   edited ? 'text-amber-700 border-amber-300 border-solid'
                     : needed ? 'text-amber-900 border-amber-400 placeholder:text-amber-500 placeholder:font-normal placeholder:italic'
                     : 'text-slate-900 border-slate-200',
@@ -1240,7 +1239,7 @@ export default function IntakeClient() {
               {edited && (
                 <button
                   type="button"
-                  className="mt-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-600 hover:text-amber-700"
+                  className="mt-0.5 text-[11px] font-semibold uppercase tracking-wide text-amber-600 hover:text-amber-700"
                   onClick={() => setCorrections(x => { const next = { ...x }; delete next[row.key]; return next; })}
                 >
                   Corrected{row.was ? `, was ${row.was}` : ''} · undo
@@ -1258,10 +1257,8 @@ export default function IntakeClient() {
   const todayLabel = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
   const navBtn = (enabled) =>
-    `px-4 py-2 rounded-lg font-semibold text-sm transition-colors ${
-      enabled ? 'bg-orange-500 hover:bg-orange-600 text-white' : 'bg-slate-200 text-slate-400 cursor-not-allowed'
-    }`;
-  const backBtn = 'px-4 py-2 rounded-lg font-semibold text-sm text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors';
+    enabled ? BTN_PRIMARY : 'inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-semibold text-sm bg-slate-200 text-slate-400 cursor-not-allowed';
+  const backBtn = BTN_GHOST;
 
   return (
     <div className="min-h-screen lg:h-screen bg-slate-50 flex flex-col">
@@ -1280,10 +1277,10 @@ export default function IntakeClient() {
           </div>
           {hasEstimate && !submitted && (
             <div className="text-right">
-              <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-widest">Live budget</div>
+              <div className={LABEL}>Live budget</div>
               <div className="text-base font-bold text-slate-900 tabular-nums">{formatCurrency(budget.totalWithControls)}</div>
               {range && (
-                <div className="text-[10px] text-slate-400 tabular-nums">
+                <div className="text-xs text-slate-500 tabular-nums">
                   likely {formatCurrency(range.low)} to {formatCurrency(range.high)}
                 </div>
               )}
@@ -1316,14 +1313,14 @@ export default function IntakeClient() {
                     key={s.id}
                     onClick={() => canNavigate(s.id) && goTo(s.id)}
                     disabled={!canNavigate(s.id)}
-                    className={`flex items-center gap-1.5 rounded-full pl-1.5 pr-3 py-1 text-xs font-semibold transition-colors ${
-                      s.id === stepId ? 'bg-slate-900 text-white'
-                      : completedSteps.includes(s.id) ? 'bg-amber-100 text-amber-800 hover:bg-amber-200'
-                      : 'bg-slate-100 text-slate-400'
+                    className={`flex items-center gap-1.5 rounded-lg border pl-1.5 pr-3 py-1 text-xs font-semibold transition-colors ${
+                      s.id === stepId ? 'bg-orange-50 border-orange-400 text-orange-700'
+                      : completedSteps.includes(s.id) ? 'bg-green-50 border-green-200 text-green-700 hover:bg-green-100'
+                      : 'bg-slate-100 border-transparent text-slate-400'
                     }`}
                   >
                     <span className={`w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center ${
-                      s.id === stepId || completedSteps.includes(s.id) ? 'bg-amber-500 text-white' : 'bg-slate-300 text-white'
+                      s.id === stepId || completedSteps.includes(s.id) ? 'bg-orange-500 text-white' : 'bg-slate-300 text-white'
                     }`}>
                       {completedSteps.includes(s.id) && s.id !== stepId ? '✓' : i + 1}
                     </span>
@@ -1336,29 +1333,29 @@ export default function IntakeClient() {
             {/* Step header, same treatment as the internal wizard */}
             {!submitted && (
               <div className="mb-6">
-                <div className="flex items-center gap-2 text-xs text-slate-400 mb-2">
+                <div className="flex items-center gap-2 text-xs text-slate-500 mb-2">
                   <span>Step {stepIndex + 1} of {steps.length}</span>
                   {/* So a visitor knows closing the tab is safe. Browser-only:
                       the words say so, or they'd expect it on their phone too. */}
                   {savedAt && (
-                    <span className="ml-auto text-[11px] text-slate-400" title="Saved in this browser only, come back on this device to continue.">
+                    <span className="ml-auto text-[11px] text-slate-500" title="Saved in this browser only, come back on this device to continue.">
                       Saved in this browser · {fmtSavedAt(savedAt)}
                     </span>
                   )}
                   <div className="flex-1 max-w-32 bg-slate-100 rounded-full h-1">
                     <div
-                      className="bg-amber-500 h-1 rounded-full transition-all"
+                      className="bg-orange-500 h-1 rounded-full transition-all"
                       style={{ width: `${(stepIndex / (steps.length - 1)) * 100}%` }}
                     />
                   </div>
                 </div>
-                <h1 className="text-xl font-semibold text-slate-900">{step.label}</h1>
+                <h1 className={H1}>{step.label}</h1>
                 {step.hint && <p className="text-sm text-slate-500 mt-1 max-w-xl">{step.hint}</p>}
               </div>
             )}
 
             {submitted ? (
-              <section className="bg-white rounded-2xl border border-slate-200 p-6">
+              <section className={CARD_PADDED}>
                 <div className="rounded-lg bg-green-50 border border-green-200 px-4 py-4">
                   <p className="text-sm text-green-800 font-semibold">Request received, thanks!</p>
                   <p className="text-xs text-green-700 mt-1">{CONFIRM_NOTE}</p>
@@ -1372,7 +1369,7 @@ export default function IntakeClient() {
               <>
                 {/* === About you === */}
                 {stepId === 'about' && (
-                  <section className="bg-white rounded-2xl border border-slate-200 p-6">
+                  <section className={CARD_PADDED}>
                     {/* The company portal (0132): every budget from this
                         company, to open, copy or look back on. */}
                     <p className="mb-4 text-xs text-slate-500">
@@ -1402,7 +1399,7 @@ export default function IntakeClient() {
                           <button
                             type="button"
                             onClick={discardDraft}
-                            className="px-4 py-2 rounded-lg font-semibold text-sm border border-slate-300 text-slate-700 hover:bg-white transition-colors"
+                            className={BTN_SECONDARY}
                           >
                             Start over
                           </button>
@@ -1416,11 +1413,11 @@ export default function IntakeClient() {
                       <p className="text-sm text-slate-600">
                         Get a quick ballpark lighting budget for your project from ILC Studios. It takes a few minutes.
                       </p>
-                      <h2 className="text-xs font-bold uppercase tracking-wide text-slate-400 mt-4 mb-2">How this works</h2>
+                      <h2 className={`${LABEL} mt-4 mb-2`}>How this works</h2>
                       <ol className="space-y-2">
                         {HOW_IT_WORKS.map((s, i) => (
                           <li key={s.title} className="flex gap-3 text-sm text-slate-600">
-                            <span className="w-5 h-5 mt-0.5 rounded-full bg-amber-100 text-amber-700 text-xs font-semibold flex items-center justify-center shrink-0">
+                            <span className="w-5 h-5 mt-0.5 rounded-full bg-orange-50 text-orange-700 text-xs font-semibold flex items-center justify-center shrink-0">
                               {i + 1}
                             </span>
                             <span><span className="font-semibold text-slate-800">{s.title}</span>, {s.body}</span>
@@ -1501,7 +1498,7 @@ export default function IntakeClient() {
                     </div>
 
                     <div className="flex items-center justify-between mt-6">
-                      <span className="text-xs text-slate-400">
+                      <span className="text-xs text-slate-500">
                         {contactReady ? 'Your details look good' : 'All fields except Company are required'}
                       </span>
                       <button onClick={() => contactReady && markDoneAndGo('drawings')} disabled={!contactReady} className={navBtn(contactReady)}>
@@ -1521,7 +1518,7 @@ export default function IntakeClient() {
                     from view. They should still be there."). Keeping it mounted
                     also protects uploads still in flight on other steps. */}
                 <section className={cn(
-                  'bg-white rounded-2xl border border-slate-200 p-6',
+                  CARD_PADDED,
                   stepId !== 'drawings' && 'hidden'
                 )}>
                     <h3 className="text-sm font-semibold text-slate-800 mb-3">Do you have drawings?</h3>
@@ -1537,7 +1534,7 @@ export default function IntakeClient() {
                           className={cn(
                             'text-left rounded-xl border p-4 transition-colors',
                             haveDrawings === o.v
-                              ? 'border-amber-400 bg-amber-50 ring-2 ring-amber-100'
+                              ? 'border-orange-400 bg-orange-50 ring-2 ring-orange-100'
                               : 'border-slate-200 hover:border-slate-300 bg-white'
                           )}
                         >
@@ -1595,7 +1592,7 @@ export default function IntakeClient() {
                             <li key={r.key} className="flex flex-wrap items-center gap-2 text-sm text-slate-800">
                               <span><span className="font-semibold">{r.label}</span>: you typed {r.typed}, the new drawings say {r.now}.</span>
                               <button type="button"
-                                className="px-3 py-1 rounded-lg text-xs font-semibold border border-amber-400 bg-white text-amber-800 hover:bg-amber-100"
+                                className={BTN_COMPACT}
                                 onClick={() => {
                                   setCorrections(x => ({ ...x, [r.key]: r.typed }));
                                   setParkedCorrections(p => { const next = { ...p }; delete next[r.key]; return next; });
@@ -1631,7 +1628,7 @@ export default function IntakeClient() {
                     <div className="flex items-center justify-between mt-6">
                       <button onClick={goPrev} className={backBtn}>← Back</button>
                       <div className="flex items-center gap-3">
-                        <span className="text-xs text-slate-400">
+                        <span className="text-xs text-slate-500">
                           {haveDrawings === null
                             ? 'Choose Yes or No above'
                             : !answers.projectType
@@ -1664,7 +1661,7 @@ export default function IntakeClient() {
                 {/* === Building Figures: the no-drawings typed-in form, its
                     own step (Mike 10-14). Only in `steps` when manual. === */}
                 {stepId === 'figures' && manual && (
-                  <section className="bg-white rounded-2xl border border-slate-200 p-6">
+                  <section className={CARD_PADDED}>
                       <div className="space-y-6">
                         <p className="text-sm text-slate-600">
                           <strong>The more detail you give us, the more accurate your budget.</strong> Fill in everything
@@ -1692,7 +1689,7 @@ export default function IntakeClient() {
                             aria-valuenow={manualFilled}
                           >
                             <div
-                              className="h-full rounded-full bg-amber-500 transition-all duration-300"
+                              className="h-full rounded-full bg-orange-500 transition-all duration-300"
                               style={{ width: `${Math.round((manualFilled / manualFields.length) * 100)}%` }}
                             />
                           </div>
@@ -1739,7 +1736,7 @@ export default function IntakeClient() {
                     <div className="flex items-center justify-between mt-6">
                       <button onClick={goPrev} className={backBtn}>← Back</button>
                       <div className="flex items-center gap-3">
-                        <span className="text-xs text-slate-400">
+                        <span className="text-xs text-slate-500">
                           {manualCheck.ready
                             ? 'Your live budget is ready'
                             : `Still needed: ${manualCheck.missing.join(', ')}`}
@@ -1771,7 +1768,7 @@ export default function IntakeClient() {
                             <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
                               <div className="mb-4">
                                 <p className="font-semibold text-slate-900">{q.question}</p>
-                                {q.hint && <p className="text-xs text-slate-400 mt-1.5 leading-relaxed">{q.hint}</p>}
+                                {q.hint && <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">{q.hint}</p>}
                               </div>
                               <InteriorTierPicker
                                 value={answers[q.key] ?? ''}
@@ -1810,27 +1807,27 @@ export default function IntakeClient() {
                         <div className="flex flex-wrap items-center justify-end gap-3">
                           {RESUME_LINK_ENABLED && resumeLink && (
                             <>
-                              <button type="button" onClick={copyResumeLink} className={cn(topBtn, 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50')}>
+                              <button type="button" onClick={copyResumeLink} className={topBtn}>
                                 {linkCopied ? 'Link copied' : 'Copy my resume link'}
                               </button>
-                              <button type="button" onClick={emailResumeLink} className={cn(topBtn, 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50')}>
+                              <button type="button" onClick={emailResumeLink} className={topBtn}>
                                 Email me the link
                               </button>
                             </>
                           )}
                           {!(RESUME_LINK_ENABLED && resumeLink) && (
                             <button type="button" disabled aria-disabled="true" title="Coming soon, email isn't connected yet."
-                              className={cn(topBtn, 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed')}>
+                              className={cn(topBtn, 'cursor-not-allowed')}>
                               Email this budget
                             </button>
                           )}
                           <button type="button" onClick={handleDownloadPdf} disabled={pdfBusy}
-                            className={cn(topBtn, pdfBusy ? 'border-slate-200 bg-white text-slate-400 cursor-wait' : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50')}>
+                            className={cn(topBtn, pdfBusy && 'cursor-wait')}>
                             {pdfBusy ? 'Preparing…' : 'Download PDF'}
                           </button>
                         </div>
                         {RESUME_LINK_ENABLED && resumeLink && linkEmailed && (
-                          <p className="text-xs text-slate-400 mt-2 text-right">
+                          <p className="text-xs text-slate-500 mt-2 text-right">
                             {linkEmailed === 'sent' ? `Sent to ${email}.` : 'We could not send the email just now, copy the link instead.'}
                           </p>
                         )}
@@ -1841,36 +1838,35 @@ export default function IntakeClient() {
                     {/* Budget hero, dark navy, identical to the internal summary */}
                     {hasEstimate && (
                       <div
-                        className="rounded-2xl p-6 text-white"
-                        style={{ backgroundColor: '#0f172a' }}
+                        className="rounded-xl p-6 text-white bg-navy-950 shadow-sm"
                       >
                         <div className="flex items-start justify-between gap-4">
                           <div>
-                            <div className="text-xs font-medium mb-1" style={{ color: '#94a3b8' }}>
+                            <div className="text-xs font-medium mb-1 text-slate-400">
                               ILC Studios, Conceptual Lighting &amp; Controls Budget
                             </div>
                             <div className="text-3xl font-bold tabular-nums mb-2">
                               {formatCurrency(budget.totalWithControls)}
                             </div>
                             {range && (
-                              <div className="text-sm mb-2 tabular-nums" style={{ color: '#cbd5e1' }}>
+                              <div className="text-sm mb-2 tabular-nums text-slate-300">
                                 Likely between {formatCurrency(range.low)} and {formatCurrency(range.high)}, built from typed-in figures, without drawings.
                               </div>
                             )}
                             <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm">
-                              <div><span style={{ color: '#94a3b8' }}>Lighting Only: </span><span className="font-semibold">{formatCurrency(budget.subtotalLightingOnly)}</span></div>
-                              <div><span style={{ color: '#94a3b8' }}>Controls (w/ F&amp;W): </span><span className="font-semibold">{formatCurrency(budget.controlsTotal)}</span></div>
-                              {budget.perSf  > 0 && <div><span style={{ color: '#94a3b8' }}>$/SF: </span><span className="font-semibold">${budget.perSf.toFixed(2)}</span></div>}
-                              {budget.perUnit > 0 && <div><span style={{ color: '#94a3b8' }}>$/Unit: </span><span className="font-semibold">{formatCurrency(budget.perUnit)}</span></div>}
+                              <div><span className="text-slate-400">Lighting Only: </span><span className="font-semibold">{formatCurrency(budget.subtotalLightingOnly)}</span></div>
+                              <div><span className="text-slate-400">Controls (w/ F&amp;W): </span><span className="font-semibold">{formatCurrency(budget.controlsTotal)}</span></div>
+                              {budget.perSf  > 0 && <div><span className="text-slate-400">$/SF: </span><span className="font-semibold">${budget.perSf.toFixed(2)}</span></div>}
+                              {budget.perUnit > 0 && <div><span className="text-slate-400">$/Unit: </span><span className="font-semibold">{formatCurrency(budget.perUnit)}</span></div>}
                             </div>
                           </div>
                           <div className="text-right hidden sm:block shrink-0">
-                            <div className="text-sm font-semibold" style={{ color: '#e2e8f0' }}>{project}</div>
-                            <div className="text-xs mt-0.5" style={{ color: '#64748b' }}>{todayLabel}</div>
+                            <div className="text-sm font-semibold text-slate-200">{project}</div>
+                            <div className="text-xs mt-0.5 text-slate-500">{todayLabel}</div>
                           </div>
                         </div>
-                        <p className="text-xs mt-2" style={{ color: '#475569' }}>
-                          Conceptual estimate. Does not include sales tax. {CONFIRM_NOTE}
+                        <p className="text-xs mt-2 text-slate-400">
+                          Conceptual budget. Does not include sales tax. {CONFIRM_NOTE}
                         </p>
                       </div>
                     )}
@@ -1880,10 +1876,10 @@ export default function IntakeClient() {
 
                     {/* Budget Breakdown, the same component the internal summary renders */}
                     {hasEstimate && (
-                      <div className="bg-white rounded-xl border border-slate-200 p-5">
+                      <div className={CARD_PADDED}>
                         <div className="flex items-center justify-between mb-3">
-                          <h3 className="font-bold text-slate-900">Budget Breakdown</h3>
-                          <span className="text-xs text-slate-400 italic">Hover a line for details</span>
+                          <h3 className={CARD_TITLE}>Budget Breakdown</h3>
+                          <span className={`${HELPER} italic`}>Hover a line for details</span>
                         </div>
                         <SummaryBudgetBreakdown budget={budget} />
                         {controlsMathWords(budget.controlsMath) && (
@@ -1892,15 +1888,15 @@ export default function IntakeClient() {
                           </p>
                         )}
                         {/* Your design choices, under the breakdown, like the internal summary */}
-                        <h3 className="font-bold text-slate-900 mt-5 mb-3 pt-4 border-t border-slate-100">Your design choices</h3>
+                        <h3 className={`${CARD_TITLE} mt-5 mb-3 pt-4 border-t border-slate-100`}>Your design choices</h3>
                         <table className="w-full text-xs">
                           <thead>
                             {/* Mike 10-15: Question first, a skinny Location
                                 column, and the answer never past two lines. */}
-                            <tr className="text-left text-slate-400 uppercase tracking-wider">
-                              <th className="py-1 pr-3 font-semibold">Question</th>
-                              <th className="py-1 pr-3 font-semibold w-24">Location</th>
-                              <th className="py-1 font-semibold w-40">Answer</th>
+                            <tr className="text-left">
+                              <th className={`${LABEL} py-1 pr-3`}>Question</th>
+                              <th className={`${LABEL} py-1 pr-3 w-24`}>Location</th>
+                              <th className={`${LABEL} py-1 w-40`}>Answer</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -1916,27 +1912,27 @@ export default function IntakeClient() {
                       </div>
                     )}
 
-                  <section className="bg-white rounded-2xl border border-slate-200 p-6">
-                    <h3 className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">Your details</h3>
+                  <section className={CARD_PADDED}>
+                    <h3 className={`${LABEL} mb-2`}>Your details</h3>
                     <dl className="grid sm:grid-cols-2 gap-x-6 gap-y-2 text-sm">
                       <div className="flex justify-between gap-3 border-b border-slate-100 py-1.5">
-                        <dt className="text-slate-400">Name</dt>
+                        <dt className="text-slate-500">Name</dt>
                         <dd className="text-slate-800 font-medium text-right">{firstName} {lastName}</dd>
                       </div>
                       <div className="flex justify-between gap-3 border-b border-slate-100 py-1.5">
-                        <dt className="text-slate-400">Email</dt>
+                        <dt className="text-slate-500">Email</dt>
                         <dd className="text-slate-800 font-medium text-right break-all">{email}</dd>
                       </div>
                       <div className="flex justify-between gap-3 border-b border-slate-100 py-1.5">
-                        <dt className="text-slate-400">Company</dt>
+                        <dt className="text-slate-500">Company</dt>
                         <dd className="text-slate-800 font-medium text-right">{company || '-'}</dd>
                       </div>
                       <div className="flex justify-between gap-3 border-b border-slate-100 py-1.5">
-                        <dt className="text-slate-400">Project</dt>
+                        <dt className="text-slate-500">Project</dt>
                         <dd className="text-slate-800 font-medium text-right">{project}</dd>
                       </div>
                       <div className="flex justify-between gap-3 border-b border-slate-100 py-1.5 sm:col-span-2">
-                        <dt className="text-slate-400">Drawings</dt>
+                        <dt className="text-slate-500">Drawings</dt>
                         <dd className="text-slate-800 font-medium text-right">
                           {manual
                             ? 'None, figures typed in'
@@ -1947,17 +1943,17 @@ export default function IntakeClient() {
 
                     {fieldsFor(manual ? MANUAL_FIELDS : FIGURE_FIELDS, answers.projectType).some(f => String(figures[f.key] ?? '').trim()) && (
                     <div className="mt-4">
-                      <h3 className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-2">Figures you entered</h3>
+                      <h3 className={`${LABEL} mb-2`}>Figures you entered</h3>
                       <dl className="grid sm:grid-cols-2 gap-x-6 gap-y-1 text-xs">
                         {fieldsFor(manual ? MANUAL_FIELDS : FIGURE_FIELDS, answers.projectType).filter(f => String(figures[f.key] ?? '').trim()).map(f => (
                           <div key={f.key} className="flex justify-between gap-3 py-1 border-b border-slate-50 min-w-0">
-                            <dt className="text-slate-400 truncate min-w-0">{f.label} (entered by you)</dt>
+                            <dt className="text-slate-500 truncate min-w-0">{f.label} (entered by you)</dt>
                             <dd className="text-slate-700 font-medium text-right shrink-0">{figures[f.key]}</dd>
                           </div>
                         ))}
                         {manual && answers.hasPool && (
                           <div className="flex justify-between gap-3 py-1 border-b border-slate-50 min-w-0">
-                            <dt className="text-slate-400 truncate min-w-0">Is there a pool?</dt>
+                            <dt className="text-slate-500 truncate min-w-0">Is there a pool?</dt>
                             <dd className="text-slate-700 font-medium text-right shrink-0">{answers.hasPool === 'yes' ? 'Yes' : 'No'}</dd>
                           </div>
                         )}
@@ -1983,8 +1979,8 @@ export default function IntakeClient() {
               </>
             )}
 
-            <p className="text-xs text-slate-400 text-center pt-6 pb-6">
-              Conceptual estimate only. An ILC Studios team member reviews every submission before a budget is issued.
+            <p className="text-xs text-slate-500 text-center pt-6 pb-6">
+              Conceptual budget only. An ILC Studios team member reviews every submission before a budget is issued.
             </p>
           </div>
         </div>
@@ -2001,7 +1997,7 @@ export default function IntakeClient() {
             <aside className="hidden lg:flex w-64 bg-white border-l border-slate-100 flex-col shrink-0">
               <div className="px-4 py-4 bg-navy-950 border-b border-navy-800">
                 {project && <div className="text-sm font-semibold text-white truncate mb-2" title={project}>{project}</div>}
-                <div className="text-xs font-semibold text-navy-400 uppercase tracking-widest mb-1">Live Budget</div>
+                <div className="text-xs font-semibold text-navy-400 uppercase tracking-wide mb-1">Live Budget</div>
                 <div className="text-2xl font-bold text-white tabular-nums">-</div>
               </div>
               <div className="px-4 py-4">
@@ -2021,21 +2017,21 @@ export default function IntakeClient() {
                     </ul>
                   </>
                 ) : manual || drawings ? (
-                  <p className="text-xs text-slate-400 leading-relaxed">
+                  <p className="text-xs text-slate-500 leading-relaxed">
                     {estimateStatus
                       ? `The live price did not come back (code ${estimateStatus}). Keep going; it tries again on your next change.`
                       : 'Pricing your budget now. It updates as you answer the design questions.'}
                   </p>
                 ) : haveDrawings === null ? (
-                  <p className="text-xs text-slate-400 leading-relaxed">
+                  <p className="text-xs text-slate-500 leading-relaxed">
                     Tell us whether you have drawings on the Drawings page. With drawings we read the figures; without them you type a few numbers and the budget prices live.
                   </p>
                 ) : (
-                  <p className="text-xs text-slate-400 leading-relaxed">
+                  <p className="text-xs text-slate-500 leading-relaxed">
                     Upload your drawings and answer the design questions to watch your budget build itself.
                   </p>
                 )}
-                <p className="text-xs text-slate-400 mt-2 leading-relaxed">{CONFIRM_NOTE}</p>
+                <p className="text-xs text-slate-500 mt-2 leading-relaxed">{CONFIRM_NOTE}</p>
               </div>
             </aside>
           )

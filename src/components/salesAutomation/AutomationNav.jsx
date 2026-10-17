@@ -1,5 +1,6 @@
 'use client';
 import Link from 'next/link';
+import { TAB_ACTIVE, TAB_INACTIVE } from '@/components/ui/tokens';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
@@ -41,11 +42,7 @@ export default function AutomationNav() {
           <Link
             key={tab.href}
             href={tab.href}
-            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-              active
-                ? 'border-orange-500 text-orange-600'
-                : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
-            }`}
+            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${active ? TAB_ACTIVE : TAB_INACTIVE}`}
           >
             {tab.label}
           </Link>

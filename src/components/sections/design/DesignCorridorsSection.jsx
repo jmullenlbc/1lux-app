@@ -78,7 +78,7 @@ export default function DesignCorridorsSection({
   );
   const stairwellProduct = breezeway ? breezeway.product : stairwells * STAIR_EACH;
   const stairLabel  = breezeway
-    ? `Breezeway stairs (${stairwells} landings × $${breezeway.ratePerLanding.toLocaleString()} — ${BREEZEWAY_STYLES[breezeway.style].label.toLowerCase()})`
+    ? `Breezeway stairs (${stairwells} landings × $${breezeway.ratePerLanding.toLocaleString()}, ${BREEZEWAY_STYLES[breezeway.style].label.toLowerCase()})`
     : `Stairwells (${stairwells} landings × $${STAIR_EACH})`;
   const elevatedStairAdder = ans.stairwellDesign === 'elevated' ? stairwells * STAIR_ELEV : 0;
 
@@ -142,7 +142,7 @@ export default function DesignCorridorsSection({
 
       {/* Scope */}
       <div className="bg-slate-50 rounded-xl border border-slate-200 p-4">
-        <div className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Corridor Scope</div>
+        <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Corridor Scope</div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
           {[
             { label: 'Corridor SF',         value: corridorSf  > 0 ? corridorSf.toLocaleString()  : '—' },
@@ -159,7 +159,7 @@ export default function DesignCorridorsSection({
       </div>
 
       {/* Fire rating info */}
-      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-xs text-blue-800">
+      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-xs text-orange-700">
         <p className="font-semibold mb-1">Fire-Rating Housing</p>
         <p>
           Recessed fixtures in fire-rated corridor ceilings require 1-hour rated housings
@@ -193,7 +193,7 @@ export default function DesignCorridorsSection({
 
       {/* Spacing */}
       <QuestionCard
-        question={`Fixture spacing — ${ans.fixtureType === 'recessed' ? 'recessed downlights' : 'surface-mount disks'}?`}
+        question={`Fixture spacing, ${ans.fixtureType === 'recessed' ? 'recessed downlights' : 'surface-mount disks'}?`}
         note={`Tighter spacing = more fixtures, higher cost, better uniformity. ${corridorSf > 0 ? `(${corridorSf.toLocaleString()} SF of corridors)` : ''}`}
         costSuffix=" total"
         options={spacingOptions}
@@ -204,10 +204,10 @@ export default function DesignCorridorsSection({
       {/* Elevator lobbies */}
       <QuestionCard
         question="Elevator lobby elevated design?"
-        note="Elevator lobbies are a natural focal moment — adding a pendant or decorative fixture creates a design signature. Currently an informational note; cost TBD per project."
+        note="Elevator lobbies are a natural focal moment, adding a pendant or decorative fixture creates a design signature. Currently an informational note; cost TBD per project."
         options={[
-          { value: 'no',  label: 'Code minimum — match corridor fixtures'        },
-          { value: 'yes', label: 'Elevated design — decorative pendant or accent' },
+          { value: 'no',  label: 'Code minimum, match corridor fixtures'        },
+          { value: 'yes', label: 'Elevated design, decorative pendant or accent' },
         ]}
         value={ans.elevatorLobby}
         onChange={v => set('elevatorLobby', v)}
@@ -236,16 +236,16 @@ export default function DesignCorridorsSection({
             value: 'code',
             label:  'Code minimum',
             sub:    breezeway
-              ? `$${breezeway.ratePerLanding.toLocaleString()}/landing — ${BREEZEWAY_STYLES[breezeway.style].label.toLowerCase()}`
-              : `$${STAIR_EACH}/landing — 4ft LED strip w/ integrated battery backup`,
+              ? `$${breezeway.ratePerLanding.toLocaleString()}/landing, ${BREEZEWAY_STYLES[breezeway.style].label.toLowerCase()}`
+              : `$${STAIR_EACH}/landing, 4ft LED strip w/ integrated battery backup`,
             cost:   stairwellProduct,
           },
           {
             value: 'elevated',
             label:  'Elevated design',
             sub:    breezeway
-              ? `$${(breezeway.ratePerLanding + STAIR_ELEV).toLocaleString()}/landing — adds aesthetic upgrade (+$${STAIR_ELEV}/landing)`
-              : `$${STAIR_EACH + STAIR_ELEV}/landing — adds aesthetic upgrade (+$${STAIR_ELEV}/landing)`,
+              ? `$${(breezeway.ratePerLanding + STAIR_ELEV).toLocaleString()}/landing, adds aesthetic upgrade (+$${STAIR_ELEV}/landing)`
+              : `$${STAIR_EACH + STAIR_ELEV}/landing, adds aesthetic upgrade (+$${STAIR_ELEV}/landing)`,
             cost:   stairwellProduct + stairwells * STAIR_ELEV,
           },
         ]}
@@ -279,7 +279,7 @@ export default function DesignCorridorsSection({
       <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
         <p className="text-xs font-semibold text-amber-900 mb-1">Recessed Accent Downlights</p>
         <p className="text-xs text-amber-800 mb-3">
-          Adjustable, 1-hr fire-rated accent downlights (e.g. art / decal lit by an art light) — ${ACCENT_EACH}/ea.
+          Adjustable, 1-hr fire-rated accent downlights (e.g. art / decal lit by an art light), ${ACCENT_EACH}/ea.
         </p>
         <div className="flex items-center gap-3 flex-wrap">
           <label className="text-xs font-medium text-amber-900">Quantity</label>
@@ -289,7 +289,7 @@ export default function DesignCorridorsSection({
             value={ans.accentQty}
             onChange={e => set('accentQty', e.target.value)}
             placeholder="0"
-            className="w-28 border border-amber-300 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-400"
+            className="w-28 border border-amber-300 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-orange-500"
           />
           <span className="text-xs text-amber-800 font-medium">
             × ${ACCENT_EACH} = ${(numAccents * ACCENT_EACH).toLocaleString()}
@@ -300,13 +300,13 @@ export default function DesignCorridorsSection({
       {/* Live cost breakdown */}
       {(corridorSf > 0 || stairwells > 0 || numUnits > 0) && (
         <div className="bg-slate-50 rounded-xl border border-slate-200 p-4">
-          <div className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-2">Live Estimate</div>
+          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Live Budget</div>
           <div className="space-y-1.5 text-sm">
             {[
               { label: `Corridor fixtures (${corridorSf.toLocaleString()} SF × $${fixtureRate.toFixed(3)}/SF)`, value: corridorProduct,    show: corridorSf > 0 },
               { label: stairLabel,                                                                                         value: stairwellProduct,   show: stairwells > 0 },
               { label: `Stairwell elevated adder (${stairwells} × $${STAIR_ELEV})`,                                        value: elevatedStairAdder, show: elevatedStairAdder > 0 },
-              { label: `Unit-entry sconces (${numUnits} × $${sconceEach})${sconceEach !== sconceMasterRate ? ' — overridden' : ''}`, value: sconceProduct,      show: sconceProduct > 0 },
+              { label: `Unit-entry sconces (${numUnits} × $${sconceEach})${sconceEach !== sconceMasterRate ? ', overridden' : ''}`, value: sconceProduct,      show: sconceProduct > 0 },
               { label: `Recessed accents (${numAccents} × $${ACCENT_EACH})`,                                                value: accentProduct,      show: accentProduct > 0 },
             ].filter(r => r.show).map(row => (
               <div key={row.label} className="flex justify-between text-slate-600">

@@ -81,7 +81,7 @@ export default function ProjectSidebar({ config, activeTab, onTabChange, userId,
             >
               <NavIcon name={item.icon} size={15} />
               {badge > 0 && (
-                <span className="absolute top-0.5 right-0.5 w-2 h-2 rounded-full bg-blue-500 border border-white" />
+                <span className="absolute top-0.5 right-0.5 w-2 h-2 rounded-full bg-orange-500 border border-white" />
               )}
             </button>
           );
@@ -116,7 +116,7 @@ export default function ProjectSidebar({ config, activeTab, onTabChange, userId,
                 className="w-full flex items-center gap-2 px-4 py-1.5 text-left hover:bg-slate-50 transition-colors group"
               >
                 <span className="text-slate-300 text-xs">{section.icon}</span>
-                <span className="flex-1 text-[10px] font-semibold uppercase tracking-widest text-slate-400 group-hover:text-slate-500 transition-colors">
+                <span className="flex-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500 group-hover:text-slate-500 transition-colors">
                   {section.section}
                 </span>
                 <svg
@@ -139,7 +139,7 @@ export default function ProjectSidebar({ config, activeTab, onTabChange, userId,
                         className={[
                           'w-full text-left px-4 py-2 text-sm transition-colors border-l-2 flex items-center gap-2',
                           isActive
-                            ? 'border-amber-500 bg-amber-50 text-amber-700 font-semibold'
+                            ? 'border-orange-500 bg-amber-50 text-amber-700 font-semibold'
                             : 'border-transparent text-slate-600 hover:bg-slate-50 hover:text-slate-900',
                         ].join(' ')}
                       >
@@ -148,7 +148,7 @@ export default function ProjectSidebar({ config, activeTab, onTabChange, userId,
                         </span>
                         <span className="flex-1">{item.label}</span>
                         {badge > 0 && (
-                          <span className="text-[10px] font-bold bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full">
+                          <span className="text-[11px] font-bold bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded-full">
                             {badge}
                           </span>
                         )}

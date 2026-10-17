@@ -11,26 +11,45 @@ import {
 import PipelineSidePanel from '@/components/crm/PipelineSidePanel';
 import SectionTabs, { PIPELINE_TABS } from '@/components/ui/SectionTabs';
 import { ALL_SERVICE_TYPES, BUILDING_TYPES, PROJECT_TYPES } from '@/lib/utils';
+import { FilterToolbar, FilterPanel, SearchBox, countFilters } from '@/components/ui/FilterPanel';
+import SortHeader, { Th, sortRows } from '@/components/ui/SortHeader';
+import StatTile from '@/components/ui/StatTile';
+import { useUrlView } from '@/lib/useUrlView';
+import { CARD, BTN_PRIMARY, BTN_SECONDARY, BTN_COMPACT, BTN_COMPACT_PRIMARY, H1, LABEL, INPUT, TD, NUM } from '@/components/ui/tokens';
 
 // Pipeline filters (Mike 10-8: "You still haven't added a filtering option to
-// the pipeline tab"). The quick row keeps search, status, service type and
-// owner; "Filters" opens the rest. Every list is built from the jobs on the
-// board, so a choice never comes back empty.
-const EMPTY_FILTERS = {
-  search: '', status: '', serviceType: '', salesOwnerId: '',
-  stage: '', clientId: '', state: '', city: '', buildingType: '', projectType: '',
-  minProb: '', expected: '', minUnits: '', minValue: '',
-};
-const MORE_FILTER_KEYS = ['stage', 'clientId', 'state', 'city', 'buildingType', 'projectType', 'minProb', 'expected', 'minUnits', 'minValue'];
+// the pipeline tab"). One Filter button opens the panel; the address keeps
+// the choices (useUrlView). Every list is built from the jobs on the board,
+// so a choice never comes back empty.
 const EXPECTED_OPTIONS = [
-  { value: '',        label: 'Any expected date' },
   { value: 'overdue', label: 'Expected date passed' },
   { value: '30',      label: 'Expected in 30 days' },
   { value: '90',      label: 'Expected in 90 days' },
   { value: '180',     label: 'Expected in 180 days' },
   { value: 'none',    label: 'No expected date' },
 ];
-const FILTER_SELECT_CLS = 'text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white text-slate-600 focus:outline-none focus:ring-2 focus:ring-orange-400';
+const FILTER_FIELDS = [
+  { key: 'search',       label: 'Search',        kind: 'text' },
+  { key: 'status',       label: 'Status',        kind: 'pick' },
+  { key: 'serviceType',  label: 'Service type',  kind: 'pick' },
+  { key: 'salesOwnerId', label: 'Sales owner',   kind: 'pick' },
+  { key: 'stage',        label: 'Stage',         kind: 'pick' },
+  { key: 'clientId',     label: 'Client',        kind: 'pick' },
+  { key: 'state',        label: 'State',         kind: 'pick' },
+  { key: 'city',         label: 'City',          kind: 'pick' },
+  { key: 'buildingType', label: 'Building type', kind: 'pick' },
+  { key: 'projectType',  label: 'Project type',  kind: 'pick' },
+  { key: 'minProb',      label: 'Win %',         kind: 'pick' },
+  { key: 'expected',     label: 'Expected date', kind: 'pick' },
+  { key: 'units',        label: 'Units',         kind: 'range' },
+  { key: 'value',        label: 'Value $',       kind: 'range' },
+];
+// The panel shows every field except search, which sits in the toolbar.
+const PANEL_FIELDS = FILTER_FIELDS.filter(f => f.key !== 'search');
+// Sort keys live in the address too; useUrlView only keeps a sort it knows.
+const SORT_KEYS = ['name', 'client', 'stage', 'revenue', 'probability', 'weighted', 'expectedOrderDate', 'procurementStatus', 'designStatus', 'updatedAt'];
+const VIEW_FIELDS = [...FILTER_FIELDS, ...SORT_KEYS.map(k => ({ key: k, kind: 'sort' }))];
+const SORT_DEFAULT = { key: 'updatedAt', dir: 'desc' };
 
 // Re-exported for the (orphaned, Phase-2) Deal components' imports.
 export { PIPELINE_STAGES };
@@ -67,6 +86,17 @@ function daysSince(dateStr) {
 }
 const svcLabel  = s => SERVICE_TYPE_LABELS[s] || s || null;
 const unitsOf   = p => p.projectData?.numUnits ?? null;
+// Range filter: blank bounds pass; a row with no value fails any set bound.
+function inRange(v, r) {
+  if (!r || typeof r !== 'object') return true;
+  const lo = r.min === '' || r.min == null ? null : Number(r.min);
+  const hi = r.max === '' || r.max == null ? null : Number(r.max);
+  if (lo == null && hi == null) return true;
+  if (v == null) return false;
+  if (lo != null && v < lo) return false;
+  if (hi != null && v > hi) return false;
+  return true;
+}
 
 // ── Note Input ───────────────────────────────────────────────────────────────
 function NoteInput({ projectId, onClose }) {
@@ -114,14 +144,14 @@ function NoteInput({ projectId, onClose }) {
         value={text}
         onChange={e => setText(e.target.value)}
         placeholder="Quick note..."
-        className="text-xs border border-slate-200 rounded px-2 py-1 w-full focus:outline-none focus:ring-1 focus:ring-orange-400"
+        className={`${INPUT} text-xs px-2 py-1`}
       />
-      {err && <p className="text-xs text-red-500">{err}</p>}
+      {err && <p className="text-xs text-red-600">{err}</p>}
       <div className="flex gap-1">
         <button
           onClick={handleSave}
           disabled={saving || !text.trim()}
-          className="text-xs px-2 py-1 bg-slate-800 text-white rounded disabled:opacity-40"
+          className={BTN_COMPACT_PRIMARY}
         >
           {saving ? 'Saving...' : 'Save'}
         </button>
@@ -156,28 +186,28 @@ function ProjectCard({ project, pipeline, onOpen, onDragStart, onDragEnd, isDrag
       <div className={`h-0.5 rounded-t-xl ${pipeline === 'PROCUREMENT' ? 'bg-orange-400' : 'bg-blue-400'}`} />
       <div className="px-3 py-3">
         <div className="flex items-center justify-between gap-2 mb-1.5">
-          <span className="text-[10px] font-mono font-bold text-slate-400">
+          <span className="text-[11px] font-mono font-bold text-slate-400">
             {project.projectNumber ? `PRJ-${String(project.projectNumber).padStart(4, '0')}` : '—'}
           </span>
           <div className="flex items-center gap-1 flex-wrap justify-end">
             {isStale && (
-              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 border border-amber-200" title="No updates in 30+ days">
+              <span className="text-[11px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 border border-amber-200" title="No updates in 30+ days">
                 Stale
               </span>
             )}
             {outSync && (
-              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 border border-amber-200" title="Procurement and Design stages differ">
+              <span className="text-[11px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 border border-amber-200" title="Procurement and Design stages differ">
                 ⚠ stages differ
               </span>
             )}
             {status !== 'OPEN' && (
               <span title={statusReason || undefined}
-                className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${st.color}`}>
+                className={`text-[11px] font-bold px-1.5 py-0.5 rounded border ${st.color}`}>
                 {st.label}{statusReason ? ' ⓘ' : ''}
               </span>
             )}
             {svcLabel(project.serviceType) && (
-              <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 border border-slate-200">
+              <span className="text-[11px] font-semibold px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 border border-slate-200">
                 {svcLabel(project.serviceType)}
               </span>
             )}
@@ -189,7 +219,7 @@ function ProjectCard({ project, pipeline, onOpen, onDragStart, onDragEnd, isDrag
         <div className="mb-2">
           {project.client && <p className="text-xs text-slate-500 truncate">{project.client.name}</p>}
           {(project.city || project.state) && (
-            <p className="text-[10px] text-slate-400 truncate">
+            <p className="text-[11px] text-slate-400 truncate">
               {[project.city, project.state].filter(Boolean).join(', ')}
               {unitsOf(project) ? ` · ${unitsOf(project)} units` : ''}
             </p>
@@ -212,7 +242,7 @@ function ProjectCard({ project, pipeline, onOpen, onDragStart, onDragEnd, isDrag
           <div className="w-12 h-1 rounded-full bg-slate-200 overflow-hidden">
             <div className="h-full rounded-full bg-orange-400" style={{ width: `${averageProbability(project) ?? 0}%` }} />
           </div>
-          <span className="text-[10px] text-slate-400">{averageProbability(project) ?? 0}%</span>
+          <span className="text-[11px] text-slate-400">{averageProbability(project) ?? 0}%</span>
         </div>
 
         {!noteOpen ? (
@@ -226,7 +256,7 @@ function ProjectCard({ project, pipeline, onOpen, onDragStart, onDragEnd, isDrag
           <NoteInput projectId={project.id} onClose={() => setNoteOpen(false)} />
         )}
         {(project._count?.noteLinks ?? 0) > 0 && (
-          <p className="text-[10px] text-slate-400 mt-0.5 select-none">
+          <p className="text-[11px] text-slate-400 mt-0.5 select-none">
             {project._count.noteLinks} note{project._count.noteLinks !== 1 ? 's' : ''}
           </p>
         )}
@@ -247,14 +277,14 @@ function WebRequestCard({ request }) {
     <a href={`/admin/intake?id=${request.id}`}
       className="block rounded-xl border-2 border-sky-300 bg-sky-50 hover:bg-sky-100 p-3 transition-colors">
       <div className="flex items-center justify-between gap-2">
-        <span className="text-[9px] font-bold uppercase tracking-wider text-white bg-sky-600 rounded px-1.5 py-0.5">New web request</span>
-        <span className="text-[10px] text-sky-700">{age < 1 ? 'today' : `${age}d ago`}</span>
+        <span className="text-[11px] font-bold uppercase tracking-wide text-white bg-sky-600 rounded px-1.5 py-0.5">New web request</span>
+        <span className="text-[11px] text-sky-700">{age < 1 ? 'today' : `${age}d ago`}</span>
       </div>
       <p className="text-sm font-semibold text-slate-900 mt-1.5 leading-tight">{request.proposedName}</p>
       {where && <p className="text-[11px] text-slate-500">{where}</p>}
       <p className="text-[11px] text-slate-600 mt-1">From {request.submitterName}</p>
-      {looksLike && <p className="text-[10px] font-semibold text-amber-700 mt-1">Looks like: {looksLike.name}</p>}
-      <p className="text-[10px] font-semibold text-sky-700 mt-1.5">Review and follow up →</p>
+      {looksLike && <p className="text-[11px] font-semibold text-amber-700 mt-1">Looks like: {looksLike.name}</p>}
+      <p className="text-[11px] font-semibold text-sky-700 mt-1.5">Review and follow up →</p>
     </a>
   );
 }
@@ -264,14 +294,13 @@ function KanbanColumn({ stageCfg, projects, requests = [], pipeline, onOpen, onA
   const [dragOver, setDragOver] = useState(false);
   const totalValue = projects.reduce((s, p) => s + (revenueFor(p, pipeline) || 0), 0);
   const isActiveDrop = dragOver && draggingId;
-  const color = '#6b7280';
 
   return (
     <div className="flex flex-col min-w-[260px] w-[260px] shrink-0">
-      <div className="rounded-xl mb-2 px-3 py-2.5" style={{ border: '1px solid #e2e8f0', borderTopColor: color, borderTopWidth: 3, background: '#f8fafc' }}>
+      <div className="rounded-xl mb-2 px-3 py-2.5 border border-slate-200 border-t-[3px] border-t-slate-500 bg-slate-50">
         <div className="flex items-center justify-between">
           <span className="text-xs font-bold text-slate-700">{stageCfg.label}</span>
-          <span className="text-[10px] font-bold text-slate-400 bg-slate-200 rounded-full px-1.5 py-0.5">{projects.length}</span>
+          <span className="text-[11px] font-bold text-slate-400 bg-slate-200 rounded-full px-1.5 py-0.5">{projects.length}</span>
         </div>
         <p className="text-[11px] font-semibold mt-0.5 text-slate-500">{totalValue > 0 ? fmtMoney(totalValue) : '—'}</p>
       </div>
@@ -323,36 +352,30 @@ function PipelineSummary({ projects, pipeline, onNeedsAttention }) {
   const forecast90 = weightedForecast(open, pipeline, FORECAST_WINDOW_DAYS);
 
   const stats = [
-    { label: 'Open Pipeline',    value: fmtMoney(sum(open))     || '—', color: 'text-slate-900'  },
-    { label: 'High Prob (80%+)', value: fmtMoney(sum(highProb)) || '—', color: 'text-orange-600',
+    { label: 'Open Pipeline',    value: fmtMoney(sum(open))     || '—', tone: 'default'  },
+    { label: 'High Prob (80%+)', value: fmtMoney(sum(highProb)) || '—', tone: 'brand',
       hint: `${WEIGHTED_PROBABILITY_LABEL} of 80 or more.` },
-    { label: WEIGHTED_REVENUE_LABEL, value: fmtMoney(Math.round(weightedTotal)) || '—', color: 'text-blue-700',
+    { label: WEIGHTED_REVENUE_LABEL, value: fmtMoney(Math.round(weightedTotal)) || '—', tone: 'default',
       hint: `Open pipeline value × each project’s ${WEIGHTED_PROBABILITY_LABEL}.` },
-    { label: `Weighted ${FORECAST_WINDOW_DAYS}-Day Forecast`, value: fmtMoney(Math.round(forecast90)) || '—', color: 'text-indigo-700',
+    { label: `Weighted ${FORECAST_WINDOW_DAYS}-Day Forecast`, value: fmtMoney(Math.round(forecast90)) || '—', tone: 'default',
       hint: `Open projects with an Expected Order Date in the next ${FORECAST_WINDOW_DAYS} days, each counted at revenue × ${WEIGHTED_PROBABILITY_LABEL}. Weighted, not gross.` },
-    { label: 'On Hold',          value: fmtMoney(sum(onHold))   || '—', color: 'text-amber-700',
+    { label: 'On Hold',          value: fmtMoney(sum(onHold))   || '—', tone: 'warning',
       hint: `Revenue parked On Hold (${onHold.length} project${onHold.length === 1 ? '' : 's'}). Not in the open pipeline and not in the win rate.` },
-    { label: 'Won (30 days)',    value: fmtMoney(sum(won))      || '—', color: 'text-green-700'  },
-    { label: 'Win Rate',         value: rateStr,                        color: rate != null && rate >= 50 ? 'text-green-700' : 'text-red-600',
+    { label: 'Won (30 days)',    value: fmtMoney(sum(won))      || '—', tone: 'success'  },
+    { label: 'Win Rate',         value: rateStr,                        tone: rate != null && rate >= 50 ? 'success' : 'danger',
       hint: WIN_RATE_DESCRIPTION },
-    { label: 'Win Rate (all)',   value: rateAllStr,                     color: 'text-slate-700',
+    { label: 'Win Rate (all)',   value: rateAllStr,                     tone: 'default',
       hint: WIN_RATE_ALL_DESCRIPTION },
-    { label: 'Needs Attention',  value: stale.length,                   color: stale.length > 0 ? 'text-amber-600' : 'text-slate-400',
+    { label: 'Needs Attention',  value: stale.length,                   tone: stale.length > 0 ? 'warning' : 'muted',
       hint: 'Open projects with no update in 30+ days. Click to see the list.',
       onClick: stale.length > 0 && onNeedsAttention ? onNeedsAttention : undefined },
   ];
 
   return (
-    <div className="flex items-center gap-px bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm mb-4">
+    <div className="grid grid-cols-3 md:grid-cols-5 xl:grid-cols-9 gap-2 mb-4">
       {stats.map((s, i) => (
-        <div key={i} title={s.hint || undefined} onClick={s.onClick}
-          role={s.onClick ? 'button' : undefined}
-          className={`flex-1 px-4 py-2.5 ${i < stats.length - 1 ? 'border-r border-slate-100' : ''} ${s.onClick ? 'cursor-pointer hover:bg-amber-50' : ''}`}>
-          <p className={`text-base font-bold ${s.color}`}>{s.value}</p>
-          <p className="text-[10px] text-slate-400 font-medium uppercase tracking-wide mt-0.5 flex items-center gap-1">
-            {s.label}
-            {s.hint && <span className="text-slate-300 normal-case cursor-help" aria-label={s.hint}>ⓘ</span>}
-          </p>
+        <div key={i} title={s.hint || undefined} className="min-w-0">
+          <StatTile label={s.label} value={s.value} tone={s.tone} onClick={s.onClick} className="w-full h-full" />
         </div>
       ))}
     </div>
@@ -360,30 +383,24 @@ function PipelineSummary({ projects, pipeline, onNeedsAttention }) {
 }
 
 // ── List View ─────────────────────────────────────────────────────────────────
-function ListView({ projects, pipeline, onOpen, onUpdate }) {
-  const [sortKey, setSortKey] = useState('updatedAt');
-  const [sortDir, setSortDir] = useState('desc');
+function ListView({ projects, pipeline, onOpen, onUpdate, sort, onSort }) {
   const [savingStatus, setSavingStatus] = useState(null);
   const stageField  = stageFieldFor(pipeline);
   const statusField = statusFieldFor(pipeline);
   const rev = p => revenueFor(p, pipeline);
 
-  function toggleSort(key) {
-    if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
-    else { setSortKey(key); setSortDir('asc'); }
-  }
-
-  const sorted = [...projects].sort((a, b) => {
-    let av = sortKey === 'revenue' ? rev(a) : sortKey === 'weighted' ? weightedRevenue(a, pipeline) : sortKey === 'stage' ? a[stageField] : sortKey === 'client' ? (a.client?.name || '') : sortKey === 'probability' ? (averageProbability(a) ?? 0) : a[sortKey];
-    let bv = sortKey === 'revenue' ? rev(b) : sortKey === 'weighted' ? weightedRevenue(b, pipeline) : sortKey === 'stage' ? b[stageField] : sortKey === 'client' ? (b.client?.name || '') : sortKey === 'probability' ? (averageProbability(b) ?? 0) : b[sortKey];
-    if (typeof av === 'string' || typeof bv === 'string') {
-      const as = String(av ?? ''), bs = String(bv ?? '');
-      return sortDir === 'asc' ? as.localeCompare(bs) : bs.localeCompare(as);
-    }
-    if (av == null) return 1;
-    if (bv == null) return -1;
-    return sortDir === 'asc' ? av - bv : bv - av;
-  });
+  const getters = {
+    name:              p => p.name || '',
+    client:            p => p.client?.name || '',
+    stage:             p => p[stageField] || '',
+    revenue:           p => rev(p),
+    probability:       p => averageProbability(p) ?? 0,
+    weighted:          p => weightedRevenue(p, pipeline),
+    expectedOrderDate: p => p.expectedOrderDate ? new Date(p.expectedOrderDate).getTime() : null,
+    [statusField]:     p => p[statusField] || '',
+    updatedAt:         p => p.updatedAt ? new Date(p.updatedAt).getTime() : null,
+  };
+  const sorted = sortRows(projects, sort, getters);
 
   async function changeStatus(project, newStatus) {
     const body = { [statusField]: newStatus };
@@ -410,27 +427,23 @@ function ListView({ projects, pipeline, onOpen, onUpdate }) {
     } finally { setSavingStatus(null); }
   }
 
-  const Th = ({ col, label }) => (
-    <th onClick={() => toggleSort(col)} className="px-3 py-2.5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider cursor-pointer hover:text-slate-600 whitespace-normal leading-tight align-bottom select-none">
-      {label}{sortKey === col && <span className="ml-1">{sortDir === 'asc' ? '↑' : '↓'}</span>}
-    </th>
-  );
+  const hdr = 'whitespace-normal leading-tight align-bottom';
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+    <div className={`${CARD} overflow-hidden`}>
       <table className="w-full text-sm">
         <thead className="bg-slate-50 border-b border-slate-200">
           <tr>
             {/* Maram 9-17: no project-number column here; headers wrap instead of forcing a scroll. */}
-            <Th col="name" label="Project" />
-            <Th col="client" label="Client" />
-            <Th col="stage" label="Stage" />
-            <Th col="revenue" label={pipeline === 'DESIGN' ? 'Design Fee' : 'Product Sale'} />
-            <Th col="probability" label={WEIGHTED_PROBABILITY_LABEL} />
-            <Th col="weighted" label={WEIGHTED_REVENUE_LABEL} />
-            <Th col="expectedOrderDate" label="Expected Order" />
-            <Th col={statusField} label="Status" />
-            <th className="px-3 py-2.5 text-left text-[10px] font-bold text-slate-400 uppercase tracking-wider whitespace-normal leading-tight align-bottom">Sales Owner</th>
+            <SortHeader className={hdr} field="name" label="Project" sort={sort} onSort={onSort} />
+            <SortHeader className={hdr} field="client" label="Client" sort={sort} onSort={onSort} />
+            <SortHeader className={hdr} field="stage" label="Stage" sort={sort} onSort={onSort} />
+            <SortHeader className={hdr} field="revenue" label={pipeline === 'DESIGN' ? 'Design Fee' : 'Product Sale'} sort={sort} onSort={onSort} />
+            <SortHeader className={hdr} field="probability" label={WEIGHTED_PROBABILITY_LABEL} sort={sort} onSort={onSort} />
+            <SortHeader className={hdr} field="weighted" label={WEIGHTED_REVENUE_LABEL} sort={sort} onSort={onSort} />
+            <SortHeader className={hdr} field="expectedOrderDate" label="Expected Order" sort={sort} onSort={onSort} />
+            <SortHeader className={hdr} field={statusField} label="Status" sort={sort} onSort={onSort} />
+            <Th className={hdr}>Sales Owner</Th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100">
@@ -438,43 +451,43 @@ function ListView({ projects, pipeline, onOpen, onUpdate }) {
             const st = STATUS_CONFIG[project[statusField]] || STATUS_CONFIG.OPEN;
             return (
               <tr key={project.id} onClick={() => onOpen(project)} className="cursor-pointer hover:bg-slate-50 transition-colors">
-                <td className="px-3 py-2.5">
+                <td className={TD}>
                   <p className="font-semibold text-slate-900 truncate max-w-[200px]">{project.name}</p>
                   {(project._count?.noteLinks ?? 0) > 0 && (
-                    <span className="text-[10px] text-slate-400">
+                    <span className="text-[11px] text-slate-400">
                       {project._count.noteLinks}
                       {project._count.noteLinks !== 1 ? ' notes' : ' note'}
                     </span>
                   )}
                 </td>
-                <td className="px-3 py-2.5 text-slate-500 truncate max-w-[140px]">{project.client?.name || '—'}</td>
-                <td className="px-3 py-2.5 text-slate-500 whitespace-nowrap">{STAGE_LABEL[project[stageField]] || project[stageField]}</td>
-                <td className="px-3 py-2.5 font-semibold text-slate-800 whitespace-nowrap">{fmtMoney(rev(project)) || <span className="text-slate-300">—</span>}</td>
-                <td className="px-3 py-2.5 whitespace-nowrap">
+                <td className={`${TD} truncate max-w-[140px]`}>{project.client?.name || '—'}</td>
+                <td className={`${TD} whitespace-nowrap`}>{STAGE_LABEL[project[stageField]] || project[stageField]}</td>
+                <td className={`${TD} ${NUM} font-semibold text-slate-800 whitespace-nowrap`}>{fmtMoney(rev(project)) || <span className="text-slate-300">—</span>}</td>
+                <td className={`${TD} whitespace-nowrap`}>
                   <div className="flex items-center gap-1.5">
                     <div className="w-10 h-1.5 rounded-full bg-slate-200 overflow-hidden"><div className="h-full rounded-full bg-orange-400" style={{ width: `${averageProbability(project) ?? 0}%` }} /></div>
-                    <span className="text-[11px] text-slate-500" title={WEIGHTED_PROBABILITY_HINT}>{averageProbability(project) ?? 0}%</span>
+                    <span className={`text-[11px] text-slate-500 ${NUM}`} title={WEIGHTED_PROBABILITY_HINT}>{averageProbability(project) ?? 0}%</span>
                   </div>
                 </td>
-                <td className="px-3 py-2.5 text-blue-700 font-semibold whitespace-nowrap" title={`${fmtMoney(rev(project)) || '$0'} × ${averageProbability(project) ?? 0}%`}>{fmtMoney(Math.round(weightedRevenue(project, pipeline))) || <span className="text-slate-300">—</span>}</td>
-                <td className="px-3 py-2.5 text-slate-400 whitespace-nowrap text-xs">{fmtDate(project.expectedOrderDate) || '—'}</td>
-                <td className="px-3 py-2.5" onClick={e => e.stopPropagation()}>
+                <td className={`${TD} ${NUM} font-semibold text-slate-800 whitespace-nowrap`} title={`${fmtMoney(rev(project)) || '$0'} × ${averageProbability(project) ?? 0}%`}>{fmtMoney(Math.round(weightedRevenue(project, pipeline))) || <span className="text-slate-300">—</span>}</td>
+                <td className={`${TD} ${NUM} whitespace-nowrap`}>{fmtDate(project.expectedOrderDate) || '—'}</td>
+                <td className={TD} onClick={e => e.stopPropagation()}>
                   <select
                     value={project[statusField] || 'OPEN'}
                     disabled={savingStatus === project.id}
                     onChange={e => changeStatus(project, e.target.value)}
-                    className={`text-[10px] font-bold px-2 py-0.5 rounded border cursor-pointer focus:outline-none focus:ring-2 focus:ring-orange-400 ${st.color}`}
+                    className={`text-[11px] font-bold px-2 py-0.5 rounded-lg border cursor-pointer focus:outline-none focus:ring-2 focus:ring-orange-500 ${st.color}`}
                   >
                     {PIPELINE_STATUS.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
                   </select>
                   {project[`${statusField}Reason`] && (
-                    <p className="text-[10px] text-slate-400 mt-1 max-w-[160px] truncate"
+                    <p className="text-[11px] text-slate-400 mt-1 max-w-[160px] truncate"
                       title={project[`${statusField}Reason`]}>
                       {project[`${statusField}Reason`]}
                     </p>
                   )}
                 </td>
-                <td className="px-3 py-2.5 text-slate-500 text-xs whitespace-nowrap">{project.salesOwner?.name || '—'}</td>
+                <td className={`${TD} whitespace-nowrap`}>{project.salesOwner?.name || '—'}</td>
               </tr>
             );
           })}
@@ -493,7 +506,7 @@ export default function CRMClient({ initialProjects, users, newRequests = [] }) 
   const [projects, setProjects] = useState(initialProjects || []);
   const [pipeline, setPipeline] = useState('PROCUREMENT');
   const [viewMode, setViewMode] = useState('kanban');
-  const [filters,  setFilters]  = useState(EMPTY_FILTERS);
+  const { filters, setFilter, clearFilters, sort, toggleSort } = useUrlView({ fields: VIEW_FIELDS, sortDefault: SORT_DEFAULT });
   const [moreOpen, setMoreOpen] = useState(false);
   const [needsAttention, setNeedsAttention] = useState(false);
   const dragId = useRef(null);
@@ -521,8 +534,8 @@ export default function CRMClient({ initialProjects, users, newRequests = [] }) 
     if (filters.buildingType   && p.buildingType   !== filters.buildingType)   return false;
     if (filters.projectType    && p.projectType    !== filters.projectType)    return false;
     if (filters.minProb  && (averageProbability(p) ?? -1) < Number(filters.minProb))  return false;
-    if (filters.minUnits && (unitsOf(p) ?? -1)            < Number(filters.minUnits)) return false;
-    if (filters.minValue && (revenueFor(p, pipeline) ?? -1) < Number(filters.minValue)) return false;
+    if (!inRange(unitsOf(p), filters.units)) return false;
+    if (!inRange(revenueFor(p, pipeline), filters.value)) return false;
     if (filters.expected) {
       const raw = pipeline === 'DESIGN' ? p.expectedContractExecutionDate : p.expectedOrderDate;
       const d   = raw ? new Date(raw).getTime() : null;
@@ -551,10 +564,21 @@ export default function CRMClient({ initialProjects, users, newRequests = [] }) 
       projectTypes:  distinct(p => p.projectType),
     };
   }, [projects, pipeline]);
-  const moreCount = MORE_FILTER_KEYS.filter(k => filters[k]).length;
-  const anyFilter = Object.keys(EMPTY_FILTERS).some(k => filters[k]) || needsAttention;
-  const setF = (key, value) => setFilters(f => ({ ...f, [key]: value }));
   const labelOf = (list, v) => list.find(t => t.value === v)?.label || v;
+  const filterCount = countFilters(filters, FILTER_FIELDS);
+  const filterChoices = useMemo(() => ({
+    status:       PIPELINE_STATUS.map(s => [s.key, s.label]),
+    serviceType:  Object.entries(SERVICE_TYPE_LABELS),
+    salesOwnerId: (users || []).map(u => [u.id, u.name || u.email]),
+    stage:        stages.map(s => [s.key, STAGE_LABEL[s.key] || s.label || s.key]),
+    clientId:     filterOptions.clients,
+    state:        filterOptions.states,
+    city:         filterOptions.cities,
+    buildingType: filterOptions.buildingTypes.map(b => [b, labelOf(BUILDING_TYPES, b)]),
+    projectType:  filterOptions.projectTypes.map(t => [t, labelOf(PROJECT_TYPES, t)]),
+    minProb:      [20, 50, 80, 90].map(n => [String(n), `Win % ${n} or more`]),
+    expected:     EXPECTED_OPTIONS.map(o => [o.value, o.label]),
+  }), [users, stages, filterOptions]);
 
   const byStage = useMemo(() => {
     const map = {};
@@ -659,13 +683,13 @@ export default function CRMClient({ initialProjects, users, newRequests = [] }) 
         <SectionTabs tabs={PIPELINE_TABS} className="mb-4 -mt-1" />
         <div className="flex items-center justify-between gap-4">
           <div>
-            <span className="text-[10px] font-bold text-orange-500 uppercase tracking-wider">ILC Studios</span>
-            <h1 className="text-xl font-bold text-slate-900">Pipeline</h1>
+            <span className={`${LABEL} text-orange-500`}>ILC Studios</span>
+            <h1 className={H1}>Pipeline</h1>
           </div>
 
           <div className="flex items-center bg-slate-100 rounded-xl p-1 gap-1">
             {['PROCUREMENT', 'DESIGN'].map(p => (
-              <button key={p} onClick={() => setPipeline(p)} className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-all ${pipeline === p ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
+              <button key={p} onClick={() => setPipeline(p)} className={`px-4 py-1.5 rounded-lg text-xs font-semibold border transition-all ${pipeline === p ? 'bg-orange-50 border-orange-400 text-orange-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
                 {p === 'PROCUREMENT' ? '📦 Procurement' : '✏️ Design'}
               </button>
             ))}
@@ -673,111 +697,50 @@ export default function CRMClient({ initialProjects, users, newRequests = [] }) 
 
           <div className="flex items-center gap-2">
             <div className="flex bg-slate-100 rounded-xl p-1 gap-1">
-              <button onClick={() => setViewMode('kanban')} className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${viewMode === 'kanban' ? 'bg-white shadow-sm text-slate-900' : 'text-slate-400 hover:text-slate-600'}`}>Board</button>
-              <button onClick={() => setViewMode('list')}   className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${viewMode === 'list'   ? 'bg-white shadow-sm text-slate-900' : 'text-slate-400 hover:text-slate-600'}`}>List</button>
+              <button onClick={() => setViewMode('kanban')} className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${viewMode === 'kanban' ? 'bg-orange-50 border-orange-400 text-orange-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>Board</button>
+              <button onClick={() => setViewMode('list')}   className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${viewMode === 'list' ? 'bg-orange-50 border-orange-400 text-orange-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>List</button>
             </div>
-            <button onClick={handleExportCSV} className="px-4 py-2 text-sm font-semibold rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 shadow-sm transition-colors">
+            <button onClick={handleExportCSV} className={BTN_SECONDARY}>
               Export CSV
             </button>
             {/* Contacts and Check-ins moved to the tabs above (Mike 10-6); the Brief is a Sales dashboard tab. */}
-            <button onClick={newProject} className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white transition-colors shadow-sm">
+            <button onClick={newProject} className={BTN_PRIMARY}>
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
               New Project
             </button>
           </div>
         </div>
 
-        {/* Filters */}
-        <div className="flex items-center gap-2 mt-3 flex-wrap">
-          <div className="relative">
-            <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" /></svg>
-            <input value={filters.search} onChange={e => setFilters(f => ({ ...f, search: e.target.value }))} placeholder="Search projects…" className="pl-8 pr-3 py-1.5 text-xs border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-orange-400 w-44" />
-          </div>
-          <div className="flex items-center gap-1">
-            {[{ val: '', label: 'All' }, { val: 'OPEN', label: 'Open' }, { val: 'ON_HOLD', label: 'On Hold' }, { val: 'WON', label: 'Won' }, { val: 'LOST', label: 'Lost' }].map(s => (
-              <button key={s.val} onClick={() => setFilters(f => ({ ...f, status: s.val }))} className={`px-2.5 py-1.5 text-[10px] font-bold rounded-lg transition-colors ${filters.status === s.val ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-200'}`}>{s.label}</button>
-            ))}
-            <button
-              onClick={() => setNeedsAttention(n => !n)}
-              className={`px-2.5 py-1.5 text-[10px] font-bold rounded-lg transition-colors ${
-                needsAttention
-                  ? 'bg-amber-500 text-white'
-                  : needsAttentionFiltered.length > 0
-                  ? 'border border-amber-400 text-amber-600 hover:bg-amber-50'
-                  : 'text-slate-400 hover:bg-slate-200'
-              }`}
-            >
-              {needsAttention
-                ? `Needs Attention (${needsAttentionFiltered.length})`
-                : needsAttentionFiltered.length > 0
-                ? `! Needs Attention (${needsAttentionFiltered.length})`
-                : 'Needs Attention'}
-            </button>
-          </div>
-          <select value={filters.serviceType} onChange={e => setFilters(f => ({ ...f, serviceType: e.target.value }))} className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white text-slate-600 focus:outline-none focus:ring-2 focus:ring-orange-400">
-            <option value="">All service types</option>
-            {Object.entries(SERVICE_TYPE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-          </select>
-          <select value={filters.salesOwnerId} onChange={e => setFilters(f => ({ ...f, salesOwnerId: e.target.value }))} className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white text-slate-600 focus:outline-none focus:ring-2 focus:ring-orange-400">
-            <option value="">All owners</option>
-            {(users || []).map(u => <option key={u.id} value={u.id}>{u.name || u.email}</option>)}
-          </select>
+        {/* Filters: one Filter button, the panel below, search on the right. */}
+        <FilterToolbar
+          className="mt-3"
+          count={filterCount}
+          open={moreOpen}
+          onToggle={() => setMoreOpen(o => !o)}
+          onClear={() => { clearFilters(); setNeedsAttention(false); }}
+          shown={filtered.length}
+          total={projects.filter(inBoard).length}
+          noun="projects"
+          right={<SearchBox value={filters.search || ''} onChange={v => setFilter('search', v)} placeholder="Search projects..." />}
+        >
           <button
-            onClick={() => setMoreOpen(o => !o)}
-            className={`px-2.5 py-1.5 text-[10px] font-bold rounded-lg border transition-colors ${moreOpen || moreCount ? 'bg-slate-900 text-white border-slate-900' : 'text-slate-500 border-slate-200 hover:bg-slate-100'}`}
+            onClick={() => setNeedsAttention(n => !n)}
+            className={`${BTN_COMPACT} ${
+              needsAttention
+                ? 'border-orange-400 bg-orange-50 text-orange-700 hover:bg-orange-50'
+                : needsAttentionFiltered.length > 0
+                ? 'border-amber-400 text-amber-600 hover:bg-amber-50'
+                : ''
+            }`}
           >
-            Filters{moreCount ? ` (${moreCount})` : ''}
+            {needsAttention
+              ? `Needs Attention (${needsAttentionFiltered.length})`
+              : needsAttentionFiltered.length > 0
+              ? `! Needs Attention (${needsAttentionFiltered.length})`
+              : 'Needs Attention'}
           </button>
-          {anyFilter && (
-            <button
-              onClick={() => {
-                setFilters(EMPTY_FILTERS);
-                setNeedsAttention(false);
-              }}
-              className="px-2.5 py-1.5 text-[10px] font-bold rounded-lg text-slate-400 hover:bg-slate-100 border border-slate-200"
-            >
-              Clear
-            </button>
-          )}
-          <span className="text-xs text-slate-400 ml-auto">{filtered.length} project{filtered.length !== 1 ? 's' : ''}</span>
-        </div>
-        {moreOpen && (
-          <div className="flex items-center gap-2 mt-2 flex-wrap">
-            <select value={filters.stage} onChange={e => setF('stage', e.target.value)} className={FILTER_SELECT_CLS}>
-              <option value="">All stages</option>
-              {stages.map(s => <option key={s.key} value={s.key}>{STAGE_LABEL[s.key] || s.label || s.key}</option>)}
-            </select>
-            <select value={filters.clientId} onChange={e => setF('clientId', e.target.value)} className={FILTER_SELECT_CLS}>
-              <option value="">All clients</option>
-              {filterOptions.clients.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
-            </select>
-            <select value={filters.state} onChange={e => setF('state', e.target.value)} className={FILTER_SELECT_CLS}>
-              <option value="">All states</option>
-              {filterOptions.states.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
-            <select value={filters.city} onChange={e => setF('city', e.target.value)} className={FILTER_SELECT_CLS}>
-              <option value="">All cities</option>
-              {filterOptions.cities.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
-            <select value={filters.buildingType} onChange={e => setF('buildingType', e.target.value)} className={FILTER_SELECT_CLS}>
-              <option value="">All building types</option>
-              {filterOptions.buildingTypes.map(b => <option key={b} value={b}>{labelOf(BUILDING_TYPES, b)}</option>)}
-            </select>
-            <select value={filters.projectType} onChange={e => setF('projectType', e.target.value)} className={FILTER_SELECT_CLS}>
-              <option value="">All project types</option>
-              {filterOptions.projectTypes.map(t => <option key={t} value={t}>{labelOf(PROJECT_TYPES, t)}</option>)}
-            </select>
-            <select value={filters.minProb} onChange={e => setF('minProb', e.target.value)} className={FILTER_SELECT_CLS}>
-              <option value="">Any win %</option>
-              {[20, 50, 80, 90].map(n => <option key={n} value={n}>Win % {n} or more</option>)}
-            </select>
-            <select value={filters.expected} onChange={e => setF('expected', e.target.value)} className={FILTER_SELECT_CLS}>
-              {EXPECTED_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
-            <input type="number" min="0" value={filters.minUnits} onChange={e => setF('minUnits', e.target.value)} placeholder="Units at least" className={`${FILTER_SELECT_CLS} w-28`} />
-            <input type="number" min="0" step="1000" value={filters.minValue} onChange={e => setF('minValue', e.target.value)} placeholder="Value at least $" className={`${FILTER_SELECT_CLS} w-32`} />
-          </div>
-        )}
+        </FilterToolbar>
+        <FilterPanel open={moreOpen} fields={PANEL_FIELDS} filters={filters} choices={filterChoices} onChange={setFilter} />
       </div>
 
       {/* Body */}
@@ -786,7 +749,7 @@ export default function CRMClient({ initialProjects, users, newRequests = [] }) 
           <a href="/admin/intake"
             className="mb-3 flex items-center gap-2 rounded-xl border-2 border-sky-300 bg-sky-50 hover:bg-sky-100 px-4 py-2 text-sm text-sky-800 transition-colors shrink-0">
             <span className="font-bold">{newRequests.length} new web budget request{newRequests.length !== 1 ? 's' : ''}</span>
-            <span className="text-sky-700">waiting for someone to follow up — they&apos;re the blue cards in the first column.</span>
+            <span className="text-sky-700">waiting for someone to follow up, they&apos;re the blue cards in the first column.</span>
             <span className="ml-auto font-semibold">Review them →</span>
           </a>
         )}
@@ -819,7 +782,7 @@ export default function CRMClient({ initialProjects, users, newRequests = [] }) 
 
         {activeViewMode === 'list' && (
           <div className="flex-1 overflow-y-auto">
-            <ListView projects={activeList} pipeline={pipeline} onOpen={openProject} onUpdate={handleUpdated} />
+            <ListView projects={activeList} pipeline={pipeline} onOpen={openProject} onUpdate={handleUpdated} sort={sort} onSort={toggleSort} />
           </div>
         )}
       </div>

@@ -43,7 +43,7 @@ function NewClientModal({ onClose, onCreated }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-xl w-full max-w-md overflow-hidden">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
           <h2 className="text-base font-bold text-slate-900">New Client</h2>
           <button onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100">
@@ -55,9 +55,9 @@ function NewClientModal({ onClose, onCreated }) {
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {err && <div className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{err}</div>}
           <div>
-            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Client Name *</label>
+            <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1">Client Name *</label>
             <input value={form.name} onChange={e => set('name', e.target.value)} autoFocus placeholder="e.g., Greystar"
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500" />
+              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500" />
           </div>
           <MultiSelect
             label="Client Type"
@@ -67,15 +67,15 @@ function NewClientModal({ onClose, onCreated }) {
             hint="Tick every one that applies."
           />
           <div>
-            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Location Type</label>
+            <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1">Location Type</label>
             <select value={form.locationType} onChange={e => set('locationType', e.target.value)}
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white">
+              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white">
               {LOCATION_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
             </select>
           </div>
           <div className="flex gap-2 pt-1">
             <button type="button" onClick={onClose}
-              className="flex-1 px-4 py-2 rounded-lg text-sm font-medium border border-slate-200 text-slate-600 hover:bg-slate-50">
+              className="flex-1 px-4 py-2 rounded-lg text-sm font-semibold border border-slate-300 bg-white text-slate-700 hover:bg-slate-50">
               Cancel
             </button>
             <button type="submit" disabled={saving}
@@ -235,7 +235,7 @@ export default function NewProjectForm({ existingProjects = [], clients: initial
 
       <Card>
         <CardHeader>
-          <h2 className="font-semibold text-slate-900">Project Details</h2>
+          <h2 className="text-sm font-semibold text-slate-800">Project Details</h2>
         </CardHeader>
         <CardBody>
           <form onSubmit={handleSubmit} className="space-y-5">
@@ -252,21 +252,21 @@ export default function NewProjectForm({ existingProjects = [], clients: initial
                 onChange={handleNameChange}
                 onKeyDown={handleNameKeyDown}
                 onFocus={() => suggestions.length > 0 && setShowSuggest(true)}
-                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
                 autoFocus
               />
               {showSuggest && suggestions.length > 0 && (
                 <div ref={suggestRef} className="absolute z-30 mt-1 w-full bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden">
-                  <div className="px-3 pt-2 pb-1 text-xs font-bold text-slate-400 uppercase tracking-widest border-b border-slate-100">
-                    Existing — select to copy as starting point
+                  <div className="px-3 pt-2 pb-1 text-[11px] font-semibold text-slate-500 uppercase tracking-wide border-b border-slate-100">
+                    Existing, select to copy as starting point
                   </div>
                   {suggestions.map((project, i) => (
                     <button key={project.id} type="button"
                       onMouseDown={e => { e.preventDefault(); selectSuggestion(project); }}
-                      className={`w-full text-left px-3 py-2.5 flex items-center gap-3 transition-colors ${i === activeSuggest ? 'bg-amber-50' : 'hover:bg-slate-50'}`}>
+                      className={`w-full text-left px-3 py-2.5 flex items-center gap-3 transition-colors ${i === activeSuggest ? 'bg-orange-50' : 'hover:bg-slate-50'}`}>
                       <div className="text-sm font-medium text-slate-800 truncate">{project.name}</div>
                       {(project.city || project.state) && (
-                        <div className="text-xs text-slate-400 shrink-0">{[project.city, project.state].filter(Boolean).join(', ')}</div>
+                        <div className="text-xs text-slate-500 shrink-0">{[project.city, project.state].filter(Boolean).join(', ')}</div>
                       )}
                     </button>
                   ))}
@@ -281,7 +281,7 @@ export default function NewProjectForm({ existingProjects = [], clients: initial
 
             {/* Contact + location sit right under the name (Mike, 2026-09-12:
                 "add all 3 to the conceptual tool on the 1st page with name and
-                email") — the same facts the public request form asks first. */}
+                email"), the same facts the public request form asks first. */}
             <div className="grid grid-cols-2 gap-4">
               <Input label="Contact Name" placeholder="e.g., Jordan Smith" value={form.contactName} onChange={set('contactName')} />
               <Input label="Contact Email" type="email" placeholder="name@company.com" value={form.contactEmail} onChange={set('contactEmail')} />
@@ -299,7 +299,7 @@ export default function NewProjectForm({ existingProjects = [], clients: initial
                 <select
                   value={form.clientId}
                   onChange={set('clientId')}
-                  className="flex-1 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 text-slate-700 bg-white"
+                  className="flex-1 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 text-slate-700 bg-white"
                 >
                   <option value="">No client assigned</option>
                   {clients.map(c => (
@@ -309,13 +309,13 @@ export default function NewProjectForm({ existingProjects = [], clients: initial
                 <button
                   type="button"
                   onClick={() => setShowNewClient(true)}
-                  className="px-3 py-2 rounded-lg border border-slate-200 text-xs text-slate-500 hover:bg-slate-50 transition-colors whitespace-nowrap"
+                  className="px-3 py-2 rounded-lg border border-slate-300 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors whitespace-nowrap"
                 >
                   + New Client
                 </button>
               </div>
               {selectedClient && (
-                <div className="mt-1.5 text-xs text-slate-400">
+                <div className="mt-1.5 text-xs text-slate-500">
                   {clientTypeLabel(selectedClient.type)}
                   {selectedClient.locationType !== 'none' && ` · ${locationTypeLabel(selectedClient.locationType)}`}
                 </div>
@@ -337,7 +337,7 @@ export default function NewProjectForm({ existingProjects = [], clients: initial
 
             {/* Phase */}
             <Select label="Current Phase" value={form.phase} onChange={set('phase')}>
-              {PROJECT_PHASES.map(p => <option key={p.value} value={p.value}>{p.label} — {p.long}</option>)}
+              {PROJECT_PHASES.map(p => <option key={p.value} value={p.value}>{p.label}: {p.long}</option>)}
             </Select>
 
             {/* Service Type */}

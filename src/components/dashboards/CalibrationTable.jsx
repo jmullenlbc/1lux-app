@@ -4,6 +4,7 @@
 // Each row is one budget line; expanding it lists the projects behind it.
 // Admins get an "Apply" button that writes the suggested rate to pricing.
 import { useState } from 'react';
+import { WidgetEmpty } from '@/components/ui/WidgetFrame';
 
 const fmtMoney = (v) => (v == null ? '—' : `$${Math.round(v).toLocaleString()}`);
 const fmtPct   = (v) => (v == null ? '—' : `${v > 0 ? '+' : ''}${Math.round(v * 10) / 10}%`);
@@ -12,8 +13,8 @@ const fmtRate  = (v, unit) => {
   const s = Math.abs(v) < 1 ? v.toFixed(4).replace(/0+$/, '').replace(/\.$/, '') : (Math.abs(v) < 100 ? v.toFixed(2) : Math.round(v).toLocaleString());
   return unit ? `$${s}/${unit === 'sf' ? 'SF' : unit.replace(/s$/, '')}` : `$${s}`;
 };
-const driftClass = (v) => v == null ? 'text-slate-400' : Math.abs(v) >= 15 ? 'text-red-600 font-bold' : Math.abs(v) >= 5 ? 'text-amber-600 font-semibold' : 'text-emerald-600';
-const FLAG = { review: ['Review', 'bg-red-50 text-red-700'], watch: ['Watch', 'bg-amber-50 text-amber-700'], ok: ['OK', 'bg-emerald-50 text-emerald-700'] };
+const driftClass = (v) => v == null ? 'text-slate-500' : Math.abs(v) >= 15 ? 'text-red-600 font-bold' : Math.abs(v) >= 5 ? 'text-amber-600 font-semibold' : 'text-green-600';
+const FLAG = { review: ['Review', 'bg-red-50 text-red-700'], watch: ['Watch', 'bg-amber-50 text-amber-700'], ok: ['OK', 'bg-green-50 text-green-700'] };
 
 /**
  * A column-driven table for the calibration widgets that are NOT rate drift —
@@ -27,7 +28,7 @@ function PlainTable({ table }) {
     <div className="overflow-x-auto">
       <table className="w-full text-xs">
         <thead>
-          <tr className="text-[10px] uppercase tracking-wide text-slate-400 border-b border-slate-100">
+          <tr className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 border-b border-slate-100">
             {cols.map(c => (
               <th key={c.key} className={`px-3 py-2 font-semibold ${c.unit ? 'text-right' : 'text-left'}`}>{c.label}</th>
             ))}
@@ -57,7 +58,7 @@ function PlainTable({ table }) {
 }
 
 /**
- * "What Our Jobs Say — Stand-in Figures" (kind 'adopt'). What real jobs say a
+ * "What Our Jobs Say, Stand-in Figures" (kind 'adopt'). What real jobs say a
  * stand-in figure should be, by building type. Nothing changes until an admin
  * clicks "Use this" (Mike 2026-09-24: "suggest, but let humans confirm").
  * "Undo" puts the built-in figure back; the old row is archived, never deleted.
@@ -95,7 +96,7 @@ Now: ${row.current ?? 'nothing'}. From ${row.jobs} real jobs. Budgets built with
       {err && <p className="text-xs text-red-600 px-3 pb-2">{err}</p>}
       <table className="w-full text-xs">
         <thead>
-          <tr className="text-[10px] uppercase tracking-wide text-slate-400 border-b border-slate-100">
+          <tr className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 border-b border-slate-100">
             {cols.map(c => <th key={c.key} className="px-3 py-2 font-semibold text-left">{c.label}</th>)}
             <th className="px-2 py-2"></th>
           </tr>
@@ -106,19 +107,19 @@ Now: ${row.current ?? 'nothing'}. From ${row.jobs} real jobs. Budgets built with
               {cols.map(c => (
                 <td key={c.key} className={`px-3 py-2 ${c.key === 'label' ? 'font-semibold text-slate-700' : 'text-slate-600'}`}>
                   {r[c.key] == null || r[c.key] === '' ? '—' : String(r[c.key])}
-                  {c.key === 'current' && r.adopted && <span className="ml-1 text-[9px] font-bold uppercase text-emerald-600">adopted</span>}
+                  {c.key === 'current' && r.adopted && <span className="ml-1 text-[11px] font-bold uppercase text-green-600">adopted</span>}
                 </td>
               ))}
               <td className="px-2 py-2 text-right whitespace-nowrap">
                 {isAdmin && r.canAdopt && (
                   <button disabled={busy === id(r)} onClick={() => act(r, false)}
-                    className="text-[10px] font-semibold px-2 py-1 rounded-md bg-orange-500 text-white hover:bg-orange-600 disabled:opacity-40">
+                    className="text-[11px] font-semibold px-2 py-1 rounded-lg bg-orange-500 text-white hover:bg-orange-600 disabled:opacity-40">
                     {busy === id(r) ? 'Saving…' : 'Use this'}
                   </button>
                 )}
                 {isAdmin && r.adopted && (
                   <button disabled={busy === id(r)} onClick={() => act(r, true)}
-                    className="ml-1 text-[10px] font-semibold px-2 py-1 rounded-md border border-slate-200 text-slate-500 hover:bg-slate-50 disabled:opacity-40">
+                    className="ml-1 text-[11px] font-semibold px-2 py-1 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50 disabled:opacity-40">
                     Undo
                   </button>
                 )}
@@ -127,7 +128,7 @@ Now: ${row.current ?? 'nothing'}. From ${row.jobs} real jobs. Budgets built with
           ))}
         </tbody>
       </table>
-      <p className="text-[10px] text-slate-400 px-3 pt-2">Learned only from real figures — drawing reads, staff-entered budgets, imports, and client-typed figures inside the normal range. Tool guesses never count. {isAdmin ? '' : 'An admin adopts a figure.'}</p>
+      <p className="text-[11px] text-slate-500 px-3 pt-2">Learned only from real figures, drawing reads, staff-entered budgets, imports, and client-typed figures inside the normal range. Tool guesses never count. {isAdmin ? '' : 'An admin adopts a figure.'}</p>
     </div>
   );
 }
@@ -140,7 +141,7 @@ export default function CalibrationTable({ table, isAdmin, onApplied }) {
   const rows = table?.rows || [];
 
   if (!rows.length) {
-    return <p className="text-xs text-slate-400 italic px-3 py-6 text-center">{table?.empty || 'No data'}</p>;
+    return <WidgetEmpty>{table?.empty || 'No data'}</WidgetEmpty>;
   }
 
   // Anything that is not the rate-drift table renders off its own columns.
@@ -169,7 +170,7 @@ export default function CalibrationTable({ table, isAdmin, onApplied }) {
       {err && <p className="text-xs text-red-600 px-3 pb-2">{err}</p>}
       <table className="w-full text-xs">
         <thead>
-          <tr className="text-[10px] uppercase tracking-wide text-slate-400 border-b border-slate-100">
+          <tr className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 border-b border-slate-100">
             <th className="text-left px-3 py-2 font-semibold">Budget line</th>
             <th className="text-right px-2 py-2 font-semibold">Projects</th>
             <th className="text-right px-2 py-2 font-semibold">Model $</th>
@@ -189,7 +190,7 @@ export default function CalibrationTable({ table, isAdmin, onApplied }) {
               <tr key={r.lineKey} className="border-b border-slate-50 hover:bg-slate-50/60 cursor-pointer" onClick={() => setOpen(o => ({ ...o, [r.lineKey]: !isOpen }))}>
                 <td className="px-3 py-2 text-slate-700 font-semibold">
                   <span className="text-slate-300 mr-1">{isOpen ? '▾' : '▸'}</span>{r.label}
-                  <span className={`ml-2 text-[9px] font-bold px-1.5 py-0.5 rounded-full ${flagCls}`}>{flagLabel}</span>
+                  <span className={`ml-2 text-[11px] font-bold px-1.5 py-0.5 rounded-full ${flagCls}`}>{flagLabel}</span>
                 </td>
                 <td className="px-2 py-2 text-right text-slate-500">{r.projects}</td>
                 <td className="px-2 py-2 text-right text-slate-600 tabular-nums">{fmtMoney(r.modelSum)}</td>
@@ -200,19 +201,19 @@ export default function CalibrationTable({ table, isAdmin, onApplied }) {
                 <td className="px-2 py-2 text-right" onClick={e => e.stopPropagation()}>
                   {isAdmin && r.pricingKey && r.suggestedRate != null && !done && (
                     <button disabled={busy === r.lineKey} onClick={() => apply(r)}
-                      className="text-[10px] font-semibold px-2 py-1 rounded-md bg-orange-500 text-white hover:bg-orange-600 disabled:opacity-40">
+                      className="text-[11px] font-semibold px-2 py-1 rounded-lg bg-orange-500 text-white hover:bg-orange-600 disabled:opacity-40">
                       {busy === r.lineKey ? 'Saving…' : 'Apply'}
                     </button>
                   )}
-                  {done && <span className="text-[10px] font-semibold text-emerald-600">Applied</span>}
-                  {!r.pricingKey && <span className="text-[10px] text-slate-300" title="This line is not a single rate × quantity — tune it on the pricing page">manual</span>}
+                  {done && <span className="text-[11px] font-semibold text-green-600">Applied</span>}
+                  {!r.pricingKey && <span className="text-[11px] text-slate-300" title="This line is not a single rate × quantity, tune it on the pricing page">manual</span>}
                 </td>
               </tr>,
               isOpen && (
                 <tr key={`${r.lineKey}-detail`} className="bg-slate-50/70">
                   <td colSpan={8} className="px-6 py-2">
                     <table className="w-full text-[11px]">
-                      <thead><tr className="text-slate-400"><th className="text-left py-1 font-medium">Project</th><th className="text-left py-1 font-medium">Type</th><th className="text-right py-1 font-medium">Qty</th><th className="text-right py-1 font-medium">Model</th><th className="text-right py-1 font-medium">Actual</th><th className="text-right py-1 font-medium">Drift</th><th className="text-left py-1 pl-3 font-medium">Note</th></tr></thead>
+                      <thead><tr className="text-slate-500"><th className="text-left py-1 font-semibold">Project</th><th className="text-left py-1 font-semibold">Type</th><th className="text-right py-1 font-semibold">Qty</th><th className="text-right py-1 font-semibold">Model</th><th className="text-right py-1 font-semibold">Actual</th><th className="text-right py-1 font-semibold">Drift</th><th className="text-left py-1 pl-3 font-medium">Note</th></tr></thead>
                       <tbody>
                         {r.details.map((d, i) => (
                           <tr key={i} className="border-t border-slate-100">
@@ -222,7 +223,7 @@ export default function CalibrationTable({ table, isAdmin, onApplied }) {
                             <td className="py-1 text-right tabular-nums">{fmtMoney(d.modelAmount)}</td>
                             <td className="py-1 text-right tabular-nums">{fmtMoney(d.actualAmount)}</td>
                             <td className={`py-1 text-right tabular-nums ${driftClass(d.driftPct)}`}>{fmtPct(d.driftPct)}</td>
-                            <td className="py-1 pl-3 text-slate-400">{d.source !== 'engine' ? <span className="mr-1 text-[9px] uppercase font-bold text-slate-400">{d.source}</span> : null}{d.note || ''}</td>
+                            <td className="py-1 pl-3 text-slate-500">{d.source !== 'engine' ? <span className="mr-1 text-[11px] uppercase font-bold text-slate-500">{d.source}</span> : null}{d.note || ''}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -234,7 +235,7 @@ export default function CalibrationTable({ table, isAdmin, onApplied }) {
           })}
         </tbody>
       </table>
-      <p className="text-[10px] text-slate-400 px-3 pt-2">Drift = (actual − model) ÷ model. Positive means the engine prices low. Suggested = the rate that would have matched the actuals on these projects.</p>
+      <p className="text-[11px] text-slate-500 px-3 pt-2">Drift = (actual − model) ÷ model. Positive means the engine prices low. Suggested = the rate that would have matched the actuals on these projects.</p>
     </div>
   );
 }

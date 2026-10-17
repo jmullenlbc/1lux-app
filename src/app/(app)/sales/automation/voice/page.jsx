@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { redirect } from 'next/navigation';
+import { H1 } from '@/components/ui/tokens';
 import { getSession } from '@/lib/auth';
 import AutomationNav from '@/components/salesAutomation/AutomationNav';
 import VoiceTrainingClient from './VoiceTrainingClient';
@@ -21,7 +22,7 @@ export default async function VoiceTrainingPage() {
       <AutomationNav />
       <div className="max-w-5xl mx-auto">
       <div className="mb-5">
-        <h1 className="text-xl font-bold text-slate-900">Voice Training</h1>
+        <h1 className={H1}>Voice Training</h1>
         <p className="text-slate-500 text-sm mt-1 max-w-3xl">
           Drop in emails you wrote. The bot learns how you sound: your greetings, your words, your phrases
           and how you title an email. Every email it drafts for you, subject line included, is written in

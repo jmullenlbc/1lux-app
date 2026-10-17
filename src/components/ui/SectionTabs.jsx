@@ -27,7 +27,7 @@ export default function SectionTabs({ tabs, active = null, className = 'mb-6 -mt
           <Link
             key={key}
             href={tab.href}
-            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+            className={`px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${
               current === key
                 ? 'border-orange-500 text-orange-600'
                 : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'

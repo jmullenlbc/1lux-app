@@ -45,23 +45,23 @@ function TagsModal({ fileName, onConfirm, onCancel }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-xl w-full max-w-sm overflow-hidden">
         <div className="px-5 py-4 border-b border-slate-100">
-          <h3 className="font-bold text-slate-900 text-sm">Tag this file</h3>
-          <p className="text-xs text-slate-400 mt-0.5 truncate">{fileName}</p>
+          <h3 className="text-sm font-semibold text-slate-800">Tag this file</h3>
+          <p className="text-xs text-slate-500 mt-0.5 truncate">{fileName}</p>
         </div>
         <div className="p-5 space-y-4">
           {TAG_GROUPS.map(group => (
             <div key={group.label}>
-              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
+              <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-2">
                 {group.label}
               </label>
               <div className="flex flex-wrap gap-1.5">
                 {group.tags.map(tag => (
                   <button key={tag} type="button" onClick={() => toggle(tag)}
-                    className={`px-3 py-1 rounded-full text-xs font-semibold border transition-colors ${
+                    className={`px-3 py-1 rounded-lg text-xs font-semibold border transition-colors ${
                       selected.includes(tag)
-                        ? 'bg-amber-500 border-amber-500 text-white'
+                        ? 'bg-orange-500 border-orange-500 text-white'
                         : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
                     }`}>
                     {tag}
@@ -73,7 +73,7 @@ function TagsModal({ fileName, onConfirm, onCancel }) {
         </div>
         <div className="flex gap-2 px-5 py-4 border-t border-slate-100">
           <button type="button" onClick={onCancel}
-            className="flex-1 px-4 py-2 rounded-lg text-sm font-medium border border-slate-200 text-slate-600 hover:bg-slate-50">
+            className="flex-1 px-4 py-2 rounded-lg text-sm font-semibold border border-slate-300 bg-white text-slate-700 hover:bg-slate-50">
             Cancel
           </button>
           <button type="button" onClick={() => onConfirm(selected)}
@@ -117,7 +117,7 @@ function FileCard({ file, projectId, onDelete, onView }) {
     />
     <div
       onClick={onView}
-      className="flex items-center gap-3 px-4 py-3 bg-white rounded-xl border border-slate-200 hover:border-blue-300 hover:shadow-sm transition-all cursor-pointer group"
+      className="flex items-center gap-3 px-4 py-3 bg-white rounded-xl border border-slate-200 shadow-sm hover:border-orange-300 transition-all cursor-pointer group"
     >
       {/* PDF icon */}
       <div className="w-9 h-9 rounded-lg bg-red-50 flex items-center justify-center shrink-0">
@@ -128,19 +128,19 @@ function FileCard({ file, projectId, onDelete, onView }) {
 
       {/* Name + meta */}
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-slate-800 truncate group-hover:text-blue-700 transition-colors">{file.originalName}</p>
+        <p className="text-sm font-semibold text-slate-800 truncate group-hover:text-orange-600 transition-colors">{file.originalName}</p>
         <div className="flex items-center gap-2 mt-0.5">
-          <span className="text-xs text-slate-400">{formatDate(file.createdAt)}</span>
+          <span className="text-xs text-slate-500">{formatDate(file.createdAt)}</span>
           {file.size && (
             <>
               <span className="text-slate-200">·</span>
-              <span className="text-xs text-slate-400">{formatBytes(file.size)}</span>
+              <span className="text-xs text-slate-500">{formatBytes(file.size)}</span>
             </>
           )}
           {file.uploadedBy && (
             <>
               <span className="text-slate-200">·</span>
-              <span className="text-xs text-slate-400">{file.uploadedBy.name || file.uploadedBy.email}</span>
+              <span className="text-xs text-slate-500">{file.uploadedBy.name || file.uploadedBy.email}</span>
             </>
           )}
         </div>
@@ -149,11 +149,11 @@ function FileCard({ file, projectId, onDelete, onView }) {
       {/* Badges */}
       <div className="flex items-center gap-1.5 shrink-0">
         {phase && (
-          <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-violet-50 text-violet-700 border border-violet-200 uppercase tracking-wide">
+          <span className="text-[11px] font-semibold px-2 py-1 rounded-full bg-violet-50 text-violet-700 border border-violet-200 uppercase tracking-wide">
             {phase}
           </span>
         )}
-        <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200 uppercase tracking-wide">
+        <span className="text-[11px] font-semibold px-2 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200 uppercase tracking-wide">
           Fixture Schedule
         </span>
       </div>
@@ -161,7 +161,7 @@ function FileCard({ file, projectId, onDelete, onView }) {
       {/* Open PDF button */}
       <button
         onClick={e => { e.stopPropagation(); onView(); }}
-        className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold transition-colors opacity-0 group-hover:opacity-100"
+        className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold transition-colors opacity-0 group-hover:opacity-100"
         title="Open PDF"
       >
         <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -174,7 +174,7 @@ function FileCard({ file, projectId, onDelete, onView }) {
       <button
         onClick={e => { e.stopPropagation(); setAsking(true); }}
         disabled={deleting}
-        className="w-7 h-7 flex items-center justify-center rounded-lg opacity-0 group-hover:opacity-100 text-slate-300 hover:text-amber-600 hover:bg-amber-50 transition-all disabled:opacity-50"
+        className="w-7 h-7 flex items-center justify-center rounded-lg opacity-0 group-hover:opacity-100 text-slate-300 hover:text-orange-600 hover:bg-orange-50 transition-all disabled:opacity-50"
         title="Archive"
       >
         {deleting
@@ -301,17 +301,17 @@ export default function FixtureScheduleTab({ projectId }) {
           />
         )}
         <div className="flex flex-col items-center gap-6 py-16">
-          <div className="w-14 h-14 rounded-2xl bg-green-100 flex items-center justify-center">
+          <div className="w-14 h-14 rounded-xl bg-green-100 flex items-center justify-center">
             <svg className="w-7 h-7 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           </div>
           <div className="text-center">
             <p className="text-lg font-bold text-slate-800">{imported} fixture{imported !== 1 ? 's' : ''} pushed to Budget Matrix</p>
-            <p className="text-sm text-slate-400 mt-1">Open the Budget Matrix from the Budgets tab to review, price, and finalize.</p>
+            <p className="text-sm text-slate-500 mt-1">Open the Budget Matrix from the Budgets tab to review, price, and finalize.</p>
           </div>
           <button onClick={reset}
-            className="px-4 py-2 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 transition-colors">
+            className="px-4 py-2 rounded-lg border border-slate-300 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors">
             Parse Another PDF
           </button>
         </div>
@@ -319,7 +319,7 @@ export default function FixtureScheduleTab({ projectId }) {
         {/* Still show saved files */}
         {savedFiles.length > 0 && (
           <div className="space-y-2">
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest px-1">Uploaded Schedules</p>
+            <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide px-1">Uploaded Schedules</p>
             {savedFiles.map(f => <FileCard key={f.id} file={f} />)}
           </div>
         )}
@@ -339,8 +339,8 @@ export default function FixtureScheduleTab({ projectId }) {
       )}
 
       {/* Upload zone */}
-      <div className="bg-white rounded-xl border border-slate-200 p-6">
-        <h3 className="text-sm font-bold text-slate-700 mb-4">Parse Fixture Schedule from PDF</h3>
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+        <h3 className="text-sm font-semibold text-slate-800 mb-4">Parse Fixture Schedule from PDF</h3>
 
         <div
           onDragOver={e => { e.preventDefault(); setDragging(true); }}
@@ -348,30 +348,30 @@ export default function FixtureScheduleTab({ projectId }) {
           onDrop={onDrop}
           onClick={() => step === 'upload' && fileRef.current?.click()}
           className={`border-2 border-dashed rounded-xl p-10 flex flex-col items-center gap-3 transition-colors ${
-            step === 'parsing' ? 'border-blue-300 bg-blue-50 pointer-events-none' :
-            dragging            ? 'border-blue-400 bg-blue-50 cursor-copy' :
+            step === 'parsing' ? 'border-orange-300 bg-orange-50 pointer-events-none' :
+            dragging            ? 'border-orange-400 bg-orange-50 cursor-copy' :
                                   'border-slate-200 hover:border-slate-400 hover:bg-slate-50 cursor-pointer'
           }`}
         >
           {step === 'parsing' ? (
             <>
-              <svg className="animate-spin w-8 h-8 text-blue-500" viewBox="0 0 24 24" fill="none">
+              <svg className="animate-spin w-8 h-8 text-orange-500" viewBox="0 0 24 24" fill="none">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
               </svg>
-              <p className="text-sm font-semibold text-slate-600">Extracting &amp; parsing &ldquo;{fileName}&rdquo; with AI…</p>
-              <p className="text-xs text-slate-400">This may take 15–30 seconds</p>
+              <p className="text-sm font-semibold text-slate-600">Extracting &amp; parsing &ldquo;{fileName}&rdquo; with AI...</p>
+              <p className="text-xs text-slate-500">This may take 15 to 30 seconds</p>
             </>
           ) : (
             <>
-              <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center">
-                <svg className="w-6 h-6 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <div className="w-12 h-12 rounded-xl bg-orange-50 flex items-center justify-center">
+                <svg className="w-6 h-6 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
                 </svg>
               </div>
               <div className="text-center">
                 <p className="text-sm font-semibold text-slate-700">Drop electrical drawing PDF here</p>
-                <p className="text-xs text-slate-400 mt-1">or click to browse · PDF only · must be text-based (not scanned)</p>
+                <p className="text-xs text-slate-500 mt-1">or click to browse · PDF only · must be text-based (not scanned)</p>
               </div>
             </>
           )}
@@ -379,19 +379,19 @@ export default function FixtureScheduleTab({ projectId }) {
             onChange={e => { if (e.target.files[0]) { setPendingFile(e.target.files[0]); e.target.value = ''; } }} />
         </div>
         {error && <div className="mt-3 bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-xs text-red-700">{error}</div>}
-        <div className="mt-3 text-xs text-slate-400 space-y-0.5">
+        <div className="mt-3 text-xs text-slate-500 space-y-0.5">
           <p>• Upload the E-sheet that contains the Luminaire Schedule or Light Fixture Schedule table</p>
           <p>• Image-based or scanned PDFs must be OCR&apos;d first (Bluebeam: Document → OCR)</p>
-          <p>• Works with multi-section sheets — AI searches the entire document for the schedule</p>
+          <p>• Works with multi-section sheets, AI searches the entire document for the schedule</p>
         </div>
       </div>
 
       {/* Saved files */}
       {(savedFiles.length > 0 || loadingFiles) && (
         <div className="space-y-2">
-          <p className="text-xs font-semibold text-slate-400 uppercase tracking-widest px-1">Uploaded Schedules</p>
+          <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide px-1">Uploaded Schedules</p>
           {loadingFiles ? (
-            <div className="flex items-center gap-2 px-1 py-2 text-xs text-slate-400">
+            <div className="flex items-center gap-2 px-1 py-2 text-xs text-slate-500">
               <svg className="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24" fill="none">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
@@ -406,24 +406,24 @@ export default function FixtureScheduleTab({ projectId }) {
 
       {/* Preview table */}
       {(step === 'preview' || step === 'importing') && (
-        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
           <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
             <div>
-              <p className="text-sm font-bold text-slate-800">
+              <p className="text-sm font-semibold text-slate-800">
                 {fixtures.length} fixture type{fixtures.length !== 1 ? 's' : ''} found in &ldquo;{fileName}&rdquo;
               </p>
-              <p className="text-xs text-slate-400 mt-0.5">Adjust sections if needed, remove unwanted rows, then push to Budget Matrix</p>
+              <p className="text-xs text-slate-500 mt-0.5">Adjust sections if needed, remove unwanted rows, then push to Budget Matrix</p>
             </div>
             <div className="flex gap-2 shrink-0">
               <button onClick={reset}
-                className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs text-slate-600 hover:bg-slate-50 transition-colors">
+                className="px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50 transition-colors">
                 Try Another PDF
               </button>
               {fixtures.length > 0 && (
                 <button onClick={pushToBidMatrix} disabled={step === 'importing'}
-                  className="flex items-center gap-2 px-4 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold transition-colors disabled:opacity-60 shadow-sm">
+                  className="flex items-center gap-2 px-4 py-1.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold transition-colors disabled:opacity-60 shadow-sm">
                   {step === 'importing' ? (
-                    <><svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/></svg>Pushing…</>
+                    <><svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/></svg>Pushing...</>
                   ) : (
                     <>Push {fixtures.length} fixture{fixtures.length !== 1 ? 's' : ''} to Budget Matrix</>
                   )}
@@ -448,9 +448,9 @@ export default function FixtureScheduleTab({ projectId }) {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
                 </svg>
               </div>
-              {!warning && <p className="text-sm text-slate-400">No fixture types were found in this PDF.</p>}
+              {!warning && <p className="text-sm text-slate-500">No fixture types were found in this PDF.</p>}
               <button onClick={reset}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 transition-colors">
+                className="flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-300 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors">
                 Try a Different PDF
               </button>
             </div>
@@ -458,7 +458,7 @@ export default function FixtureScheduleTab({ projectId }) {
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
                 <thead className="bg-slate-50 border-b border-slate-200">
-                  <tr className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                  <tr className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
                     <th className="px-3 py-2 text-left w-16">Type</th>
                     <th className="px-3 py-2 text-left">Description</th>
                     <th className="px-3 py-2 text-left w-36">Manufacturer</th>
@@ -471,23 +471,23 @@ export default function FixtureScheduleTab({ projectId }) {
                 <tbody className="divide-y divide-slate-100">
                   {fixtures.map((f, idx) => (
                     <tr key={f._id} className={step === 'importing' ? 'opacity-50' : 'hover:bg-slate-50'}>
-                      <td className="px-3 py-2 font-bold text-slate-800">{f.typeCode || '—'}</td>
+                      <td className="px-3 py-2 font-bold text-slate-800">{f.typeCode || '-'}</td>
                       <td className="px-3 py-2 text-slate-600">
-                        <span title={f.description}>{f.description || '—'}</span>
+                        <span title={f.description}>{f.description || '-'}</span>
                       </td>
                       <td className="px-3 py-2 text-slate-500">
                         {f.manufacturer ? f.manufacturer : <span className="text-slate-300 italic">TBD</span>}
                       </td>
-                      <td className="px-3 py-2 font-mono text-[10px] text-slate-500 max-w-[11rem] truncate" title={f.catalogNumber}>
+                      <td className="px-3 py-2 font-mono text-[11px] text-slate-500 max-w-[11rem] truncate" title={f.catalogNumber}>
                         {f.catalogNumber || <span className="text-slate-300 not-italic font-sans">TBD</span>}
                       </td>
-                      <td className="px-3 py-2 text-right text-slate-500">
-                        {f.watts != null ? f.watts : <span className="text-slate-300">—</span>}
+                      <td className="px-3 py-2 text-right text-slate-500 tabular-nums">
+                        {f.watts != null ? f.watts : <span className="text-slate-400">-</span>}
                       </td>
                       <td className="px-3 py-2">
                         <select value={f.section} onChange={e => updateSection(idx, e.target.value)}
                           disabled={step === 'importing'}
-                          className="w-full text-xs border border-slate-200 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-400 bg-white">
+                          className="w-full text-xs border border-slate-300 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white">
                           {SECTION_OPTIONS.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
                         </select>
                       </td>

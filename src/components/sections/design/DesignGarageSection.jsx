@@ -68,7 +68,7 @@ export default function DesignGarageSection({
 
       {/* Scope */}
       <div className="bg-slate-50 rounded-xl border border-slate-200 p-4">
-        <div className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Garage Scope</div>
+        <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Garage Scope</div>
         <div className="grid grid-cols-2 gap-3 text-center max-w-xs">
           <div className="bg-white rounded-lg border border-slate-100 p-3">
             <div className="text-xl font-bold text-slate-900">
@@ -93,12 +93,12 @@ export default function DesignGarageSection({
       </div>
 
       {/* Footcandle info */}
-      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-800">
+      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-orange-700">
         <p className="font-semibold mb-1">IES Parking Structure Footcandle Standards</p>
         <ul className="space-y-0.5 text-xs text-blue-700 list-disc list-inside">
           <li>IES RP-20 minimum: 5 fc maintained at floor level</li>
           <li>Ramp transitions: 50 fc minimum (day-to-night adaptation)</li>
-          <li>Painting ceiling and walls white is the single highest-ROI upgrade — can cut fixture count by 25–30%</li>
+          <li>Painting ceiling and walls white is the single highest-ROI upgrade, can cut fixture count by 25–30%</li>
         </ul>
       </div>
 
@@ -108,8 +108,8 @@ export default function DesignGarageSection({
         note={`Standard eLuma-spec linear LED troffer vs. premium spec. ${garageSf > 0 ? `(${garageSf.toLocaleString()} SF)` : ''}`}
         costSuffix="/SF"
         options={[
-          { value: 'medium', label: 'Medium — Standard spec',  sub: `$${GARAGE_MED}/SF — eLuma linear LED or equivalent`, cost: GARAGE_MED },
-          { value: 'high',   label: 'High — Premium spec',     sub: `$${GARAGE_HIGH}/SF — Higher-end linear LED`, cost: GARAGE_HIGH },
+          { value: 'medium', label: 'Medium, Standard spec',  sub: `$${GARAGE_MED}/SF, eLuma linear LED or equivalent`, cost: GARAGE_MED },
+          { value: 'high',   label: 'High, Premium spec',     sub: `$${GARAGE_HIGH}/SF, Higher-end linear LED`, cost: GARAGE_HIGH },
         ]}
         value={ans.garageDesignLevel}
         onChange={v => set('garageDesignLevel', v)}
@@ -119,14 +119,14 @@ export default function DesignGarageSection({
       <QuestionCard
         question="Garage controls & emergency backup approach?"
         note={batteriesOnEmergency
-          ? 'Occupancy sensors dim fixtures when no motion is detected — required by most energy codes. With no building generator, the garage battery (every other fixture) is already priced on the Emergency step, so the battery choices below add only the sensor cost.'
-          : 'Occupancy sensors dim fixtures when no motion is detected — required by most energy codes. Integrated battery backup (every other fixture) provides code-compliant emergency egress lighting without separate frogeye fixtures.'}
+          ? 'Occupancy sensors dim fixtures when no motion is detected, required by most energy codes. With no building generator, the garage battery (every other fixture) is already priced on the Emergency step, so the battery choices below add only the sensor cost.'
+          : 'Occupancy sensors dim fixtures when no motion is detected, required by most energy codes. Integrated battery backup (every other fixture) provides code-compliant emergency egress lighting without separate frogeye fixtures.'}
         costSuffix="/SF adder"
         options={[
-          { value: 'none',             label: 'None — no added controls',                        sub: batteriesOnEmergency ? 'Manual switch only; garage battery still priced on the Emergency step' : 'Manual switch only; the building generator covers emergency egress', cost: 0 },
-          { value: 'occSensor',        label: 'Integrated occupancy sensors',                   sub: `+$${OCC}/SF — dims to 10% on vacancy; code compliant`,        cost: OCC },
-          { value: 'battery',          label: 'Integrated battery backup (every other fixture)', sub: batteriesOnEmergency ? '$0 here — the battery is priced on the Emergency step' : `+$${BATT}/SF — eliminates separate frogeye fixtures`, cost: BATT },
-          { value: 'batteryAndSensor', label: 'Battery + occupancy sensors',                    sub: batteriesOnEmergency ? `+$${BATT_OCC}/SF for the sensors — battery priced on the Emergency step (recommended)` : `+$${BATT_OCC}/SF — best all-in solution (recommended)`, cost: BATT_OCC },
+          { value: 'none',             label: 'None, no added controls',                        sub: batteriesOnEmergency ? 'Manual switch only; garage battery still priced on the Emergency step' : 'Manual switch only; the building generator covers emergency egress', cost: 0 },
+          { value: 'occSensor',        label: 'Integrated occupancy sensors',                   sub: `+$${OCC}/SF, dims to 10% on vacancy; code compliant`,        cost: OCC },
+          { value: 'battery',          label: 'Integrated battery backup (every other fixture)', sub: batteriesOnEmergency ? '$0 here, the battery is priced on the Emergency step' : `+$${BATT}/SF, eliminates separate frogeye fixtures`, cost: BATT },
+          { value: 'batteryAndSensor', label: 'Battery + occupancy sensors',                    sub: batteriesOnEmergency ? `+$${BATT_OCC}/SF for the sensors, battery priced on the Emergency step (recommended)` : `+$${BATT_OCC}/SF, best all-in solution (recommended)`, cost: BATT_OCC },
         ]}
         value={ans.garageControls}
         onChange={v => set('garageControls', v)}
@@ -138,14 +138,14 @@ export default function DesignGarageSection({
         <p className="text-xs text-amber-800">
           Painting the garage ceiling and structural concrete white (or light gray) is not
           a lighting line item but is the most cost-effective way to meet footcandle
-          requirements — worth flagging to the owner or GC.
+          requirements, worth flagging to the owner or GC.
         </p>
       </div>
 
       {/* Live cost */}
       {garageSf > 0 && (
         <div className="bg-slate-50 rounded-xl border border-slate-200 p-4">
-          <div className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-2">Live Estimate</div>
+          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Live Budget</div>
           <div className="text-sm space-y-1">
             <div className="flex justify-between text-slate-600">
               <span className="text-xs">Base ({garageSf.toLocaleString()} SF × ${baseRate}/SF)</span>

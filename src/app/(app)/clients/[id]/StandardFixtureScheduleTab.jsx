@@ -1,5 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
+import { CARD, CARD_TITLE, HELPER, BTN_COMPACT_PRIMARY, TH } from '@/components/ui/tokens';
+import { WidgetLoading } from '@/components/ui/WidgetFrame';
 
 // Client-level Standard Fixture Schedule — the typed list assembled after spec
 // approvals. Mirrors the project fixture schedule columns (minus SKU-locking: the
@@ -59,53 +61,53 @@ export default function StandardFixtureScheduleTab({ clientId, canEdit }) {
     await fetch(`/api/clients/${clientId}/standard-fixtures?rowId=${rowId}`, { method: 'DELETE' });
   }
 
-  if (loading) return <div className="p-6 text-sm text-slate-400">Loading fixture schedule…</div>;
+  if (loading) return <WidgetLoading>Loading fixture schedule...</WidgetLoading>;
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-sm font-semibold text-slate-800">Standard Fixture Schedule</h3>
-          <p className="text-xs text-slate-500">The client's blessed fixture types — assembled after spec approvals. Exact SKUs are picked per project.</p>
+          <h3 className={CARD_TITLE}>Standard Fixture Schedule</h3>
+          <p className={HELPER}>The client's blessed fixture types, assembled after spec approvals. Exact SKUs are picked per project.</p>
         </div>
-        {canEdit && <button onClick={addRow} className="px-3 py-1.5 rounded-lg bg-amber-500 text-white text-xs font-semibold hover:bg-amber-600">+ Fixture</button>}
+        {canEdit && <button onClick={addRow} className={BTN_COMPACT_PRIMARY}>+ Fixture</button>}
       </div>
 
       {rows.length === 0 ? (
-        <div className="bg-white border border-slate-200 rounded-2xl p-10 text-center text-sm text-slate-500">
+        <div className={`${CARD} p-10 text-center text-sm text-slate-500`}>
           No standard fixtures yet.{canEdit && <> Click <b>+ Fixture</b> to add the first row.</>}
         </div>
       ) : (
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-x-auto">
+        <div className={`${CARD} overflow-x-auto`}>
           <table className="text-xs min-w-full border-collapse">
             <thead>
-              <tr className="bg-slate-50 text-slate-500 text-left">
-                {COLS.map(c => <th key={c.key} className={`border border-slate-200 px-2 py-2 font-semibold ${c.w}`}>{c.label}</th>)}
+              <tr className="bg-slate-50">
+                {COLS.map(c => <th key={c.key} className={`${TH} border border-slate-200 ${c.w}`}>{c.label}</th>)}
                 {canEdit && <th className="border border-slate-200 px-2 py-2 w-10" />}
               </tr>
             </thead>
             <tbody>
               {rows.map(row => (
-                <tr key={row.id} className="align-top hover:bg-amber-50/30">
+                <tr key={row.id} className="align-top hover:bg-slate-50">
                   {COLS.map(c => (
                     <td key={c.key} className="border border-slate-200 p-0">
                       {c.key === 'location' ? (
                         <select defaultValue={row[c.key] || ''} disabled={!canEdit}
                           onChange={e => saveCell(row.id, c.key, e.target.value)}
-                          className="w-full bg-transparent focus:bg-amber-50 outline-none pl-2 pr-7 py-1.5 cursor-pointer">
+                          className="w-full bg-transparent focus:bg-orange-50 outline-none pl-2 pr-7 py-1.5 cursor-pointer">
                           {LOCATIONS.map(l => <option key={l} value={l}>{l || '—'}</option>)}
                         </select>
                       ) : (
                         <input defaultValue={row[c.key] ?? ''} disabled={!canEdit}
                           type={c.num ? 'number' : 'text'}
                           onBlur={e => { const v = e.target.value; if (String(row[c.key] ?? '') !== v) saveCell(row.id, c.key, v); }}
-                          className={`w-full bg-transparent focus:bg-amber-50 outline-none px-2 py-1.5 ${c.key === 'typeCode' ? 'font-semibold text-slate-800' : 'text-slate-600'}`} />
+                          className={`w-full bg-transparent focus:bg-orange-50 outline-none px-2 py-1.5 ${c.key === 'typeCode' ? 'font-semibold text-slate-800' : 'text-slate-600'}`} />
                       )}
                     </td>
                   ))}
                   {canEdit && (
                     <td className="border border-slate-200 px-2 py-1.5 text-center">
-                      <button onClick={() => delRow(row.id)} title="Remove" className="text-slate-300 hover:text-red-500">✕</button>
+                      <button onClick={() => delRow(row.id)} title="Remove" className="text-slate-400 hover:text-red-600">✕</button>
                     </td>
                   )}
                 </tr>

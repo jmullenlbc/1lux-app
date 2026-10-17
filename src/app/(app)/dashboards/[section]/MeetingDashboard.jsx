@@ -3,8 +3,9 @@ import { useState, useEffect, useCallback } from 'react';
 import { NEXT_ACTION_TYPES } from '@/lib/pipeline';
 import { SERVICE_TYPES } from '@/lib/utils';
 import { MEETING_LEVELS, cardLevel } from '@/lib/meeting/cards';
+import WidgetFrame, { WidgetEmpty, WidgetLoading } from '@/components/ui/WidgetFrame';
 
-// Weekly Sales Meeting — the run-of-show. Live queues you work down and edit in
+// Weekly Sales Meeting, the run-of-show. Live queues you work down and edit in
 // the meeting, so the pipeline maintains itself (no carried-forward doc).
 //
 // Maram runs this meeting, so it is a shared team screen: an admin sets the card
@@ -15,7 +16,7 @@ import { MEETING_LEVELS, cardLevel } from '@/lib/meeting/cards';
 const money = v => v ? `$${Math.round(v).toLocaleString()}` : '—';
 const fmtDate = d => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '';
 // An empty cell, in words rather than a dash (house rule: no dashes in copy).
-const blank = <span className="text-slate-300">none</span>;
+const blank = <span className="text-slate-500">none</span>;
 
 // `embedded`: rendered under the Sales dashboard tabs, which already pad the page.
 export default function MeetingDashboard({ embedded = false }) {
@@ -24,7 +25,7 @@ export default function MeetingDashboard({ embedded = false }) {
   const [loading, setLoad]  = useState(true);
   const [editing, setEdit]  = useState(false);
   const [saving, setSaving] = useState(false);
-  // Maram 9-17: two tabs — project-level cards and people-level cards.
+  // Maram 9-17: two tabs, project-level cards and people-level cards.
   const [tab, setTab]       = useState('project');
 
   // Load the layout first, then only the data the cards on screen actually need.
@@ -62,7 +63,7 @@ export default function MeetingDashboard({ embedded = false }) {
     load();
   }
 
-  if (loading) return <div className={`${embedded ? 'p-2' : 'p-8'} text-sm text-slate-400`}>Loading the meeting…</div>;
+  if (loading) return <div className={embedded ? 'p-2' : 'p-8'}><WidgetLoading>Loading the meeting...</WidgetLoading></div>;
 
   const users = data.salesUsers || [];
   const c = data.counts || {};
@@ -76,16 +77,16 @@ export default function MeetingDashboard({ embedded = false }) {
   return (
     <div className={embedded ? 'space-y-6' : 'p-6 space-y-6'}>
       <div>
-        {!embedded && <p className="text-[10px] font-bold text-orange-500 uppercase tracking-wider">Sales</p>}
+        {!embedded && <p className="text-[11px] font-bold text-orange-500 uppercase tracking-wide">Sales</p>}
         <div className="flex items-start justify-between gap-4">
           <div>
             <h1 className="text-xl font-bold text-slate-900">Weekly Meeting</h1>
             <p className="text-xs text-slate-500 mt-0.5">
-              Work each card top-to-bottom and update as you go — the pipeline stays current, no separate doc.
+              Work each card top-to-bottom and update as you go, the pipeline stays current, no separate doc.
             </p>
           </div>
           <button onClick={() => setEdit(v => !v)}
-            className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:border-amber-400 hover:text-amber-600 whitespace-nowrap">
+            className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 hover:border-amber-400 hover:text-orange-600 whitespace-nowrap">
             {editing ? 'Done' : 'Choose cards'}
           </button>
         </div>
@@ -108,14 +109,14 @@ export default function MeetingDashboard({ embedded = false }) {
           <button key={l.key} type="button" onClick={() => setTab(l.key)} title={l.hint}
             className={`px-4 py-2 text-sm font-semibold border-b-2 -mb-px transition-colors ${
               tab === l.key ? 'border-orange-500 text-orange-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>
-            {l.label} <span className="ml-1 text-[11px] font-normal text-slate-400">{countOn(l.key)}</span>
+            {l.label} <span className="ml-1 text-[11px] font-normal text-slate-500">{countOn(l.key)}</span>
           </button>
         ))}
       </div>
 
-      {cards.length === 0 && <Empty>No cards on the screen. Hit “Choose cards”.</Empty>}
+      {cards.length === 0 && <WidgetEmpty>No cards on the screen. Hit “Choose cards”.</WidgetEmpty>}
       {cards.length > 0 && shown.length === 0 && (
-        <Empty>No {tab === 'people' ? 'people' : 'project'}-level cards are switched on. Hit “Choose cards” to add some.</Empty>
+        <WidgetEmpty>No {tab === 'people' ? 'people' : 'project'}-level cards are switched on. Hit “Choose cards” to add some.</WidgetEmpty>
       )}
 
       {shown.map(key => (
@@ -130,7 +131,7 @@ export default function MeetingDashboard({ embedded = false }) {
 // ── Which table a card renders ────────────────────────────────────────────────
 function CardBody({ cardKey, data, users, patch }) {
   const rows = data[cardKey] || [];
-  if (rows.length === 0) return <Empty>{EMPTY_LINE[cardKey] || 'Nothing here this week.'}</Empty>;
+  if (rows.length === 0) return <WidgetEmpty>{EMPTY_LINE[cardKey] || 'Nothing here this week.'}</WidgetEmpty>;
 
   switch (cardKey) {
     case 'awaitingSignature':
@@ -143,7 +144,7 @@ function CardBody({ cardKey, data, users, patch }) {
               <Td><Waiting days={d.daysWaiting} /></Td>
               <Td><NextAction d={d} users={users} onSave={patch} /></Td>
               <Td><button onClick={() => patch(d.id, { proposalSentDate: null, designStatus: 'WON', procurementStage: 'PRECONSTRUCTION' })}
-                className="text-[11px] font-semibold text-emerald-600 hover:text-emerald-700 whitespace-nowrap">Signed ✓</button></Td>
+                className="text-[11px] font-semibold text-green-600 hover:text-green-700 whitespace-nowrap">Signed ✓</button></Td>
             </Row>
           ))}
         </Table>
@@ -157,7 +158,7 @@ function CardBody({ cardKey, data, users, patch }) {
               <DealCell d={d} /><Td className="text-slate-500">{d.client || blank}</Td>
               <Td colSpan={3} className="p-0"><NextAction d={d} users={users} onSave={patch} inline /></Td>
               <Td><button onClick={() => patch(d.id, { nextActionType: null, nextActionOwnerId: null, nextActionDueDate: null })}
-                className="text-[11px] font-semibold text-slate-400 hover:text-emerald-600 whitespace-nowrap">Done ✓</button></Td>
+                className="text-[11px] font-semibold text-slate-500 hover:text-green-600 whitespace-nowrap">Done ✓</button></Td>
             </Row>
           ))}
         </Table>
@@ -247,7 +248,7 @@ function CardBody({ cardKey, data, users, patch }) {
               <Owner d={d} /><Td className="text-slate-600">{money(d.value)}</Td>
               <Td><Outcome s={d.procurementStatus} /></Td>
               <Td><Outcome s={d.designStatus} /></Td>
-              <Td className="text-slate-600 max-w-xs">{d.reason || <span className="text-slate-300">no reason recorded</span>}</Td>
+              <Td className="text-slate-600 max-w-xs">{d.reason || <span className="text-slate-500">no reason recorded</span>}</Td>
             </Row>
           ))}
         </Table>
@@ -261,7 +262,7 @@ function CardBody({ cardKey, data, users, patch }) {
               <DealCell d={d} /><Td className="text-slate-500">{d.client || blank}</Td>
               <Owner d={d} /><Td className="text-slate-600">{d.flagNote || blank}</Td>
               <Td><button onClick={() => patch(d.id, { flagged: false })}
-                className="text-[11px] font-semibold text-slate-400 hover:text-emerald-600 whitespace-nowrap">Clear ✓</button></Td>
+                className="text-[11px] font-semibold text-slate-500 hover:text-green-600 whitespace-nowrap">Clear ✓</button></Td>
             </Row>
           ))}
         </Table>
@@ -272,9 +273,9 @@ function CardBody({ cardKey, data, users, patch }) {
         <Table cols={['Project asked for', 'From', 'Building type', 'Waiting', '']}>
           {rows.map(d => (
             <Row key={d.id}>
-              <Td><a href={`/admin/submissions`} className="font-semibold text-slate-800 hover:text-amber-600">{d.name}</a>
-                {d.possibleDuplicate && <span className="ml-1.5 text-[10px] font-semibold text-amber-600">possible duplicate</span>}</Td>
-              <Td className="text-slate-500">{d.from}<span className="block text-slate-400">{d.email}</span></Td>
+              <Td><a href={`/admin/submissions`} className="font-semibold text-slate-800 hover:text-orange-600">{d.name}</a>
+                {d.possibleDuplicate && <span className="ml-1.5 text-[11px] font-semibold text-amber-600">possible duplicate</span>}</Td>
+              <Td className="text-slate-500">{d.from}<span className="block text-slate-500">{d.email}</span></Td>
               <Td className="text-slate-500">{d.buildingType || blank}</Td>
               <Td><Waiting days={d.daysWaiting} /></Td>
               <Td><a href="/admin/submissions" className="text-[11px] font-semibold text-amber-600 hover:text-amber-700">Review →</a></Td>
@@ -288,13 +289,13 @@ function CardBody({ cardKey, data, users, patch }) {
         <Table cols={['Person', 'Company', 'Tier', 'Last contact', 'Silent for', 'Their limit']}>
           {rows.map(d => (
             <Row key={d.id}>
-              <Td><a href={`/crm/contacts`} className="font-semibold text-slate-800 hover:text-amber-600">{d.name}</a>
-                {d.title && <span className="block text-slate-400">{d.title}</span>}</Td>
+              <Td><a href={`/crm/contacts`} className="font-semibold text-slate-800 hover:text-orange-600">{d.name}</a>
+                {d.title && <span className="block text-slate-500">{d.title}</span>}</Td>
               <Td className="text-slate-500">{d.company || blank}</Td>
               <Td className="text-slate-500">{d.tier ? d.tier.replace(/_/g, ' ').toLowerCase() : '—'}</Td>
               <Td className="text-slate-500">{fmtDate(d.lastAt)}</Td>
               <Td><Waiting days={d.silentFor} /></Td>
-              <Td className="text-slate-400">{d.limit}d</Td>
+              <Td className="text-slate-500">{d.limit}d</Td>
             </Row>
           ))}
         </Table>
@@ -322,7 +323,7 @@ function CardBody({ cardKey, data, users, patch }) {
           {rows.map(d => (
             <Row key={d.id}>
               <Td><span className="font-semibold text-slate-800">{d.person || d.what}</span>
-                {d.person && d.what && <span className="block text-slate-400 max-w-xs truncate">{d.what}</span>}</Td>
+                {d.person && d.what && <span className="block text-slate-500 max-w-xs truncate">{d.what}</span>}</Td>
               <Td className="text-slate-500">{d.askedOf || blank}</Td>
               <Td className="text-slate-500">{d.client || blank}</Td>
               <Td className="text-slate-500">{d.askedBy || blank}</Td>
@@ -340,11 +341,11 @@ function CardBody({ cardKey, data, users, patch }) {
             <Row key={d.id}>
               <DealCell d={d} /><Td className="text-slate-500">{d.client || blank}</Td>
               <Td className="text-slate-500">{SERVICE_TYPE_LABEL[d.serviceType] || d.serviceType || blank}</Td>
-              <Td>{d.fromWeb ? <Chip tone="amber">web budget</Chip> : <span className="text-slate-400">entered by hand</span>}</Td>
+              <Td>{d.fromWeb ? <Chip tone="amber">web budget</Chip> : <span className="text-slate-500">entered by hand</span>}</Td>
               <Td><Waiting days={d.daysUnowned} /></Td>
               <Td>
                 <select value="" onChange={e => e.target.value && patch(d.id, { salesOwnerId: e.target.value })}
-                  className="text-xs bg-transparent border border-slate-200 rounded px-1.5 py-1 outline-none focus:border-amber-400 text-slate-400">
+                  className="text-xs bg-transparent border border-slate-200 rounded px-1.5 py-1 outline-none focus:border-orange-500 text-slate-500">
                   <option value="">assign…</option>
                   {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
                 </select>
@@ -362,8 +363,8 @@ function CardBody({ cardKey, data, users, patch }) {
             return (
               <Row key={d.id} className={sameClient ? 'border-t-0' : ''}>
                 <Td className={sameClient ? 'text-transparent' : 'font-semibold text-slate-700'}>{d.client || 'No client'}</Td>
-                <Td className="text-slate-600 max-w-sm">{d.what}<span className="block text-slate-400">{d.typeLabel}</span></Td>
-                <Td>{d.projectId ? <a href={`/project/${d.projectId}`} className="text-slate-600 hover:text-amber-600">{d.name}</a> : <span className="text-slate-300">none</span>}</Td>
+                <Td className="text-slate-600 max-w-sm">{d.what}<span className="block text-slate-500">{d.typeLabel}</span></Td>
+                <Td>{d.projectId ? <a href={`/project/${d.projectId}`} className="text-slate-600 hover:text-orange-600">{d.name}</a> : <span className="text-slate-500">none</span>}</Td>
                 <Owner d={d} />
                 <Td><Waiting days={d.daysOpen} /></Td>
                 <Td className={d.overdue ? 'text-red-600 font-semibold' : 'text-slate-500'}>{fmtDate(d.dueDate) || blank}</Td>
@@ -378,11 +379,11 @@ function CardBody({ cardKey, data, users, patch }) {
         <Table cols={['What', 'When', 'Project', 'Client', 'Owner']}>
           {rows.map(d => (
             <Row key={`${d.kind}-${d.id}`} className={d.overdue ? 'bg-red-50/40' : ''}>
-              <Td className="text-slate-700">{d.what}{d.kind === 'step' && <span className="block text-slate-400">{d.typeLabel}</span>}</Td>
+              <Td className="text-slate-700">{d.what}{d.kind === 'step' && <span className="block text-slate-500">{d.typeLabel}</span>}</Td>
               <Td className={`font-semibold ${d.overdue ? 'text-red-600' : 'text-slate-700'}`}>{fmtDate(d.when)}</Td>
               <Td>{(d.projectId || d.kind === 'contract')
-                ? <a href={`/project/${d.projectId || d.id}`} className="font-semibold text-slate-800 hover:text-amber-600">{d.name}</a>
-                : <span className="text-slate-300">none</span>}</Td>
+                ? <a href={`/project/${d.projectId || d.id}`} className="font-semibold text-slate-800 hover:text-orange-600">{d.name}</a>
+                : <span className="text-slate-500">none</span>}</Td>
               <Td className="text-slate-500">{d.client || blank}</Td>
               <Owner d={d} />
             </Row>
@@ -396,26 +397,26 @@ function CardBody({ cardKey, data, users, patch }) {
           {rows.map(d => (
             <Row key={`${d.kind}-${d.id}`}>
               {d.kind === 'step'
-                ? <Td>{d.projectId ? <a href={`/project/${d.projectId}`} className="font-semibold text-slate-800 hover:text-amber-600">{d.name}</a> : <span className="font-semibold text-slate-800">{d.name}</span>}</Td>
+                ? <Td>{d.projectId ? <a href={`/project/${d.projectId}`} className="font-semibold text-slate-800 hover:text-orange-600">{d.name}</a> : <span className="font-semibold text-slate-800">{d.name}</span>}</Td>
                 : <DealCell d={d} />}
               <Td className="text-slate-500">{d.client || blank}</Td>
               <Owner d={d} />
               <Td className="text-slate-600 max-w-sm">
                 <Chip tone={d.kind === 'flagged' ? 'red' : 'amber'}>{d.kind === 'flagged' ? 'flagged' : 'waiting'}</Chip>
-                <span className="ml-2">{d.reason || <span className="text-slate-300">no reason recorded</span>}</span>
+                <span className="ml-2">{d.reason || <span className="text-slate-500">no reason recorded</span>}</span>
               </Td>
               <Td className="text-slate-500">{fmtDate(d.since)}</Td>
               <Td>{d.kind === 'flagged' && <button onClick={() => patch(d.id, { flagged: false })}
-                className="text-[11px] font-semibold text-slate-400 hover:text-emerald-600 whitespace-nowrap">Clear ✓</button>}
+                className="text-[11px] font-semibold text-slate-500 hover:text-green-600 whitespace-nowrap">Clear ✓</button>}
                 {d.kind === 'waiting' && <button onClick={() => patch(d.id, { nextActionType: null, nextActionOwnerId: null, nextActionDueDate: null })}
-                  className="text-[11px] font-semibold text-slate-400 hover:text-emerald-600 whitespace-nowrap">Unblocked ✓</button>}</Td>
+                  className="text-[11px] font-semibold text-slate-500 hover:text-green-600 whitespace-nowrap">Unblocked ✓</button>}</Td>
             </Row>
           ))}
         </Table>
       );
 
     default:
-      return <Empty>This card has nothing to show yet.</Empty>;
+      return <WidgetEmpty>This card has nothing to show yet.</WidgetEmpty>;
   }
 }
 
@@ -460,7 +461,7 @@ function CardPicker({ layout, saving, onSave, onReset }) {
   const notYet    = layout.catalog.filter(c => c.needs);
 
   return (
-    <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-4">
+    <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-5 space-y-4">
       <div>
         <h3 className="text-sm font-bold text-slate-800">On the screen, in this order</h3>
         <ul className="mt-2 space-y-1">
@@ -470,14 +471,14 @@ function CardPicker({ layout, saving, onSave, onReset }) {
               <li key={k} className="flex items-center gap-2 bg-white border border-slate-200 rounded-lg px-3 py-1.5">
                 <span className="flex-1 text-xs font-semibold text-slate-700">{card.title}</span>
                 <button onClick={() => move(i, -1)} disabled={i === 0}
-                  className="text-slate-400 hover:text-slate-700 disabled:opacity-25 text-xs px-1">↑</button>
+                  className="text-slate-500 hover:text-slate-700 disabled:opacity-25 text-xs px-1">↑</button>
                 <button onClick={() => move(i, 1)} disabled={i === picked.length - 1}
-                  className="text-slate-400 hover:text-slate-700 disabled:opacity-25 text-xs px-1">↓</button>
-                <button onClick={() => toggle(k)} className="text-[11px] font-semibold text-slate-400 hover:text-red-600 px-1">remove</button>
+                  className="text-slate-500 hover:text-slate-700 disabled:opacity-25 text-xs px-1">↓</button>
+                <button onClick={() => toggle(k)} className="text-[11px] font-semibold text-slate-500 hover:text-red-600 px-1">remove</button>
               </li>
             );
           })}
-          {picked.length === 0 && <li className="text-xs text-slate-400 py-2">Nothing chosen yet.</li>}
+          {picked.length === 0 && <li className="text-xs text-slate-500 py-2">Nothing chosen yet.</li>}
         </ul>
       </div>
 
@@ -487,7 +488,7 @@ function CardPicker({ layout, saving, onSave, onReset }) {
           <div className="flex flex-wrap gap-1.5 mt-2">
             {available.map(c => (
               <button key={c.key} onClick={() => toggle(c.key)} title={c.subtitle}
-                className="text-xs px-2.5 py-1 rounded-full bg-white border border-slate-200 text-slate-600 hover:border-amber-400 hover:text-amber-600">
+                className="text-xs px-2.5 py-1 rounded-lg bg-white border border-slate-300 text-slate-700 hover:border-orange-400 hover:text-orange-600">
                 + {c.title}
               </button>
             ))}
@@ -500,8 +501,8 @@ function CardPicker({ layout, saving, onSave, onReset }) {
           <h3 className="text-sm font-bold text-slate-500">Not built yet</h3>
           <ul className="mt-2 space-y-1">
             {notYet.map(c => (
-              <li key={c.key} className="text-[11px] text-slate-400">
-                <span className="font-semibold text-slate-500">{c.title}</span> — needs {c.needs}
+              <li key={c.key} className="text-[11px] text-slate-500">
+                <span className="font-semibold text-slate-500">{c.title}</span>, needs {c.needs}
               </li>
             ))}
           </ul>
@@ -515,7 +516,7 @@ function CardPicker({ layout, saving, onSave, onReset }) {
         </button>
         {layout.canEditShared && (
           <button onClick={() => onSave(picked, 'shared')} disabled={saving}
-            className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-50">
+            className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-orange-500 text-white hover:bg-orange-600 disabled:opacity-50">
             Save for everyone
           </button>
         )}
@@ -525,7 +526,7 @@ function CardPicker({ layout, saving, onSave, onReset }) {
             Use the team’s set
           </button>
         )}
-        {saving && <span className="text-xs text-slate-400">Saving…</span>}
+        {saving && <span className="text-xs text-slate-500">Saving…</span>}
       </div>
     </div>
   );
@@ -534,16 +535,16 @@ function CardPicker({ layout, saving, onSave, onReset }) {
 // ── Inline next-action editor (discrete: type + owner + due) ───────────────────
 function NextAction({ d, users, onSave, inline }) {
   const set = (patch) => onSave(d.id, patch);
-  const sel = 'text-xs bg-transparent border border-slate-200 rounded px-1.5 py-1 outline-none focus:border-amber-400';
+  const sel = 'text-xs bg-transparent border border-slate-200 rounded px-1.5 py-1 outline-none focus:border-orange-500';
   return (
     <div className={`flex ${inline ? 'gap-3' : 'gap-1.5 flex-wrap'} items-center`}>
-      <select value={d.nextActionType || ''} onChange={e => set({ nextActionType: e.target.value })} className={`${sel} ${d.nextActionType ? 'font-semibold text-slate-700' : 'text-slate-400'}`}>
+      <select value={d.nextActionType || ''} onChange={e => set({ nextActionType: e.target.value })} className={`${sel} ${d.nextActionType ? 'font-semibold text-slate-700' : 'text-slate-500'}`}>
         <option value="">+ action…</option>
         {NEXT_ACTION_TYPES.map(a => <option key={a.key} value={a.key}>{a.label}</option>)}
       </select>
       {d.nextActionType && (
         <>
-          <select value={d.nextActionOwnerId || ''} onChange={e => set({ nextActionOwnerId: e.target.value })} className={`${sel} ${d.nextActionOwnerId ? 'text-slate-700' : 'text-slate-400'}`}>
+          <select value={d.nextActionOwnerId || ''} onChange={e => set({ nextActionOwnerId: e.target.value })} className={`${sel} ${d.nextActionOwnerId ? 'text-slate-700' : 'text-slate-500'}`}>
             <option value="">owner…</option>
             {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
           </select>
@@ -558,21 +559,13 @@ function NextAction({ d, users, onSave, inline }) {
 
 // ── little presentational helpers ─────────────────────────────────────────────
 function Section({ title, subtitle, children }) {
-  return (
-    <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-      <div className="px-4 py-3 border-b border-slate-100">
-        <h2 className="text-sm font-bold text-slate-800">{title}</h2>
-        <p className="text-[11px] text-slate-500">{subtitle}</p>
-      </div>
-      <div className="p-3">{children}</div>
-    </div>
-  );
+  return <WidgetFrame title={title} sub={subtitle}>{children}</WidgetFrame>;
 }
 function Table({ cols, children }) {
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-xs">
-        <thead><tr className="text-slate-400 text-left">{cols.map((c, i) => <th key={i} className="px-2 py-1.5 font-semibold">{c}</th>)}</tr></thead>
+        <thead><tr className="text-left">{cols.map((c, i) => <th key={i} className="px-2 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">{c}</th>)}</tr></thead>
         <tbody>{children}</tbody>
       </table>
     </div>
@@ -580,7 +573,6 @@ function Table({ cols, children }) {
 }
 function Row({ children, className = '' }) { return <tr className={`border-t border-slate-100 align-top ${className}`}>{children}</tr>; }
 function Td({ children, className = '', ...rest }) { return <td className={`px-2 py-2 ${className}`} {...rest}>{children}</td>; }
-function Empty({ children }) { return <p className="text-xs text-slate-400 text-center py-6">{children}</p>; }
 function Chip({ children, tone = 'default' }) {
   const cls = { amber: 'bg-amber-50 text-amber-700', red: 'bg-red-50 text-red-600', slate: 'bg-slate-100 text-slate-500' }[tone]
     || 'bg-slate-100 text-slate-600';
@@ -588,23 +580,23 @@ function Chip({ children, tone = 'default' }) {
 }
 function DealCell({ d }) {
   return <Td>{d.id
-    ? <a href={`/project/${d.id}`} className="font-semibold text-slate-800 hover:text-amber-600">{d.name}</a>
+    ? <a href={`/project/${d.id}`} className="font-semibold text-slate-800 hover:text-orange-600">{d.name}</a>
     : <span className="font-semibold text-slate-800">{d.name}</span>}</Td>;
 }
 function Owner({ d }) {
-  return <Td className={d.salesOwnerName ? 'text-slate-600 font-medium' : 'text-slate-300'}>
+  return <Td className={d.salesOwnerName ? 'text-slate-600 font-medium' : 'text-slate-500'}>
     {d.salesOwnerName || 'unassigned'}
   </Td>;
 }
 function Outcome({ s }) {
-  if (!s || s === 'OPEN') return <span className="text-slate-300">open</span>;
-  const cls = s === 'WON' ? 'bg-emerald-50 text-emerald-700'
+  if (!s || s === 'OPEN') return <span className="text-slate-500">open</span>;
+  const cls = s === 'WON' ? 'bg-green-50 text-green-700'
     : s === 'LOST' ? 'bg-red-50 text-red-600'
       : 'bg-slate-100 text-slate-500';
   return <span className={`px-1.5 py-0.5 rounded text-[11px] font-semibold ${cls}`}>{s.toLowerCase()}</span>;
 }
 function Waiting({ days }) {
-  if (days == null) return <span className="text-slate-400">—</span>;
+  if (days == null) return <span className="text-slate-500">—</span>;
   const cls = days >= 14 ? 'bg-red-50 text-red-600' : days >= 7 ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-500';
   return <span className={`px-1.5 py-0.5 rounded font-semibold ${cls}`}>{days}d</span>;
 }

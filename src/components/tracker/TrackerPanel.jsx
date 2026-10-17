@@ -8,12 +8,12 @@ const CATEGORY_META = {
   MODEL:        { bg: 'bg-purple-50 text-purple-700 border-purple-200',   label: 'Model' },
   ACCESSORY:    { bg: 'bg-blue-50 text-blue-700 border-blue-200',         label: 'Accessory' },
   VOLTAGE:      { bg: 'bg-red-50 text-red-700 border-red-200',            label: 'Voltage' },
-  LUMEN:        { bg: 'bg-yellow-50 text-yellow-700 border-yellow-200',   label: 'Lumen' },
+  LUMEN:        { bg: 'bg-amber-50 text-amber-700 border-amber-200',   label: 'Lumen' },
   WET_LOCATION: { bg: 'bg-cyan-50 text-cyan-700 border-cyan-200',         label: 'Wet Location' },
   DRAWING_SYNC: { bg: 'bg-indigo-50 text-indigo-700 border-indigo-200',   label: 'Drawing Sync' },
   DISCONTINUED: { bg: 'bg-slate-100 text-slate-600 border-slate-300',     label: 'Discontinued' },
   LED_TAPE:     { bg: 'bg-pink-50 text-pink-700 border-pink-200',         label: 'LED Tape' },
-  CODE:         { bg: 'bg-rose-50 text-rose-700 border-rose-200',         label: 'Code' },
+  CODE:         { bg: 'bg-red-50 text-red-700 border-red-200',         label: 'Code' },
   CRI:          { bg: 'bg-teal-50 text-teal-700 border-teal-200',         label: 'CRI' },
 };
 
@@ -22,13 +22,13 @@ function CategoryBadge({ category }) {
   const meta = CATEGORY_META[category];
   if (!meta) return null;
   return (
-    <span className={`inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded border ${meta.bg}`}>
+    <span className={`inline-flex items-center text-[11px] font-semibold px-1.5 py-0.5 rounded border ${meta.bg}`}>
       {meta.label}
     </span>
   );
 }
 
-// ILC Response block — shows draft, allows editing + approving
+// ILC Response block, shows draft, allows editing + approving
 function ResponseBlock({ review, projectId }) {
   const [resp,      setResp]      = useState(review.response || null);
   const [editing,   setEditing]   = useState(false);
@@ -96,11 +96,11 @@ function ResponseBlock({ review, projectId }) {
   if (!resp) {
     return (
       <div className="mt-2">
-        {err && <p className="text-[10px] text-red-500 mb-1">{err}</p>}
+        {err && <p className="text-[11px] text-red-500 mb-1">{err}</p>}
         <button
           onClick={generate}
           disabled={generating}
-          className="flex items-center gap-1 text-[10px] font-semibold text-amber-600 hover:text-amber-700 transition-colors disabled:opacity-50"
+          className="flex items-center gap-1 text-[11px] font-semibold text-orange-600 hover:text-orange-700 transition-colors disabled:opacity-50"
         >
           {generating ? (
             <>
@@ -128,24 +128,24 @@ function ResponseBlock({ review, projectId }) {
   return (
     <div className={`mt-2 rounded-lg border px-2.5 py-2 ${isApproved ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'}`}>
       <div className="flex items-center justify-between mb-1">
-        <span className={`text-[10px] font-bold uppercase tracking-wide ${isApproved ? 'text-green-700' : 'text-amber-700'}`}>
+        <span className={`text-[11px] font-bold uppercase tracking-wide ${isApproved ? 'text-green-700' : 'text-amber-700'}`}>
           {isApproved ? '✓ ILC Response' : 'Draft ILC Response'}
         </span>
         <div className="flex items-center gap-2">
           {!editing && !isApproved && (
             <>
               <button onClick={() => { setEditBody(resp.body); setEditing(true); }}
-                className="text-[10px] text-slate-400 hover:text-slate-600 transition-colors">Edit</button>
+                className="text-[11px] text-slate-500 hover:text-slate-600 transition-colors">Edit</button>
               <button onClick={approve}
-                className="text-[10px] font-semibold text-green-700 hover:text-green-800 transition-colors">Approve</button>
+                className="text-[11px] font-semibold text-green-700 hover:text-green-800 transition-colors">Approve</button>
             </>
           )}
           {isApproved && (
             <button onClick={unapprove}
-              className="text-[10px] text-slate-400 hover:text-slate-600 transition-colors">Revert to draft</button>
+              className="text-[11px] text-slate-500 hover:text-slate-600 transition-colors">Revert to draft</button>
           )}
           <button onClick={generate} disabled={generating}
-            className="text-[10px] text-slate-300 hover:text-amber-600 transition-colors disabled:opacity-50"
+            className="text-[11px] text-slate-500 hover:text-orange-600 transition-colors disabled:opacity-50"
             title="Regenerate with AI">
             {generating ? '…' : '↺'}
           </button>
@@ -158,15 +158,15 @@ function ResponseBlock({ review, projectId }) {
             value={editBody}
             onChange={e => setEditBody(e.target.value)}
             rows={3}
-            className="w-full text-[11px] text-slate-700 border border-amber-300 rounded px-2 py-1 bg-white outline-none resize-none focus:border-amber-400"
+            className="w-full text-[11px] text-slate-700 border border-amber-300 rounded px-2 py-1 bg-white outline-none resize-none focus:border-orange-500"
           />
           <div className="flex gap-2 mt-1">
             <button onClick={saveEdit} disabled={saving}
-              className="text-[10px] font-semibold text-amber-700 hover:text-amber-800 disabled:opacity-50">
+              className="text-[11px] font-semibold text-amber-700 hover:text-amber-800 disabled:opacity-50">
               {saving ? 'Saving…' : 'Save'}
             </button>
             <button onClick={() => setEditing(false)}
-              className="text-[10px] text-slate-400 hover:text-slate-600">Cancel</button>
+              className="text-[11px] text-slate-500 hover:text-slate-600">Cancel</button>
           </div>
         </div>
       ) : (
@@ -174,7 +174,7 @@ function ResponseBlock({ review, projectId }) {
           {resp.body}
         </p>
       )}
-      {err && <p className="text-[10px] text-red-500 mt-1">{err}</p>}
+      {err && <p className="text-[11px] text-red-500 mt-1">{err}</p>}
     </div>
   );
 }
@@ -195,7 +195,7 @@ const STATUS_OPTIONS = [
 function StatusPill({ status }) {
   const m = statusMeta(status);
   return (
-    <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-semibold ${m.color}`}>
+    <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-xs font-semibold ${m.color}`}>
       <span className={`w-1.5 h-1.5 rounded-full ${m.dot}`} />
       {m.label}
     </span>
@@ -220,43 +220,43 @@ function AddReviewForm({ versionId, roles, onAdd, onCancel }) {
   }
 
   return (
-    <form onSubmit={submit} className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-2.5 mt-2">
+    <form onSubmit={submit} className="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-2.5 mt-2">
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide block mb-1">Reviewer</label>
+          <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide block mb-1">Reviewer</label>
           <select value={role} onChange={e => setRole(e.target.value)}
-            className="w-full text-sm border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-amber-400 bg-white">
+            className="w-full text-sm border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-orange-500 bg-white">
             {roles.map(r => <option key={r} value={r}>{ROLE_LABELS[r] || r}</option>)}
           </select>
         </div>
         <div>
-          <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide block mb-1">Status</label>
+          <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide block mb-1">Status</label>
           <select value={status} onChange={e => setStatus(e.target.value)}
-            className="w-full text-sm border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-amber-400 bg-white">
+            className="w-full text-sm border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-orange-500 bg-white">
             {STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
         </div>
       </div>
       <div className="grid grid-cols-2 gap-2">
         <div>
-          <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide block mb-1">Name (optional)</label>
+          <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide block mb-1">Name (optional)</label>
           <input value={name} onChange={e => setName(e.target.value)} placeholder="Reviewer name"
-            className="w-full text-sm border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-amber-400" />
+            className="w-full text-sm border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-orange-500" />
         </div>
         <div>
-          <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide block mb-1">Date</label>
+          <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide block mb-1">Date</label>
           <input type="date" value={date} onChange={e => setDate(e.target.value)}
-            className="w-full text-sm border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-amber-400" />
+            className="w-full text-sm border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-orange-500" />
         </div>
       </div>
       <div>
-        <label className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide block mb-1">Notes</label>
+        <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide block mb-1">Notes</label>
         <textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2}
           placeholder="Comments, conditions, questions…"
-          className="w-full text-sm border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-amber-400 resize-none" />
+          className="w-full text-sm border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-orange-500 resize-none" />
       </div>
       <div className="flex items-center justify-end gap-2">
-        <button type="button" onClick={onCancel} className="text-xs text-slate-400 hover:text-slate-600">Cancel</button>
+        <button type="button" onClick={onCancel} className="text-xs text-slate-500 hover:text-slate-600">Cancel</button>
         <button type="submit" disabled={saving}
           className="px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white transition-colors disabled:opacity-60">
           {saving ? 'Saving…' : 'Add Review'}
@@ -302,7 +302,7 @@ export default function TrackerPanel({ item, submissions, roles, projectId, onCl
             <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{item.description}</p>
           )}
           {item.location && (
-            <p className="text-[10px] text-slate-300 uppercase tracking-wide mt-1">{item.location}</p>
+            <p className="text-[11px] text-slate-500 uppercase tracking-wide mt-1">{item.location}</p>
           )}
         </div>
         <button onClick={onClose}
@@ -313,12 +313,12 @@ export default function TrackerPanel({ item, submissions, roles, projectId, onCl
         </button>
       </div>
 
-      {/* Submission history — scrollable */}
+      {/* Submission history, scrollable */}
       <div className="flex-1 overflow-y-auto">
         {allVersions.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-center px-6">
-            <p className="text-sm text-slate-400">No submissions yet</p>
-            <p className="text-xs text-slate-300 mt-1">Create a submission to start tracking reviews</p>
+            <p className="text-sm text-slate-500">No submissions yet</p>
+            <p className="text-xs text-slate-500 mt-1">Create a submission to start tracking reviews</p>
           </div>
         ) : (
           <div className="divide-y divide-slate-100">
@@ -336,15 +336,15 @@ export default function TrackerPanel({ item, submissions, roles, projectId, onCl
                         {ver.submission?.name || 'Submission'}
                       </span>
                       {ver.submission?.submittedDate && (
-                        <span className="text-xs text-slate-400">· {fmtDate(ver.submission.submittedDate)}</span>
+                        <span className="text-xs text-slate-500">· {fmtDate(ver.submission.submittedDate)}</span>
                       )}
                       {isLatest && (
-                        <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-green-100 text-green-600">
+                        <span className="px-1.5 py-0.5 rounded text-[11px] font-semibold bg-green-100 text-green-600">
                           Latest
                         </span>
                       )}
                       {changed && (
-                        <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-orange-100 text-orange-600">
+                        <span className="px-1.5 py-0.5 rounded text-[11px] font-semibold bg-orange-100 text-orange-600">
                           ⚠ Spec changed
                         </span>
                       )}
@@ -352,7 +352,7 @@ export default function TrackerPanel({ item, submissions, roles, projectId, onCl
                     {(ver.manufacturer || ver.modelNumber) && (
                       <p className="text-xs text-slate-500 mt-1">
                         <span className="font-medium">{ver.manufacturer}</span>
-                        {ver.modelNumber && <span className="text-slate-400"> · {ver.modelNumber}</span>}
+                        {ver.modelNumber && <span className="text-slate-500"> · {ver.modelNumber}</span>}
                       </p>
                     )}
                   </div>
@@ -372,13 +372,13 @@ export default function TrackerPanel({ item, submissions, roles, projectId, onCl
                                     {ROLE_LABELS[rev.reviewerRole] || rev.reviewerRole}
                                   </span>
                                   {rev.reviewerName && (
-                                    <span className="text-xs text-slate-400">· {rev.reviewerName}</span>
+                                    <span className="text-xs text-slate-500">· {rev.reviewerName}</span>
                                   )}
                                   {rev.dateNoted && (
                                     <span className="text-xs text-slate-300">· {fmtDate(rev.dateNoted)}</span>
                                   )}
                                   {rev.pageNumber && (
-                                    <span className="text-[10px] text-slate-300">p.{rev.pageNumber}</span>
+                                    <span className="text-[11px] text-slate-500">p.{rev.pageNumber}</span>
                                   )}
                                 </div>
                                 {/* Status + category + AI badges */}
@@ -386,7 +386,7 @@ export default function TrackerPanel({ item, submissions, roles, projectId, onCl
                                   <StatusPill status={rev.status} />
                                   <CategoryBadge category={rev.noteCategory} />
                                   {rev.isExtracted && (
-                                    <span className="inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded border bg-yellow-50 text-yellow-700 border-yellow-200">
+                                    <span className="inline-flex items-center text-[11px] font-semibold px-1.5 py-0.5 rounded border bg-amber-50 text-amber-700 border-amber-200">
                                       ✦ AI
                                     </span>
                                   )}
@@ -414,7 +414,7 @@ export default function TrackerPanel({ item, submissions, roles, projectId, onCl
                         ))}
                     </div>
                   ) : (
-                    <p className="text-xs text-slate-300 italic">No reviews yet</p>
+                    <p className="text-xs text-slate-500">No reviews yet</p>
                   )}
 
                   {/* Add review for this version */}
@@ -428,7 +428,7 @@ export default function TrackerPanel({ item, submissions, roles, projectId, onCl
                   ) : (
                     <button
                       onClick={() => setAddingToVersionId(ver.id)}
-                      className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-amber-600 transition-colors"
+                      className="flex items-center gap-1.5 text-xs text-slate-500 hover:text-orange-600 transition-colors"
                     >
                       <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />

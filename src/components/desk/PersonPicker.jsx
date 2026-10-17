@@ -42,7 +42,7 @@ export default function PersonPicker({ onPick, start = {}, skipIds = [], autoFoc
     setBusy(false);
   }
 
-  const input = 'w-full min-h-[44px] rounded-lg border border-slate-200 bg-white px-3 text-base text-slate-900 outline-none focus:border-amber-400';
+  const input = 'w-full min-h-[44px] rounded-lg border border-slate-200 bg-white px-3 text-base text-slate-900 outline-none focus:border-orange-500';
 
   if (adding) {
     return (
@@ -50,10 +50,10 @@ export default function PersonPicker({ onPick, start = {}, skipIds = [], autoFoc
         <input autoFocus value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="Full name" className={input} />
         <input value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} placeholder="Email (for the follow-up)" type="email" inputMode="email" autoCapitalize="none" className={input} />
         <input value={form.company} onChange={e => setForm({ ...form, company: e.target.value })} placeholder="Company" className={input} />
-        {err && <p className="text-sm text-rose-600">{err}</p>}
+        {err && <p className="text-sm text-red-600">{err}</p>}
         <div className="flex gap-2">
-          <button type="button" onClick={create} disabled={busy} className="min-h-[44px] px-4 rounded-lg bg-emerald-600 text-white text-sm font-medium disabled:opacity-40">{busy ? 'Adding…' : 'Add person'}</button>
-          {!addOnly && <button type="button" onClick={() => setAdding(false)} className="min-h-[44px] px-4 rounded-lg border border-slate-200 text-sm text-slate-600">Back to search</button>}
+          <button type="button" onClick={create} disabled={busy} className="min-h-[44px] px-4 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold disabled:opacity-40">{busy ? 'Adding…' : 'Add person'}</button>
+          {!addOnly && <button type="button" onClick={() => setAdding(false)} className="min-h-[44px] px-4 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-sm font-semibold text-slate-600">Back to search</button>}
         </div>
       </div>
     );
@@ -66,16 +66,16 @@ export default function PersonPicker({ onPick, start = {}, skipIds = [], autoFoc
         <ul className="mt-1 rounded-lg border border-slate-200 bg-white divide-y divide-slate-100 overflow-hidden">
           {results.map(c => (
             <li key={c.id}>
-              <button type="button" onClick={() => { onPick(c); setQ(''); }} className="w-full min-h-[44px] px-3 py-2 text-left hover:bg-amber-50">
-                <span className="block text-sm font-medium text-slate-800">{c.name}</span>
-                {(c.client?.name || c.company) && <span className="block text-xs text-slate-400">{c.client?.name || c.company}</span>}
+              <button type="button" onClick={() => { onPick(c); setQ(''); }} className="w-full min-h-[44px] px-3 py-2 text-left hover:bg-orange-50">
+                <span className="block text-sm font-semibold text-slate-800">{c.name}</span>
+                {(c.client?.name || c.company) && <span className="block text-xs text-slate-500">{c.client?.name || c.company}</span>}
               </button>
             </li>
           ))}
         </ul>
       )}
       <button type="button" onClick={() => { setForm({ name: q, email: '', company: '' }); setAdding(true); }}
-        className="mt-1 min-h-[40px] text-sm font-medium text-amber-700">+ Not in the system? Add them</button>
+        className="mt-1 min-h-[40px] text-sm font-semibold text-orange-600 hover:text-orange-700">+ Not in the system? Add them</button>
     </div>
   );
 }

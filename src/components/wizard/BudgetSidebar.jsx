@@ -64,7 +64,7 @@ export default function BudgetSidebar({ budget, projectData, currentStep, range 
       <div className="px-4 py-4 bg-navy-950 border-b border-navy-800">
         {/* Mike 10-2: the project's name sits above the total at all times once it is typed. */}
         {projectName && <div className="text-sm font-semibold text-white truncate mb-2" title={projectName}>{projectName}</div>}
-        <div className="text-xs font-semibold text-navy-400 uppercase tracking-widest mb-1">Live Budget</div>
+        <div className="text-xs font-semibold text-navy-400 uppercase tracking-wide mb-1">Live Budget</div>
         <div className="text-2xl font-bold text-white tabular-nums">
           {hasData ? formatCurrency(totalWithControls) : '-'}
         </div>
@@ -101,7 +101,7 @@ export default function BudgetSidebar({ budget, projectData, currentStep, range 
 
         {hasData && (
           <>
-            <div className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-2">Breakdown</div>
+            <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Breakdown</div>
             {areaSummary}
 
             {/* Units, with full tooltip */}

@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { redirect } from 'next/navigation';
+import { H1 } from '@/components/ui/tokens';
 import { getSession, isSuperAdmin, isSalesAdmin } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { getAllActionTypes } from '@/lib/noteActionTypesStore';
@@ -31,7 +32,7 @@ export default async function SalesAutomationActionsPage() {
       <AutomationNav />
       <div className="max-w-5xl mx-auto">
       <div className="mb-5">
-        <h1 className="text-xl font-bold text-slate-900">Action Types</h1>
+        <h1 className={H1}>Action Types</h1>
         <p className="text-slate-500 text-sm mt-1 max-w-3xl">
           The actions the Sales Bot can take from a note. Each type is a <strong>method</strong> (email, text,
           call, schedule, expect intro, send materials, add to list, internal task) so the bot knows what to do.

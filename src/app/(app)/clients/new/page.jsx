@@ -7,6 +7,7 @@ import { Select } from '@/components/ui/Input';
 import Input from '@/components/ui/Input';
 import MultiSelect from '@/components/ui/MultiSelect';
 import { ORG_TYPE_OPTIONS, LOCATION_TYPES } from '@/lib/utils';
+import { H1, INPUT } from '@/components/ui/tokens';
 
 export default function NewClientPage() {
   const router = useRouter();
@@ -56,12 +57,12 @@ export default function NewClientPage() {
           </svg>
           Back
         </button>
-        <h1 className="text-2xl font-bold text-slate-900">New Client</h1>
+        <h1 className={H1}>New Client</h1>
         <p className="text-slate-500 text-sm mt-1">Add a client to organize projects under.</p>
       </div>
 
       <Card>
-        <CardHeader><h2 className="font-semibold text-slate-900">Client Details</h2></CardHeader>
+        <CardHeader title="Client Details" />
         <CardBody>
           <form onSubmit={handleSubmit} className="space-y-5">
             <Input
@@ -77,7 +78,7 @@ export default function NewClientPage() {
               options={ORG_TYPE_OPTIONS}
               selected={form.orgTypes}
               onChange={orgTypes => setForm(f => ({ ...f, orgTypes }))}
-              hint="Pick every one that applies — a builder can be both a developer and a self-performing GC."
+              hint="Pick every one that applies: a builder can be both a developer and a self-performing GC."
             />
 
             <div className="grid grid-cols-3 gap-3">
@@ -98,7 +99,7 @@ export default function NewClientPage() {
                 placeholder="Internal notes about this client..."
                 value={form.notes}
                 onChange={set('notes')}
-                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 text-slate-700 resize-none"
+                className={`${INPUT} resize-none`}
               />
             </div>
 
@@ -107,8 +108,8 @@ export default function NewClientPage() {
             )}
 
             <div className="flex gap-3 pt-2">
-              <Button type="submit" variant="amber" size="lg" loading={loading}>Create Client</Button>
-              <Button type="button" variant="secondary" size="lg" onClick={() => router.back()}>Cancel</Button>
+              <Button type="submit" variant="primary" loading={loading}>Create Client</Button>
+              <Button type="button" variant="secondary" onClick={() => router.back()}>Cancel</Button>
             </div>
           </form>
         </CardBody>

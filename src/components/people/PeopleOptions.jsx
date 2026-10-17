@@ -11,6 +11,7 @@
 import { useState } from 'react';
 import { splitByDepartment, pickerDepartmentLabel } from '@/lib/deptScreens';
 import { DEPARTMENT_LABEL } from '@/lib/departments';
+import { LABEL } from '@/components/ui/tokens';
 
 const nameOf = u => u.name || u.email;
 
@@ -45,7 +46,7 @@ export function PersonTickList({ users, picker, renderPerson }) {
   return (
     <>
       {theirs.length > 0 && others.length > 0 && (
-        <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide px-2 pb-1">{label}</div>
+        <div className={`${LABEL} px-2 pb-1`}>{label}</div>
       )}
       {theirs.map(renderPerson)}
 
@@ -58,7 +59,7 @@ export function PersonTickList({ users, picker, renderPerson }) {
       {others.length > 0 && showAll && (
         <>
           {theirs.length > 0 && (
-            <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide px-2 pt-2 pb-1">Everyone else</div>
+            <div className={`${LABEL} px-2 pt-2 pb-1`}>Everyone else</div>
           )}
           {others.map(renderPerson)}
         </>

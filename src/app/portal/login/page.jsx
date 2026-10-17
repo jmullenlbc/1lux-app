@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { BTN_PRIMARY, CARD, H1, HELPER, INPUT } from '@/components/ui/tokens';
 
 export default function PortalLoginPage() {
   const router = useRouter();
@@ -31,10 +32,10 @@ export default function PortalLoginPage() {
 
   return (
     <div className="max-w-sm mx-auto pt-8">
-      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-8">
+      <div className={`${CARD} p-8`}>
         <div className="mb-6 text-center">
-          <h1 className="text-xl font-bold text-slate-800">Portal Login</h1>
-          <p className="text-sm text-slate-400 mt-1">Sign in to view your project updates</p>
+          <h1 className={H1}>Portal Login</h1>
+          <p className={`${HELPER} mt-1`}>Sign in to view your project updates</p>
         </div>
 
         <form onSubmit={handleLogin} className="space-y-4">
@@ -46,7 +47,7 @@ export default function PortalLoginPage() {
               onChange={e => setEmail(e.target.value)}
               required
               autoComplete="email"
-              className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent"
+              className={INPUT}
             />
           </div>
 
@@ -58,24 +59,24 @@ export default function PortalLoginPage() {
               onChange={e => setPassword(e.target.value)}
               required
               autoComplete="current-password"
-              className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent"
+              className={INPUT}
             />
           </div>
 
           {errMsg && (
-            <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{errMsg}</p>
+            <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{errMsg}</p>
           )}
 
           <button
             type="submit"
             disabled={loading}
-            className="w-full px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white transition-colors disabled:opacity-60"
+            className={`${BTN_PRIMARY} w-full`}
           >
             {loading ? 'Signing in…' : 'Sign In'}
           </button>
         </form>
 
-        <p className="text-center text-xs text-slate-400 mt-5">
+        <p className={`${HELPER} text-center mt-5`}>
           Need access? Contact your ILC Studios project manager.
         </p>
       </div>

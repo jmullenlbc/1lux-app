@@ -108,7 +108,7 @@ export default function ControlsSection({ responses, projectData, budget, pricin
 
       {/* Building type — read-only, set at project creation */}
       <div className="bg-slate-50 rounded-xl border border-slate-200 p-4">
-        <div className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Controls Scope Basis</div>
+        <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Controls Scope Basis</div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center mb-3">
           {[
             { label: 'Building Type',  value: buildingTypeLabel(buildingType) },
@@ -128,8 +128,8 @@ export default function ControlsSection({ responses, projectData, budget, pricin
         {basisSf > 0 && baseEst > 0 && (
           <div className="text-xs text-slate-600 font-medium">
             {hasOverride
-              ? <span className="text-amber-700">Formula result: {formatCurrency(baseEst)}{isCapped && ` (capped)`} — <strong>overridden below</strong></span>
-              : <>Estimated controls: {formatCurrency(baseEst)}{isCapped && <span className="text-amber-600 ml-2">(capped at {formatCurrency(selectedRate.cap)})</span>}</>
+              ? <span className="text-amber-700">Formula result: {formatCurrency(baseEst)}{isCapped && ` (capped)`}, <strong>overridden below</strong></span>
+              : <>Controls budget: {formatCurrency(baseEst)}{isCapped && <span className="text-amber-600 ml-2">(capped at {formatCurrency(selectedRate.cap)})</span>}</>
             }
           </div>
         )}
@@ -187,9 +187,9 @@ export default function ControlsSection({ responses, projectData, budget, pricin
         </div>
         {hasOverride && (
           <div className="mt-2 flex items-center gap-2">
-            <span className="inline-block w-2 h-2 rounded-full bg-amber-500"></span>
+            <span className="inline-block w-2 h-2 rounded-full bg-orange-500"></span>
             <p className="text-xs text-amber-700 font-medium">
-              Override active — controls will use {formatCurrency(overrideVal)} instead of the formula result
+              Override active, controls will use {formatCurrency(overrideVal)} instead of the formula result
             </p>
           </div>
         )}
@@ -214,7 +214,7 @@ export default function ControlsSection({ responses, projectData, budget, pricin
                   setAnswers(a => ({ ...a, controlsSystem: e.target.value }));
                   setDirty(d => new Set(d).add('controlsSystem'));
                 }}
-                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent"
+                className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
               >
                 <option value="standalone">Standalone occupancy &amp; photosensors (code minimum)</option>
                 <option value="zeroTen">0-10V dimming with standalone sensors</option>
@@ -236,8 +236,8 @@ export default function ControlsSection({ responses, projectData, budget, pricin
             question="Dim decorative fixtures in public spaces (lobby, clubhouse, corridors)?"
             note="Decorative dimming adds cost for compatible dimmers and wiring. It creates a more hospitality-like feel but is not required by code. Best for high-end projects."
             options={[
-              { value: 'no',  label: 'No — on/off switching only for decorative fixtures',              cost: 0 },
-              { value: 'yes', label: 'Yes — dim decorative fixtures in public spaces',                  sub: 'Adds dimmer cost; creates hospitality feel', cost: 0 },
+              { value: 'no',  label: 'No, on/off switching only for decorative fixtures',              cost: 0 },
+              { value: 'yes', label: 'Yes, dim decorative fixtures in public spaces',                  sub: 'Adds dimmer cost; creates hospitality feel', cost: 0 },
             ]}
             value={answers.decorativeDimming}
             onChange={val => {
@@ -250,7 +250,7 @@ export default function ControlsSection({ responses, projectData, budget, pricin
             question="Bank of switches vs. scene controller for small spaces with 3 or fewer zones?"
             note="A bank of switches is the most cost-effective option for small spaces. A scene controller (keypads) offers programmed scenes and a more polished look at added cost."
             options={[
-              { value: 'bankSwitches',   label: 'Bank of switches — cost-effective, standard',          sub: 'Multiple switches on a single plate', cost: 0 },
+              { value: 'bankSwitches',   label: 'Bank of switches, cost-effective, standard',          sub: 'Multiple switches on a single plate', cost: 0 },
               { value: 'sceneController',label: 'Scene controller / keypad',                             sub: 'Programmed scenes; premium appearance; higher cost', cost: 0 },
             ]}
             value={answers.sceneSwitching}
@@ -264,8 +264,8 @@ export default function ControlsSection({ responses, projectData, budget, pricin
             question="Minimize zones to reduce controls cost?"
             note="Each independently controlled zone requires additional wiring and devices. Reducing zones where practical can significantly lower controls cost, with minimal impact on tenant experience."
             options={[
-              { value: 'no',  label: 'No — design zones based on ideal flexibility',                    cost: 0 },
-              { value: 'yes', label: 'Yes — minimize zones to reduce controls cost where possible',     sub: 'Recommended for budget-conscious projects', cost: 0 },
+              { value: 'no',  label: 'No, design zones based on ideal flexibility',                    cost: 0 },
+              { value: 'yes', label: 'Yes, minimize zones to reduce controls cost where possible',     sub: 'Recommended for budget-conscious projects', cost: 0 },
             ]}
             value={answers.zoneReduction}
             onChange={val => {

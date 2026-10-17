@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { NOTIFICATION_TYPES, NOTIFICATION_MODULES } from '@/lib/notificationTypes';
 import { ROLE_LABEL } from '@/lib/roles';
+import { WidgetLoading } from '@/components/ui/WidgetFrame';
 import { signatureBlock } from '@/lib/bot/emailStyle';
 import MySignatureFields from '@/components/salesAutomation/MySignatureFields';
 import { extractSentEmails } from '@/lib/tone/mbox';
@@ -16,7 +17,7 @@ function SignatureSection() {
   const [template, setTemplate] = useState(undefined);
   useEffect(() => { fetch('/api/sales/signature').then(r => r.json()).then(d => setTemplate(d.template)).catch(() => {}); }, []);
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 p-6 mt-5">
+    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 mt-5">
       <h2 className="text-sm font-semibold text-slate-700 mb-1">Email Signature</h2>
       <p className="text-xs text-slate-500 mb-4">Added under every email the bot drafts for you. Email comes from your account. The layout is the company one, set under Sales, Automation, Signature.</p>
       <MySignatureFields onChange={setF} />
@@ -77,11 +78,11 @@ function ToneProfileSection({ email }) {
   }
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 p-6 mt-5">
+    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 mt-5">
       <div className="flex items-start justify-between gap-4 mb-4">
         <div>
           <h2 className="text-sm font-semibold text-slate-700">Email Tone Profile</h2>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-xs text-slate-500 mt-1">
             Upload your sent email export so the bot learns to write in your voice.
             Each person has their own profile, so your style stays yours. Only the words you wrote are sent; the file stays on your computer.
           </p>
@@ -90,7 +91,7 @@ function ToneProfileSection({ email }) {
       </div>
 
       {loading ? (
-        <p className="text-xs text-slate-400">Loading…</p>
+        <WidgetLoading />
       ) : profile ? (
         <div className="space-y-3">
           {/* Profile summary */}
@@ -100,7 +101,7 @@ function ToneProfileSection({ email }) {
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="bg-slate-50 rounded-xl p-3">
-              <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Tone</p>
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1.5">Tone</p>
               <div className="flex flex-wrap gap-1">
                 {(profile.tone || []).map(t => (
                   <span key={t} className="text-[11px] bg-orange-50 text-orange-700 border border-orange-200 px-2 py-0.5 rounded-full">{t}</span>
@@ -108,7 +109,7 @@ function ToneProfileSection({ email }) {
               </div>
             </div>
             <div className="bg-slate-50 rounded-xl p-3">
-              <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Avoids</p>
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1.5">Avoids</p>
               <div className="flex flex-wrap gap-1">
                 {(profile.avoids || []).map(a => (
                   <span key={a} className="text-[11px] bg-slate-100 text-slate-500 border border-slate-200 px-2 py-0.5 rounded-full">{a}</span>
@@ -118,12 +119,12 @@ function ToneProfileSection({ email }) {
           </div>
           {profile.exampleOpener && (
             <div className="border border-slate-200 rounded-xl p-3">
-              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">Example opener (your voice)</p>
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1">Example opener (your voice)</p>
               <p className="text-xs text-slate-700 italic">"{profile.exampleOpener}"</p>
             </div>
           )}
           <div className="flex items-center justify-between pt-1">
-            <p className="text-[10px] text-slate-400">Re-upload anytime to refresh your profile</p>
+            <p className="text-[11px] text-slate-500">Re-upload anytime to refresh your profile</p>
             <button
               onClick={() => fileRef.current?.click()}
               disabled={uploading}
@@ -139,7 +140,7 @@ function ToneProfileSection({ email }) {
             <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
           </svg>
           <p className="text-sm font-medium text-slate-600 mb-1">No tone profile yet</p>
-          <p className="text-xs text-slate-400 mb-4 max-w-xs mx-auto">
+          <p className="text-xs text-slate-500 mb-4 max-w-xs mx-auto">
             In Google Takeout pick Mail, then only the <strong>Sent</strong> label. Unzip and upload the .mbox here. Any size works.
             Claude Sonnet will analyze your writing style and build a personal voice profile.
           </p>
@@ -150,7 +151,7 @@ function ToneProfileSection({ email }) {
           >
             {uploading ? 'Analyzing emails…' : 'Upload Sent.mbox'}
           </button>
-          <p className="text-[10px] text-slate-400 mt-2">Analyzed locally — emails are not stored</p>
+          <p className="text-[11px] text-slate-500 mt-2">Analyzed locally, emails are not stored</p>
         </div>
       )}
 
@@ -202,12 +203,12 @@ function InternalNotificationsSection() {
   }
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 p-6 mt-5">
+    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 mt-5">
       <div className="mb-4">
         <h2 className="text-sm font-semibold text-slate-700">Internal Notifications</h2>
-        <p className="text-xs text-slate-400 mt-1">
+        <p className="text-xs text-slate-500 mt-1">
           Choose which ILC-internal alerts you want to receive across all projects.
-          These notify you about events on your own team's work — not external contacts.
+          These notify you about events on your own team's work, not external contacts.
         </p>
       </div>
 
@@ -232,7 +233,7 @@ function InternalNotificationsSection() {
       )}
 
       {loading ? (
-        <div className="text-center py-6 text-sm text-slate-400">Loading…</div>
+        <WidgetLoading />
       ) : (
         <div className="space-y-3">
           {INTERNAL_MODULES.map(({ module, keys }) => (
@@ -248,14 +249,14 @@ function InternalNotificationsSection() {
                     <button
                       onClick={() => toggle(key)}
                       disabled={saving === key}
-                      className={`relative w-8 h-4 rounded-full transition-colors shrink-0 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:ring-offset-1 ${enabled ? 'bg-amber-500' : 'bg-slate-200'}`}
+                      className={`relative w-8 h-4 rounded-full transition-colors shrink-0 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-1 `}
                     >
                       <span className={`absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full shadow transition-transform ${enabled ? 'translate-x-4' : ''}`} />
                     </button>
-                    <span className={`flex-1 text-sm ${enabled ? 'text-slate-700' : 'text-slate-400'}`}>
+                    <span className={`flex-1 text-sm ${enabled ? 'text-slate-700' : 'text-slate-500'}`}>
                       {meta?.label || key}
                     </span>
-                    <span className="text-[10px] text-slate-400 shrink-0">
+                    <span className="text-[11px] text-slate-500 shrink-0">
                       {PATTERN_LABEL[meta?.pattern] || meta?.pattern}
                     </span>
                   </div>
@@ -333,15 +334,15 @@ export default function ProfileClient({ user }) {
       </div>
 
       {/* Avatar + role card */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-6 mb-5">
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 mb-5">
         <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-2xl bg-amber-500 flex items-center justify-center text-white text-2xl font-bold shrink-0">
+          <div className="w-16 h-16 rounded-xl bg-orange-500 flex items-center justify-center text-white text-2xl font-bold shrink-0">
             {initials}
           </div>
           <div>
             <div className="text-lg font-semibold text-slate-800">{user?.name || user?.email}</div>
             <div className="text-sm text-slate-500">{user?.email}</div>
-            <span className="inline-block mt-1 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-700">
+            <span className="inline-block mt-1 text-xs font-semibold px-2.5 py-0.5 rounded-full bg-orange-50 text-orange-700 border border-orange-200">
               {ROLE_LABEL[user?.role] || user?.role}
             </span>
           </div>
@@ -349,7 +350,7 @@ export default function ProfileClient({ user }) {
       </div>
 
       {/* Display name */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-6 mb-5">
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 mb-5">
         <h2 className="text-sm font-semibold text-slate-700 mb-4">Display Name</h2>
         <div className="flex gap-3">
           <input
@@ -357,7 +358,7 @@ export default function ProfileClient({ user }) {
             value={name}
             onChange={e => setName(e.target.value)}
             placeholder="Your full name"
-            className="flex-1 border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
+            className="flex-1 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
           />
           <button
             onClick={handleSaveName}
@@ -375,7 +376,7 @@ export default function ProfileClient({ user }) {
       </div>
 
       {/* Change password */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-6">
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
         <h2 className="text-sm font-semibold text-slate-700 mb-4">Change Password</h2>
         <div className="space-y-3">
           <div>
@@ -384,7 +385,7 @@ export default function ProfileClient({ user }) {
               type="password"
               value={pw.current}
               onChange={e => setPw(p => ({ ...p, current: e.target.value }))}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
+              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
               autoComplete="current-password"
             />
           </div>
@@ -394,7 +395,7 @@ export default function ProfileClient({ user }) {
               type="password"
               value={pw.next}
               onChange={e => setPw(p => ({ ...p, next: e.target.value }))}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
+              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
               autoComplete="new-password"
             />
           </div>
@@ -404,7 +405,7 @@ export default function ProfileClient({ user }) {
               type="password"
               value={pw.confirm}
               onChange={e => setPw(p => ({ ...p, confirm: e.target.value }))}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
+              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
               autoComplete="new-password"
             />
           </div>
@@ -417,7 +418,7 @@ export default function ProfileClient({ user }) {
         <button
           onClick={handleChangePw}
           disabled={savingPw || !pw.current || !pw.next || !pw.confirm}
-          className="mt-4 px-4 py-2 rounded-lg text-sm font-medium bg-slate-800 hover:bg-slate-900 text-white transition-colors disabled:opacity-40"
+          className="mt-4 px-4 py-2 rounded-lg text-sm font-semibold bg-orange-500 hover:bg-orange-600 text-white transition-colors disabled:opacity-40"
         >
           {savingPw ? 'Changing…' : 'Change password'}
         </button>

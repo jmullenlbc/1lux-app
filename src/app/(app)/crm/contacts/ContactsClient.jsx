@@ -1,11 +1,15 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { companyLink, countMissingCompany } from '@/lib/crmClient';
 import { ALL_CONTACT_DEPARTMENTS, contactDepartmentLabel } from '@/lib/contactDepartments';
 import LookAlikeReviews from '@/components/crm/LookAlikeReviews';
 import SectionTabs, { PIPELINE_TABS } from '@/components/ui/SectionTabs';
+import { FilterToolbar, FilterPanel, SearchBox, countFilters } from '@/components/ui/FilterPanel';
+import SortHeader, { sortRows } from '@/components/ui/SortHeader';
+import { useUrlView } from '@/lib/useUrlView';
+import { CARD, BTN_COMPACT, H1, TD } from '@/components/ui/tokens';
 
 function checkInStatus(contact) {
   const ref = contact.lastInPersonAt ?? contact.lastTouchpointAt;
@@ -39,45 +43,48 @@ function CompanyCell({ contact }) {
 
   if (state === 'linked') {
     return contact.client?.id
-      ? <Link href={`/clients/${contact.client.id}`} className="hover:text-blue-600 underline">{label}</Link>
+      ? <Link href={`/clients/${contact.client.id}`} className="hover:text-orange-600 underline">{label}</Link>
       : <span>{label}</span>;
   }
   if (state === 'typed') {
     return (
       <span>
         {label}
-        <span className="ml-2 text-xs text-amber-700" title="Typed by hand — not linked to a client record, so nothing about this person rolls up to that company">
+        <span className="ml-2 text-xs text-amber-700" title="Typed by hand, not linked to a client record, so nothing about this person rolls up to that company">
           not linked
         </span>
       </span>
     );
   }
   return (
-    <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-200 text-xs font-semibold">
+    <span className="inline-flex items-center px-2 py-0.5 rounded-lg bg-red-50 text-red-700 border border-red-200 text-xs font-semibold">
       No company
     </span>
   );
 }
 
+// Filters and sort live in the address (useUrlView). `q` and `missing=company`
+// are the deep-link names the Things Needing a Look card already sends.
+const FILTER_FIELDS = [
+  { key: 'q',          label: 'Search',     kind: 'text' },
+  { key: 'department', label: 'Department', kind: 'pick' },
+  { key: 'missing',    label: 'Company',    kind: 'pick' },
+];
+const PANEL_FIELDS = FILTER_FIELDS.filter(f => f.key !== 'q');
+const SORT_KEYS = ['name', 'company', 'title', 'department', 'email', 'lastContact', 'checkin'];
+const VIEW_FIELDS = [...FILTER_FIELDS, ...SORT_KEYS.map(k => ({ key: k, kind: 'sort' }))];
+const SORT_DEFAULT = { key: 'name', dir: 'asc' };
+const STATUS_RANK = { overdue: 0, due_soon: 1, ok: 2 };
+
 export default function ContactsClient({ contacts }) {
-  const [search, setSearch] = useState('');
+  const { filters, setFilter, clearFilters, sort, toggleSort } = useUrlView({ fields: VIEW_FIELDS, sortDefault: SORT_DEFAULT });
+  const [open, setOpen] = useState(false);
+  const search = filters.q || '';
   // Since a person now survives their company being deleted, people with no
   // employer at all can appear on their own. This makes them findable instead of
   // leaving them scattered down a long list.
-  const [onlyMissingCompany, setOnlyMissingCompany] = useState(false);
-  const [department, setDepartment] = useState('');
-
-  // Deep links land here already filtered. The Things Needing a Look card on the
-  // Main dashboard sends people to a specific duplicated email address or to the
-  // people with no company, and dropping them into an unfiltered list of
-  // everyone would waste the click. Read on mount rather than during render, so
-  // the server and the browser agree on the first paint.
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const q = params.get('q');
-    if (q) setSearch(q);
-    if (params.get('missing') === 'company') setOnlyMissingCompany(true);
-  }, []);
+  const onlyMissingCompany = filters.missing === 'company';
+  const department = filters.department || '';
 
   const missingCompany = useMemo(() => countMissingCompany(contacts), [contacts]);
 
@@ -97,80 +104,90 @@ export default function ContactsClient({ contacts }) {
     );
   }, [contacts, search, onlyMissingCompany, department]);
 
+  const sorted = useMemo(() => sortRows(filtered, sort, {
+    name:        c => c.name || '',
+    company:     c => companyLink(c).label || '',
+    title:       c => c.title || '',
+    department:  c => contactDepartmentLabel(c.department) || '',
+    email:       c => c.email || '',
+    lastContact: c => { const d = c.lastInPersonAt ?? c.lastTouchpointAt; return d ? new Date(d).getTime() : null; },
+    checkin:     c => { const s = checkInStatus(c); return s ? STATUS_RANK[s] : null; },
+  }), [filtered, sort]);
+
+  const choices = {
+    department: ALL_CONTACT_DEPARTMENTS.map(d => [d.key, d.label]),
+    missing:    [['company', 'No company']],
+  };
+  const filterCount = countFilters(filters, FILTER_FIELDS);
+
   return (
     <div className="min-h-screen bg-slate-50 p-4 md:p-6">
       {/* Pipeline / Contacts / Check-ins tabs (Mike 10-6) replace the back link. They sit
           outside the centered column so the tab line starts at the left like every other page. */}
       <SectionTabs tabs={PIPELINE_TABS} className="mb-5" />
       <div className="max-w-7xl mx-auto">
-        <h1 className="text-3xl font-bold text-slate-900 mb-1">Contacts</h1>
+        <h1 className={`${H1} mb-1`}>Contacts</h1>
         <div className="flex flex-wrap items-center gap-3 mb-6">
-          <p className="text-slate-500">{filtered.length} contact{filtered.length !== 1 ? 's' : ''}</p>
           {missingCompany > 0 && (
             <button
               type="button"
-              onClick={() => setOnlyMissingCompany(v => !v)}
-              className={`px-3 py-1 rounded-full text-xs font-semibold border transition-colors ${
+              onClick={() => setFilter('missing', onlyMissingCompany ? '' : 'company')}
+              className={`${BTN_COMPACT} ${
                 onlyMissingCompany
-                  ? 'bg-red-600 border-red-600 text-white'
+                  ? 'border-orange-400 bg-orange-50 text-orange-700 hover:bg-orange-50'
                   : 'bg-red-50 border-red-200 text-red-700 hover:bg-red-100'
               }`}
-              title="People with no employer at all — neither a linked client nor a typed company name"
+              title="People with no employer at all, neither a linked client nor a typed company name"
             >
-              {missingCompany} with no company{onlyMissingCompany ? ' — showing only these' : ''}
+              {missingCompany} with no company{onlyMissingCompany ? ', showing only these' : ''}
             </button>
           )}
         </div>
 
         <div className="mb-6"><LookAlikeReviews kind="contact" title="Same person?" /></div>
 
-        {/* Search + department */}
-        <div className="mb-6 flex flex-col sm:flex-row gap-2">
-          <input
-            type="text"
-            placeholder="Search by name, email, title, company, department..."
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="flex-1 px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400"
+        {/* Filter + search */}
+        <div className="mb-6">
+          <FilterToolbar
+            count={filterCount}
+            open={open}
+            onToggle={() => setOpen(o => !o)}
+            onClear={clearFilters}
+            shown={filtered.length}
+            total={contacts.length}
+            noun="contacts"
+            right={<SearchBox value={search} onChange={v => setFilter('q', v)} placeholder="Search by name, email, title, company, department..." className="w-80" />}
           />
-          <select
-            value={department}
-            onChange={e => setDepartment(e.target.value)}
-            title="Show only one department"
-            className="px-3 py-2 border border-slate-200 rounded-lg bg-white text-slate-600 focus:outline-none focus:ring-2 focus:ring-orange-400"
-          >
-            <option value="">All departments</option>
-            {ALL_CONTACT_DEPARTMENTS.map(d => <option key={d.key} value={d.key}>{d.label}</option>)}
-          </select>
+          <FilterPanel open={open} fields={PANEL_FIELDS} filters={filters} choices={choices} onChange={setFilter} />
         </div>
 
         {/* Table */}
         {filtered.length === 0 ? (
-          <p className="text-slate-400">No contacts found.</p>
+          <p className="text-sm text-slate-500">No contacts found.</p>
         ) : (
-          <div className="bg-white rounded-lg border border-slate-200 overflow-hidden shadow-sm">
+          <div className={`${CARD} overflow-hidden`}>
             <table className="w-full text-sm">
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
-                  <th className="px-4 py-3 text-left font-semibold text-slate-700">Name</th>
-                  <th className="px-4 py-3 text-left font-semibold text-slate-700">Company / Client</th>
-                  <th className="hidden md:table-cell px-4 py-3 text-left font-semibold text-slate-700">Title</th>
-                  <th className="hidden md:table-cell px-4 py-3 text-left font-semibold text-slate-700">Department</th>
-                  <th className="hidden md:table-cell px-4 py-3 text-left font-semibold text-slate-700">Email</th>
-                  <th className="hidden md:table-cell px-4 py-3 text-left font-semibold text-slate-700">Last Contact</th>
-                  <th className="px-4 py-3 text-left font-semibold text-slate-700">Check-in</th>
+                  <SortHeader field="name" label="Name" sort={sort} onSort={toggleSort} />
+                  <SortHeader field="company" label="Company / Client" sort={sort} onSort={toggleSort} />
+                  <SortHeader className="hidden md:table-cell" field="title" label="Title" sort={sort} onSort={toggleSort} />
+                  <SortHeader className="hidden md:table-cell" field="department" label="Department" sort={sort} onSort={toggleSort} />
+                  <SortHeader className="hidden md:table-cell" field="email" label="Email" sort={sort} onSort={toggleSort} />
+                  <SortHeader className="hidden md:table-cell" field="lastContact" label="Last Contact" sort={sort} onSort={toggleSort} />
+                  <SortHeader field="checkin" label="Check-in" sort={sort} onSort={toggleSort} />
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filtered.map(contact => {
+                {sorted.map(contact => {
                   const status = checkInStatus(contact);
                   return (
                     <tr key={contact.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="px-4 py-3 font-semibold text-slate-900">
+                      <td className={`${TD} font-semibold text-slate-900`}>
                         {contact.client?.id ? (
                           <Link
                             href={`/clients/${contact.client.id}`}
-                            className="hover:text-blue-600 underline"
+                            className="hover:text-orange-600 underline"
                           >
                             {contact.name}
                           </Link>
@@ -181,16 +198,16 @@ export default function ContactsClient({ contacts }) {
                           <div className="text-xs text-slate-500">{contact.preferredName}</div>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-slate-600">
+                      <td className={TD}>
                         <CompanyCell contact={contact} />
                       </td>
-                      <td className="hidden md:table-cell px-4 py-3 text-slate-600">{contact.title || '—'}</td>
-                      <td className="hidden md:table-cell px-4 py-3 text-slate-600">{contactDepartmentLabel(contact.department) || '—'}</td>
-                      <td className="hidden md:table-cell px-4 py-3 text-slate-600">{contact.email || '—'}</td>
-                      <td className="hidden md:table-cell px-4 py-3 text-slate-600">
+                      <td className={`hidden md:table-cell ${TD}`}>{contact.title || '—'}</td>
+                      <td className={`hidden md:table-cell ${TD}`}>{contactDepartmentLabel(contact.department) || '—'}</td>
+                      <td className={`hidden md:table-cell ${TD}`}>{contact.email || '—'}</td>
+                      <td className={`hidden md:table-cell ${TD} tabular-nums`}>
                         {fmtDate(contact.lastInPersonAt ?? contact.lastTouchpointAt) || '—'}
                       </td>
-                      <td className={`px-4 py-3 ${status ? STATUS[status].cls : ''}`}>
+                      <td className={`${TD} ${status ? STATUS[status].cls : ''}`}>
                         {status ? STATUS[status].label : '—'}
                       </td>
                     </tr>

@@ -13,9 +13,9 @@ const STATUSES     = ['NEW', 'IN_PROGRESS', 'FIXED'];
 const STATUS_LABEL = { NEW: 'New', IN_PROGRESS: 'In Progress', FIXED: 'Fixed' };
 const STATUS_DOT   = { NEW: 'bg-slate-400', IN_PROGRESS: 'bg-amber-500', FIXED: 'bg-green-500' };
 const STATUS_ACTIVE = {
-  NEW:         'bg-slate-200 text-slate-700',
-  IN_PROGRESS: 'bg-amber-500 text-white',
-  FIXED:       'bg-green-600 text-white',
+  NEW:         "bg-orange-50 border border-orange-400 text-orange-700",
+  IN_PROGRESS: "bg-orange-50 border border-orange-400 text-orange-700",
+  FIXED:       "bg-orange-50 border border-orange-400 text-orange-700",
 };
 
 function sevLabel(s = '') {
@@ -52,7 +52,7 @@ function reporterLabel(bug, short = false) {
 
 function BetaTag() {
   return (
-    <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-violet-50 border border-violet-200 text-violet-700 font-semibold uppercase tracking-wide">
+    <span className="text-[11px] px-1.5 py-0.5 rounded-full bg-violet-50 border border-violet-200 text-violet-700 font-semibold uppercase tracking-wide">
       Beta client
     </span>
   );
@@ -63,29 +63,29 @@ function BugCard({ bug, active, onClick }) {
     <div
       onClick={() => onClick(bug.id)}
       className={`bg-white border rounded-xl shadow-sm p-3.5 cursor-pointer transition-all hover:shadow-md ${
-        active ? 'border-amber-400 ring-1 ring-amber-200' : 'border-slate-200 hover:border-slate-300'
+        active ? 'border-orange-400 ring-1 ring-orange-200' : 'border-slate-200 hover:border-slate-300'
       }`}
     >
       <div className="flex items-center justify-between mb-1.5">
-        <span className={`text-[10px] px-2 py-0.5 rounded-full border font-semibold uppercase tracking-wide ${SEV_STYLE[bug.severity]}`}>
+        <span className={`text-[11px] px-2 py-0.5 rounded-full border font-semibold uppercase tracking-wide ${SEV_STYLE[bug.severity]}`}>
           {sevLabel(bug.severity)}
         </span>
-        <span className="text-[10px] font-mono text-slate-400">{shortId(bug.id)}</span>
+        <span className="text-[11px] font-mono text-slate-500">{shortId(bug.id)}</span>
       </div>
       <div className="text-sm font-medium text-slate-800 leading-snug">{bug.title}</div>
       <div className="mt-2 flex items-center gap-2 flex-wrap">
         {bug.module && (
-          <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-50 border border-slate-100 text-slate-500">
+          <span className="text-[11px] px-1.5 py-0.5 rounded bg-slate-50 border border-slate-100 text-slate-500">
             {bug.module}
           </span>
         )}
         {bug.assignee && (
-          <span className="text-[10px] text-amber-600">
+          <span className="text-[11px] text-amber-600">
             → {bug.assignee.name || bug.assignee.email.split('@')[0]}
           </span>
         )}
       </div>
-      <div className="mt-2 flex items-center justify-between text-[10px] text-slate-400">
+      <div className="mt-2 flex items-center justify-between text-[11px] text-slate-500">
         <span className="flex items-center gap-1.5">
           {bug.source === 'PUBLIC' && <BetaTag />}
           {reporterLabel(bug, true)}
@@ -154,31 +154,31 @@ export default function QcBoardClient({ reports: initial, users, currentUser, fo
     <div className="p-6 min-h-screen bg-slate-50">
 
       {/* Header */}
-      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5 mb-5">
+      <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-5 mb-5">
         <div className="flex items-start justify-between flex-wrap gap-4">
           <div>
             <div className="text-lg font-semibold text-slate-800">QC Bug Tracker</div>
-            <div className="text-xs text-slate-400 mt-0.5">
+            <div className="text-xs text-slate-500 mt-0.5">
               Every report auto-captures screenshot, console errors, and failed network requests.
             </div>
           </div>
           <div className="flex items-center gap-5 text-center">
             <div>
-              <div className="text-xl font-bold text-slate-600 font-mono">{counts.NEW}</div>
-              <div className="text-[10px] uppercase tracking-wide text-slate-400">New</div>
+              <div className="text-xl font-bold text-slate-600 font-mono tabular-nums">{counts.NEW}</div>
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">New</div>
             </div>
             <div>
-              <div className="text-xl font-bold text-amber-600 font-mono">{counts.IN_PROGRESS}</div>
-              <div className="text-[10px] uppercase tracking-wide text-slate-400">In Progress</div>
+              <div className="text-xl font-bold text-amber-600 font-mono tabular-nums">{counts.IN_PROGRESS}</div>
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">In Progress</div>
             </div>
             <div>
-              <div className="text-xl font-bold text-green-600 font-mono">{counts.FIXED}</div>
-              <div className="text-[10px] uppercase tracking-wide text-slate-400">Fixed</div>
+              <div className="text-xl font-bold text-green-600 font-mono tabular-nums">{counts.FIXED}</div>
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Fixed</div>
             </div>
           </div>
         </div>
         <div className="mt-4 flex items-center gap-2 flex-wrap">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mr-1">Severity</span>
+          <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mr-1">Severity</span>
           {Object.entries(SEV_STYLE).map(([k, cls]) => (
             <span key={k} className={`text-[11px] px-2 py-0.5 rounded-full border font-medium ${cls}`}>
               {sevLabel(k)}
@@ -196,13 +196,13 @@ export default function QcBoardClient({ reports: initial, users, currentUser, fo
         </div>
       </div>
 
-      {/* Archived reports — off the board, one click to open or restore */}
+      {/* Archived reports, off the board, one click to open or restore */}
       {showArchived && archivedList.length > 0 && (
         <div className="mb-5">
           <div className="flex items-center gap-2 mb-3 px-1">
             <span className="w-2 h-2 rounded-full bg-slate-300" />
-            <span className="text-[11px] font-semibold uppercase tracking-widest text-slate-500">Archived</span>
-            <span className="ml-auto text-[10px] text-slate-400">{archivedList.length}</span>
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Archived</span>
+            <span className="ml-auto text-[11px] text-slate-500">{archivedList.length}</span>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 opacity-75">
             {archivedList.map(b => (
@@ -218,14 +218,14 @@ export default function QcBoardClient({ reports: initial, users, currentUser, fo
           <div key={status}>
             <div className="flex items-center gap-2 mb-3 px-1">
               <span className={`w-2 h-2 rounded-full ${STATUS_DOT[status]}`} />
-              <span className="text-[11px] font-semibold uppercase tracking-widest text-slate-500">
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                 {STATUS_LABEL[status]}
               </span>
-              <span className="ml-auto text-[10px] text-slate-400">{counts[status]}</span>
+              <span className="ml-auto text-[11px] text-slate-500">{counts[status]}</span>
             </div>
             <div className="space-y-3 min-h-[80px]">
               {byStatus(status).length === 0
-                ? <div className="text-[11px] text-slate-300 italic px-1 py-4">No reports</div>
+                ? <div className="text-xs text-slate-500 px-1 py-4">No reports</div>
                 : byStatus(status).map(b => (
                   <BugCard key={b.id} bug={b} active={activeId === b.id} onClick={openDrawer} />
                 ))
@@ -251,8 +251,8 @@ export default function QcBoardClient({ reports: initial, users, currentUser, fo
 
             {/* Drawer header */}
             <div className="flex items-center justify-between mb-4">
-              <span className="text-[11px] font-mono text-slate-400">{shortId(active.id)}</span>
-              <button onClick={closeDrawer} className="text-slate-400 hover:text-slate-600 text-xl leading-none">
+              <span className="text-[11px] font-mono text-slate-500">{shortId(active.id)}</span>
+              <button onClick={closeDrawer} className="text-slate-500 hover:text-slate-700 text-xl leading-none">
                 &times;
               </button>
             </div>
@@ -275,11 +275,11 @@ export default function QcBoardClient({ reports: initial, users, currentUser, fo
 
             {/* Severity + module badges */}
             <div className="flex items-center gap-2 mb-2 flex-wrap">
-              <span className={`text-[10px] px-2 py-0.5 rounded-full border font-semibold uppercase tracking-wide ${SEV_STYLE[active.severity]}`}>
+              <span className={`text-[11px] px-2 py-0.5 rounded-full border font-semibold uppercase tracking-wide ${SEV_STYLE[active.severity]}`}>
                 {sevLabel(active.severity)}
               </span>
               {active.module && (
-                <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-50 border border-slate-100 text-slate-500">
+                <span className="text-[11px] px-1.5 py-0.5 rounded bg-slate-50 border border-slate-100 text-slate-500">
                   {active.module}
                 </span>
               )}
@@ -310,16 +310,16 @@ export default function QcBoardClient({ reports: initial, users, currentUser, fo
 
             {/* Assignee */}
             <div className="mb-4">
-              <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider block mb-1">
+              <label className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 block mb-1">
                 Assigned to
               </label>
               <select
                 value={active.assigneeId || ''}
                 onChange={e => patchReport(active.id, { assigneeId: e.target.value || null })}
                 disabled={saving}
-                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+                className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
               >
-                <option value="">— Unassigned —</option>
+                <option value="">Unassigned</option>
                 {users.map(u => (
                   <option key={u.id} value={u.id}>{u.name || u.email}</option>
                 ))}
@@ -336,7 +336,7 @@ export default function QcBoardClient({ reports: initial, users, currentUser, fo
             {/* Description */}
             {active.description && (
               <>
-                <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">
+                <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1">
                   What happened
                 </div>
                 <p className="text-sm text-slate-700 mb-4 leading-relaxed">{active.description}</p>
@@ -346,7 +346,7 @@ export default function QcBoardClient({ reports: initial, users, currentUser, fo
             {/* Meta */}
             <div className="space-y-1.5 text-xs text-slate-600 mb-4 pt-1 border-t border-slate-100">
               <div className="flex justify-between pt-2">
-                <span className="text-slate-400">Reporter</span>
+                <span className="text-slate-500">Reporter</span>
                 <span className="font-medium flex items-center gap-1.5">
                   {active.source === 'PUBLIC' && <BetaTag />}
                   {reporterLabel(active)}
@@ -356,33 +356,33 @@ export default function QcBoardClient({ reports: initial, users, currentUser, fo
                   the name, so surface the email here for the follow-up. */}
               {active.source === 'PUBLIC' && active.reporterName && active.reporterEmail && (
                 <div className="flex justify-between gap-3">
-                  <span className="text-slate-400 shrink-0">Email</span>
+                  <span className="text-slate-500 shrink-0">Email</span>
                   <a href={`mailto:${active.reporterEmail}`} className="text-blue-600 hover:underline truncate text-right">
                     {active.reporterEmail}
                   </a>
                 </div>
               )}
               <div className="flex justify-between">
-                <span className="text-slate-400">Reported</span>
+                <span className="text-slate-500">Reported</span>
                 <span className="font-mono text-[11px]">{formatDate(active.createdAt)}</span>
               </div>
               {active.pageUrl && (
                 <div className="flex justify-between gap-3">
-                  <span className="text-slate-400 shrink-0">Page</span>
-                  <span className="font-mono text-[10px] text-blue-600 truncate text-right">
+                  <span className="text-slate-500 shrink-0">Page</span>
+                  <span className="font-mono text-[11px] text-blue-600 truncate text-right">
                     {String(active.pageUrl).replace(/^https?:\/\//, '')}
                   </span>
                 </div>
               )}
               {active.browserInfo && (
                 <div className="flex justify-between">
-                  <span className="text-slate-400">Browser</span>
+                  <span className="text-slate-500">Browser</span>
                   <span>{active.browserInfo}</span>
                 </div>
               )}
               {active.viewport && (
                 <div className="flex justify-between">
-                  <span className="text-slate-400">Viewport</span>
+                  <span className="text-slate-500">Viewport</span>
                   <span className="font-mono">{active.viewport}</span>
                 </div>
               )}
@@ -391,12 +391,12 @@ export default function QcBoardClient({ reports: initial, users, currentUser, fo
             {/* Console log */}
             {active.consoleLog?.length > 0 && (
               <>
-                <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">
+                <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1">
                   Console ({active.consoleLog.length})
                 </div>
-                <div className="rounded-lg bg-slate-900 font-mono text-[10px] px-3 py-2.5 mb-3 max-h-36 overflow-y-auto leading-relaxed">
+                <div className="rounded-lg bg-slate-900 font-mono text-[11px] px-3 py-2.5 mb-3 max-h-36 overflow-y-auto leading-relaxed">
                   {active.consoleLog.map((e, i) => (
-                    <div key={i} className={e.level === 'error' ? 'text-red-300' : 'text-yellow-300'}>
+                    <div key={i} className={e.level === 'error' ? 'text-red-300' : 'text-amber-300'}>
                       {e.level === 'error' ? '✕' : '⚠'} {e.msg}
                     </div>
                   ))}
@@ -407,10 +407,10 @@ export default function QcBoardClient({ reports: initial, users, currentUser, fo
             {/* Network log */}
             {active.networkLog?.length > 0 && (
               <>
-                <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">
+                <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1">
                   Failed requests ({active.networkLog.length})
                 </div>
-                <div className="rounded-lg bg-slate-900 text-amber-300 font-mono text-[10px] px-3 py-2.5 mb-3 max-h-36 overflow-y-auto leading-relaxed">
+                <div className="rounded-lg bg-slate-900 text-amber-300 font-mono text-[11px] px-3 py-2.5 mb-3 max-h-36 overflow-y-auto leading-relaxed">
                   {active.networkLog.map((e, i) => (
                     <div key={i}>
                       {e.status} {e.method} {String(e.url).replace(/^https?:\/\/[^/]+/, '')}
@@ -423,10 +423,10 @@ export default function QcBoardClient({ reports: initial, users, currentUser, fo
             {/* Page state */}
             {active.pageState && (
               <>
-                <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1">
+                <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1">
                   Page state
                 </div>
-                <div className="rounded-lg bg-slate-900 text-green-300 font-mono text-[10px] px-3 py-2.5 max-h-40 overflow-y-auto whitespace-pre leading-relaxed">
+                <div className="rounded-lg bg-slate-900 text-green-300 font-mono text-[11px] px-3 py-2.5 max-h-40 overflow-y-auto whitespace-pre leading-relaxed">
                   {JSON.stringify(active.pageState, null, 2)}
                 </div>
               </>
@@ -436,13 +436,13 @@ export default function QcBoardClient({ reports: initial, users, currentUser, fo
               <div className="mt-4 text-xs text-red-600">{archiveError}</div>
             )}
 
-            {/* Archive — never delete */}
+            {/* Archive, never delete */}
             {!active.archivedAt && (
               <div className="mt-6 pt-4 border-t border-slate-100 flex justify-end">
                 <button
                   onClick={() => setConfirmArchive(true)}
                   disabled={saving}
-                  className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-700 hover:underline disabled:opacity-40 disabled:cursor-not-allowed"
+                  className="inline-flex items-center gap-1.5 text-xs text-slate-500 hover:text-slate-700 hover:underline disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   <ArchiveBoxIcon className="w-3.5 h-3.5" />
                   Archive report

@@ -4,6 +4,8 @@ import { PROJECT_TYPES, SECTION_COLOR_MAP } from '@/lib/standards-questions';
 import { PLAYBOOK_CONTENT } from '@/lib/playbookContent';
 import PlaybookContent from '@/components/PlaybookContent';
 import { contactDepartmentLabel } from '@/lib/contactDepartments';
+import { CARD, INPUT, LABEL, HELPER, BTN_SECONDARY } from '@/components/ui/tokens';
+import { WidgetLoading } from '@/components/ui/WidgetFrame';
 
 // ── Sections (v3 — modify + extend; all internal-only data) ───────────────────
 const SECTIONS = [
@@ -51,24 +53,24 @@ function FieldLabel({ children, hint }) {
   return (
     <div className="mb-1.5">
       <div className="text-xs font-semibold text-slate-600">{children}</div>
-      {hint && <div className="text-[11px] text-slate-400 mt-0.5 leading-snug">{hint}</div>}
+      {hint && <div className={`${HELPER} mt-0.5 leading-snug`}>{hint}</div>}
     </div>
   );
 }
 function Inp({ value, onChange, placeholder, type = 'text' }) {
   return <input type={type} value={value ?? ''} onChange={e => onChange(e.target.value)} placeholder={placeholder}
-    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />;
+    className={INPUT} />;
 }
 function Textarea({ value, onChange, placeholder, rows = 3 }) {
   return <textarea value={value ?? ''} onChange={e => onChange(e.target.value)} placeholder={placeholder} rows={rows}
-    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500 resize-y" />;
+    className={`${INPUT} resize-y`} />;
 }
 function Toggle({ checked, onChange, label, sub }) {
   return (
     <div className="flex items-center justify-between py-2.5 px-3 border border-slate-200 rounded-lg bg-white">
-      <div><div className="text-sm font-medium text-slate-700">{label}</div>{sub && <div className="text-[11px] text-slate-400 mt-0.5">{sub}</div>}</div>
+      <div><div className="text-sm font-medium text-slate-700">{label}</div>{sub && <div className={`${HELPER} mt-0.5`}>{sub}</div>}</div>
       <button type="button" onClick={() => onChange(!checked)}
-        className={`relative inline-flex h-5 w-9 shrink-0 rounded-full transition-colors ${checked ? 'bg-amber-500' : 'bg-slate-200'}`}>
+        className={`relative inline-flex h-5 w-9 shrink-0 rounded-full transition-colors ${checked ? 'bg-orange-500' : 'bg-slate-200'}`}>
         <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform mt-0.5 ${checked ? 'translate-x-[18px]' : 'translate-x-0.5'}`} />
       </button>
     </div>
@@ -79,7 +81,7 @@ function ChipRow({ options, value, onChange }) {
     <div className="flex flex-wrap gap-1.5 mt-1">
       {options.map(o => { const v = o.value ?? o, l = o.label ?? o; const on = value === v;
         return <button key={v} type="button" onClick={() => onChange(on ? '' : v)}
-          className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${on ? 'bg-amber-600 text-white border-amber-600' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-400'}`}>{l}</button>;
+          className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition-colors ${on ? 'bg-orange-50 border-orange-400 text-orange-700' : 'bg-white text-slate-500 border-slate-300 hover:border-slate-400'}`}>{l}</button>;
       })}
     </div>
   );
@@ -90,19 +92,19 @@ function ChipMulti({ options, selected, onChange }) {
     <div className="flex flex-wrap gap-1.5 mt-1">
       {options.map(o => { const v = o.value ?? o, l = o.label ?? o; const on = sel.includes(v);
         return <button key={v} type="button" onClick={() => onChange(on ? sel.filter(s => s !== v) : [...sel, v])}
-          className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${on ? 'bg-amber-600 text-white border-amber-600' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-400'}`}>{l}</button>;
+          className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition-colors ${on ? 'bg-orange-50 border-orange-400 text-orange-700' : 'bg-white text-slate-500 border-slate-300 hover:border-slate-400'}`}>{l}</button>;
       })}
     </div>
   );
 }
 // Single-contact dropdown grouped by department.
-function ContactSelect({ contacts, value, onChange, placeholder = 'Select a contact…' }) {
+function ContactSelect({ contacts, value, onChange, placeholder = 'Select a contact...' }) {
   const byDept = {};
   for (const c of contacts) { const d = contactDepartmentLabel(c.department) || 'Other'; (byDept[d] ||= []).push(c); }
   return (
     <select value={value || ''} onChange={e => onChange(e.target.value || null)}
-      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-500">
-      <option value="">{contacts.length ? placeholder : 'No contacts yet — add them on the People tab'}</option>
+      className={INPUT}>
+      <option value="">{contacts.length ? placeholder : 'No contacts yet, add them on the People tab'}</option>
       {Object.entries(byDept).map(([dept, list]) => (
         <optgroup key={dept} label={dept}>
           {list.map(c => <option key={c.id} value={c.id}>{c.name}{c.email ? ` — ${c.email}` : ''}</option>)}
@@ -112,7 +114,7 @@ function ContactSelect({ contacts, value, onChange, placeholder = 'Select a cont
   );
 }
 function Divider() { return <div className="border-t border-slate-100 my-6" />; }
-function GroupLabel({ children }) { return <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">{children}</div>; }
+function GroupLabel({ children }) { return <div className={`${LABEL} mb-3`}>{children}</div>; }
 
 function parseJSON(v, fb) { if (v == null) return fb; if (typeof v !== 'string') return v; try { return JSON.parse(v); } catch { return fb; } }
 
@@ -123,24 +125,24 @@ function DistributionEditor({ rows, contacts, onChange }) {
   const remove = (i) => onChange(rows.filter((_, j) => j !== i));
   return (
     <div className="space-y-2">
-      {rows.length === 0 && <p className="text-xs text-slate-400">No distribution rows yet. Add who should be on the thread per deliverable.</p>}
+      {rows.length === 0 && <p className={HELPER}>No distribution rows yet. Add who should be on the thread per deliverable.</p>}
       {rows.map((r, i) => (
-        <div key={i} className="grid grid-cols-12 gap-2 items-start rounded-lg border border-slate-200 p-2 bg-white">
+        <div key={i} className={`grid grid-cols-12 gap-2 items-start ${CARD} p-2`}>
           <div className="col-span-3">
             <select value={r.event} onChange={e => update(i, { event: e.target.value })}
-              className="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-xs bg-white focus:outline-none focus:ring-2 focus:ring-amber-500">
+              className={`${INPUT} px-2 py-1.5 text-xs`}>
               {DISTRIBUTION_EVENTS.map(e => <option key={e.value} value={e.value}>{e.label}</option>)}
             </select>
           </div>
           <div className="col-span-4">
-            <ContactSelect contacts={contacts} value={r.contactId} onChange={v => update(i, { contactId: v })} placeholder="CRM contact…" />
+            <ContactSelect contacts={contacts} value={r.contactId} onChange={v => update(i, { contactId: v })} placeholder="CRM contact..." />
           </div>
           <div className="col-span-2"><Inp value={r.freetextName} onChange={v => update(i, { freetextName: v })} placeholder="or name" /></div>
           <div className="col-span-2"><Inp value={r.note} onChange={v => update(i, { note: v })} placeholder="note" /></div>
-          <button type="button" onClick={() => remove(i)} className="col-span-1 text-slate-300 hover:text-red-500 text-sm py-1.5">✕</button>
+          <button type="button" onClick={() => remove(i)} className="col-span-1 text-slate-400 hover:text-red-600 text-sm py-1.5">✕</button>
         </div>
       ))}
-      <button type="button" onClick={add} className="text-xs font-medium text-amber-600 hover:text-amber-700">+ Add row</button>
+      <button type="button" onClick={add} className="text-xs font-semibold text-orange-600 hover:text-orange-700">+ Add row</button>
     </div>
   );
 }
@@ -152,18 +154,18 @@ function NotesEditor({ notes, onChange }) {
   const remove = (i) => onChange(notes.filter((_, j) => j !== i));
   return (
     <div className="space-y-3 max-w-2xl">
-      {notes.length === 0 && <p className="text-xs text-slate-400">No notes yet. Use these for account-specific detail (phasing model, special terms…).</p>}
+      {notes.length === 0 && <p className={HELPER}>No notes yet. Use these for account-specific detail (phasing model, special terms...).</p>}
       {notes.map((n, i) => (
-        <div key={i} className="rounded-xl border border-slate-200 p-3 bg-white space-y-2">
+        <div key={i} className={`${CARD} p-3 space-y-2`}>
           <div className="flex items-center gap-2">
             <input value={n.topic ?? ''} onChange={e => update(i, { topic: e.target.value })} placeholder="Topic (e.g. Phasing model)"
-              className="flex-1 rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-amber-500" />
-            <button type="button" onClick={() => remove(i)} className="text-slate-300 hover:text-red-500 text-sm">✕</button>
+              className={`${INPUT} flex-1 py-1.5 font-medium`} />
+            <button type="button" onClick={() => remove(i)} className="text-slate-400 hover:text-red-600 text-sm">✕</button>
           </div>
-          <Textarea value={n.body} onChange={v => update(i, { body: v })} rows={4} placeholder="Details… (markdown allowed)" />
+          <Textarea value={n.body} onChange={v => update(i, { body: v })} rows={4} placeholder="Details... (markdown allowed)" />
         </div>
       ))}
-      <button type="button" onClick={add} className="text-xs font-medium text-amber-600 hover:text-amber-700">+ Add note</button>
+      <button type="button" onClick={add} className="text-xs font-semibold text-orange-600 hover:text-orange-700">+ Add note</button>
     </div>
   );
 }
@@ -225,7 +227,7 @@ export default function PlaybookTab({ clientId, clientName = '', contacts = [], 
   const setNote = (arr) => { setNotes(arr); save('notes', { notes: arr.map((n, i) => ({ ...n, sortOrder: i })) }); };
 
   if (!loaded) {
-    return <div className="flex items-center justify-center h-48 text-sm text-slate-400">Loading playbook…</div>;
+    return <WidgetLoading className="h-48 flex items-center justify-center">Loading playbook...</WidgetLoading>;
   }
 
   const sec = SECTIONS.find(s => s.id === activeSection);
@@ -238,24 +240,23 @@ export default function PlaybookTab({ clientId, clientName = '', contacts = [], 
       <div className="w-56 shrink-0">
         <nav className="space-y-0.5">
           {SECTIONS.map(s => {
-            const col = SECTION_COLOR_MAP[s.color] || SECTION_COLOR_MAP.slate;
             const on = activeSection === s.id;
             return (
               <button key={s.id} type="button" onClick={() => setActiveSection(s.id)}
-                className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-left text-xs font-medium transition-colors ${on ? `${col.bg} ${col.text} border ${col.border}` : 'text-slate-600 hover:bg-slate-100'}`}>
+                className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-left text-xs font-semibold transition-colors ${on ? 'bg-orange-50 border border-orange-400 text-orange-700' : 'text-slate-600 hover:bg-slate-100'}`}>
                 <span className="text-sm shrink-0">{s.icon}</span><span className="flex-1 leading-snug">{s.label}</span>
               </button>
             );
           })}
         </nav>
-        <p className="text-[10px] text-slate-400 mt-4 px-2 leading-relaxed">Internal playbook — not shown on the client share link.</p>
+        <p className={`${HELPER} mt-4 px-2 leading-relaxed`}>Internal playbook, not shown on the client share link.</p>
       </div>
 
       {/* Form */}
       <div className="flex-1 min-w-0">
         <div className={`flex items-center gap-3 mb-5 px-4 py-3 rounded-xl border ${c.bg} ${c.border}`}>
           <span className="text-xl">{sec?.icon}</span>
-          <div><h2 className={`text-sm font-bold ${c.text}`}>{sec?.label}</h2><p className="text-[11px] text-slate-500">{SECTION_DESCS[activeSection]}</p></div>
+          <div><h2 className={`text-sm font-bold ${c.text}`}>{sec?.label}</h2><p className={HELPER}>{SECTION_DESCS[activeSection]}</p></div>
         </div>
 
         {PLAYBOOK_CONTENT[activeSection] && <PlaybookContent content={PLAYBOOK_CONTENT[activeSection]} clientName={clientName} />}
@@ -288,7 +289,7 @@ export default function PlaybookTab({ clientId, clientName = '', contacts = [], 
             <div className="space-y-5 max-w-3xl">
               <div><FieldLabel hint="General posture for who to include">Communication posture</FieldLabel><Inp value={scalars.commsPosture} onChange={v => setScalar({ commsPosture: v })} placeholder="e.g. CC more, not less" /></div>
               <Divider />
-              <GroupLabel>Distribution — who's on the thread per deliverable</GroupLabel>
+              <GroupLabel>Distribution: who's on the thread per deliverable</GroupLabel>
               <DistributionEditor rows={distribution} contacts={contacts} onChange={setDist} />
             </div>
           )}
@@ -296,7 +297,7 @@ export default function PlaybookTab({ clientId, clientName = '', contacts = [], 
           {/* §4 Approvals & Sign-off */}
           {activeSection === 'approvals' && (
             <div className="space-y-5 max-w-2xl">
-              <p className="text-xs text-slate-400">Payment terms live on the client <b>Overview</b>.</p>
+              <p className={HELPER}>Payment terms live on the client <b>Overview</b>.</p>
               <GroupLabel>Who signs / who's invoiced</GroupLabel>
               <div className="space-y-4">
                 {ASSIGNMENT_ROLES.map(r => (
@@ -328,15 +329,15 @@ export default function PlaybookTab({ clientId, clientName = '', contacts = [], 
 
         {/* Footer */}
         <div className="mt-8 pt-4 border-t border-slate-100 flex items-center justify-between">
-          <div className="text-xs text-slate-400">
-            {saveState === 'saving' && <span>Saving…</span>}
+          <div className={HELPER}>
+            {saveState === 'saving' && <span>Saving...</span>}
             {saveState === 'saved' && <span className="text-green-600">✓ Saved</span>}
-            {saveState === 'error' && <span className="text-red-500">Save failed — check connection</span>}
-            {saveState === 'idle' && !canEdit && <span className="text-slate-300">🔒 View only</span>}
+            {saveState === 'error' && <span className="text-red-600">Save failed, check connection</span>}
+            {saveState === 'idle' && !canEdit && <span className="text-slate-500">🔒 View only</span>}
           </div>
           {activeSection !== SECTIONS[SECTIONS.length - 1].id && (
             <button type="button" onClick={() => { const i = SECTIONS.findIndex(s => s.id === activeSection); if (i < SECTIONS.length - 1) setActiveSection(SECTIONS[i + 1].id); }}
-              className="px-4 py-2 text-sm font-medium text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">Next section →</button>
+              className={BTN_SECONDARY}>Next section</button>
           )}
         </div>
       </div>

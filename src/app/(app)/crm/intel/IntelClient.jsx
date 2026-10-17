@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { CARD, INPUT, BTN_COMPACT, HELPER } from '@/components/ui/tokens';
 
 function initials(name) {
   if (!name) return '?';
@@ -9,7 +10,7 @@ function avatarColor(name) {
   if (!name) return 'bg-slate-400';
   let h = 0;
   for (let i = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h);
-  const colors = ['bg-orange-500','bg-amber-500','bg-blue-500','bg-indigo-500','bg-emerald-500','bg-teal-500','bg-violet-500','bg-rose-500'];
+  const colors = ['bg-orange-500','bg-amber-500','bg-sky-500','bg-indigo-500','bg-green-500','bg-teal-500','bg-violet-500','bg-red-500'];
   return colors[Math.abs(h) % colors.length];
 }
 function fmt(d) {
@@ -49,25 +50,25 @@ function ContactLinkPicker({ initialQuery, linked, onPick, onUnlink, onClose }) 
     <div ref={ref} className="absolute z-50 mt-1 left-0 w-64 rounded-lg shadow-xl border border-slate-200 bg-white overflow-hidden">
       <div className="p-2 border-b border-slate-100">
         <input autoFocus value={q} onChange={e => setQ(e.target.value)} placeholder="Search CRM contacts…"
-          className="w-full bg-slate-50 text-xs text-slate-900 rounded px-2 py-1.5 outline-none placeholder:text-slate-400 focus:bg-white border border-transparent focus:border-amber-400" />
+          className={`${INPUT} text-xs px-2 py-1.5`} />
       </div>
       <div className="max-h-44 overflow-y-auto">
-        {searching && <div className="px-3 py-2 text-[11px] text-slate-400">Searching…</div>}
-        {!searching && q && results.length === 0 && <div className="px-3 py-2 text-[11px] text-slate-400">No matches</div>}
+        {searching && <div className="px-3 py-2 text-[11px] text-slate-500">Searching...</div>}
+        {!searching && q && results.length === 0 && <div className="px-3 py-2 text-[11px] text-slate-500">No matches</div>}
         {results.map(c => (
           <button key={c.id} onClick={() => { onPick(c); onClose(); }}
-            className="w-full text-left px-3 py-1.5 flex items-center gap-2 hover:bg-amber-50 transition-colors">
-            <span className={`w-5 h-5 rounded-full flex items-center justify-center text-white text-[9px] font-bold shrink-0 ${avatarColor(c.name)}`}>{initials(c.name)}</span>
+            className="w-full text-left px-3 py-1.5 flex items-center gap-2 hover:bg-orange-50 transition-colors">
+            <span className={`w-5 h-5 rounded-full flex items-center justify-center text-white text-[11px] font-bold shrink-0 ${avatarColor(c.name)}`}>{initials(c.name)}</span>
             <span className="min-w-0">
-              <span className="block text-xs text-slate-800 font-medium truncate">{c.name}</span>
-              {c.company?.name && <span className="block text-[10px] text-slate-400 truncate">{c.company.name}</span>}
+              <span className="block text-xs text-slate-800 font-semibold truncate">{c.name}</span>
+              {c.company?.name && <span className="block text-[11px] text-slate-500 truncate">{c.company.name}</span>}
             </span>
           </button>
         ))}
       </div>
       {linked && (
         <div className="p-2 border-t border-slate-100">
-          <button onClick={() => { onUnlink(); onClose(); }} className="text-[11px] text-rose-600 hover:text-rose-700">Unlink contact</button>
+          <button onClick={() => { onUnlink(); onClose(); }} className="text-[11px] text-red-600 hover:text-red-700">Unlink contact</button>
         </div>
       )}
     </div>
@@ -80,7 +81,7 @@ function IntelCard({ item, onPatch }) {
   const person = item.contactName || item.targetName;
 
   return (
-    <div className={`rounded-lg border px-4 py-3 ${confirmed ? 'border-emerald-200 bg-emerald-50/60' : 'border-slate-200 bg-white'}`}>
+    <div className={`rounded-xl border shadow-sm px-4 py-3 ${confirmed ? 'border-green-200 bg-green-50/60' : CARD}`}>
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           <p className="text-sm text-slate-800">{item.detail || item.rawText}</p>
@@ -90,11 +91,11 @@ function IntelCard({ item, onPatch }) {
                 <button type="button" onClick={() => setLinking(v => !v)}
                   title={item.contactId ? 'Linked to a CRM contact. Click to change.' : 'Not linked. Click to link a CRM contact.'}
                   className={`inline-flex items-center gap-1 pl-0.5 pr-1.5 py-0.5 rounded-full text-[11px] border transition-colors ${
-                    item.contactId ? 'bg-white border-slate-200 text-slate-700 hover:border-amber-400'
-                                   : 'bg-white border-dashed border-slate-300 text-slate-500 hover:border-amber-400 hover:text-amber-700'}`}>
+                    item.contactId ? 'bg-white border-slate-200 text-slate-700 hover:border-orange-400'
+                                   : 'bg-white border-dashed border-slate-300 text-slate-500 hover:border-orange-400 hover:text-orange-700'}`}>
                   <span className={`w-4 h-4 rounded-full flex items-center justify-center text-white text-[8px] font-bold shrink-0 ${item.contactId ? avatarColor(person) : 'bg-slate-300'}`}>{initials(person)}</span>
                   <span>{person}</span>
-                  {item.contactId ? <span className="text-emerald-600">✓</span> : <span className="text-slate-400">↗</span>}
+                  {item.contactId ? <span className="text-green-600">✓</span> : <span className="text-slate-400">↗</span>}
                 </button>
                 {linking && (
                   <ContactLinkPicker initialQuery={person} linked={!!item.contactId}
@@ -105,17 +106,17 @@ function IntelCard({ item, onPatch }) {
               </span>
             )}
             {item.company && <span className="text-[11px] text-slate-500">· {item.company}</span>}
-            {item.note && <span className="text-[11px] text-slate-400">Note #{item.note.noteNumber}{item.note.title ? `, ${item.note.title}` : ''}</span>}
-            <span className="text-[11px] text-slate-300">{fmt(item.createdAt)}</span>
+            {item.note && <span className="text-[11px] text-slate-500">Note #{item.note.noteNumber}{item.note.title ? `, ${item.note.title}` : ''}</span>}
+            <span className="text-[11px] text-slate-500 tabular-nums">{fmt(item.createdAt)}</span>
           </div>
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
           {!confirmed
             ? <button onClick={() => onPatch(item, { status: 'CONFIRMED' })} title="Confirm as verified knowledge"
-                className="text-xs px-2 py-1 rounded border border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100">Confirm</button>
-            : <span className="text-[11px] px-2 py-1 rounded bg-emerald-100 text-emerald-700">✓ Verified</span>}
+                className={`${BTN_COMPACT} border-green-200 text-green-700 bg-green-50 hover:bg-green-100`}>Confirm</button>
+            : <span className="text-[11px] font-semibold px-2 py-1 rounded-lg bg-green-50 text-green-700 border border-green-200">✓ Verified</span>}
           <button onClick={() => onPatch(item, { status: 'DISMISSED' })} title="Dismiss"
-            className="text-slate-400 hover:text-rose-500 text-sm px-1">✕</button>
+            className="text-slate-600 hover:text-red-600 hover:bg-slate-100 rounded-lg text-sm px-1.5 py-0.5">✕</button>
         </div>
       </div>
     </div>
@@ -169,25 +170,25 @@ export default function IntelClient() {
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 15.803a7.5 7.5 0 0010.607 0z" /></svg>
           </span>
           <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search intel by person, company, or keyword…"
-            className="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-amber-400" />
+            className={`${INPUT} pl-9`} />
         </div>
         <div className="flex gap-1.5">
           {[['active', 'All'], ['confirmed', 'Verified']].map(([v, l]) => (
             <button key={v} onClick={() => setStatus(v)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${status === v ? 'bg-amber-500 text-white' : 'bg-white text-slate-500 hover:text-slate-700 border border-slate-200'}`}>{l}</button>
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${status === v ? 'bg-orange-50 border border-orange-400 text-orange-700' : 'bg-white text-slate-500 hover:text-slate-700 border border-slate-300'}`}>{l}</button>
           ))}
         </div>
       </div>
 
       {items === null ? (
-        <p className="text-sm text-slate-400 py-10 text-center">Loading…</p>
+        <p className="text-sm text-slate-500 py-10 text-center">Loading...</p>
       ) : items.length === 0 ? (
-        <p className="text-sm text-slate-400 py-10 text-center">
+        <p className="text-sm text-slate-500 py-10 text-center">
           {q ? 'No intel matches your search.' : 'No intel yet. It appears on its own as the bot reads your published notes.'}
         </p>
       ) : (
         <div className="space-y-2">
-          <p className="text-xs text-slate-400">{items.length} item{items.length !== 1 ? 's' : ''}</p>
+          <p className={HELPER}>{items.length} item{items.length !== 1 ? 's' : ''}</p>
           {items.map(it => <IntelCard key={it.id} item={it} onPatch={patch} />)}
         </div>
       )}

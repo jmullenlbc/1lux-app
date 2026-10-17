@@ -6,10 +6,11 @@ import Link from 'next/link';
 import { computeReviewFlags, figureReviewFlags } from '@/lib/intake/reviewFlags';
 import { computeQuantities } from '@/lib/intake/quantities';
 import { INTAKE_QUESTIONS } from '@/lib/intake/questionnaire';
-import { draftStage, reachedLabel } from '@/lib/intake/drafts';
+import { draftStage, reachedLabel } from "@/lib/intake/drafts";
+import SortHeader, { Th } from "@/components/ui/SortHeader";
 
 const STATUS_CONFIG = {
-  PENDING: { color: 'bg-amber-100 text-amber-700 border border-amber-200', label: 'Pending' },
+  PENDING: { color: 'bg-amber-50 text-amber-700 border border-amber-200', label: 'Pending' },
   APPROVED: { color: 'bg-green-100 text-green-700 border border-green-200', label: 'Approved' },
   REJECTED: { color: 'bg-red-100 text-red-700 border border-red-200', label: 'Rejected' },
 };
@@ -56,9 +57,9 @@ function UnfinishedBudgets({ drafts, onArchived }) {
   }
 
   return (
-    <div className="bg-white rounded-lg border border-slate-200 overflow-hidden mt-6">
+    <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden mt-6">
       <div className="px-4 py-3 border-b border-slate-200 flex items-baseline justify-between gap-3">
-        <h2 className="font-bold text-slate-900">Unfinished budgets ({drafts.length})</h2>
+        <h2 className="text-lg font-semibold text-slate-900">Unfinished budgets ({drafts.length})</h2>
         <p className="text-xs text-slate-500">
           Started on the public budget page and not sent yet. Each is a lead worth a call.
         </p>
@@ -71,7 +72,7 @@ function UnfinishedBudgets({ drafts, onArchived }) {
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
-            <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
+            <thead className="bg-slate-50 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500">
               <tr>
                 <th className="px-4 py-2">Last saved</th>
                 <th className="px-4 py-2">Name</th>
@@ -90,7 +91,7 @@ function UnfinishedBudgets({ drafts, onArchived }) {
                   <tr key={d.id} className="hover:bg-slate-50">
                     <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
                       {fmtDateTime(d.lastSavedAt)}
-                      {d.saveCount > 1 && <span className="block text-[10px] text-slate-400">{d.saveCount} saves</span>}
+                      {d.saveCount > 1 && <span className="block text-[11px] text-slate-500">{d.saveCount} saves</span>}
                     </td>
                     <td className="px-4 py-3">
                       <span className="font-medium text-slate-900">{d.firstName} {d.lastName}</span>
@@ -117,7 +118,7 @@ function UnfinishedBudgets({ drafts, onArchived }) {
                     <td className="px-4 py-3">
                       <span className={`text-xs font-semibold px-2 py-1 rounded-full ${
                         stage === 'working'
-                          ? 'bg-amber-100 text-amber-700 border border-amber-200'
+                          ? 'bg-amber-50 text-amber-700 border border-amber-200'
                           : 'bg-slate-100 text-slate-600 border border-slate-200'
                       }`}>
                         {stage === 'working' ? 'Still working' : 'Abandoned'}
@@ -217,11 +218,11 @@ function QuantityTakeoff({ submission, adopted }) {
               <span className="text-xs text-slate-500">{q.flag ? '⚠ ' : ''}{q.label}</span>
               <span className={`text-xs font-semibold text-right shrink-0 font-mono ${q.value == null ? 'text-slate-300' : 'text-slate-800'}`}>
                 {q.value == null ? 'not found' : q.value.toLocaleString('en-US')}
-                {q.value != null && q.source === 'derived' && <span className="ml-1 text-[10px] font-sans font-normal text-indigo-500">derived</span>}
-                {q.value != null && q.source === 'questionnaire' && <span className="ml-1 text-[10px] font-sans font-normal text-emerald-600">questionnaire</span>}
+                {q.value != null && q.source === 'derived' && <span className="ml-1 text-[11px] font-sans font-normal text-indigo-500">derived</span>}
+                {q.value != null && q.source === 'questionnaire' && <span className="ml-1 text-[11px] font-sans font-normal text-green-600">questionnaire</span>}
               </span>
             </div>
-            <p className={`text-[10px] leading-snug ${q.flag ? 'text-amber-800' : 'text-slate-400'}`}>
+            <p className={`text-[11px] leading-snug ${q.flag ? 'text-amber-800' : 'text-slate-500'}`}>
               {q.flag || q.how}
             </p>
           </div>
@@ -263,11 +264,11 @@ function QuestionnaireAnswers({ submission }) {
       <div className="space-y-3">
         {sections.map(sec => (
           <div key={sec.name}>
-            <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400 mb-1">{sec.name}</p>
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-1">{sec.name}</p>
             {sec.rows.map(a => (
               <div key={a.questionKey} className="flex items-baseline justify-between gap-3 py-0.5">
                 <span className="text-xs text-slate-500">{a.question}</span>
-                <span className={`text-xs font-semibold text-right shrink-0 ${a.isDefault ? 'text-slate-400' : 'text-slate-800'}`}>
+                <span className={`text-xs font-semibold text-right shrink-0 ${a.isDefault ? 'text-slate-500' : 'text-slate-800'}`}>
                   {a.answer}
                 </span>
               </div>
@@ -362,20 +363,6 @@ function KeptSheets({ submission }) {
         </div>
       )}
     </div>
-  );
-}
-
-function SortIcon({ col, sortCol, sortDir }) {
-  const active = sortCol === col;
-  return (
-    <span className="inline-flex flex-col ml-1 opacity-40 group-hover:opacity-70">
-      <svg className={`w-2.5 h-2.5 -mb-0.5 ${active && sortDir === 'asc' ? 'opacity-100 text-amber-500' : ''}`} viewBox="0 0 10 6" fill="currentColor">
-        <path d="M5 0L10 6H0z" />
-      </svg>
-      <svg className={`w-2.5 h-2.5 ${active && sortDir === 'desc' ? 'opacity-100 text-amber-500' : ''}`} viewBox="0 0 10 6" fill="currentColor">
-        <path d="M5 6L0 0h10z" />
-      </svg>
-    </span>
   );
 }
 
@@ -474,21 +461,21 @@ function JobLinkPanel({ submission, projects, onUpdated }) {
         </div>
         <div className="space-y-2">
           {rows.map(r => (
-            <div key={r.field} className="rounded-md bg-white border border-slate-200 px-2.5 py-2">
+            <div key={r.field} className="rounded-lg bg-white border border-slate-200 px-2.5 py-2">
               <div className="flex items-center justify-between gap-2">
                 <span className="text-xs font-semibold text-slate-700">{r.label}</span>
-                {r.kind === 'fill' && <span className="text-[10px] font-bold uppercase text-green-700">Will fill in</span>}
-                {r.kind === 'same' && <span className="text-[10px] font-bold uppercase text-slate-400">Already matches</span>}
-                {r.kind === 'conflict' && <span className="text-[10px] font-bold uppercase text-amber-700">They disagree</span>}
+                {r.kind === 'fill' && <span className="text-[11px] font-bold uppercase text-green-700">Will fill in</span>}
+                {r.kind === 'same' && <span className="text-[11px] font-bold uppercase text-slate-500">Already matches</span>}
+                {r.kind === 'conflict' && <span className="text-[11px] font-bold uppercase text-amber-700">They disagree</span>}
               </div>
               <div className="grid grid-cols-2 gap-2 mt-1 text-xs">
                 <div>
-                  <p className="text-[10px] text-slate-400">The job has</p>
-                  <p className={r.projectShown ? 'text-slate-800' : 'text-slate-300 italic'}>{r.projectShown || 'blank'}</p>
+                  <p className="text-[11px] text-slate-500">The job has</p>
+                  <p className={r.projectShown ? 'text-slate-800' : 'text-slate-500'}>{r.projectShown || 'blank'}</p>
                 </div>
                 <div>
-                  <p className="text-[10px] text-slate-400">The request says</p>
-                  <p className={r.requestShown ? 'text-slate-800' : 'text-slate-300 italic'}>{r.requestShown || 'blank'}</p>
+                  <p className="text-[11px] text-slate-500">The request says</p>
+                  <p className={r.requestShown ? 'text-slate-800' : 'text-slate-500'}>{r.requestShown || 'blank'}</p>
                 </div>
               </div>
               {r.kind === 'conflict' && (
@@ -555,14 +542,14 @@ function JobLinkPanel({ submission, projects, onUpdated }) {
         <p className="text-sm font-semibold text-slate-900">Is this a job we already have?</p>
         <div className="flex gap-2">
           <select value={pickId} onChange={e => setPickId(e.target.value)}
-            className="flex-1 min-w-0 rounded-lg border border-slate-200 px-2 py-1.5 text-sm">
+            className="flex-1 min-w-0 rounded-lg border border-slate-300 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500">
             <option value="">Pick a project…</option>
             {projects.map(p => (
               <option key={p.id} value={p.id}>{p.name}{p.city ? `, ${[p.city, p.state].filter(Boolean).join(', ')}` : ''}</option>
             ))}
           </select>
           <button onClick={() => compare(pickId)} disabled={!pickId || busy}
-            className="px-3 rounded-lg bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold disabled:opacity-40">
+            className="px-3 py-1.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold disabled:opacity-40">
             Compare
           </button>
         </div>
@@ -575,7 +562,7 @@ function JobLinkPanel({ submission, projects, onUpdated }) {
                 {busy ? 'Creating…' : 'Yes, create it'}
               </button>
               <button onClick={() => setConfirmCreate(false)} disabled={busy}
-                className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold">
+                className="px-3 py-1.5 rounded-lg bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 text-xs font-semibold">
                 No
               </button>
             </div>
@@ -686,10 +673,10 @@ export default function IntakeClient({ submissions: initialSubmissions, drafts =
   return (
     <div className="min-h-screen bg-slate-50 p-6">
       <div className="max-w-7xl mx-auto">
-        <Link href={canInvite ? '/admin' : '/crm'} className="text-xs text-slate-400 hover:text-amber-600 transition-colors mb-4 inline-block">
+        <Link href={canInvite ? '/admin' : '/crm'} className="text-xs text-slate-500 hover:text-orange-600 transition-colors mb-4 inline-block">
           ← {canInvite ? 'Admin' : 'Pipeline'}
         </Link>
-        <h1 className="text-3xl font-bold text-slate-900 mb-6">Conceptual Submissions</h1>
+        <h1 className="text-2xl font-bold text-slate-900 mb-6">Conceptual Submissions</h1>
 
         {/* Admins set the password on the public tool here (Mike 10-7). */}
 
@@ -699,32 +686,26 @@ export default function IntakeClient({ submissions: initialSubmissions, drafts =
             <div className="flex gap-2 mb-4 pb-4 border-b border-slate-200">
               {['ALL', 'PENDING', 'APPROVED', 'REJECTED'].map(s => (
                 <button key={s} onClick={() => setStatusFilter(s)}
-                  className={`px-3 py-1.5 text-xs font-medium rounded-full border transition-colors ${
+                  className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors ${
                     statusFilter === s
-                      ? 'bg-amber-500 border-amber-500 text-white'
-                      : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'
+                      ? "bg-orange-50 border-orange-400 text-orange-700"
+                      : "bg-white border-slate-300 text-slate-700 hover:bg-slate-50"
                   }`}>
                   {s}
                 </button>
               ))}
             </div>
-            <div className="bg-white rounded-lg border border-slate-200 overflow-hidden">
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
               <table className="w-full text-sm">
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr>
-                    <th onClick={() => toggleSort('createdAt')} className="px-4 py-3 text-left font-semibold text-slate-700 cursor-pointer select-none group hover:text-slate-900">
-                      Submitted <SortIcon col="createdAt" sortCol={sortCol} sortDir={sortDir} />
-                    </th>
-                    <th onClick={() => toggleSort('name')} className="px-4 py-3 text-left font-semibold text-slate-700 cursor-pointer select-none group hover:text-slate-900">
-                      Name <SortIcon col="name" sortCol={sortCol} sortDir={sortDir} />
-                    </th>
-                    <th className="px-4 py-3 text-left font-semibold text-slate-700">Email</th>
-                    <th className="px-4 py-3 text-left font-semibold text-slate-700">Project</th>
-                    <th className="px-4 py-3 text-left font-semibold text-slate-700">Location</th>
-                    <th className="px-4 py-3 text-left font-semibold text-slate-700">Type</th>
-                    <th onClick={() => toggleSort('status')} className="px-4 py-3 text-left font-semibold text-slate-700 cursor-pointer select-none group hover:text-slate-900">
-                      Status <SortIcon col="status" sortCol={sortCol} sortDir={sortDir} />
-                    </th>
+                    <SortHeader label="Submitted" field="createdAt" sort={{ key: sortCol, dir: sortDir }} onSort={toggleSort} className="px-4 py-3" />
+                    <SortHeader label="Name" field="name" sort={{ key: sortCol, dir: sortDir }} onSort={toggleSort} className="px-4 py-3" />
+                    <Th className="px-4 py-3">Email</Th>
+                    <Th className="px-4 py-3">Project</Th>
+                    <Th className="px-4 py-3">Location</Th>
+                    <Th className="px-4 py-3">Type</Th>
+                    <SortHeader label="Status" field="status" sort={{ key: sortCol, dir: sortDir }} onSort={toggleSort} className="px-4 py-3" />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -766,12 +747,12 @@ export default function IntakeClient({ submissions: initialSubmissions, drafts =
                       <td className="px-4 py-3 text-slate-600">
                         {s.proposedName}
                         {activeSuggestion(s) && (
-                          <span className="block mt-0.5 text-[10px] font-semibold text-sky-700">
+                          <span className="block mt-0.5 text-[11px] font-semibold text-sky-700">
                             Looks like: {activeSuggestion(s).name}
                           </span>
                         )}
                         {s.duplicateMatchId && (
-                          <span className="block mt-0.5 text-[10px] font-semibold text-green-700">
+                          <span className="block mt-0.5 text-[11px] font-semibold text-green-700">
                             ✓ Linked{s.duplicateMatch?.name ? ` to ${s.duplicateMatch.name}` : ''}
                           </span>
                         )}
@@ -797,8 +778,8 @@ export default function IntakeClient({ submissions: initialSubmissions, drafts =
 
           {/* Detail Panel */}
           {selected && (
-            <div className="bg-white rounded-lg border border-slate-200 p-6">
-              <h2 className="text-lg font-bold text-slate-900 mb-4">Review Submission</h2>
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+              <h2 className="text-lg font-semibold text-slate-900 mb-4">Review Submission</h2>
 
               <div className="mb-4">
                 <JobLinkPanel key={selected.id} submission={selected} projects={projects} onUpdated={applyUpdate} />
@@ -947,7 +928,7 @@ export default function IntakeClient({ submissions: initialSubmissions, drafts =
                                 setCopied(true);
                                 setTimeout(() => setCopied(false), 2000);
                               }}
-                              className="px-3 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-xs font-semibold whitespace-nowrap"
+                              className="px-3 py-1.5 rounded-lg bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 text-xs font-semibold whitespace-nowrap"
                             >
                               {copied ? 'Copied!' : 'Copy'}
                             </button>
@@ -960,7 +941,7 @@ export default function IntakeClient({ submissions: initialSubmissions, drafts =
                           className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
                             canInvite && selected.duplicateMatchId && !inviting
                               ? 'bg-orange-500 hover:bg-orange-600 text-white'
-                              : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                              : 'bg-slate-200 text-slate-500 cursor-not-allowed'
                           }`}
                         >
                           {inviting ? 'Sending…' : 'Send Portal Invite'}
@@ -971,7 +952,7 @@ export default function IntakeClient({ submissions: initialSubmissions, drafts =
                         <p className="text-xs text-red-500 mt-2">{inviteError}</p>
                       )}
                       {!canInvite && (
-                        <p className="text-xs text-slate-400 mt-1">
+                        <p className="text-xs text-slate-500 mt-1">
                           Only an admin can send portal invites.
                         </p>
                       )}

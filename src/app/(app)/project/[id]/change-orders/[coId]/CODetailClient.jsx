@@ -46,13 +46,13 @@ function MfrDropdown({ value, manufacturers, readOnly, onSave }) {
           style={{ top: pos.top, left: pos.left, zIndex: 9999 }}>
           <div className="p-1.5 border-b border-slate-100">
             <input autoFocus value={q} onChange={e => setQ(e.target.value)}
-              className="w-full text-xs border border-slate-200 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-400"
+              className="w-full text-xs border border-slate-200 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-orange-500"
               placeholder="Search…" onKeyDown={e => e.key === 'Escape' && setOpen(false)} />
           </div>
           <div className="max-h-44 overflow-y-auto">
             {filtered.length > 0 ? filtered.map(m => (
               <button key={m.id} onClick={() => { onSave(m.name); setOpen(false); setQ(''); }}
-                className={`w-full text-left px-3 py-1.5 text-xs hover:bg-blue-50 hover:text-blue-700 transition-colors ${value === m.name ? 'bg-blue-50 font-semibold text-blue-700' : ''}`}>
+                className={`w-full text-left px-3 py-1.5 text-xs hover:bg-orange-50 hover:text-orange-700 transition-colors ${value === m.name ? 'bg-blue-50 font-semibold text-blue-700' : ''}`}>
                 {m.name}
               </button>
             )) : <p className="px-3 py-2 text-xs text-slate-400 italic">No match</p>}
@@ -86,7 +86,7 @@ function NewMfrInline({ onCreated }) {
 
   if (!adding) return (
     <button onClick={() => setAdding(true)}
-      className="w-full text-left px-2 py-1 text-xs text-blue-600 hover:bg-blue-50 rounded font-semibold">
+      className="w-full text-left px-2 py-1 text-xs text-orange-600 hover:bg-orange-50 rounded font-semibold">
       + New Manufacturer
     </button>
   );
@@ -94,9 +94,9 @@ function NewMfrInline({ onCreated }) {
     <div className="flex gap-1">
       <input autoFocus value={name} onChange={e => setName(e.target.value)}
         placeholder="Name…" onKeyDown={e => e.key === 'Enter' && create()}
-        className="flex-1 text-xs border border-slate-200 rounded px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-400" />
+        className="flex-1 text-xs border border-slate-200 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-orange-500" />
       <button onClick={create} disabled={saving}
-        className="text-xs px-2 py-1 rounded bg-blue-600 text-white font-semibold disabled:opacity-50">
+        className="text-xs px-2 py-1 rounded bg-orange-500 text-white font-semibold disabled:opacity-50">
         {saving ? '…' : 'Add'}
       </button>
     </div>
@@ -158,7 +158,7 @@ function InlineCell({ value, onSave, placeholder = '—', type = 'text', classNa
         onChange={e => setLocal(e.target.value)}
         onBlur={commit}
         onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); commit(); } if (e.key === 'Escape') { setLocal(value ?? ''); setEditing(false); } }}
-        className={`w-full bg-blue-50 border border-blue-300 rounded px-1.5 py-0.5 text-xs outline-none focus:ring-1 focus:ring-blue-400 ${className}`}
+        className={`w-full bg-blue-50 border border-blue-300 rounded px-1.5 py-0.5 text-xs outline-none focus:ring-2 focus:ring-orange-500 ${className}`}
       />
     );
   }
@@ -215,7 +215,7 @@ function LineItemRow({ item, groupId, projectId, coId, manufacturers, rates, onU
           <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
             {/* + Line */}
             <button onClick={() => onAddLine(item)}
-              className="h-5 flex items-center gap-0.5 px-1 rounded text-[9px] font-bold text-slate-400 hover:text-green-600 hover:bg-green-50 transition-colors whitespace-nowrap"
+              className="h-5 flex items-center gap-0.5 px-1 rounded text-[11px] font-bold text-slate-400 hover:text-green-600 hover:bg-green-50 transition-colors whitespace-nowrap"
               title="Add line below">
               <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
@@ -224,7 +224,7 @@ function LineItemRow({ item, groupId, projectId, coId, manufacturers, rates, onU
             </button>
             {/* Group */}
             <button onClick={() => onAddOption(item)}
-              className="h-5 flex items-center gap-0.5 px-1 rounded text-[9px] font-bold text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors whitespace-nowrap"
+              className="h-5 flex items-center gap-0.5 px-1 rounded text-[11px] font-bold text-slate-400 hover:text-orange-600 hover:bg-orange-50 transition-colors whitespace-nowrap"
               title={isOptionRow ? 'Add another option to this group' : 'Make this a group with options'}>
               <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
@@ -253,11 +253,11 @@ function LineItemRow({ item, groupId, projectId, coId, manufacturers, rates, onU
               title="Use this option"
               className={`w-3.5 h-3.5 rounded-full border-2 shrink-0 transition-colors ${
                 item.isGroupSelected
-                  ? 'border-blue-600 bg-blue-600'
-                  : 'border-slate-300 hover:border-blue-400'
+                  ? 'border-orange-500 bg-orange-500'
+                  : 'border-slate-300 hover:border-orange-400'
               } ${isLocked ? 'cursor-default' : 'cursor-pointer'}`}
             />
-            <span className={`text-[10px] font-bold ${item.isGroupSelected ? 'text-blue-600' : 'text-slate-400'}`}>
+            <span className={`text-[11px] font-bold ${item.isGroupSelected ? 'text-blue-600' : 'text-slate-400'}`}>
               {item.optionLabel || 'Option'}
             </span>
           </div>
@@ -433,7 +433,7 @@ function OptionGroupPanel({ group, co, projectId, coId, rates, manufacturers, on
           )}
         </div>
         {group.isSelected && (
-          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${group.isSelected ? 'bg-white/20 text-white' : 'bg-slate-800 text-white'}`}>
+          <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${group.isSelected ? 'bg-white/20 text-white' : 'bg-slate-800 text-white'}`}>
             SELECTED
           </span>
         )}
@@ -464,7 +464,7 @@ function OptionGroupPanel({ group, co, projectId, coId, rates, manufacturers, on
                 { h: 'Quote Ref',    cls: '' },
                 { h: 'Lead Time (Weeks)', cls: '' },
               ].map(({ h, cls }) => (
-                <th key={h} className={`px-2 py-2 text-left text-[10px] font-semibold uppercase tracking-wider whitespace-nowrap text-slate-500 ${cls}`}>
+                <th key={h} className={`px-2 py-2 text-left text-[11px] font-semibold uppercase tracking-wide whitespace-nowrap text-slate-500 ${cls}`}>
                   {h}
                 </th>
               ))}
@@ -509,7 +509,7 @@ function OptionGroupPanel({ group, co, projectId, coId, rates, manufacturers, on
             </svg>
             Add line
           </button>
-          <span className="text-[10px] text-slate-300">Hover any row to add a line below it or create an option group</span>
+          <span className="text-[11px] text-slate-300">Hover any row to add a line below it or create an option group</span>
         </div>
       )}
 
@@ -590,18 +590,18 @@ function SendCOModal({ co, projectId, onSent, onClose }) {
           <div>
             <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">To *</label>
             <input value={to} onChange={e => setTo(e.target.value)} placeholder="recipient@firm.com, another@firm.com"
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500" />
           </div>
           <div>
             <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Message (optional)</label>
             <textarea value={msg} onChange={e => setMsg(e.target.value)} rows={3} placeholder="Optional note to include in the email…"
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 resize-none" />
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 resize-none" />
           </div>
           {err && <p className="text-xs text-red-600">{err}</p>}
           <div className="flex gap-2 pt-1">
             <button onClick={onClose} className="flex-1 px-4 py-2 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-slate-50">Cancel</button>
             <button onClick={send} disabled={sending || !selected}
-              className="flex-1 px-4 py-2 rounded-lg bg-slate-800 text-white text-sm font-semibold hover:bg-slate-700 disabled:opacity-50 transition-colors">
+              className="flex-1 px-4 py-2 rounded-lg bg-orange-500 text-white text-sm font-semibold hover:bg-orange-600 disabled:opacity-50 transition-colors">
               {sending ? 'Sending…' : `Send CO ${co.coNumber}`}
             </button>
           </div>
@@ -651,7 +651,7 @@ function ShareCOModal({ co, projectId, onClose }) {
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
           <div>
             <h2 className="font-semibold text-slate-800">Share {co.coNumber}</h2>
-            <p className="text-xs text-slate-400 mt-0.5">View-only link — buy prices hidden</p>
+            <p className="text-xs text-slate-400 mt-0.5">View-only link, buy prices hidden</p>
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -668,7 +668,7 @@ function ShareCOModal({ co, projectId, onClose }) {
                 <input readOnly value={shareUrl} onClick={e => e.target.select()}
                   className="flex-1 text-xs border border-slate-200 rounded-lg px-3 py-2 bg-slate-50 focus:outline-none" />
                 <button onClick={copy}
-                  className={`shrink-0 px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${copied ? 'bg-green-500 text-white' : 'bg-slate-800 text-white hover:bg-slate-700'}`}>
+                  className={`shrink-0 px-3 py-2 rounded-lg text-xs font-semibold transition-colors ${copied ? 'bg-green-600 text-white' : 'bg-orange-500 text-white hover:bg-slate-700'}`}>
                   {copied ? '✓ Copied' : 'Copy'}
                 </button>
               </div>
@@ -685,7 +685,7 @@ function ShareCOModal({ co, projectId, onClose }) {
             </>
           ) : (
             <button onClick={generate} disabled={gen}
-              className="w-full py-2.5 rounded-xl bg-slate-800 text-white text-sm font-semibold hover:bg-slate-700 disabled:opacity-50 transition-colors">
+              className="w-full py-2.5 rounded-xl bg-orange-500 text-white text-sm font-semibold hover:bg-orange-600 disabled:opacity-50 transition-colors">
               {gen ? 'Creating…' : 'Create share link'}
             </button>
           )}
@@ -841,7 +841,7 @@ export default function CODetailClient({ projectId, coId }) {
     <div className="min-h-screen bg-slate-50 flex items-center justify-center">
       <div className="text-center space-y-3">
         <p className="text-red-600 font-medium">{error}</p>
-        <Link href={`/project/${projectId}?tab=change-orders`} className="text-sm text-blue-600 underline">← Back to project</Link>
+        <Link href={`/project/${projectId}?tab=change-orders`} className="text-sm text-orange-600 underline">← Back to project</Link>
       </div>
     </div>
   );
@@ -874,18 +874,18 @@ export default function CODetailClient({ projectId, coId }) {
           </Link>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Change Order</span>
+              <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Change Order</span>
               <span className="font-mono text-xs font-bold text-slate-600">{co.coNumber}</span>
-              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${STATUS_META[co.status]?.cls || ''}`}>
+              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold border ${STATUS_META[co.status]?.cls || ''}`}>
                 {STATUS_META[co.status]?.label || co.status}
               </span>
-              {savingHeader && <span className="text-[10px] text-slate-400 italic">Saving…</span>}
+              {savingHeader && <span className="text-[11px] text-slate-400 italic">Saving…</span>}
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
             {co.status !== 'APPROVED' && !viewOnly && (
               <button onClick={() => setShowSend(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-700 transition-colors">
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-500 text-white text-xs font-semibold hover:bg-orange-600 transition-colors">
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
                 </svg>
@@ -919,10 +919,10 @@ export default function CODetailClient({ projectId, coId }) {
       <div className="max-w-6xl mx-auto px-6 py-6 space-y-6">
 
         {/* Header card */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
-              <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">Title</label>
+              <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1">Title</label>
               {isLocked ? (
                 <p className="text-base font-semibold text-slate-800">{co.title}</p>
               ) : (
@@ -930,27 +930,27 @@ export default function CODetailClient({ projectId, coId }) {
                   defaultValue={co.title}
                   onBlur={e => { if (e.target.value !== co.title) patchCO({ title: e.target.value }); }}
                   onKeyDown={e => e.key === 'Enter' && e.target.blur()}
-                  className="w-full text-base font-semibold border-b border-slate-200 bg-transparent outline-none hover:border-slate-400 focus:border-amber-400 pb-0.5 transition-colors"
+                  className="w-full text-base font-semibold border-b border-slate-200 bg-transparent outline-none hover:border-slate-400 focus:border-orange-500 pb-0.5 transition-colors"
                 />
               )}
             </div>
             <div>
-              <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">Date</label>
+              <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1">Date</label>
               <input
                 type="date"
                 defaultValue={co.date ? co.date.split('T')[0] : ''}
                 disabled={isLocked}
                 onBlur={e => { if (e.target.value) patchCO({ date: e.target.value }); }}
-                className="text-sm border-b border-slate-200 bg-transparent outline-none hover:border-slate-400 focus:border-amber-400 pb-0.5 disabled:opacity-60 transition-colors"
+                className="text-sm border-b border-slate-200 bg-transparent outline-none hover:border-slate-400 focus:border-orange-500 pb-0.5 disabled:opacity-60 transition-colors"
               />
             </div>
             <div>
-              <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">Status</label>
+              <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1">Status</label>
               <select
                 value={co.status}
                 onChange={e => patchCO({ status: e.target.value })}
                 disabled={co.status === 'APPROVED'}
-                className="text-sm border-b border-slate-200 bg-transparent outline-none hover:border-slate-400 focus:border-amber-400 pb-0.5 disabled:opacity-60 cursor-pointer transition-colors"
+                className="text-sm border-b border-slate-200 bg-transparent outline-none hover:border-slate-400 focus:border-orange-500 pb-0.5 disabled:opacity-60 cursor-pointer transition-colors"
               >
                 <option value="DRAFT">Draft</option>
                 <option value="SENT">Sent</option>
@@ -960,21 +960,21 @@ export default function CODetailClient({ projectId, coId }) {
           </div>
           {/* Notes */}
           <div className="mt-4">
-            <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">Notes</label>
+            <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1">Notes</label>
             <textarea
               defaultValue={co.notes || ''}
               disabled={isLocked}
               onBlur={e => { if ((e.target.value || null) !== co.notes) patchCO({ notes: e.target.value }); }}
               placeholder="Optional notes for this CO…"
               rows={2}
-              className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none disabled:opacity-60 bg-white"
+              className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500 resize-none disabled:opacity-60 bg-white"
             />
           </div>
 
           {/* Send history */}
           {co.sends?.length > 0 && (
             <details className="mt-4">
-              <summary className="text-[10px] text-slate-400 font-semibold uppercase tracking-wide cursor-pointer hover:text-slate-600 list-none select-none">
+              <summary className="text-[11px] text-slate-500 font-semibold uppercase tracking-wide cursor-pointer hover:text-slate-600 list-none select-none">
                 Send history ({co.sends.length})
               </summary>
               <div className="mt-2 space-y-1">

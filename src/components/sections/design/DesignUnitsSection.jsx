@@ -97,7 +97,7 @@ export default function DesignUnitsSection({ responses, projectData, allSections
 
       {/* Scope */}
       <div className="bg-slate-50 rounded-xl border border-slate-200 p-4">
-        <div className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Unit Scope</div>
+        <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Unit Scope</div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
           {[
             { label: 'Total Units',    value: numUnits    || '—' },
@@ -118,15 +118,15 @@ export default function DesignUnitsSection({ responses, projectData, allSections
 
       {/* ── GENERAL UNIT FIXTURES ──────────────────────────────────────────── */}
       <div>
-        <div className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">General / Entry</div>
+        <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">General / Entry</div>
         <div className="space-y-4">
 
           <QuestionCard
             question="Do you want a flat, edge-lit disk or a rounded, backlit disk?"
             note={'Flat edge-lit is the standard profile. Rounded backlit gives a softer look and is slightly cheaper (-$0.04/SF of units).'}
             options={[
-              { value: 'flatEdgeLit', label: 'Flat, Edge-lit Disk',    sub: 'Standard — included in base', cost: 0 },
-              { value: 'backlit',     label: 'Rounded, Back-lit Disk', sub: '-$0.04/SF — softer glow profile', cost: -0.04 },
+              { value: 'flatEdgeLit', label: 'Flat, Edge-lit Disk',    sub: 'Standard, included in base', cost: 0 },
+              { value: 'backlit',     label: 'Rounded, Back-lit Disk', sub: '-$0.04/SF, softer glow profile', cost: -0.04 },
             ]}
             value={ans.diskType}
             onChange={v => set('diskType', v)}
@@ -135,20 +135,20 @@ export default function DesignUnitsSection({ responses, projectData, allSections
 
           <QuestionCard
             question={'What size ceiling disk in the units?'}
-            note={'7" provides more light output and is recommended for higher ceilings. Both are included in the base — no added cost.'}
+            note={'7" provides more light output and is recommended for higher ceilings. Both are included in the base, no added cost.'}
             options={[
-              { value: '5inch', label: '5" Disk', sub: 'Standard — included in base', cost: 0 },
-              { value: '7inch', label: '7" Disk', sub: 'Included in base — slightly more light output', cost: 0 },
+              { value: '5inch', label: '5" Disk', sub: 'Standard, included in base', cost: 0 },
+              { value: '7inch', label: '7" Disk', sub: 'Included in base, slightly more light output', cost: 0 },
             ]}
             value={ans.diskSize}
             onChange={v => set('diskSize', v)}
           />
 
           <QuestionCard
-            question={'Would you like a statement at unit entries — larger disk, decorative mount, or typical?'}
+            question={'Would you like a statement at unit entries, larger disk, decorative mount, or typical?'}
             note={'12" disk adds ~$25/unit. Decorative surface mount ~$30/unit. No additional labor cost for either.'}
             options={[
-              { value: 'typical',    label: 'Typical — same disk as rest of unit', cost: 0 },
+              { value: 'typical',    label: 'Typical, same disk as rest of unit', cost: 0 },
               { value: '12inch',     label: '12" Statement Disk at entry',         cost: P.designUpgrades?.entryway12inch ?? 25 },
               { value: 'decorative', label: 'Decorative Surface Mount at entry',   cost: P.designUpgrades?.entryDecorative ?? 30 },
             ]}
@@ -158,9 +158,9 @@ export default function DesignUnitsSection({ responses, projectData, allSections
 
           <QuestionCard
             question="Do you need fire-rating housing in the ceiling? If so, what rating?"
-            note="2-hour rated j-boxes are typically standard. Some buildings require 1-hour rated IC housings for recessed fixtures. Noted here — no cost impact unless recessed downlights are specified."
+            note="2-hour rated j-boxes are typically standard. Some buildings require 1-hour rated IC housings for recessed fixtures. Noted here, no cost impact unless recessed downlights are specified."
             options={[
-              { value: 'none',    label: 'None — typical j-boxes', cost: 0 },
+              { value: 'none',    label: 'None, typical j-boxes', cost: 0 },
               { value: '1hr',     label: '1-Hour fire-rated IC housing required', cost: 0 },
               { value: '2hr',     label: '2-Hour fire-rated IC housing required', cost: 0 },
             ]}
@@ -170,9 +170,9 @@ export default function DesignUnitsSection({ responses, projectData, allSections
 
           <QuestionCard
             question="Do you want basic switching or dimmers? How many dimmers per unit?"
-            note="Dimmers/switching are included in the base package — no added cost. Typical locations: kitchen, living room, master bedroom."
+            note="Dimmers/switching are included in the base package, no added cost. Typical locations: kitchen, living room, master bedroom."
             options={[
-              { value: '0', label: 'No dimmers — basic on/off switching only', cost: 0 },
+              { value: '0', label: 'No dimmers, basic on/off switching only', cost: 0 },
               { value: '1', label: '1 dimmer per unit',  cost: 0 },
               { value: '2', label: '2 dimmers per unit', cost: 0 },
               { value: '3', label: '3 dimmers per unit', cost: 0 },
@@ -189,7 +189,7 @@ export default function DesignUnitsSection({ responses, projectData, allSections
             note={'7" disk with integrated occupancy sensor. Code typically requires lighting in mechanical spaces.'}
             options={[
               { value: 'no',  label: 'No', cost: 0 },
-              { value: 'yes', label: 'Yes — 7" disk w/ occupancy sensor', cost: P.designUpgrades?.boilerRoomDisk ?? 15 },
+              { value: 'yes', label: 'Yes, 7" disk w/ occupancy sensor', cost: P.designUpgrades?.boilerRoomDisk ?? 15 },
             ]}
             value={ans.boilerRoom}
             onChange={v => set('boilerRoom', v)} impact={qc['units.boilerRoom']}
@@ -200,7 +200,7 @@ export default function DesignUnitsSection({ responses, projectData, allSections
 
       {/* ── KITCHEN ─────────────────────────────────────────────────────────── */}
       <div>
-        <div className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Kitchen</div>
+        <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Kitchen</div>
         <div className="space-y-4">
 
           <QuestionCard
@@ -256,7 +256,7 @@ export default function DesignUnitsSection({ responses, projectData, allSections
 
       {/* ── LIVING ROOM / BEDROOMS ───────────────────────────────────────────── */}
       <div>
-        <div className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Living Room / Bedrooms</div>
+        <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Living Room / Bedrooms</div>
         <div className="space-y-4">
 
           <QuestionCard
@@ -300,10 +300,10 @@ export default function DesignUnitsSection({ responses, projectData, allSections
 
               <QuestionCard
                 question={'(Fans selected) Do you want a 48" fan or upgrade to 52"?'}
-                note={'52" fans run better in larger or taller rooms — no upcharge over 48".'}
+                note={'52" fans run better in larger or taller rooms, no upcharge over 48".'}
                 options={[
-                  { value: 'no',  label: '48" Fan — standard size',    cost: 0 },
-                  { value: 'yes', label: '52" Fan — larger rooms/spaces', cost: 0 },
+                  { value: 'no',  label: '48" Fan, standard size',    cost: 0 },
+                  { value: 'yes', label: '52" Fan, larger rooms/spaces', cost: 0 },
                 ]}
                 value={ans.fanSize52}
                 onChange={v => set('fanSize52', v)}
@@ -312,10 +312,10 @@ export default function DesignUnitsSection({ responses, projectData, allSections
 
               <QuestionCard
                 question="(Fans selected) Do you want a light kit on the fans?"
-                note="A light kit adds supplemental downlight to the fan. Informational — included in fan level pricing."
+                note="A light kit adds supplemental downlight to the fan. Informational, included in fan level pricing."
                 options={[
                   { value: 'no',  label: 'No light kit', cost: 0 },
-                  { value: 'yes', label: 'Yes — include light kit', cost: 0 },
+                  { value: 'yes', label: 'Yes, include light kit', cost: 0 },
                 ]}
                 value={ans.fanLightKit}
                 onChange={v => set('fanLightKit', v)}
@@ -323,10 +323,10 @@ export default function DesignUnitsSection({ responses, projectData, allSections
 
               <QuestionCard
                 question="(Fans selected) Do you want any other supplemental lighting in fan areas?"
-                note="Supplemental downlights or accent lighting in fan rooms. Informational — enter specific budget in Project Data."
+                note="Supplemental downlights or accent lighting in fan rooms. Informational, enter specific budget in Project Data."
                 options={[
-                  { value: 'no',  label: 'No — fans only in these areas', cost: 0 },
-                  { value: 'yes', label: 'Yes — additional supplemental lighting desired', cost: 0 },
+                  { value: 'no',  label: 'No, fans only in these areas', cost: 0 },
+                  { value: 'yes', label: 'Yes, additional supplemental lighting desired', cost: 0 },
                 ]}
                 value={ans.fanSupplemental}
                 onChange={v => set('fanSupplemental', v)}
@@ -335,11 +335,11 @@ export default function DesignUnitsSection({ responses, projectData, allSections
           )}
 
           <QuestionCard
-            question={'If ONLY ceiling lighting (no fan) — use (1) 12" disk or (4) 5"/7" disks in the living room?'}
-            note={'(1) 12" disk is enough light for a standard room. (4) small disks cost $488 vs $150 for 1 large — a $338 cost difference. Labor is 4x.'}
+            question={'If ONLY ceiling lighting (no fan), use (1) 12" disk or (4) 5"/7" disks in the living room?'}
+            note={'(1) 12" disk is enough light for a standard room. (4) small disks cost $488 vs $150 for 1 large, a $338 cost difference. Labor is 4x.'}
             options={[
-              { value: '1large', label: '(1) 12" Disk — cost-efficient, enough light', sub: '~$150 product + labor', cost: 0 },
-              { value: '4small', label: '(4) 5"/7" Disks — more even light spread',    sub: '+$34/unit adder',       cost: 34 },
+              { value: '1large', label: '(1) 12" Disk, cost-efficient, enough light', sub: '~$150 product + labor', cost: 0 },
+              { value: '4small', label: '(4) 5"/7" Disks, more even light spread',    sub: '+$34/unit adder',       cost: 34 },
             ]}
             value={ans.livingRoomDisks}
             onChange={v => set('livingRoomDisks', v)} impact={qc['units.livingRoomDisks']}
@@ -349,8 +349,8 @@ export default function DesignUnitsSection({ responses, projectData, allSections
             question="Would you like half-hot (switched) receptacles as an assumed light source if no ceiling lights are provided?"
             note="We believe half-hot receptacles do not provide a great tenant experience. Tenants want to control lamps from bed. Informational only."
             options={[
-              { value: 'no',  label: 'No — provide ceiling lighting in all rooms', cost: 0 },
-              { value: 'yes', label: 'Yes — half-hot switched receptacles in some rooms', cost: 0 },
+              { value: 'no',  label: 'No, provide ceiling lighting in all rooms', cost: 0 },
+              { value: 'yes', label: 'Yes, half-hot switched receptacles in some rooms', cost: 0 },
             ]}
             value={ans.halfHotReceptacles}
             onChange={v => set('halfHotReceptacles', v)}
@@ -361,7 +361,7 @@ export default function DesignUnitsSection({ responses, projectData, allSections
 
       {/* ── BATHROOMS ────────────────────────────────────────────────────────── */}
       <div>
-        <div className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Bathrooms</div>
+        <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Bathrooms</div>
         <div className="space-y-4">
           <QuestionCard
             question="How do you want to light bathroom vanities?"
@@ -389,14 +389,14 @@ export default function DesignUnitsSection({ responses, projectData, allSections
 
       {/* ── BEDROOM CLOSETS ──────────────────────────────────────────────────── */}
       <div>
-        <div className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Bedroom Closets</div>
+        <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Bedroom Closets</div>
         <div className="space-y-4">
           <QuestionCard
             question="Control method for closet lights?"
             note="An occupancy sensor eliminates the need for a wall switch, saving ~$60/unit in product + labor. Automatically turns off if tenant forgets."
             options={[
               { value: 'switch',    label: 'Wall switch (standard)', cost: 0 },
-              { value: 'occSensor', label: 'Occupancy sensor (removes switch)', sub: 'Saves ~$60/unit — recommended', cost: 0 },
+              { value: 'occSensor', label: 'Occupancy sensor (removes switch)', sub: 'Saves ~$60/unit, recommended', cost: 0 },
             ]}
             value={ans.closetControl}
             onChange={v => set('closetControl', v)}
@@ -408,14 +408,14 @@ export default function DesignUnitsSection({ responses, projectData, allSections
           front door sconce is asked here. Saves to the corridors section. ── */}
       {homeType && (
         <div>
-          <div className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Front Door</div>
+          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Front Door</div>
           <FrontDoorQuestion projectData={projectData} allSections={allSections} pricing={pricing} onSaveCorridors={onSaveCorridors} />
         </div>
       )}
 
       {/* ── BALCONIES (cost = answer × # of balconies in Project Data) ── */}
       <div>
-        <div className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Balconies</div>
+        <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Balconies</div>
         <div className="space-y-4">
           <QuestionCard
             question={homeType ? 'Back balcony fixture? If sconce, what is the priority vs. overall budget?' : 'Balcony fixture? If sconce, what is the priority vs. overall budget?'}

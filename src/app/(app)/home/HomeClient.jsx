@@ -2,6 +2,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { STAGE_LABEL } from '@/lib/pipeline';
+import WidgetFrame, { WidgetEmpty } from '@/components/ui/WidgetFrame';
+import StatTile from '@/components/ui/StatTile';
+import { BTN_PRIMARY, BTN_SECONDARY, BTN_COMPACT, BTN_COMPACT_PRIMARY, LABEL, HELPER, H1 } from '@/components/ui/tokens';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Widget Registry — single source of truth for all available widgets
@@ -129,30 +132,28 @@ const STAGE_LABELS = STAGE_LABEL;
 
 function WidgetShell({ id, title, icon, count, countLabel, href, color = '#f59e0b', children }) {
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col h-full">
-      <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-xl flex items-center justify-center text-base shrink-0"
+    <WidgetFrame
+      flush
+      className="overflow-hidden h-full"
+      bodyClassName="overflow-hidden"
+      title={(
+        <span className="inline-flex items-center gap-2">
+          <span className="w-7 h-7 rounded-lg flex items-center justify-center text-base shrink-0"
             style={{ backgroundColor: `${color}18`, color }}>
             {icon}
-          </div>
-          <div>
-            <h3 className="text-sm font-bold text-slate-900">{title}</h3>
-            {count != null && (
-              <p className="text-[11px] text-slate-400">{count.toLocaleString()} {countLabel}</p>
-            )}
-          </div>
-        </div>
-        {href && (
-          <Link href={href}
-            className="text-[11px] font-semibold px-2.5 py-1 rounded-lg transition-colors shrink-0"
-            style={{ color, backgroundColor: `${color}12` }}>
-            View all →
-          </Link>
-        )}
-      </div>
-      <div className="flex-1 overflow-hidden">{children}</div>
-    </div>
+          </span>
+          {title}
+        </span>
+      )}
+      sub={count != null ? <span className="tabular-nums">{count.toLocaleString()} {countLabel}</span> : null}
+      actions={href ? (
+        <Link href={href} className={BTN_COMPACT}>
+          View all
+        </Link>
+      ) : null}
+    >
+      {children}
+    </WidgetFrame>
   );
 }
 
@@ -175,12 +176,10 @@ function QuickStatsWidget({ stats }) {
   const cfg = WIDGET_REGISTRY.quick_stats;
   return (
     <WidgetShell id="quick_stats" title={cfg.title} icon={cfg.icon} color={cfg.color}>
-      <div className="grid grid-cols-4 divide-x divide-slate-100">
+      <div className="grid grid-cols-4 gap-3 p-5">
         {items.map(s => (
-          <Link key={s.label} href={s.href}
-            className="flex flex-col px-4 py-4 hover:bg-slate-50 transition-colors group">
-            <span className="text-xl font-bold" style={{ color: s.color }}>{s.value}</span>
-            <span className="text-[10px] text-slate-400 font-medium uppercase tracking-wide mt-0.5">{s.label}</span>
+          <Link key={s.label} href={s.href} className="block">
+            <StatTile inset label={s.label} value={s.value} className="h-full hover:border-orange-300 transition-colors" />
           </Link>
         ))}
       </div>
@@ -195,24 +194,24 @@ function RecentProjectsWidget({ data }) {
       count={data.total} countLabel="total" href="/dashboard" color={cfg.color}>
       <div className="divide-y divide-slate-50 overflow-y-auto max-h-72">
         {data.recent.length === 0 && (
-          <p className="px-5 py-8 text-sm text-slate-400 text-center">No projects yet.</p>
+          <WidgetEmpty>No projects yet.</WidgetEmpty>
         )}
         {data.recent.map(p => (
           <Link key={p.id} href={`/project/${p.id}`}
             className="flex items-center gap-3 px-5 py-3 hover:bg-slate-50 transition-colors group">
-            <div className="w-7 h-7 rounded-lg bg-amber-50 flex items-center justify-center shrink-0">
-              <span className="text-[9px] font-bold text-amber-600">{PHASE_LABELS[p.phase] || 'SD'}</span>
+            <div className="w-7 h-7 rounded-lg bg-orange-50 flex items-center justify-center shrink-0">
+              <span className="text-[11px] font-bold text-orange-600">{PHASE_LABELS[p.phase] || 'SD'}</span>
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-slate-900 truncate group-hover:text-amber-600 transition-colors">
+              <p className="text-sm font-semibold text-slate-900 truncate group-hover:text-orange-600 transition-colors">
                 {p.name}
               </p>
-              <p className="text-[11px] text-slate-400 truncate">
+              <p className={`${HELPER} truncate`}>
                 {p.client?.name || '—'}
                 {(p.city || p.state) ? ` · ${[p.city, p.state].filter(Boolean).join(', ')}` : ''}
               </p>
             </div>
-            <span className="text-[10px] text-slate-300 shrink-0">{fmtDate(p.updatedAt)}</span>
+            <span className={`${HELPER} tabular-nums shrink-0`}>{fmtDate(p.updatedAt)}</span>
           </Link>
         ))}
       </div>
@@ -225,19 +224,13 @@ function OpenPipelineWidget({ data }) {
   return (
     <WidgetShell id="open_pipeline" title={cfg.title} icon={cfg.icon}
       count={data.open} countLabel="open projects" href="/crm" color={cfg.color}>
-      <div className="grid grid-cols-2 divide-x divide-slate-100 border-b border-slate-100">
-        <div className="px-4 py-3">
-          <p className="text-base font-bold text-slate-900">{fmtMoney(data.pipeline)}</p>
-          <p className="text-[10px] text-slate-400 uppercase tracking-wide">Open Pipeline</p>
-        </div>
-        <div className="px-4 py-3">
-          <p className="text-base font-bold text-orange-600">{fmtMoney(data.weighted)}</p>
-          <p className="text-[10px] text-slate-400 uppercase tracking-wide">Weighted</p>
-        </div>
+      <div className="grid grid-cols-2 gap-3 px-5 py-4 border-b border-slate-100">
+        <StatTile inset label="Open Pipeline" value={fmtMoney(data.pipeline)} />
+        <StatTile inset label="Weighted" value={fmtMoney(data.weighted)} tone="brand" />
       </div>
       <div className="divide-y divide-slate-50 overflow-y-auto max-h-52">
         {data.recent.length === 0 && (
-          <p className="px-5 py-6 text-sm text-slate-400 text-center">No open projects.</p>
+          <WidgetEmpty>No open projects.</WidgetEmpty>
         )}
         {data.recent.map(d => (
           <Link key={d.id} href="/crm"
@@ -248,14 +241,14 @@ function OpenPipelineWidget({ data }) {
               <p className="text-xs font-semibold text-slate-900 truncate group-hover:text-orange-600 transition-colors">
                 {d.title}
               </p>
-              <p className="text-[10px] text-slate-400">
+              <p className={HELPER}>
                 {STAGE_LABELS[d.stage] || d.stage}
                 {d.client ? ` · ${d.client.name}` : ''}
               </p>
             </div>
             <div className="text-right shrink-0">
-              {d.totalRevenue && <p className="text-xs font-bold text-slate-700">{fmtMoney(d.totalRevenue)}</p>}
-              <p className="text-[10px] text-slate-400">{d.probability}%</p>
+              {d.totalRevenue && <p className="text-xs font-bold text-slate-700 tabular-nums">{fmtMoney(d.totalRevenue)}</p>}
+              <p className={`${HELPER} tabular-nums`}>{d.probability}%</p>
             </div>
           </Link>
         ))}
@@ -271,24 +264,24 @@ function ClientsWidget({ data }) {
       count={data.total} countLabel="total" href="/clients" color={cfg.color}>
       <div className="divide-y divide-slate-50 overflow-y-auto max-h-72">
         {data.recent.length === 0 && (
-          <p className="px-5 py-8 text-sm text-slate-400 text-center">No clients yet.</p>
+          <WidgetEmpty>No clients yet.</WidgetEmpty>
         )}
         {data.recent.map(c => (
           <Link key={c.id} href={`/clients/${c.id}`}
             className="flex items-center gap-3 px-5 py-3 hover:bg-slate-50 transition-colors group">
-            <div className="w-7 h-7 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
-              <span className="text-[10px] font-bold text-blue-600">{c.name[0]?.toUpperCase()}</span>
+            <div className="w-7 h-7 rounded-full bg-orange-50 flex items-center justify-center shrink-0">
+              <span className="text-[11px] font-bold text-orange-600">{c.name[0]?.toUpperCase()}</span>
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-slate-900 truncate group-hover:text-blue-600 transition-colors">
+              <p className="text-sm font-semibold text-slate-900 truncate group-hover:text-orange-600 transition-colors">
                 {c.name}
               </p>
-              <p className="text-[11px] text-slate-400">
+              <p className={`${HELPER} tabular-nums`}>
                 {c._count.projects} project{c._count.projects !== 1 ? 's' : ''}
                 {(c.city || c.state) ? ` · ${[c.city, c.state].filter(Boolean).join(', ')}` : ''}
               </p>
             </div>
-            <span className="text-[10px] text-slate-300 shrink-0">{fmtDate(c.updatedAt)}</span>
+            <span className={`${HELPER} tabular-nums shrink-0`}>{fmtDate(c.updatedAt)}</span>
           </Link>
         ))}
       </div>
@@ -303,9 +296,7 @@ function UpcomingActionsWidget({ data }) {
       count={data.upcomingActions.length} countLabel="items" href="/crm" color={cfg.color}>
       <div className="divide-y divide-slate-50 overflow-y-auto max-h-72">
         {data.upcomingActions.length === 0 && (
-          <p className="px-5 py-8 text-sm text-slate-400 text-center">
-            No upcoming actions. 🎉
-          </p>
+          <WidgetEmpty>No upcoming actions.</WidgetEmpty>
         )}
         {data.upcomingActions.map(d => {
           const overdue = isOverdue(d.nextActionDue);
@@ -318,13 +309,13 @@ function UpcomingActionsWidget({ data }) {
                   {d.title}
                 </p>
                 {d.nextActionText && (
-                  <p className="text-[11px] text-slate-500 truncate">{d.nextActionText}</p>
+                  <p className={`${HELPER} truncate`}>{d.nextActionText}</p>
                 )}
-                <p className="text-[11px] text-slate-400">
+                <p className={HELPER}>
                   {d.client?.name || '—'}
                 </p>
               </div>
-              <span className={`text-[10px] font-semibold shrink-0 ${overdue ? 'text-red-500' : 'text-amber-500'}`}>
+              <span className={`text-xs font-semibold tabular-nums shrink-0 ${overdue ? 'text-red-600' : 'text-amber-600'}`}>
                 {overdue ? 'Overdue' : fmtDate(d.nextActionDue)}
               </span>
             </Link>
@@ -340,33 +331,27 @@ function WonThisYearWidget({ data }) {
   return (
     <WidgetShell id="won_this_year" title={cfg.title} icon={cfg.icon} color={cfg.color}
       href="/crm">
-      <div className="px-5 py-4 border-b border-slate-100 grid grid-cols-2 gap-4">
-        <div>
-          <p className="text-2xl font-bold text-green-700">{data.wonThisYear.length}</p>
-          <p className="text-[10px] text-slate-400 uppercase tracking-wide mt-0.5">Projects Won</p>
-        </div>
-        <div>
-          <p className="text-2xl font-bold text-green-600">{fmtMoney(data.wonValue)}</p>
-          <p className="text-[10px] text-slate-400 uppercase tracking-wide mt-0.5">Total Value</p>
-        </div>
+      <div className="px-5 py-4 border-b border-slate-100 grid grid-cols-2 gap-3">
+        <StatTile inset label="Projects Won" value={data.wonThisYear.length} tone="success" />
+        <StatTile inset label="Total Value" value={fmtMoney(data.wonValue)} tone="success" />
       </div>
       <div className="divide-y divide-slate-50 overflow-y-auto max-h-48">
         {data.wonThisYear.length === 0 && (
-          <p className="px-5 py-6 text-sm text-slate-400 text-center">No wins yet this year.</p>
+          <WidgetEmpty>No wins yet this year.</WidgetEmpty>
         )}
         {data.wonThisYear.slice(0, 5).map(d => (
           <Link key={d.id} href="/crm"
             className="flex items-center gap-3 px-5 py-2.5 hover:bg-slate-50 transition-colors group">
-            <div className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center shrink-0">
-              <span className="text-[9px] text-green-700">✓</span>
+            <div className="w-5 h-5 rounded-full bg-green-50 flex items-center justify-center shrink-0">
+              <span className="text-[11px] text-green-600">✓</span>
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-xs font-semibold text-slate-900 truncate group-hover:text-green-600 transition-colors">
                 {d.title}
               </p>
-              <p className="text-[10px] text-slate-400">{d.client?.name || '—'}</p>
+              <p className={HELPER}>{d.client?.name || '—'}</p>
             </div>
-            <span className="text-xs font-bold text-green-700 shrink-0">
+            <span className="text-xs font-bold text-green-600 tabular-nums shrink-0">
               {fmtMoney(d.totalRevenue)}
             </span>
           </Link>
@@ -385,7 +370,7 @@ function PipelineByStageWidget({ data }) {
     <WidgetShell id="pipeline_by_stage" title={cfg.title} icon={cfg.icon}
       count={data.open} countLabel="open projects" href="/crm" color={cfg.color}>
       {stages.length === 0 ? (
-        <p className="px-5 py-8 text-sm text-slate-400 text-center">No open projects.</p>
+        <WidgetEmpty>No open projects.</WidgetEmpty>
       ) : (
         <div className="px-5 py-4 space-y-3 overflow-y-auto max-h-64">
           {stages.map(s => (
@@ -395,8 +380,8 @@ function PipelineByStageWidget({ data }) {
                   {STAGE_LABELS[s.stage] || s.stage}
                 </span>
                 <div className="text-right">
-                  <span className="text-xs font-bold text-slate-900">{fmtMoney(s.value)}</span>
-                  <span className="text-[10px] text-slate-400 ml-1.5">{s.count} project{s.count !== 1 ? 's' : ''}</span>
+                  <span className="text-xs font-bold text-slate-900 tabular-nums">{fmtMoney(s.value)}</span>
+                  <span className={`${HELPER} tabular-nums ml-1.5`}>{s.count} project{s.count !== 1 ? 's' : ''}</span>
                 </div>
               </div>
               <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
@@ -421,22 +406,18 @@ function ManufacturersWidget({ stats }) {
   return (
     <WidgetShell id="manufacturers" title={cfg.title} icon={cfg.icon} color={cfg.color}>
       <div className="px-5 py-4 grid grid-cols-2 gap-3">
-        <Link href="/manufacturers"
-          className="p-4 rounded-xl bg-purple-50 border border-purple-100 hover:border-purple-300 transition-colors">
-          <p className="text-2xl font-bold text-purple-700">{stats.manufacturers.total}</p>
-          <p className="text-xs text-purple-500 mt-0.5">Manufacturers</p>
+        <Link href="/manufacturers" className="block">
+          <StatTile inset label="Manufacturers" value={stats.manufacturers.total} className="h-full hover:border-orange-300 transition-colors" />
         </Link>
-        <Link href="/products"
-          className="p-4 rounded-xl bg-slate-50 border border-slate-100 hover:border-slate-300 transition-colors">
-          <p className="text-2xl font-bold text-slate-700">{stats.products.total}</p>
-          <p className="text-xs text-slate-500 mt-0.5">Products</p>
+        <Link href="/products" className="block">
+          <StatTile inset label="Products" value={stats.products.total} className="h-full hover:border-orange-300 transition-colors" />
         </Link>
       </div>
       <div className="px-5 pb-4 flex gap-2">
-        <Link href="/manufacturers" className="flex-1 py-2 text-xs font-semibold text-center rounded-xl bg-purple-600 hover:bg-purple-700 text-white transition-colors">
+        <Link href="/manufacturers" className={`${BTN_COMPACT_PRIMARY} flex-1`}>
           Manufacturers
         </Link>
-        <Link href="/products" className="flex-1 py-2 text-xs font-semibold text-center rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">
+        <Link href="/products" className={`${BTN_COMPACT} flex-1`}>
           Products
         </Link>
       </div>
@@ -450,13 +431,9 @@ function SalesRepsWidget({ stats }) {
     <WidgetShell id="sales_reps" title={cfg.title} icon={cfg.icon} color={cfg.color}
       count={stats.salesReps.total} countLabel="reps on record" href="/sales-reps">
       <div className="px-5 py-5">
-        <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-100 text-center">
-          <p className="text-3xl font-bold text-emerald-700 mb-1">{stats.salesReps.total}</p>
-          <p className="text-xs text-emerald-600">Reps from submittal history</p>
-        </div>
-        <Link href="/sales-reps"
-          className="mt-3 flex items-center justify-center w-full py-2 text-xs font-semibold rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white transition-colors">
-          View Rep Directory →
+        <StatTile inset label="Sales Reps" value={stats.salesReps.total} sub="Reps from submittal history" tone="success" />
+        <Link href="/sales-reps" className={`${BTN_COMPACT_PRIMARY} mt-3 w-full`}>
+          View Rep Directory
         </Link>
       </div>
     </WidgetShell>
@@ -512,14 +489,14 @@ function EditPanel({ widgets, onClose, onReorder, onRemove, onAdd, onToggleSize,
         {/* Header */}
         <div className="shrink-0 px-5 py-4 border-b border-slate-200 flex items-center justify-between">
           <div>
-            <h2 className="text-base font-bold text-slate-900">Edit Dashboard</h2>
-            <p className="text-xs text-slate-400 mt-0.5">Drag to reorder · click × to remove</p>
+            <h2 className="text-lg font-semibold text-slate-900">Edit Dashboard</h2>
+            <p className={`${HELPER} mt-0.5`}>Drag to reorder · click × to remove</p>
           </div>
           <div className="flex items-center gap-2">
-            {saving && <span className="text-xs text-slate-400">Saving…</span>}
+            {saving && <span className={HELPER}>Saving…</span>}
             <button
               onClick={onClose}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 text-white text-xs font-bold hover:bg-slate-700 transition-colors"
+              className={BTN_COMPACT_PRIMARY}
             >
               Done
             </button>
@@ -531,8 +508,8 @@ function EditPanel({ widgets, onClose, onReorder, onRemove, onAdd, onToggleSize,
 
           {/* Active widgets */}
           <div className="px-4 pt-4 pb-2">
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 px-1">
-              Active Widgets — {widgets.length} shown
+            <p className={`${LABEL} mb-2 px-1`}>
+              Active Widgets: {widgets.length} shown
             </p>
             <div className="space-y-1.5">
               {widgets.map((w, i) => {
@@ -546,7 +523,7 @@ function EditPanel({ widgets, onClose, onReorder, onRemove, onAdd, onToggleSize,
                     onDragOver={e => handleDragOver(e, i)}
                     onDragLeave={() => setDragOver(null)}
                     onDrop={() => handleDrop(i)}
-                    className={`flex items-center gap-3 p-3 rounded-xl border bg-white transition-all cursor-move select-none ${
+                    className={`flex items-center gap-3 p-3 rounded-xl border bg-white shadow-sm transition-all cursor-move select-none ${
                       dragOver === i ? 'border-orange-400 bg-orange-50 shadow-md' : 'border-slate-200 hover:border-slate-300'
                     }`}
                   >
@@ -563,17 +540,17 @@ function EditPanel({ widgets, onClose, onReorder, onRemove, onAdd, onToggleSize,
                     {/* Info */}
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-slate-900 truncate">{meta.title}</p>
-                      <p className="text-[11px] text-slate-400 truncate">{meta.description}</p>
+                      <p className={`${HELPER} truncate`}>{meta.description}</p>
                     </div>
 
                     {/* Size toggle */}
                     <button
                       onClick={() => onToggleSize(w.id)}
                       title={w.size === 'wide' ? 'Switch to normal width' : 'Switch to wide (2-col)'}
-                      className={`shrink-0 px-2 py-1 rounded-lg text-[10px] font-bold border transition-colors ${
+                      className={`shrink-0 px-2 py-1 rounded-lg text-[11px] font-semibold border transition-colors ${
                         w.size === 'wide'
-                          ? 'border-indigo-300 text-indigo-600 bg-indigo-50'
-                          : 'border-slate-200 text-slate-400 hover:border-slate-300'
+                          ? 'bg-orange-50 border-orange-400 text-orange-700'
+                          : 'border-slate-300 text-slate-600 hover:bg-slate-50'
                       }`}
                     >
                       {w.size === 'wide' ? '⬛ Wide' : '▪ Normal'}
@@ -592,9 +569,7 @@ function EditPanel({ widgets, onClose, onReorder, onRemove, onAdd, onToggleSize,
                 );
               })}
               {widgets.length === 0 && (
-                <div className="text-center py-6 text-sm text-slate-400">
-                  No widgets active. Add some below!
-                </div>
+                <WidgetEmpty>No widgets active. Add some below!</WidgetEmpty>
               )}
             </div>
           </div>
@@ -602,7 +577,7 @@ function EditPanel({ widgets, onClose, onReorder, onRemove, onAdd, onToggleSize,
           {/* Available widgets to add */}
           {available.length > 0 && (
             <div className="px-4 py-4 border-t border-slate-100 mt-2">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2 px-1">
+              <p className={`${LABEL} mb-2 px-1`}>
                 Add Widgets
               </p>
               <div className="space-y-1.5">
@@ -619,7 +594,7 @@ function EditPanel({ widgets, onClose, onReorder, onRemove, onAdd, onToggleSize,
                         <p className="text-sm font-semibold text-slate-700 group-hover:text-orange-700 truncate">
                           {meta.title}
                         </p>
-                        <p className="text-[11px] text-slate-400 truncate">{meta.description}</p>
+                        <p className={`${HELPER} truncate`}>{meta.description}</p>
                       </div>
                       <div className="shrink-0 w-6 h-6 rounded-full bg-slate-100 group-hover:bg-orange-500 flex items-center justify-center transition-colors">
                         <svg className="w-3.5 h-3.5 text-slate-400 group-hover:text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -636,7 +611,7 @@ function EditPanel({ widgets, onClose, onReorder, onRemove, onAdd, onToggleSize,
 
         {/* Footer hint */}
         <div className="shrink-0 px-5 py-3 border-t border-slate-100 bg-slate-50">
-          <p className="text-[11px] text-slate-400 text-center">
+          <p className={`${HELPER} text-center`}>
             Changes save automatically · config syncs across devices
           </p>
         </div>
@@ -721,9 +696,9 @@ export default function HomeClient({ initialConfig, user, stats }) {
       <div className="bg-white border-b border-slate-200 px-6 py-5 shrink-0">
         <div className="flex items-center justify-between gap-4">
           <div>
-            <p className="text-[11px] font-bold text-amber-500 uppercase tracking-wider mb-0.5">ILC Studios</p>
-            <h1 className="text-2xl font-bold text-slate-900">{timeGreeting(user.name)}</h1>
-            <p className="text-sm text-slate-400 mt-0.5">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-orange-600 mb-0.5">ILC Studios</p>
+            <h1 className={H1}>{timeGreeting(user.name)}</h1>
+            <p className={`${HELPER} mt-0.5`}>
               {new Date().toLocaleDateString('en-US', {
                 weekday: 'long', month: 'long', day: 'numeric', year: 'numeric',
               })}
@@ -732,7 +707,7 @@ export default function HomeClient({ initialConfig, user, stats }) {
 
           <button
             onClick={() => setEditOpen(true)}
-            className="flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold border border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-colors"
+            className={BTN_SECONDARY}
           >
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z" />
@@ -748,12 +723,11 @@ export default function HomeClient({ initialConfig, user, stats }) {
       <div className="flex-1 overflow-y-auto px-6 py-6">
         {widgets.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 text-center">
-            <div className="text-4xl mb-3">🧩</div>
-            <p className="text-slate-500 font-semibold mb-1">Your dashboard is empty</p>
-            <p className="text-sm text-slate-400 mb-4">Add widgets to get started.</p>
+            <p className="text-sm text-slate-700 font-semibold mb-1">Your dashboard is empty</p>
+            <p className={`${HELPER} mb-4`}>Add widgets to get started.</p>
             <button
               onClick={() => setEditOpen(true)}
-              className="px-4 py-2 text-sm font-bold rounded-xl bg-slate-900 text-white hover:bg-slate-700 transition-colors"
+              className={BTN_PRIMARY}
             >
               Edit Dashboard
             </button>

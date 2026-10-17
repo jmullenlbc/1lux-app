@@ -1,6 +1,8 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import { CARD, MODAL, BTN_PRIMARY, BTN_SECONDARY, BTN_COMPACT, LABEL, HELPER, TH } from '@/components/ui/tokens';
+import { WidgetLoading, WidgetEmpty } from '@/components/ui/WidgetFrame';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -33,15 +35,15 @@ function StatusPill({ status }) {
   const map = {
     NOT_ORDERED:         ['bg-slate-100 text-slate-400',  'Not ordered'],
     PO_PLACED:           ['bg-slate-100 text-slate-600',  'On order'],
-    LEAD_TIME_CONFIRMED: ['bg-blue-50 text-blue-700',     'Lead time set'],
-    ESD_CONFIRMED:       ['bg-indigo-50 text-indigo-700', 'ESD confirmed'],
+    LEAD_TIME_CONFIRMED: ['bg-slate-100 text-slate-700',  'Lead time set'],
+    ESD_CONFIRMED:       ['bg-slate-100 text-slate-700',  'ESD confirmed'],
     SHIPPED:             ['bg-amber-50 text-amber-700',   'Shipped'],
     IN_TRANSIT:          ['bg-amber-50 text-amber-700',   'In transit'],
     AT_WAREHOUSE:        ['bg-orange-50 text-orange-700', 'In warehouse'],
     PARTIALLY_RELEASED:  ['bg-orange-50 text-orange-700', 'In warehouse'],
     RELEASED:            ['bg-green-100 text-green-700',  'Released to site'],
     DELIVERED:           ['bg-green-100 text-green-700',  'Released to site'],
-    UNDER_REVIEW:        ['bg-purple-50 text-purple-700', 'Under review'],
+    UNDER_REVIEW:        ['bg-slate-100 text-slate-700',  'Under review'],
     REMOVED:             ['bg-slate-100 text-slate-400',  'Removed'],
   };
   const [cls, label] = map[status] || ['bg-slate-100 text-slate-500', status || '—'];
@@ -53,17 +55,17 @@ function StatusPill({ status }) {
 function ReleaseModal({ shipment, onCancel, onConfirm }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
+      <div className={`${MODAL} w-full max-w-sm p-6`}>
         <h3 className="text-base font-bold text-slate-800 mb-2">Confirm Release</h3>
         <p className="text-sm text-slate-500 mb-6 leading-relaxed">
           Release <strong className="text-slate-700">{shipment.manufacturer}</strong> fixtures from
           ILC warehouse to job site? This notifies ILC to arrange delivery.
         </p>
         <div className="flex gap-3 justify-end">
-          <button onClick={onCancel} className="px-4 py-2 text-sm rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50">
+          <button onClick={onCancel} className={BTN_SECONDARY}>
             Cancel
           </button>
-          <button onClick={onConfirm} className="px-4 py-2 text-sm rounded-lg bg-orange-600 text-white font-semibold hover:bg-orange-700">
+          <button onClick={onConfirm} className={BTN_PRIMARY}>
             Confirm Release
           </button>
         </div>
@@ -147,8 +149,8 @@ function ShipScheduleView({ projectId }) {
           { label: 'On order',          val: stats.onOrder },
         ].map(s => (
           <div key={s.label} className="bg-slate-50 border border-slate-200 rounded-xl p-3">
-            <p className="text-[11px] text-slate-400 mb-1">{s.label}</p>
-            <p className="text-xl font-bold text-slate-800">{s.val}</p>
+            <p className={`${LABEL} mb-1`}>{s.label}</p>
+            <p className="text-xl font-bold text-slate-800 tabular-nums">{s.val}</p>
           </div>
         ))}
       </div>
@@ -156,7 +158,7 @@ function ShipScheduleView({ projectId }) {
       {/* Submitted toast */}
       {submitted && (
         <div className="bg-green-50 border border-green-200 rounded-xl px-4 py-3 text-sm text-green-800 flex items-center gap-2 mb-3">
-          <span>✓</span> Release request submitted — you'll receive a confirmation email shortly.
+          <span>✓</span> Release request submitted, you'll receive a confirmation email shortly.
           <button onClick={() => setSubmitted(false)} className="ml-auto text-green-600 hover:text-green-800 text-xs">✕</button>
         </div>
       )}
@@ -169,7 +171,7 @@ function ShipScheduleView({ projectId }) {
         <button
           disabled={selectedCount === 0}
           onClick={() => setShowRelModal(true)}
-          className="px-4 py-1.5 rounded-lg text-sm font-semibold bg-orange-600 text-white hover:bg-orange-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
+          className={`${BTN_PRIMARY} disabled:opacity-40 disabled:cursor-not-allowed gap-1.5`}
         >
           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 00-3.213-9.193 2.056 2.056 0 00-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 00-10.026 0 1.106 1.106 0 00-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" />
@@ -185,7 +187,7 @@ function ShipScheduleView({ projectId }) {
             <tr>
               <th className="w-8 px-2 py-2" />
               {['Type','Description','Manufacturer','ESD','Status','Ordered','At Warehouse','On Site'].map(h => (
-                <th key={h} className="px-3 py-2 text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">{h}</th>
+                <th key={h} className={`${TH} whitespace-nowrap`}>{h}</th>
               ))}
             </tr>
           </thead>
@@ -208,7 +210,7 @@ function ShipScheduleView({ projectId }) {
                   <td className="px-3 py-2.5 text-slate-600 whitespace-nowrap">{li.esdDate ? fmtDate(li.esdDate) : '—'}</td>
                   <td className="px-3 py-2.5"><StatusPill status={li.fixtureStatus || 'NOT_ORDERED'} /></td>
                   <td className="px-3 py-2.5 text-right font-semibold text-slate-700">{li.qty ?? '—'}</td>
-                  <td className="px-3 py-2.5 text-right font-semibold text-blue-700">{li.qtyAtWarehouse ?? 0}</td>
+                  <td className="px-3 py-2.5 text-right font-semibold text-slate-800 tabular-nums">{li.qtyAtWarehouse ?? 0}</td>
                   <td className="px-3 py-2.5 text-right font-semibold text-green-700">{li.qtyOnSite ?? 0}</td>
                 </tr>
               );
@@ -217,12 +219,12 @@ function ShipScheduleView({ projectId }) {
         </table>
       </div>
 
-      <p className="text-[11px] text-slate-400">Check items at warehouse to request a release · Contact your rep with questions</p>
+      <p className={HELPER}>Check items at warehouse to request a release · Contact your rep with questions</p>
 
       {/* Release request modal */}
       {showRelModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
+          <div className={`${MODAL} w-full max-w-lg`}>
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
               <h3 className="font-semibold text-slate-900">Request Warehouse Release</h3>
               <button onClick={() => setShowRelModal(false)} className="w-7 h-7 rounded-lg hover:bg-slate-100 flex items-center justify-center text-slate-400">✕</button>
@@ -230,11 +232,11 @@ function ShipScheduleView({ projectId }) {
             <div className="px-6 py-4">
               <table className="w-full text-xs mb-4">
                 <thead>
-                  <tr className="text-slate-400 border-b border-slate-200 text-[11px]">
-                    <th className="text-left pb-2 font-medium">Type</th>
-                    <th className="text-left pb-2 font-medium">Description</th>
-                    <th className="text-right pb-2 font-medium">At Warehouse</th>
-                    <th className="text-right pb-2 font-medium">Request Qty</th>
+                  <tr className="border-b border-slate-200">
+                    <th className={`${TH} px-0 pb-2`}>Type</th>
+                    <th className={`${TH} px-0 pb-2`}>Description</th>
+                    <th className={`${TH} px-0 pb-2 text-right`}>At Warehouse</th>
+                    <th className={`${TH} px-0 pb-2 text-right`}>Request Qty</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -251,9 +253,9 @@ function ShipScheduleView({ projectId }) {
                             type="number" min="1" max={li.qtyAtWarehouse}
                             value={reqQty}
                             onChange={e => setSelected(prev => ({ ...prev, [li.id]: parseInt(e.target.value) || 1 }))}
-                            className="w-16 text-right border border-slate-200 rounded px-1.5 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-orange-400"
+                            className="w-16 text-right border border-slate-200 rounded-lg px-1.5 py-0.5 text-xs tabular-nums focus:outline-none focus:ring-2 focus:ring-orange-500"
                           />
-                          {wouldRemain < 0 && <span className="text-red-500 text-[10px] ml-1">max {li.qtyAtWarehouse}</span>}
+                          {wouldRemain < 0 && <span className="text-red-600 text-[11px] ml-1">max {li.qtyAtWarehouse}</span>}
                         </td>
                       </tr>
                     );
@@ -261,10 +263,10 @@ function ShipScheduleView({ projectId }) {
                 </tbody>
               </table>
               <div className="flex gap-3">
-                <button onClick={() => setShowRelModal(false)} className="flex-1 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50">Cancel</button>
+                <button onClick={() => setShowRelModal(false)} className={`${BTN_SECONDARY} flex-1`}>Cancel</button>
                 <button onClick={submitRequest} disabled={submitting}
-                  className="flex-1 py-2 bg-orange-600 text-white font-semibold rounded-lg text-sm hover:bg-orange-700 disabled:opacity-60">
-                  {submitting ? 'Submitting…' : 'Submit Request'}
+                  className={`${BTN_PRIMARY} flex-1 disabled:opacity-60`}>
+                  {submitting ? 'Submitting...' : 'Submit Request'}
                 </button>
               </div>
             </div>
@@ -281,40 +283,39 @@ function ConceptualBudgetView({ budget }) {
   return (
     <div>
       <div
-        className="rounded-2xl p-6 mb-5 text-white"
-        style={{ backgroundColor: '#0f172a' }}
+        className="rounded-xl p-6 mb-5 text-white bg-navy-950 shadow-sm"
       >
-        <p className="text-xs font-medium mb-1" style={{ color: '#94a3b8' }}>
-          ILC Studios — Conceptual Lighting & Controls Budget
+        <p className="text-xs font-medium mb-1 text-slate-400">
+          ILC Studios, Conceptual Lighting & Controls Budget
         </p>
         <p className="text-3xl font-bold tabular-nums mb-2">
           {fmtCurrency(budget.totalWithControls)}
         </p>
         <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm">
           <span>
-            <span style={{ color: '#94a3b8' }}>Lighting: </span>
+            <span className="text-slate-400">Lighting: </span>
             <span className="font-semibold">{fmtCurrency(budget.subtotalLightingOnly)}</span>
           </span>
           <span>
-            <span style={{ color: '#94a3b8' }}>Controls: </span>
+            <span className="text-slate-400">Controls: </span>
             <span className="font-semibold">{fmtCurrency(budget.controlsTotal)}</span>
           </span>
           {budget.perSf > 0 && (
             <span>
-              <span style={{ color: '#94a3b8' }}>$/SF: </span>
+              <span className="text-slate-400">$/SF: </span>
               <span className="font-semibold">${budget.perSf.toFixed(2)}</span>
             </span>
           )}
           {budget.perUnit > 0 && (
             <span>
-              <span style={{ color: '#94a3b8' }}>$/Unit: </span>
+              <span className="text-slate-400">$/Unit: </span>
               <span className="font-semibold">{fmtCurrency(budget.perUnit)}</span>
             </span>
           )}
         </div>
       </div>
-      <p className="text-xs text-slate-400 text-center">
-        Conceptual estimate — subject to change as design progresses
+      <p className="text-xs text-slate-500 text-center">
+        Conceptual budget, subject to change as design progresses
       </p>
     </div>
   );
@@ -368,7 +369,7 @@ function BudgetView({ projectId }) {
     <div>
       {/* Budget as-of date */}
       {matrix.createdAt && (
-        <p className="text-xs text-slate-400 mb-3">
+        <p className="text-xs text-slate-500 mb-3 tabular-nums">
           Budget as of {new Date(matrix.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
         </p>
       )}
@@ -377,26 +378,26 @@ function BudgetView({ projectId }) {
       <div className="grid grid-cols-3 gap-3 mb-5">
         <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center justify-between gap-2">
           <div>
-            <p className="text-[11px] text-slate-400 mb-1">CO's approved</p>
-            <p className="text-base font-bold text-green-700">{fmtCurrency(coSummary.approvedTotal)}</p>
+            <p className={`${LABEL} mb-1`}>CO's approved</p>
+            <p className="text-base font-bold text-green-700 tabular-nums">{fmtCurrency(coSummary.approvedTotal)}</p>
           </div>
           {coSummary.approvedCount > 0 && (
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700">{coSummary.approvedCount} CO</span>
+            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700 tabular-nums">{coSummary.approvedCount} CO</span>
           )}
         </div>
         <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center justify-between gap-2">
           <div>
-            <p className="text-[11px] text-slate-400 mb-1">CO's pending</p>
-            <p className="text-base font-bold text-amber-700">{fmtCurrency(coSummary.pendingTotal)}</p>
+            <p className={`${LABEL} mb-1`}>CO's pending</p>
+            <p className="text-base font-bold text-amber-700 tabular-nums">{fmtCurrency(coSummary.pendingTotal)}</p>
           </div>
           {coSummary.pendingCount > 0 && (
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">{coSummary.pendingCount} CO's</span>
+            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 tabular-nums">{coSummary.pendingCount} CO's</span>
           )}
         </div>
         <div className="bg-slate-50 border border-slate-200 rounded-xl p-3">
-          <p className="text-[11px] text-slate-400 mb-1">Revised total</p>
-          <p className="text-base font-bold text-slate-800">{fmtCurrency(revised)}</p>
-          <p className="text-[10px] text-slate-400">w/ approved</p>
+          <p className={`${LABEL} mb-1`}>Revised total</p>
+          <p className="text-base font-bold text-slate-800 tabular-nums">{fmtCurrency(revised)}</p>
+          <p className="text-xs text-slate-500">w/ approved</p>
         </div>
       </div>
 
@@ -405,7 +406,7 @@ function BudgetView({ projectId }) {
         <a
           href={`/api/projects/${projectId}/bid-matrix/pdf`}
           target="_blank" rel="noreferrer"
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50"
+          className={`${BTN_COMPACT} gap-1.5`}
         >
           <svg className="w-3.5 h-3.5 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
@@ -414,13 +415,13 @@ function BudgetView({ projectId }) {
         </a>
       </div>
 
-      {/* Items table — hidden on small screens, full on large */}
+      {/* Items table: hidden on small screens, full on large */}
       <div className="hidden sm:block border border-slate-200 rounded-xl overflow-hidden overflow-x-auto mb-3">
         <table className="w-full text-xs min-w-[520px]">
           <thead className="bg-slate-50 border-b border-slate-200">
             <tr>
               {['Type','Description','Manufacturer','Qty','Unit (CN)','Total'].map(h => (
-                <th key={h} className="px-3 py-2 text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wide">{h}</th>
+                <th key={h} className={TH}>{h}</th>
               ))}
             </tr>
           </thead>
@@ -429,7 +430,7 @@ function BudgetView({ projectId }) {
               <>
                 {g.tag && (
                   <tr key={`hdr-${g.tag}`} className="bg-orange-50">
-                    <td colSpan={6} className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-orange-700">{g.tag}</td>
+                    <td colSpan={6} className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-orange-700">{g.tag}</td>
                   </tr>
                 )}
                 {g.items.map((item, i) => (
@@ -437,9 +438,9 @@ function BudgetView({ projectId }) {
                     <td className="px-3 py-2 font-mono text-slate-700">{item.type}</td>
                     <td className="px-3 py-2 text-slate-600">{item.description}</td>
                     <td className="px-3 py-2 text-slate-500">{item.manufacturer || '—'}</td>
-                    <td className="px-3 py-2 text-right text-slate-600">{item.qty ?? '—'}</td>
-                    <td className="px-3 py-2 text-right text-slate-600">{item.cnPerUnit != null ? fmtCurrency(item.cnPerUnit) : '—'}</td>
-                    <td className="px-3 py-2 text-right font-medium text-slate-800">{item.cnTotal != null ? fmtCurrency(item.cnTotal) : '—'}</td>
+                    <td className="px-3 py-2 text-right text-slate-600 tabular-nums">{item.qty ?? '—'}</td>
+                    <td className="px-3 py-2 text-right text-slate-600 tabular-nums">{item.cnPerUnit != null ? fmtCurrency(item.cnPerUnit) : '—'}</td>
+                    <td className="px-3 py-2 text-right font-medium text-slate-800 tabular-nums">{item.cnTotal != null ? fmtCurrency(item.cnTotal) : '—'}</td>
                   </tr>
                 ))}
               </>
@@ -449,24 +450,24 @@ function BudgetView({ projectId }) {
               <td className="px-3 py-2 text-right font-semibold text-slate-800">{fmtCurrency(subtotal)}</td>
             </tr>
             {freightRate > 0 && (
-              <tr className="text-slate-400">
+              <tr className="text-slate-500">
                 <td colSpan={5} className="px-3 py-1.5 text-right text-[11px]">Freight ({freightRate}%)</td>
-                <td className="px-3 py-1.5 text-right text-[11px]">{fmtCurrency(freight)}</td>
+                <td className="px-3 py-1.5 text-right text-[11px] tabular-nums">{fmtCurrency(freight)}</td>
               </tr>
             )}
             {warehousingRate > 0 && (
-              <tr className="text-slate-400">
+              <tr className="text-slate-500">
                 <td colSpan={5} className="px-3 py-1.5 text-right text-[11px]">Warehousing ({warehousingRate}%)</td>
-                <td className="px-3 py-1.5 text-right text-[11px]">{fmtCurrency(warehousing)}</td>
+                <td className="px-3 py-1.5 text-right text-[11px] tabular-nums">{fmtCurrency(warehousing)}</td>
               </tr>
             )}
             {salesTaxRate > 0 && (
-              <tr className="text-slate-400">
+              <tr className="text-slate-500">
                 <td colSpan={5} className="px-3 py-1.5 text-right text-[11px]">Sales tax ({salesTaxRate}%)</td>
-                <td className="px-3 py-1.5 text-right text-[11px]">{fmtCurrency(tax)}</td>
+                <td className="px-3 py-1.5 text-right text-[11px] tabular-nums">{fmtCurrency(tax)}</td>
               </tr>
             )}
-            <tr className="bg-[#1C3A5E] text-white">
+            <tr className="bg-navy-950 text-white">
               <td colSpan={5} className="px-3 py-2.5 text-right font-bold">Contract total</td>
               <td className="px-3 py-2.5 text-right font-bold text-sm">{fmtCurrency(total)}</td>
             </tr>
@@ -480,7 +481,7 @@ function BudgetView({ projectId }) {
           <thead className="bg-slate-50 border-b border-slate-200">
             <tr>
               {['Type','Description','Total'].map(h => (
-                <th key={h} className="px-3 py-2 text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wide">{h}</th>
+                <th key={h} className={TH}>{h}</th>
               ))}
             </tr>
           </thead>
@@ -489,14 +490,14 @@ function BudgetView({ projectId }) {
               <>
                 {g.tag && (
                   <tr key={`mhdr-${g.tag}`} className="bg-orange-50">
-                    <td colSpan={3} className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-orange-700">{g.tag}</td>
+                    <td colSpan={3} className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-orange-700">{g.tag}</td>
                   </tr>
                 )}
                 {g.items.map(item => (
                   <tr key={item.id} className="border-b border-slate-50 last:border-0">
                     <td className="px-3 py-2 font-mono text-slate-700">{item.type}</td>
                     <td className="px-3 py-2 text-slate-500 max-w-[140px] truncate">{item.description}</td>
-                    <td className="px-3 py-2 text-right font-medium text-slate-700">{item.cnTotal != null ? fmtCurrency(item.cnTotal) : '—'}</td>
+                    <td className="px-3 py-2 text-right font-medium text-slate-700 tabular-nums">{item.cnTotal != null ? fmtCurrency(item.cnTotal) : '—'}</td>
                   </tr>
                 ))}
               </>
@@ -505,7 +506,7 @@ function BudgetView({ projectId }) {
               <td colSpan={2} className="px-3 py-2 text-right text-slate-500">Subtotal</td>
               <td className="px-3 py-2 text-right font-semibold text-slate-700">{fmtCurrency(subtotal)}</td>
             </tr>
-            <tr className="bg-[#1C3A5E] text-white">
+            <tr className="bg-navy-950 text-white">
               <td colSpan={2} className="px-3 py-2.5 text-right font-bold">Total</td>
               <td className="px-3 py-2.5 text-right font-bold">{fmtCurrency(total)}</td>
             </tr>
@@ -513,7 +514,7 @@ function BudgetView({ projectId }) {
         </table>
       </div>
 
-      <p className="text-[11px] text-slate-400">
+      <p className={HELPER}>
         Pricing shown is your contracted sell rate (CN) · ILC buy price not disclosed · Contact your rep for questions
       </p>
     </div>
@@ -546,33 +547,33 @@ function ChangeOrdersView({ projectId }) {
       <div className="grid grid-cols-2 gap-3 mb-5">
         <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center justify-between gap-2">
           <div>
-            <p className="text-[11px] text-slate-400 mb-1">Net approved</p>
-            <p className="text-base font-bold text-green-700">{fmtCurrency(approvedTotal)}</p>
+            <p className={`${LABEL} mb-1`}>Net approved</p>
+            <p className="text-base font-bold text-green-700 tabular-nums">{fmtCurrency(approvedTotal)}</p>
           </div>
           {approved.length > 0 && (
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700">{approved.length} approved</span>
+            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700 tabular-nums">{approved.length} approved</span>
           )}
         </div>
         <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center justify-between gap-2">
           <div>
-            <p className="text-[11px] text-slate-400 mb-1">Pending</p>
-            <p className="text-base font-bold text-amber-700">{fmtCurrency(pendingTotal)}</p>
+            <p className={`${LABEL} mb-1`}>Pending</p>
+            <p className="text-base font-bold text-amber-700 tabular-nums">{fmtCurrency(pendingTotal)}</p>
           </div>
           {pending.length > 0 && (
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">{pending.length} pending</span>
+            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 tabular-nums">{pending.length} pending</span>
           )}
         </div>
       </div>
 
       <div className="space-y-3">
         {changeOrders.map(co => (
-          <div key={co.id} className="border border-slate-200 rounded-xl p-4">
+          <div key={co.id} className={`${CARD} p-4`}>
             <div className="flex items-start justify-between gap-3 mb-2">
               <div>
                 <p className="font-semibold text-slate-800 text-sm">{co.coNumber} · {co.title}</p>
-                <p className="text-xs text-slate-400 mt-0.5">{fmtDate(co.date)}</p>
+                <p className="text-xs text-slate-500 mt-0.5 tabular-nums">{fmtDate(co.date)}</p>
               </div>
-              <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap ${
+              <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${
                 co.status === 'APPROVED' ? 'bg-green-100 text-green-700' :
                 co.status === 'DRAFT'   ? 'bg-amber-100 text-amber-700' :
                 co.status === 'SENT'    ? 'bg-amber-100 text-amber-700' :
@@ -581,7 +582,7 @@ function ChangeOrdersView({ projectId }) {
                 {co.status === 'DRAFT' || co.status === 'SENT' ? 'Pending' : co.status.charAt(0) + co.status.slice(1).toLowerCase()}
               </span>
             </div>
-            <p className={`text-sm font-semibold mb-1 ${co.total < 0 ? 'text-red-600' : 'text-slate-700'}`}>
+            <p className={`text-sm font-semibold mb-1 tabular-nums ${co.total < 0 ? 'text-red-600' : 'text-slate-700'}`}>
               {co.total >= 0 ? '+' : ''}{fmtCurrency(co.total)}
             </p>
             {co.notes && <p className="text-xs text-slate-500 leading-relaxed">{co.notes}</p>}
@@ -589,7 +590,7 @@ function ChangeOrdersView({ projectId }) {
               <a
                 href={`/api/projects/${projectId}/change-orders/${co.id}/pdf`}
                 target="_blank" rel="noreferrer"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50"
+                className={`${BTN_COMPACT} gap-1.5`}
               >
                 <svg className="w-3.5 h-3.5 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
@@ -599,7 +600,7 @@ function ChangeOrdersView({ projectId }) {
               {(co.status === 'DRAFT' || co.status === 'SENT') && (
                 <a
                   href="mailto:orders@ilcstudios.com"
-                  className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-orange-300 rounded-lg text-orange-600 hover:bg-orange-50"
+                  className={`${BTN_COMPACT} ml-auto gap-1.5`}
                 >
                   Contact rep
                 </a>
@@ -608,7 +609,7 @@ function ChangeOrdersView({ projectId }) {
           </div>
         ))}
       </div>
-      <p className="text-[11px] text-slate-400 mt-3">
+      <p className={`${HELPER} mt-3`}>
         Contact your ILC rep to discuss pending CO's · Approved CO's are binding per contract terms
       </p>
     </div>
@@ -638,7 +639,7 @@ function MeetingNotesView({ projectId }) {
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="font-semibold text-slate-800 text-sm">{n.title || 'Untitled'}</p>
-              {n.meetingDate && <p className="text-xs text-slate-400 mt-0.5">{fmtDate(n.meetingDate)}</p>}
+              {n.meetingDate && <p className="text-xs text-slate-500 mt-0.5 tabular-nums">{fmtDate(n.meetingDate)}</p>}
             </div>
           </div>
           {n.content && (
@@ -657,7 +658,7 @@ function MeetingNotesView({ projectId }) {
           )}
         </div>
       ))}
-      <p className="text-[11px] text-slate-400">Only notes marked shared by ILC Studios are visible here</p>
+      <p className={HELPER}>Only notes marked shared by ILC Studios are visible here</p>
     </div>
   );
 }
@@ -716,13 +717,13 @@ function ConstructionScheduleView({ projectId }) {
         <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-4">
           <div className="flex items-center justify-between mb-2">
             <span className="text-sm font-semibold text-slate-700">{done} of {total} milestones complete</span>
-            <span className="text-sm text-slate-400">{pct}%</span>
+            <span className="text-sm text-slate-500 tabular-nums">{pct}%</span>
           </div>
           <div className="h-1.5 bg-slate-200 rounded-full overflow-hidden">
             <div className="h-full bg-orange-500 rounded-full transition-all" style={{ width: `${pct}%` }} />
           </div>
           {nextUp && (
-            <p className="text-xs text-slate-400 mt-2">
+            <p className="text-xs text-slate-500 mt-2">
               Next: <span className="font-semibold text-slate-700">{nextUp.label} · {fmtDate(nextUp.date)}</span>
             </p>
           )}
@@ -737,7 +738,7 @@ function ConstructionScheduleView({ projectId }) {
             <path strokeLinecap="round" strokeLinejoin="round" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10l1 1h2M13 16l1-8h3l3 4v4h-2M13 16H9" />
           </svg>
           <div>
-            <p className="text-[11px] font-bold uppercase tracking-wide text-orange-700 mb-0.5">First delivery</p>
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-orange-700 mb-0.5">First delivery</p>
             <p className="text-sm font-bold text-slate-800">{firstDelivery.manufacturer}</p>
             <p className="text-sm font-semibold text-orange-600">{fmtDate(firstDelivery.esdDate)}</p>
           </div>
@@ -747,15 +748,15 @@ function ConstructionScheduleView({ projectId }) {
       {/* Key project dates */}
       {projectMilestones.length > 0 && (
         <div className="mb-5">
-          <h3 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-3">Key Dates</h3>
+          <h3 className={`${LABEL} mb-3`}>Key Dates</h3>
           <div className="grid gap-3 sm:grid-cols-3">
             {projectMilestones.map(m => {
               const state = classify(m.date);
               const days = daysUntil(m.date);
               return (
                 <div key={m.label} className={`border rounded-xl p-3 ${state === 'done' ? 'bg-slate-50 border-slate-200' : state === 'active' ? 'bg-orange-50 border-orange-200' : 'bg-white border-slate-200'}`}>
-                  <p className="text-[11px] text-slate-400 mb-1">{m.label}</p>
-                  <p className="text-sm font-bold text-slate-800">{fmtDate(m.date)}</p>
+                  <p className={`${LABEL} mb-1`}>{m.label}</p>
+                  <p className="text-sm font-bold text-slate-800 tabular-nums">{fmtDate(m.date)}</p>
                   {days !== null && (
                     <p className={`text-[11px] mt-1 font-medium ${days < 0 ? 'text-slate-400' : days <= 14 ? 'text-orange-600' : 'text-slate-500'}`}>
                       {days < 0 ? `${Math.abs(days)}d ago` : days === 0 ? 'Today' : `In ${days} days`}
@@ -771,7 +772,7 @@ function ConstructionScheduleView({ projectId }) {
       {/* AI milestones */}
       {aiMilestones.length > 0 && (
         <div>
-          <h3 className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-3">Detailed Schedule</h3>
+          <h3 className={`${LABEL} mb-3`}>Detailed Schedule</h3>
           <div className="border border-slate-200 rounded-xl overflow-hidden">
             {aiMilestones.map((m, i) => {
               const state = classify(m.date);
@@ -789,9 +790,9 @@ function ConstructionScheduleView({ projectId }) {
                     </span>
                   </div>
                   <div className="flex items-center gap-3 shrink-0">
-                    {m.date && <span className="text-xs text-slate-400">{fmtDate(m.date)}</span>}
+                    {m.date && <span className="text-xs text-slate-500 tabular-nums">{fmtDate(m.date)}</span>}
                     {days !== null && (
-                      <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${
+                      <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
                         state === 'done'   ? 'bg-slate-100 text-slate-400' :
                         days <= 0         ? 'bg-red-50 text-red-600' :
                         days <= 14        ? 'bg-orange-50 text-orange-700' :
@@ -809,7 +810,7 @@ function ConstructionScheduleView({ projectId }) {
         </div>
       )}
 
-      <p className="text-[11px] text-slate-400 mt-4">
+      <p className={`${HELPER} mt-4`}>
         Lighting milestones only · Managed by ILC Studios · Dates subject to change
       </p>
     </div>
@@ -838,7 +839,7 @@ function FilesView({ projectId, tab, label }) {
           key={f.id}
           href={`/api/portal/projects/${projectId}/files/${f.id}`}
           target="_blank" rel="noreferrer"
-          className="bg-white border border-slate-200 rounded-xl px-4 py-3 flex items-center gap-3 hover:border-amber-300 hover:shadow-sm transition-all group"
+          className={`${CARD} px-4 py-3 flex items-center gap-3 hover:border-orange-300 transition-all group`}
         >
           <div className="w-8 h-8 rounded-lg bg-red-50 flex items-center justify-center shrink-0">
             <svg className="w-4 h-4 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
@@ -846,10 +847,10 @@ function FilesView({ projectId, tab, label }) {
             </svg>
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm text-slate-700 font-medium truncate group-hover:text-amber-700 transition-colors">{f.originalName}</p>
-            <p className="text-xs text-slate-400 mt-0.5">{fmtDate(f.createdAt)}{f.size ? ` · ${fmtSize(f.size)}` : ''}</p>
+            <p className="text-sm text-slate-700 font-medium truncate group-hover:text-orange-700 transition-colors">{f.originalName}</p>
+            <p className="text-xs text-slate-500 mt-0.5 tabular-nums">{fmtDate(f.createdAt)}{f.size ? ` · ${fmtSize(f.size)}` : ''}</p>
           </div>
-          <div className="flex items-center gap-1 text-xs font-medium text-amber-600 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+          <div className="flex items-center gap-1 text-xs font-semibold text-orange-600 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
             Download
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v10a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
@@ -864,11 +865,11 @@ function FilesView({ projectId, tab, label }) {
 // ── Shared primitives ─────────────────────────────────────────────────────────
 
 function Spinner() {
-  return <div className="flex justify-center py-12"><div className="w-6 h-6 border-2 border-slate-200 border-t-orange-500 rounded-full animate-spin" /></div>;
+  return <WidgetLoading />;
 }
 
 function Empty({ text }) {
-  return <p className="text-center py-12 text-sm text-slate-400">{text}</p>;
+  return <WidgetEmpty>{text}</WidgetEmpty>;
 }
 
 // ── Nav config ────────────────────────────────────────────────────────────────
@@ -924,7 +925,7 @@ export default function PortalProjectPage({ params }) {
 
   if (loading) return (
     <div className="flex items-center justify-center min-h-screen">
-      <div className="w-8 h-8 border-2 border-slate-200 border-t-orange-500 rounded-full animate-spin" />
+      <WidgetLoading />
     </div>
   );
   if (!data) return null;
@@ -952,10 +953,10 @@ export default function PortalProjectPage({ params }) {
       {/* ── Desktop sidebar ── */}
       <aside className="hidden md:flex w-52 shrink-0 flex-col bg-white border-r border-slate-200 h-full">
         <div className="px-4 py-3 border-b border-slate-200">
-          <p className="text-[11px] font-medium text-amber-600 mb-1">ILC Studios</p>
+          <p className="text-[11px] font-semibold text-orange-600 mb-1">ILC Studios</p>
           <p className="font-bold text-slate-800 text-sm leading-tight">{project.name}</p>
           {(project.city || project.state) && (
-            <p className="text-xs text-slate-400 mt-0.5">{[project.city, project.state].filter(Boolean).join(', ')}</p>
+            <p className="text-xs text-slate-500 mt-0.5">{[project.city, project.state].filter(Boolean).join(', ')}</p>
           )}
         </div>
 
@@ -973,17 +974,17 @@ export default function PortalProjectPage({ params }) {
               <NavIcon pathD={item.icon} />
               <span className="flex-1 text-left">{item.label}</span>
               {item.hasBadge && pendingCOCount > 0 && (
-                <span className="text-[10px] font-bold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full">{pendingCOCount}</span>
+                <span className="text-[11px] font-semibold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full tabular-nums">{pendingCOCount}</span>
               )}
             </button>
           ))}
         </nav>
 
         <div className="px-4 py-3 border-t border-slate-200">
-          <button onClick={() => router.push('/portal/projects')} className="text-xs text-slate-400 hover:text-slate-600 flex items-center gap-1.5 mb-1.5">
+          <button onClick={() => router.push('/portal/projects')} className="text-xs text-slate-500 hover:text-slate-700 flex items-center gap-1.5 mb-1.5">
             ← All projects
           </button>
-          <button onClick={logout} className="text-xs text-slate-400 hover:text-slate-600">Sign out</button>
+          <button onClick={logout} className="text-xs text-slate-500 hover:text-slate-700">Sign out</button>
         </div>
       </aside>
 
@@ -995,19 +996,19 @@ export default function PortalProjectPage({ params }) {
           <div>
             <p className="font-bold text-slate-800 text-sm">{project.name}</p>
             {(project.city || project.state) && (
-              <p className="text-xs text-slate-400">{[project.city, project.state].filter(Boolean).join(', ')}</p>
+              <p className="text-xs text-slate-500">{[project.city, project.state].filter(Boolean).join(', ')}</p>
             )}
           </div>
-          <button onClick={logout} className="text-xs text-slate-400 hover:text-slate-600">Sign out</button>
+          <button onClick={logout} className="text-xs text-slate-500 hover:text-slate-700">Sign out</button>
         </div>
 
         {/* Section title (desktop) */}
         {active && (
           <div className="hidden md:block px-6 pt-5 pb-0 shrink-0">
-            <a href="/portal/projects" className="text-xs text-slate-400 hover:text-amber-600 transition-colors">
+            <a href="/portal/projects" className="text-xs text-slate-500 hover:text-orange-600 transition-colors">
               ← Back to projects
             </a>
-            <p className="text-sm text-slate-400 mt-1">{project.name}</p>
+            <p className="text-sm text-slate-500 mt-1">{project.name}</p>
             <h2 className="text-lg font-bold text-slate-800 mt-3">{active.label}</h2>
           </div>
         )}
@@ -1047,7 +1048,7 @@ export default function PortalProjectPage({ params }) {
                   <span className="absolute -top-1 -right-1 w-2 h-2 bg-orange-500 rounded-full" />
                 )}
               </div>
-              <span className={`text-[9px] whitespace-nowrap ${active?.id === item.id ? 'font-bold' : ''}`}>
+              <span className={`text-[11px] whitespace-nowrap ${active?.id === item.id ? 'font-semibold' : ''}`}>
                 {item.shortLabel}
               </span>
             </button>

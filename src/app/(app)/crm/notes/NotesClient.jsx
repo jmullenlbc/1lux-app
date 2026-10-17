@@ -8,6 +8,18 @@ import { attendeesToText, textToAttendees, toLocalInput, fromLocalInput } from '
 import { groupNotesForAgenda, agendaGroup, defaultNoteTab } from '@/lib/notes/agenda';
 import { shouldAutoPrep } from '@/lib/meetingPrep/due';
 import { centsToInput } from '@/lib/sales/expenses';
+import { FilterToolbar, FilterPanel, SearchBox, countFilters } from '@/components/ui/FilterPanel';
+import { useUrlView } from '@/lib/useUrlView';
+import { BTN_PRIMARY, BTN_SECONDARY, BTN_COMPACT, BTN_COMPACT_PRIMARY, INPUT, H1, LABEL, CARD, MODAL, HELPER, TAB_ACTIVE, TAB_INACTIVE } from '@/components/ui/tokens';
+
+// Status and search live in the address (useUrlView). `status` is the same
+// name the "Open them" reminder link already sends (?status=mine).
+const NOTE_FILTER_FIELDS = [
+  { key: 'q',      label: 'Search', kind: 'text' },
+  { key: 'status', label: 'Status', kind: 'pick' },
+];
+const NOTE_PANEL_FIELDS = NOTE_FILTER_FIELDS.filter(f => f.key !== 'q');
+const NOTE_STATUS_CHOICES = [['mine', 'Mine to publish'], ['draft', 'Draft'], ['published', 'Published']];
 
 // ── Contact tag chip + inline link picker ────────────────────────────────────
 function ContactChip({ name, linked, onClick }) {
@@ -15,15 +27,15 @@ function ContactChip({ name, linked, onClick }) {
     <button type="button" onClick={onClick} title={linked ? 'Linked to a CRM contact — click to change' : 'Not linked — click to link a CRM contact'}
       className={`inline-flex items-center gap-1 pl-0.5 pr-1.5 py-0.5 rounded-full text-[11px] border transition-colors ${
         linked
-          ? 'bg-white border-slate-200 text-slate-700 hover:border-amber-400'
-          : 'bg-white border-dashed border-slate-300 text-slate-500 hover:border-amber-400 hover:text-amber-700'
+          ? 'bg-white border-slate-200 text-slate-700 hover:border-orange-400'
+          : 'bg-white border-dashed border-slate-300 text-slate-500 hover:border-orange-400 hover:text-orange-700'
       }`}>
       <span className={`w-4 h-4 rounded-full flex items-center justify-center text-white text-[8px] font-bold shrink-0 ${linked ? avatarColor(name) : 'bg-slate-300'}`}>
         {initials(name)}
       </span>
       <span>{name}</span>
       {linked
-        ? <span className="text-emerald-600" title="Linked">✓</span>
+        ? <span className="text-green-600" title="Linked">✓</span>
         : <span className="text-slate-400" title="Unlinked">↗</span>}
     </button>
   );
@@ -75,7 +87,7 @@ function ContactLinkPicker({ initialQuery, defaultCompany, linked, onPick, onUnl
     setCreating(false);
   }
 
-  const cls = 'w-full bg-slate-50 text-xs text-slate-900 rounded px-2 py-1.5 outline-none placeholder:text-slate-400 focus:bg-white border border-transparent focus:border-amber-400';
+  const cls = `${INPUT} text-xs px-2 py-1.5`;
 
   return (
     <div ref={ref} className="absolute z-50 mt-1 left-0 w-64 rounded-lg shadow-xl border border-slate-200 bg-white overflow-hidden">
@@ -85,23 +97,23 @@ function ContactLinkPicker({ initialQuery, defaultCompany, linked, onPick, onUnl
             <input autoFocus value={q} onChange={e => setQ(e.target.value)} placeholder="Search CRM contacts…" className={cls} />
           </div>
           <div className="max-h-44 overflow-y-auto">
-            {searching && <div className="px-3 py-2 text-[11px] text-slate-400">Searching…</div>}
-            {!searching && q && results.length === 0 && <div className="px-3 py-2 text-[11px] text-slate-400">No matches</div>}
+            {searching && <div className="px-3 py-2 text-[11px] text-slate-500">Searching...</div>}
+            {!searching && q && results.length === 0 && <div className="px-3 py-2 text-[11px] text-slate-500">No matches</div>}
             {results.map(c => (
               <button key={c.id} onClick={() => { onPick(c); onClose(); }}
-                className="w-full text-left px-3 py-1.5 flex items-center gap-2 hover:bg-amber-50 transition-colors">
-                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-white text-[9px] font-bold shrink-0 ${avatarColor(c.name)}`}>{initials(c.name)}</span>
+                className="w-full text-left px-3 py-1.5 flex items-center gap-2 hover:bg-orange-50 transition-colors">
+                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-white text-[11px] font-bold shrink-0 ${avatarColor(c.name)}`}>{initials(c.name)}</span>
                 <span className="min-w-0">
-                  <span className="block text-xs text-slate-800 font-medium truncate">{c.name}</span>
-                  {c.company?.name && <span className="block text-[10px] text-slate-400 truncate">{c.company.name}</span>}
+                  <span className="block text-xs text-slate-800 font-semibold truncate">{c.name}</span>
+                  {c.company?.name && <span className="block text-[11px] text-slate-500 truncate">{c.company.name}</span>}
                 </span>
               </button>
             ))}
           </div>
           <div className="p-2 border-t border-slate-100 flex items-center justify-between">
             <button onClick={() => { setForm({ name: q || initialQuery || '', email: '', company: defaultCompany || '' }); setAdding(true); }}
-              className="text-[11px] text-amber-700 hover:text-amber-800 font-medium">+ Add new contact</button>
-            {linked && <button onClick={() => { onUnlink(); onClose(); }} className="text-[11px] text-rose-600 hover:text-rose-700">Unlink</button>}
+              className="text-[11px] text-orange-600 hover:text-orange-700 font-semibold">+ Add new contact</button>
+            {linked && <button onClick={() => { onUnlink(); onClose(); }} className="text-[11px] text-red-600 hover:text-red-700">Unlink</button>}
           </div>
         </>
       ) : (
@@ -110,10 +122,10 @@ function ContactLinkPicker({ initialQuery, defaultCompany, linked, onPick, onUnl
           <input autoFocus value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} placeholder="Full name" className={cls} />
           <input value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} placeholder="Email" className={cls} />
           <input value={form.company} onChange={e => setForm({ ...form, company: e.target.value })} placeholder="Company (optional)" className={cls} />
-          {err && <p className="text-[11px] text-rose-600">{err}</p>}
+          {err && <p className="text-[11px] text-red-600">{err}</p>}
           <div className="flex items-center gap-2 pt-0.5">
             <button onClick={createContact} disabled={creating}
-              className="text-[11px] font-semibold px-2 py-1 rounded bg-amber-500 text-white hover:bg-amber-400 disabled:opacity-50">{creating ? 'Adding…' : 'Add & link'}</button>
+              className={BTN_COMPACT_PRIMARY}>{creating ? 'Adding...' : 'Add & link'}</button>
             <button onClick={() => setAdding(false)} className="text-[11px] text-slate-500 hover:text-slate-700">Back</button>
           </div>
         </div>
@@ -128,7 +140,7 @@ function ActionRow({ a, onPatch, intel, types, owners = [] }) {
   const [editing, setEditing] = useState(false);
   const [linking, setLinking] = useState(false);
   const [f, setF] = useState({ detail: a.detail || a.rawText || '', contactName: a.contactName || '', targetName: a.targetName || '', company: a.company || '' });
-  const inputCls = 'w-full bg-white border border-slate-200 rounded px-2 py-1 text-xs text-slate-900 placeholder:text-slate-500 outline-none focus:border-amber-500';
+  const inputCls = `${INPUT} px-2 py-1 text-xs`;
 
   const typeList = types && types.length ? types : [{ key: a.type, label: a.type }];
   const typeDef  = typeList.find(t => t.key === a.type);
@@ -139,12 +151,12 @@ function ActionRow({ a, onPatch, intel, types, owners = [] }) {
   function save() { onPatch(a.id, { detail: f.detail, contactName: f.contactName, targetName: f.targetName, company: f.company }); setEditing(false); }
 
   return (
-    <div className={`rounded-lg border px-3 py-2 ${confirmed ? 'border-emerald-300 bg-emerald-50' : 'border-slate-200 bg-slate-100'}`}>
+    <div className={`rounded-lg border px-3 py-2 ${confirmed ? 'border-green-300 bg-green-50' : 'border-slate-200 bg-slate-100'}`}>
       <div className="flex items-start gap-2">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 flex-wrap">
             <select value={a.type} onChange={e => onPatch(a.id, { type: e.target.value })}
-              className="text-[11px] font-semibold bg-white border border-slate-200 rounded px-1.5 py-0.5 text-amber-700 outline-none">
+              className="text-[11px] font-semibold bg-white border border-slate-200 rounded px-1.5 py-0.5 text-orange-700 outline-none">
               {typeList.map(t => <option key={t.key} value={t.key}>{t.label}</option>)}
               {!typeList.some(t => t.key === a.type) && <option value={a.type}>{a.type}</option>}
             </select>
@@ -154,7 +166,7 @@ function ActionRow({ a, onPatch, intel, types, owners = [] }) {
                   <ContactChip name={a.contactName} linked={!!a.contactId} onClick={() => setLinking(v => !v)} />
                 ) : (
                   <button type="button" onClick={() => setLinking(v => !v)}
-                    className="text-[11px] text-slate-400 hover:text-amber-700 border border-dashed border-slate-300 rounded-full px-2 py-0.5">＋ link person</button>
+                    className="text-[11px] text-slate-500 hover:text-orange-700 border border-dashed border-slate-300 rounded-full px-2 py-0.5">+ link person</button>
                 )}
                 {linking && (
                   <ContactLinkPicker
@@ -180,13 +192,13 @@ function ActionRow({ a, onPatch, intel, types, owners = [] }) {
             {!editing && a.targetName && <span className="text-[11px] text-slate-500">→ {a.targetName}</span>}
             {!editing && a.company && <span className="text-[11px] text-slate-500">· {a.company}</span>}
             {!editing && isIntro && !a.watch && (
-              <span className="text-[11px] text-emerald-600" title="First reminder, in days after the meeting, if they haven't done it">
+              <span className="text-[11px] text-green-600" title="First reminder, in days after the meeting, if they haven't done it">
                 ⏰ first reminder at {waitDays ?? '—'}d
               </span>
             )}
           </div>
           {!editing && a.watch && (
-            <p className={`text-[11px] mt-0.5 ${a.watch.state === 'done' ? 'text-emerald-700 font-semibold' : a.watch.state === 'gave up' ? 'text-rose-600' : 'text-slate-500'}`}
+            <p className={`text-[11px] mt-0.5 ${a.watch.state === 'done' ? 'text-green-700 font-semibold' : a.watch.state === 'gave up' ? 'text-red-600' : 'text-slate-500'}`}
                title={a.fulfilledByEmail?.subject ? `Email: ${a.fulfilledByEmail.subject}` : undefined}>
               {a.watch.state === 'done' ? '✔ ' : a.watch.state === 'gave up' ? '⚠ ' : '👀 '}{a.watch.text}
             </p>
@@ -221,7 +233,7 @@ function ActionRow({ a, onPatch, intel, types, owners = [] }) {
                 </div>
               )}
               <div className="flex gap-2">
-                <button onClick={save} className="text-[11px] font-semibold px-2 py-0.5 rounded bg-amber-500 text-white hover:bg-amber-400">Save</button>
+                <button onClick={save} className={BTN_COMPACT_PRIMARY}>Save</button>
                 <button onClick={() => setEditing(false)} className="text-[11px] px-2 py-0.5 rounded text-slate-500 hover:text-slate-700">Cancel</button>
               </div>
             </div>
@@ -231,8 +243,8 @@ function ActionRow({ a, onPatch, intel, types, owners = [] }) {
         {!editing && (
           <div className="flex items-center gap-1.5 shrink-0">
             <button onClick={() => setEditing(true)} className="text-slate-500 hover:text-slate-600 text-xs" title="Edit">✎</button>
-            {!intel && !confirmed && <button onClick={() => onPatch(a.id, { status: 'CONFIRMED' })} className="text-emerald-600 hover:text-emerald-300 text-sm" title="Confirm">✓</button>}
-            <button onClick={() => onPatch(a.id, { status: 'DISMISSED' })} className="text-slate-500 hover:text-rose-400 text-sm" title="Dismiss">✕</button>
+            {!intel && !confirmed && <button onClick={() => onPatch(a.id, { status: 'CONFIRMED' })} className="text-green-600 hover:text-green-300 text-sm" title="Confirm">✓</button>}
+            <button onClick={() => onPatch(a.id, { status: 'DISMISSED' })} className="text-slate-500 hover:text-red-400 text-sm" title="Dismiss">✕</button>
           </div>
         )}
       </div>
@@ -328,15 +340,15 @@ function NoteActions({ noteId, noteBody, published, owners = [], onChanged }) {
       <div className="flex items-center justify-between mb-2">
         <label className="text-sm font-semibold text-slate-800">Next steps <span className="text-xs font-normal text-slate-400">pulled from your notes automatically</span></label>
         {busy
-          ? <span className="text-xs text-slate-500">Reading note…</span>
-          : <button onClick={runExtract} className="text-xs text-slate-500 hover:text-amber-600" title="Re-extract now">↻</button>}
+          ? <span className="text-xs text-slate-500">Reading note...</span>
+          : <button onClick={runExtract} className="text-xs text-slate-500 hover:text-orange-600" title="Re-extract now">↻</button>}
       </div>
       {visible.length === 0 ? (
-        <p className="text-xs text-slate-600">{busy ? 'Reading your note…' : 'Next steps show up here a few seconds after you write them — "send Jane the cut sheets", "call back Tuesday".'}</p>
+        <p className="text-xs text-slate-600">{busy ? 'Reading your note...' : 'Next steps show up here a few seconds after you write them — "send Jane the cut sheets", "call back Tuesday".'}</p>
       ) : (
         <div className="space-y-2">
           {acts.map(a => <ActionRow key={a.id} a={a} onPatch={patch} types={types} owners={owners} />)}
-          {intel.length > 0 && <div className="text-[10px] uppercase tracking-wide text-slate-500 pt-1">Intel</div>}
+          {intel.length > 0 && <div className="text-[11px] uppercase tracking-wide text-slate-500 pt-1">Intel</div>}
           {intel.map(a => <ActionRow key={a.id} a={a} onPatch={patch} intel types={types} />)}
         </div>
       )}
@@ -344,25 +356,25 @@ function NoteActions({ noteId, noteBody, published, owners = [], onChanged }) {
       {/* Consolidated outreach — one email per contact, drafted automatically */}
       {groups.length > 0 && (
         <div className="mt-3 pt-3 border-t border-slate-200">
-          <label className="text-xs font-medium text-slate-500">Outreach <span className="text-slate-400">(one email per person, all their items)</span></label>
+          <label className="text-xs font-semibold text-slate-500">Outreach <span className="text-slate-400">(one email per person, all their items)</span></label>
           <div className="mt-1.5 space-y-1.5">
             {groups.map(g => (
               <div key={g.key} className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5">
                 <span className="text-xs text-slate-600 min-w-0 truncate">
-                  <span className="font-medium text-slate-800">{g.name}</span> · {g.items.length} item{g.items.length !== 1 ? 's' : ''}
+                  <span className="font-semibold text-slate-800">{g.name}</span> · {g.items.length} item{g.items.length !== 1 ? 's' : ''}
                   <span className="text-slate-400"> ({g.items.map(i => i.detail || i.rawText).join('; ').slice(0, 60)})</span>
                 </span>
                 {!g.contactId
-                  ? <span className="shrink-0 text-[11px] text-amber-600">link a contact to email</span>
+                  ? <span className="shrink-0 text-[11px] text-orange-600">link a contact to email</span>
                   : g.drafted
-                    ? <span className="shrink-0 text-[11px] font-medium text-emerald-700">✉ 1 email drafted</span>
+                    ? <span className="shrink-0 text-[11px] font-semibold text-green-700">✉ 1 email drafted</span>
                     : published
                       ? <span className="shrink-0 text-[11px] text-slate-400">drafting…</span>
                       : <span className="shrink-0 text-[11px] text-slate-400">✉ on publish</span>}
               </div>
             ))}
           </div>
-          <p className="text-[10px] text-slate-400 mt-1.5">
+          <p className="text-[11px] text-slate-400 mt-1.5">
             {published ? 'Drafts land on My Desk for your review.' : 'The bot drafts these once you publish the note.'}
           </p>
         </div>
@@ -378,7 +390,7 @@ const ACTIVITY_META = {
   MEAL:       { emoji: '🍽', label: 'Meal',        color: 'bg-orange-50 text-orange-700 border-orange-200',  inPerson: true },
   LUNCH:      { emoji: '🍽', label: 'Meal',        color: 'bg-orange-50 text-orange-700 border-orange-200',  inPerson: true, legacy: true },  // notes written before the rename
   TRAVEL:     { emoji: '✈️', label: 'Travel',      color: 'bg-sky-50 text-sky-700 border-sky-200',           inPerson: false },
-  HAPPY_HOUR: { emoji: '🍺', label: 'Happy Hour',  color: 'bg-yellow-50 text-yellow-700 border-yellow-200',  inPerson: true },
+  HAPPY_HOUR: { emoji: '🍺', label: 'Happy Hour',  color: 'bg-amber-50 text-amber-700 border-amber-200',  inPerson: true },
   GOLF:       { emoji: '⛳', label: 'Golf',         color: 'bg-green-50 text-green-700 border-green-200',     inPerson: true },
   SITE_VISIT: { emoji: '🏗', label: 'Site Visit',  color: 'bg-blue-50 text-blue-700 border-blue-200',        inPerson: true },
   CALL:       { emoji: '📞', label: 'Call',         color: 'bg-slate-100 text-slate-600 border-slate-200',    inPerson: false },
@@ -417,7 +429,7 @@ function avatarColor(name) {
   for (let i = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h);
   const colors = [
     'bg-orange-500', 'bg-amber-500', 'bg-blue-500', 'bg-indigo-500',
-    'bg-emerald-500', 'bg-teal-500', 'bg-violet-500', 'bg-rose-500',
+    'bg-green-500', 'bg-teal-500', 'bg-violet-500', 'bg-red-500',
   ];
   return colors[Math.abs(h) % colors.length];
 }
@@ -449,7 +461,7 @@ function fmtWhen(d) {
 function DateTile({ date, tone }) {
   const d = date ? new Date(date) : null;
   const tones = {
-    upcoming:   'bg-amber-500 text-white',
+    upcoming:   'bg-orange-500 text-white',
     needsNotes: 'bg-white text-slate-700 border border-slate-200',
     done:       'bg-slate-100 text-slate-500',
   };
@@ -457,10 +469,10 @@ function DateTile({ date, tone }) {
     <div className={`w-11 shrink-0 rounded-lg text-center py-1 ${tones[tone]}`}>
       {d ? (
         <>
-          <div className="text-[9px] font-bold uppercase leading-none tracking-wide">{d.toLocaleDateString('en-US', { month: 'short' })}</div>
+          <div className="text-[11px] font-bold uppercase leading-none tracking-wide">{d.toLocaleDateString('en-US', { month: 'short' })}</div>
           <div className="text-base font-semibold leading-tight">{d.getDate()}</div>
         </>
-      ) : <div className="text-[10px] py-1.5">No date</div>}
+      ) : <div className="text-[11px] py-1.5">No date</div>}
     </div>
   );
 }
@@ -472,14 +484,14 @@ function NoteRow({ note, tone, active, onClick, checked = false, onToggle }) {
   const company = note.clients?.map(nc => nc.client?.name).filter(Boolean).join(', ');
   return (
     <div className={`w-full flex items-start gap-2 pl-2 pr-3 py-2.5 rounded-lg transition-colors ${
-        checked ? 'bg-orange-50 ring-1 ring-orange-300' : active ? 'bg-amber-50 ring-1 ring-amber-300' : 'hover:bg-white'}`}>
+        checked ? 'bg-orange-50 ring-1 ring-orange-300' : active ? 'bg-orange-50 ring-1 ring-orange-500' : 'hover:bg-white'}`}>
       <input type="checkbox" checked={checked} onChange={onToggle} aria-label={`Pick ${note.title || 'untitled meeting'}`}
         className="mt-3 w-4 h-4 shrink-0 accent-orange-500 cursor-pointer" />
       <button type="button" onClick={onClick} className="min-w-0 flex-1 text-left flex gap-3">
         <DateTile date={note.meetingDate} tone={tone} />
         <div className="min-w-0 flex-1">
-          <div className="text-sm font-medium text-slate-800 truncate">
-            {note.title || <span className="text-slate-400 italic">Untitled meeting</span>}
+          <div className="text-sm font-semibold text-slate-800 truncate">
+            {note.title || <span className="text-slate-500">Untitled meeting</span>}
           </div>
           <div className="text-[11px] text-slate-500 truncate">
             {note.meetingDate && fmtTime(note.meetingDate)}
@@ -503,7 +515,7 @@ const GROUPS = [
 
 function LinkedTag({ label, onRemove }) {
   return (
-    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs bg-slate-100 text-slate-700">
+    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-xs bg-slate-100 text-slate-700">
       {label}
       {onRemove && (
         <button onClick={onRemove} className="text-slate-500 hover:text-slate-900 transition-colors ml-0.5">
@@ -544,7 +556,7 @@ function AddLinkDropdown({ placeholder, items, onAdd, onClose }) {
             onClick={() => { onAdd(it.id); onClose(); }}
             className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 transition-colors"
           >
-            <span className="font-medium">{it.label}</span>
+            <span className="font-semibold">{it.label}</span>
             {it.sub && <span className="ml-2 text-xs text-slate-500">{it.sub}</span>}
           </button>
         ))}
@@ -612,22 +624,22 @@ function NewNoteModal({ open, clients, onClose, onCreated }) {
     finally { setBusy(false); }
   }
 
-  const input = 'w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-amber-500';
+  const input = INPUT;
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 px-4" onMouseDown={onClose}>
-      <form onSubmit={create} className="w-full max-w-md rounded-xl bg-white shadow-2xl p-5 space-y-3" onMouseDown={e => e.stopPropagation()}>
+      <form onSubmit={create} className={`${MODAL} w-full max-w-md p-5 space-y-3`} onMouseDown={e => e.stopPropagation()}>
         <h2 className="text-base font-semibold text-slate-900">New meeting note</h2>
         <div>
-          <label className="block text-xs font-medium text-slate-500 mb-1">Meeting</label>
+          <label className={`block ${LABEL} mb-1`}>Meeting</label>
           <input autoFocus value={f.title} onChange={e => setF({ ...f, title: e.target.value })} placeholder="Coffee with Jane — Hilltop Apartments" className={input} />
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs font-medium text-slate-500 mb-1">Date &amp; time</label>
+            <label className={`block ${LABEL} mb-1`}>Date &amp; time</label>
             <input type="datetime-local" value={f.meetingDate} onChange={e => setF({ ...f, meetingDate: e.target.value })} className={input} />
           </div>
           <div>
-            <label className="block text-xs font-medium text-slate-500 mb-1">Type</label>
+            <label className={`block ${LABEL} mb-1`}>Type</label>
             <select value={f.activityType} onChange={e => setF({ ...f, activityType: e.target.value })} className={input}>
               <option value="">—</option>
               {Object.entries(ACTIVITY_META).filter(([, m]) => !m.legacy).map(([k, m]) => <option key={k} value={k}>{m.emoji} {m.label}</option>)}
@@ -636,27 +648,27 @@ function NewNoteModal({ open, clients, onClose, onCreated }) {
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs font-medium text-slate-500 mb-1">Company <span className="font-normal text-slate-400">(optional)</span></label>
+            <label className={`block ${LABEL} mb-1`}>Company <span className="font-normal text-slate-400">(optional)</span></label>
             <select value={f.clientId} onChange={e => setF({ ...f, clientId: e.target.value })} className={input}>
               <option value="">—</option>
               {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </div>
           <div>
-            <label className="block text-xs font-medium text-slate-500 mb-1">Amount spent ($) <span className="font-normal text-slate-400">(optional)</span></label>
+            <label className={`block ${LABEL} mb-1`}>Amount spent ($) <span className="font-normal text-slate-400">(optional)</span></label>
             <input inputMode="decimal" value={f.amountSpent} onChange={e => setF({ ...f, amountSpent: e.target.value })} placeholder="0.00" className={input} />
           </div>
         </div>
         <div>
-          <label className="block text-xs font-medium text-slate-500 mb-1">Calendar link <span className="font-normal text-slate-400">(optional — paste the Outlook event link)</span></label>
+          <label className={`block ${LABEL} mb-1`}>Calendar link <span className="font-normal text-slate-400">(optional — paste the Outlook event link)</span></label>
           <input value={f.meetingLink} onChange={e => setF({ ...f, meetingLink: e.target.value })} placeholder="https://outlook.office.com/calendar/item/…" className={input} />
-          <p className="mt-1 text-[11px] text-slate-400">When the calendar syncs, this note joins that meeting instead of a second note appearing.</p>
+          <p className={`mt-1 ${HELPER}`}>When the calendar syncs, this note joins that meeting instead of a second note appearing.</p>
         </div>
         {err && <p className="text-xs text-red-600">{err}</p>}
         <div className="flex justify-end gap-2 pt-1">
-          <button type="button" onClick={onClose} className="px-3 py-1.5 rounded-lg text-sm text-slate-600 hover:bg-slate-100">Cancel</button>
-          <button type="submit" disabled={busy} className="px-3 py-1.5 rounded-lg text-sm font-medium bg-amber-500 text-white hover:bg-amber-400 disabled:opacity-50">
-            {busy ? 'Creating…' : 'Create note'}
+          <button type="button" onClick={onClose} className={BTN_SECONDARY}>Cancel</button>
+          <button type="submit" disabled={busy} className={`${BTN_PRIMARY} disabled:opacity-50`}>
+            {busy ? 'Creating...' : 'Create note'}
           </button>
         </div>
       </form>
@@ -704,7 +716,7 @@ function NoteOwners({ note, onUpdate, onChanged }) {
           {o.name}
           {owners.length > 1 && (
             <button type="button" onClick={() => save(ids.filter(x => x !== o.id))} title={`Take ${o.name} off this note`}
-              className="text-slate-400 hover:text-rose-500">×</button>
+              className="text-slate-400 hover:text-red-500">×</button>
           )}
         </span>
       ))}
@@ -716,9 +728,9 @@ function NoteOwners({ note, onUpdate, onChanged }) {
           {users.filter(u => !ids.includes(u.id)).map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
         </select>
       ) : (
-        <button type="button" onClick={() => setAdding(true)} className="text-amber-700 hover:underline">+ owner</button>
+        <button type="button" onClick={() => setAdding(true)} className="text-orange-600 hover:underline">+ owner</button>
       )}
-      {err && <span className="text-rose-600">{err}</span>}
+      {err && <span className="text-red-600">{err}</span>}
     </span>
   );
 }
@@ -753,18 +765,18 @@ function NoteHistory({ noteId, version }) {
   if (!rows?.length) return null;
   const shown = all ? rows : rows.slice(0, 6);
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-4">
+    <div className={`${CARD} p-4`}>
       <label className="text-sm font-semibold text-slate-800">History <span className="text-xs font-normal text-slate-400">who changed what, newest first</span></label>
       <ul className="mt-2 space-y-1.5">
         {shown.map(c => (
           <li key={c.id} className="text-xs text-slate-600">
-            <span className="font-medium text-slate-800">{c.userName || 'The bot'}</span> {historyLine(c)}
+            <span className="font-semibold text-slate-800">{c.userName || 'The bot'}</span> {historyLine(c)}
             <span className="text-slate-400"> · {new Date(c.createdAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span>
           </li>
         ))}
       </ul>
       {rows.length > 6 && (
-        <button type="button" onClick={() => setAll(v => !v)} className="mt-2 text-[11px] text-amber-700 hover:underline">
+        <button type="button" onClick={() => setAll(v => !v)} className="mt-2 text-[11px] text-orange-600 hover:underline">
           {all ? 'Show less' : `Show all ${rows.length}`}
         </button>
       )}
@@ -966,12 +978,12 @@ function NoteDetail({ note, clients, projects, onUpdate, onDelete, currentUser }
     sub: `${p.projectNumber ? 'PRJ-' + String(p.projectNumber).padStart(4, '0') : ''}${p.client?.name ? ' · ' + p.client.name : ''}`,
   }));
 
-  const saveColor = saveStatus === 'saving' ? 'text-slate-500' : saveStatus === 'saved' ? 'text-emerald-600' : saveStatus === 'error' ? 'text-red-600' : 'text-slate-600';
+  const saveColor = saveStatus === 'saving' ? 'text-slate-500' : saveStatus === 'saved' ? 'text-green-600' : saveStatus === 'error' ? 'text-red-600' : 'text-slate-600';
   const saveText  = saveStatus === 'saving' ? 'Saving…' : saveStatus === 'saved' ? 'Saved ✓' : saveStatus === 'error' ? (saveError || 'Save failed') : '';
 
   const meta = ACTIVITY_META[note.activityType];
   const upcoming = agendaGroup(note) === 'upcoming';
-  const input = 'w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-amber-500 transition-colors';
+  const input = INPUT;
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -981,14 +993,14 @@ function NoteDetail({ note, clients, projects, onUpdate, onDelete, currentUser }
           {note.isPublished ? (
             <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700 border border-green-200">✓ Published</span>
           ) : upcoming ? (
-            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-500 text-white">Coming up</span>
+            <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-orange-500 text-white">Coming up</span>
           ) : (
             <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">Needs notes</span>
           )}
           <span className="text-xs text-slate-400">#{note.noteNumber}</span>
-          {note.calendarRef && <span className="text-[11px] text-emerald-700" title="This note follows a meeting on the calendar">📅 On the calendar</span>}
+          {note.calendarRef && <span className="text-[11px] text-green-700" title="This note follows a meeting on the calendar">📅 On the calendar</span>}
           {note.meetingLink && (
-            <a href={note.meetingLink} target="_blank" rel="noopener noreferrer" className="text-[11px] text-amber-700 hover:underline">Open in calendar ↗</a>
+            <a href={note.meetingLink} target="_blank" rel="noopener noreferrer" className="text-[11px] text-orange-600 hover:underline">Open in calendar ↗</a>
           )}
           <span className={`ml-auto text-xs transition-colors ${saveColor}`}>{saveText}</span>
           <MoreMenu onArchive={() => setArchiveOpen(true)} />
@@ -1002,11 +1014,11 @@ function NoteDetail({ note, clients, projects, onUpdate, onDelete, currentUser }
         />
 
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-1 text-xs text-slate-500">
-          {note.meetingDate ? <span>{fmtWhen(note.meetingDate)}</span> : <span className="italic">No date yet</span>}
+          {note.meetingDate ? <span>{fmtWhen(note.meetingDate)}</span> : <span>No date yet</span>}
           {meta && <><span>·</span><span>{meta.emoji} {meta.label}</span></>}
-          {note.isInPerson && <><span>·</span><span className="text-amber-700">In person</span></>}
+          {note.isInPerson && <><span>·</span><span className="text-orange-700">In person</span></>}
           <span>·</span><NoteOwners note={note} onUpdate={onUpdate} onChanged={() => setHistVersion(v => v + 1)} />
-          <button onClick={() => setDetailsOpen(v => !v)} className="ml-1 text-amber-700 hover:underline">
+          <button onClick={() => setDetailsOpen(v => !v)} className="ml-1 text-orange-600 hover:underline">
             {detailsOpen ? 'Hide details' : 'Edit details'}
           </button>
         </div>
@@ -1014,9 +1026,9 @@ function NoteDetail({ note, clients, projects, onUpdate, onDelete, currentUser }
         {/* Who and what it is about, at a glance */}
         {!detailsOpen && (note.clients?.length > 0 || note.projects?.length > 0 || selectedContacts.length > 0) && (
           <div className="flex flex-wrap gap-1.5 mt-2">
-            {note.clients?.map(nc => <span key={nc.clientId} className="px-2 py-0.5 rounded-md text-[11px] bg-slate-100 text-slate-700">🏢 {nc.client?.name}</span>)}
-            {note.projects?.map(np => <span key={np.projectId} className="px-2 py-0.5 rounded-md text-[11px] bg-blue-50 text-blue-700">{np.project?.name || 'Project'}</span>)}
-            {selectedContacts.map(c => <span key={c.id} className="px-2 py-0.5 rounded-md text-[11px] bg-orange-50 text-orange-700">{c.name}</span>)}
+            {note.clients?.map(nc => <span key={nc.clientId} className="px-2 py-0.5 rounded-lg text-[11px] bg-slate-100 text-slate-700">🏢 {nc.client?.name}</span>)}
+            {note.projects?.map(np => <span key={np.projectId} className="px-2 py-0.5 rounded-lg text-[11px] bg-blue-50 text-blue-700">{np.project?.name || 'Project'}</span>)}
+            {selectedContacts.map(c => <span key={c.id} className="px-2 py-0.5 rounded-lg text-[11px] bg-orange-50 text-orange-700">{c.name}</span>)}
           </div>
         )}
 
@@ -1024,16 +1036,16 @@ function NoteDetail({ note, clients, projects, onUpdate, onDelete, currentUser }
         {detailsOpen && (
           <div className="mt-3 mb-1 rounded-lg border border-slate-200 bg-slate-50 p-4 space-y-4 max-h-[45vh] overflow-y-auto">
             <div>
-              <label className="block text-xs font-medium text-slate-500 mb-2">Type</label>
+              <label className={`block ${LABEL} mb-2`}>Type</label>
               <div className="flex flex-wrap gap-1.5">
                 {Object.entries(ACTIVITY_META).filter(([, m]) => !m.legacy).map(([key, m]) => (
                   <button key={key} type="button"
                     onClick={() => set('activityType', form.activityType === key ? '' : key, 0)}
-                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${
+                    className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold border transition-all ${
                       form.activityType === key
                         ? 'border-orange-500 bg-orange-500 text-white shadow-sm'
                         : m.inPerson
-                          ? 'border-amber-200 bg-amber-50 text-amber-700 hover:border-amber-400'
+                          ? 'border-orange-200 bg-orange-50 text-orange-700 hover:border-orange-400'
                           : 'border-slate-300 bg-white text-slate-500 hover:border-slate-400'
                     }`}>
                     {m.emoji} {m.label}
@@ -1044,64 +1056,64 @@ function NoteDetail({ note, clients, projects, onUpdate, onDelete, currentUser }
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">Date &amp; time</label>
+                <label className={`block ${LABEL} mb-1`}>Date &amp; time</label>
                 <input type="datetime-local" value={form.meetingDate} onChange={e => set('meetingDate', e.target.value, 0)} className={input} />
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">Calendar link</label>
+                <label className={`block ${LABEL} mb-1`}>Calendar link</label>
                 <input value={form.meetingLink} onChange={e => set('meetingLink', e.target.value)}
                   placeholder="Paste the Outlook event link" className={input} />
               </div>
               {/* Amount spent (0129): one expense row per note, see src/lib/sales/noteExpense.js. */}
               <div>
-                <label className="block text-xs font-medium text-slate-500 mb-1">Amount spent <span className="font-normal text-slate-400">($)</span></label>
+                <label className={`block ${LABEL} mb-1`}>Amount spent <span className="font-normal text-slate-400">($)</span></label>
                 <input inputMode="decimal" value={form.amountSpent} onChange={e => set('amountSpent', e.target.value)}
                   placeholder="0.00" className={input} />
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-500 mb-1">Who was there <span className="font-normal text-slate-400">(names, comma-separated)</span></label>
+              <label className={`block ${LABEL} mb-1`}>Who was there <span className="font-normal text-slate-400">(names, comma-separated)</span></label>
               <input value={form.attendees} onChange={e => set('attendees', e.target.value)} placeholder="Jane Smith, John Doe…" className={input} />
             </div>
 
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <label className="text-xs font-medium text-slate-500">Companies</label>
+                <label className={LABEL}>Companies</label>
                 <div className="relative" ref={clientDropRef}>
                   <button onClick={() => setShowClientDrop(v => !v)} className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-900"><IconPlus /> Add</button>
                   {showClientDrop && <AddLinkDropdown placeholder="Search companies…" items={availableClients} onAdd={addClient} onClose={() => setShowClientDrop(false)} />}
                 </div>
               </div>
               <div className="flex flex-wrap gap-1.5">
-                {!note.clients?.length && <span className="text-xs text-slate-400 italic">None linked</span>}
+                {!note.clients?.length && <span className={HELPER}>None linked</span>}
                 {note.clients?.map(nc => <LinkedTag key={nc.clientId} label={nc.client?.name || nc.clientId} onRemove={() => removeClient(nc.clientId)} />)}
               </div>
             </div>
 
             <div>
               <div className="flex items-center justify-between mb-1.5">
-                <label className="text-xs font-medium text-slate-500">Projects</label>
+                <label className={LABEL}>Projects</label>
                 <div className="relative" ref={projectDropRef}>
                   <button onClick={() => setShowProjectDrop(v => !v)} className="flex items-center gap-1 text-xs text-slate-500 hover:text-slate-900"><IconPlus /> Add</button>
                   {showProjectDrop && <AddLinkDropdown placeholder="Search projects…" items={availableProjects} onAdd={addProject} onClose={() => setShowProjectDrop(false)} />}
                 </div>
               </div>
               <div className="flex flex-wrap gap-1.5">
-                {!note.projects?.length && <span className="text-xs text-slate-400 italic">None linked</span>}
+                {!note.projects?.length && <span className={HELPER}>None linked</span>}
                 {note.projects?.map(np => <LinkedTag key={np.projectId} label={np.project?.name || np.projectId} onRemove={() => removeProject(np.projectId)} />)}
               </div>
             </div>
 
             <div>
-              <label className="block text-xs font-medium text-slate-500 mb-1.5">People</label>
+              <label className={`block ${LABEL} mb-1.5`}>People</label>
               {selectedContacts.length > 0 && (
                 <div className="flex flex-wrap gap-1.5 mb-2">
                   {selectedContacts.map(c => (
-                    <span key={c.id} className="inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-xs bg-orange-50 text-orange-700 border border-orange-200">
-                      <span className={`w-4 h-4 rounded-full flex items-center justify-center text-white text-[9px] font-bold shrink-0 ${avatarColor(c.name)}`}>{initials(c.name)}</span>
+                    <span key={c.id} className="inline-flex items-center gap-1.5 px-2 py-1 rounded-lg text-xs bg-orange-50 text-orange-700 border border-orange-200">
+                      <span className={`w-4 h-4 rounded-full flex items-center justify-center text-white text-[11px] font-bold shrink-0 ${avatarColor(c.name)}`}>{initials(c.name)}</span>
                       <span>{c.name}</span>
-                      {c.company && <span className="text-orange-500 text-[10px]">{c.company}</span>}
+                      {c.company && <span className="text-orange-500 text-[11px]">{c.company}</span>}
                       <button onClick={() => removeContact(c.id)} className="text-orange-600 hover:text-slate-900 ml-0.5"><IconX /></button>
                     </span>
                   ))}
@@ -1110,19 +1122,19 @@ function NoteDetail({ note, clients, projects, onUpdate, onDelete, currentUser }
               <div className="relative">
                 <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500"><IconSearch /></span>
                 <input value={contactSearch} onChange={e => handleContactSearch(e.target.value)} placeholder="Search people to add…"
-                  className="w-full bg-white border border-slate-200 rounded-lg pl-8 pr-3 py-1.5 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-amber-500" />
+                  className={`${INPUT} pl-8 pr-3 py-1.5`} />
                 {contactSearching && (
                   <span className="absolute right-2.5 top-1/2 -translate-y-1/2">
-                    <div className="w-3.5 h-3.5 border-2 border-slate-400 border-t-amber-400 rounded-full animate-spin" />
+                    <span className="text-[11px] text-slate-500">Searching...</span>
                   </span>
                 )}
                 {contactResults.length > 0 && (
                   <div className="absolute z-50 top-full mt-1 left-0 right-0 rounded-lg shadow-xl border border-slate-300 bg-white overflow-hidden max-h-48 overflow-y-auto">
                     {contactResults.map(c => (
                       <button key={c.id} onClick={() => addContact(c)} className="w-full text-left px-3 py-2 flex items-center gap-2 hover:bg-slate-100">
-                        <div className={`w-6 h-6 rounded-full shrink-0 flex items-center justify-center text-white text-[10px] font-bold ${avatarColor(c.name)}`}>{initials(c.name)}</div>
+                        <div className={`w-6 h-6 rounded-full shrink-0 flex items-center justify-center text-white text-[11px] font-bold ${avatarColor(c.name)}`}>{initials(c.name)}</div>
                         <div>
-                          <div className="text-sm text-slate-700 font-medium">{c.name}</div>
+                          <div className="text-sm text-slate-700 font-semibold">{c.name}</div>
                           {c.company?.name && <div className="text-xs text-slate-500">{c.company.name}</div>}
                         </div>
                       </button>
@@ -1138,8 +1150,8 @@ function NoteDetail({ note, clients, projects, onUpdate, onDelete, currentUser }
         <div className="flex gap-5 mt-3">
           {[...(canPrep ? [['prep', 'Prep']] : []), ['notes', 'Notes']].map(([key, label]) => (
             <button key={key} onClick={() => setTab(key)}
-              className={`pb-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
-                tab === key ? 'border-amber-500 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-800'
+              className={`pb-2 text-sm font-semibold border-b-2 -mb-px transition-colors ${
+                tab === key ? TAB_ACTIVE : TAB_INACTIVE
               }`}>
               {label}
             </button>
@@ -1152,8 +1164,8 @@ function NoteDetail({ note, clients, projects, onUpdate, onDelete, currentUser }
         {tab === 'prep' && canPrep && (
           <div className="max-w-3xl space-y-3">
             {!hasLinks && (
-              <p className="text-sm text-slate-600 rounded-lg border border-dashed border-slate-300 bg-white px-4 py-3">
-                Link a company, project or person in <button onClick={() => setDetailsOpen(true)} className="text-amber-700 hover:underline">Edit details</button> and the prep builds itself before the meeting.
+              <p className={`text-sm text-slate-600 ${CARD} px-4 py-3`}>
+                Link a company, project or person in <button onClick={() => setDetailsOpen(true)} className="text-orange-600 hover:underline">Edit details</button> and the prep builds itself before the meeting.
               </p>
             )}
             <MeetingPrep noteId={note.id} autoRun={shouldAutoPrep(note, false)} />
@@ -1163,22 +1175,22 @@ function NoteDetail({ note, clients, projects, onUpdate, onDelete, currentUser }
         {tab === 'notes' && (
           <div className="max-w-3xl space-y-5">
             <div>
-              <label className="block text-xs font-medium text-slate-500 mb-1">What was said, decided and promised</label>
+              <label className={`block ${LABEL} mb-1`}>What was said, decided and promised</label>
               <textarea
                 value={form.noteBody}
                 onChange={e => set('noteBody', e.target.value)}
                 placeholder="Type as you go — next steps are pulled out below automatically."
                 rows={10}
-                className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 outline-none focus:border-amber-500 resize-y leading-relaxed"
+                className={`${INPUT} resize-y leading-relaxed`}
               />
             </div>
 
-            <div className="rounded-lg border border-slate-200 bg-white p-4">
+            <div className={`${CARD} p-4`}>
               <NoteActions noteId={note.id} noteBody={form.noteBody} published={note.isPublished}
                 owners={owners} onChanged={() => setHistVersion(v => v + 1)} />
             </div>
 
-            <div className={`rounded-lg border p-4 flex flex-wrap items-center gap-3 ${note.isPublished ? 'border-green-200 bg-green-50' : 'border-amber-200 bg-amber-50'}`}>
+            <div className={`rounded-lg border p-4 flex flex-wrap items-center gap-3 ${note.isPublished ? 'border-green-200 bg-green-50' : 'border-orange-200 bg-orange-50'}`}>
               <p className="text-xs text-slate-700 flex-1 min-w-[16rem]">
                 {note.isPublished
                   ? 'Published. The bot is working the next steps: drafts land in the Bot Queue for review, and reminders are set.'
@@ -1227,8 +1239,11 @@ export default function NotesClient({ initialNotes, clients, projects, currentUs
     const mine = initialStatus === 'mine' ? initialNotes.find(n => isReminderDraft(n, currentUser?.id)) : null;
     return mine?.id || firstInAgenda(initialNotes);
   });
-  const [search,       setSearch]       = useState('');
-  const [statusFilter, setStatusFilter] = useState(initialStatus);
+  const { filters, setFilter } = useUrlView({ fields: NOTE_FILTER_FIELDS });
+  const [filterOpen,   setFilterOpen]   = useState(false);
+  const search       = filters.q || '';
+  const statusFilter = filters.status || 'all';
+  const setStatusFilter = v => setFilter('status', v === 'all' ? '' : v);
   const [newOpen,      setNewOpen]      = useState(false);
   // Mike 10-5: published notes stay visible under All, newest first. The Done
   // group opens by default; the Hide link is still there for a long list.
@@ -1366,79 +1381,71 @@ export default function NotesClient({ initialNotes, clients, projects, currentUs
         <div className="px-4 pt-4 pb-3 shrink-0 border-b border-slate-200">
           <div className="flex items-center justify-between mb-3">
             <div>
-              <h1 className="text-base font-semibold text-slate-900">Sales Meetings</h1>
+              <h1 className={H1}>Sales Meetings</h1>
               <p className="text-xs text-slate-500">
                 {groups.upcoming.length} coming up · {groups.needsNotes.length} need notes
               </p>
             </div>
             <button
               onClick={() => setNewOpen(true)}
-              className="flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white transition-colors shrink-0"
+              className={`${BTN_PRIMARY} shrink-0`}
             >
               <IconPlus /> New note
             </button>
           </div>
-          <div className="relative mb-2">
-            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500"><IconSearch /></span>
-            <input
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Search meetings, companies, people…"
-              className="w-full bg-white border border-slate-200 rounded-lg pl-8 pr-3 py-1.5 text-sm text-slate-900 placeholder:text-slate-500 outline-none focus:border-amber-500 transition-colors"
-            />
+          <div className="mb-2">
+            <SearchBox value={search} onChange={v => setFilter('q', v)} placeholder="Search meetings, companies, people..." className="w-full" />
           </div>
-          <div className="flex flex-wrap gap-1.5">
-            {[['all', 'All'], ['mine', 'Mine to publish'], ['draft', 'Draft'], ['published', 'Published']].map(([val, label]) => (
-              <button
-                key={val}
-                onClick={() => setStatusFilter(val)}
-                className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition-colors ${
-                  statusFilter === val ? 'bg-slate-800 text-white' : 'bg-white text-slate-600 hover:text-slate-900 border border-slate-200'
-                }`}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+          {/* The old All / Mine / Draft / Published chips are the Status pick in the panel. */}
+          <FilterToolbar
+            count={countFilters(filters, NOTE_PANEL_FIELDS)}
+            open={filterOpen}
+            onToggle={() => setFilterOpen(o => !o)}
+            onClear={() => { setFilterOpen(false); setStatusFilter('all'); }}
+            shown={filtered.length}
+            total={notes.length}
+            noun="notes"
+          />
+          <FilterPanel open={filterOpen} fields={NOTE_PANEL_FIELDS} filters={filters} choices={{ status: NOTE_STATUS_CHOICES }} onChange={setFilter} className="mt-2" />
           {/* Select all sits at the top of the list; the action bar appears once something is ticked. */}
           <label className="mt-3 flex items-center gap-2 text-xs text-slate-600 cursor-pointer select-none">
             <input type="checkbox" checked={allShownPicked} onChange={toggleAll} disabled={!shownIds.length}
               className="w-4 h-4 accent-orange-500" />
             <span>Select all{shownIds.length ? ` (${shownIds.length})` : ''}</span>
-            {anyPicked && <span className="ml-auto font-medium text-slate-800">{pickedShown.length} picked</span>}
+            {anyPicked && <span className="ml-auto font-semibold text-slate-800 tabular-nums">{pickedShown.length} picked</span>}
           </label>
           {anyPicked && (
             <div className="mt-2 rounded-lg border border-orange-200 bg-orange-50 px-3 py-2 text-xs text-slate-700 space-y-2">
               <div className="flex flex-wrap gap-1.5">
                 <button type="button" disabled={!pickedShown.length || bulkBusy} onClick={() => setBulkArchive(true)}
-                  className="px-2 py-1 rounded bg-white border border-orange-300 text-orange-800 font-medium hover:bg-orange-100 disabled:opacity-50">Archive</button>
+                  className={BTN_COMPACT_PRIMARY}>Archive</button>
                 <button type="button" disabled={!pickedShown.length || bulkBusy} onClick={() => runBulk({ publish: true }, 'Published')}
-                  className="px-2 py-1 rounded bg-white border border-slate-200 hover:bg-slate-50 disabled:opacity-50">Publish</button>
+                  className={BTN_COMPACT}>Publish</button>
                 <button type="button" disabled={!pickedShown.length || bulkBusy} onClick={() => runBulk({ publish: false }, 'Back to draft:')}
-                  className="px-2 py-1 rounded bg-white border border-slate-200 hover:bg-slate-50 disabled:opacity-50">Back to draft</button>
+                  className={BTN_COMPACT}>Back to draft</button>
               </div>
               <div className="flex flex-wrap gap-1.5">
                 <select value="" disabled={!pickedShown.length || bulkBusy}
                   onChange={e => { const v = e.target.value; if (v) runBulk({ activityType: v }, 'Set the type on'); }}
-                  className="bg-white border border-slate-200 rounded px-1.5 py-1 text-xs text-slate-700 disabled:opacity-50">
+                  className={`${INPUT} w-auto px-1.5 py-1 text-xs`}>
                   <option value="">Set type…</option>
                   {Object.entries(ACTIVITY_META).filter(([, m]) => !m.legacy).map(([k, m]) => <option key={k} value={k}>{m.emoji} {m.label}</option>)}
                 </select>
                 <select value="" disabled={!pickedShown.length || bulkBusy}
                   onChange={e => { const v = e.target.value; if (v) runBulk({ addOwnerIds: [v] }, 'Added an owner to'); }}
-                  className="bg-white border border-slate-200 rounded px-1.5 py-1 text-xs text-slate-700 disabled:opacity-50">
+                  className={`${INPUT} w-auto px-1.5 py-1 text-xs`}>
                   <option value="">Add owner…</option>
                   {users.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
                 </select>
                 <select value="" disabled={!pickedShown.length || bulkBusy}
                   onChange={e => { const v = e.target.value; if (v) runBulk({ addClientIds: [v] }, 'Linked a company to'); }}
-                  className="bg-white border border-slate-200 rounded px-1.5 py-1 text-xs text-slate-700 disabled:opacity-50 max-w-[11rem]">
+                  className={`${INPUT} w-auto px-1.5 py-1 text-xs max-w-[11rem]`}>
                   <option value="">Link company…</option>
                   {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
                 <select value="" disabled={!pickedShown.length || bulkBusy}
                   onChange={e => { const v = e.target.value; if (v) runBulk({ addProjectIds: [v] }, 'Linked a project to'); }}
-                  className="bg-white border border-slate-200 rounded px-1.5 py-1 text-xs text-slate-700 disabled:opacity-50 max-w-[11rem]">
+                  className={`${INPUT} w-auto px-1.5 py-1 text-xs max-w-[11rem]`}>
                   <option value="">Link project…</option>
                   {projects.map(p => <option key={p.id} value={p.id}>{p.projectNumber ? `${p.projectNumber} ` : ''}{p.name}</option>)}
                 </select>
@@ -1446,21 +1453,21 @@ export default function NotesClient({ initialNotes, clients, projects, currentUs
               <div className="flex flex-wrap items-center gap-1.5">
                 <input type="datetime-local" value={bulkDate} disabled={!pickedShown.length || bulkBusy}
                   onChange={e => setBulkDate(e.target.value)} title="Set the meeting date and time on every picked note"
-                  className="bg-white border border-slate-200 rounded px-1.5 py-1 text-xs text-slate-700 disabled:opacity-50" />
+                  className={`${INPUT} w-auto px-1.5 py-1 text-xs`} />
                 <button type="button" disabled={!pickedShown.length || bulkBusy || !fromLocalInput(bulkDate)}
                   onClick={() => runBulk({ meetingDate: fromLocalInput(bulkDate) }, 'Set the date on')}
-                  className="px-2 py-1 rounded bg-white border border-slate-200 hover:bg-slate-50 disabled:opacity-50">Set date</button>
+                  className={BTN_COMPACT}>Set date</button>
               </div>
               <div className="relative">
                 <input value={personQ} disabled={!pickedShown.length || bulkBusy}
                   onChange={e => setPersonQ(e.target.value)} placeholder="Link person: type a name"
-                  className="w-full bg-white border border-slate-200 rounded px-1.5 py-1 text-xs text-slate-700 placeholder:text-slate-400 disabled:opacity-50" />
+                  className={`${INPUT} px-1.5 py-1 text-xs`} />
                 {personHits.length > 0 && (
                   <div className="absolute z-20 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg overflow-hidden">
                     {personHits.map(c => (
                       <button key={c.id} type="button" onClick={() => runBulk({ addContactIds: [c.id] }, `Linked ${c.name} to`)}
-                        className="w-full text-left px-2.5 py-1.5 text-xs hover:bg-amber-50">
-                        <span className="font-medium text-slate-800">{c.name}</span>
+                        className="w-full text-left px-2.5 py-1.5 text-xs hover:bg-orange-50">
+                        <span className="font-semibold text-slate-800">{c.name}</span>
                         {(c.company || c.client?.name) && <span className="text-slate-400"> · {c.company || c.client?.name}</span>}
                       </button>
                     ))}
@@ -1486,12 +1493,12 @@ export default function NotesClient({ initialNotes, clients, projects, currentUs
               <section key={key} className="mb-3">
                 <button
                   onClick={key === 'done' ? () => setDoneOpen(v => !v) : undefined}
-                  className="w-full flex items-center justify-between px-2 pt-2 pb-1 text-[11px] font-bold uppercase tracking-wider text-slate-500"
+                  className={`w-full flex items-center justify-between px-2 pt-2 pb-1 ${LABEL}`}
                 >
-                  <span>{label} <span className="font-normal text-slate-400">{rows.length}</span></span>
+                  <span>{label} <span className="font-normal tabular-nums">{rows.length}</span></span>
                   {key === 'done' && !search && <span className="font-normal normal-case text-slate-400">{doneOpen ? 'Hide' : 'Show'}</span>}
                 </button>
-                {hint && !folded && <p className="px-2 pb-1 text-[11px] text-slate-400">{hint}</p>}
+                {hint && !folded && <p className="px-2 pb-1 text-xs text-slate-500">{hint}</p>}
                 {!folded && rows.map(n => (
                   <NoteRow key={n.id} note={n} tone={key} active={n.id === selected} onClick={() => { setSelected(n.id); setPhoneNote(true); }}
                     checked={picked.has(n.id)} onToggle={() => togglePick(n.id)} />
@@ -1505,7 +1512,7 @@ export default function NotesClient({ initialNotes, clients, projects, currentUs
       {/* ── Right: the meeting ── */}
       <div className={`${phoneNote ? 'flex' : 'hidden md:flex'} flex-1 min-w-0 flex-col overflow-hidden`}>
         <button type="button" onClick={() => setPhoneNote(false)}
-          className="md:hidden shrink-0 min-h-[44px] px-4 text-left text-sm font-medium text-amber-700 border-b border-slate-200 bg-white">‹ All meetings</button>
+          className="md:hidden shrink-0 min-h-[44px] px-4 text-left text-sm font-semibold text-orange-600 border-b border-slate-200 bg-white">‹ All meetings</button>
         <div className="flex-1 min-h-0 overflow-hidden">
         {activeNote ? (
           <NoteDetail

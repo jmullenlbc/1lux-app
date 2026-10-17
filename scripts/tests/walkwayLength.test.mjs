@@ -6,7 +6,7 @@ import assert from 'node:assert/strict';
 import { SITE_VISION_PROMPT_VERSION, SITE_VISION_SYSTEM } from '../../src/lib/siteVision.js';
 
 test('the site read asks for the walkway length on homes only', () => {
-  assert.match(SITE_VISION_PROMPT_VERSION, /2026-10-02c/);
+  assert.match(SITE_VISION_PROMPT_VERSION, /2026-10-14/);
   assert.match(SITE_VISION_SYSTEM, /walkwayLengthFtMeasured/);
   assert.match(SITE_VISION_SYSTEM, /TOWNHOME or SINGLE-FAMILY/);
 });

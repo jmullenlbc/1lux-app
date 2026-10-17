@@ -10,7 +10,7 @@ export default function DisabledSection({ count, children, label = 'Disabled' })
   const [open, setOpen] = useState(false);
   if (!count) return null;
   return (
-    <div className="mt-4 border border-slate-200 rounded-xl bg-slate-50/60 overflow-hidden">
+    <div className="mt-4 border border-slate-200 rounded-lg bg-slate-50/60 overflow-hidden">
       <button
         type="button"
         onClick={() => setOpen(o => !o)}
@@ -22,7 +22,7 @@ export default function DisabledSection({ count, children, label = 'Disabled' })
           </svg>
           {label} <span className="text-slate-400 font-normal">({count})</span>
         </span>
-        <span className="text-[10px] text-slate-400">{open ? 'Hide' : 'Show'}</span>
+        <span className="text-[11px] text-slate-500">{open ? 'Hide' : 'Show'}</span>
       </button>
       {open && <div className="px-4 pb-4 pt-1">{children}</div>}
     </div>

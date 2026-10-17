@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { NOTIFICATION_TYPES, NOTIFICATION_MODULES } from '@/lib/notificationTypes';
 import NotificationLog from './NotificationLog';
+import { CARD, LABEL, INPUT, HELPER, H2 } from '@/components/ui/tokens';
 
 // ── Pattern badge metadata — plain English ────────────────────────────────────
 const PATTERN_META = {
@@ -28,7 +29,7 @@ function PatternBadge({ pattern, showTip = false }) {
   return (
     <div className="relative inline-flex">
       <span
-        className={`inline-block px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide border cursor-default ${m.cls}`}
+        className={`inline-block px-2 py-0.5 rounded text-[11px] font-semibold uppercase tracking-wide border cursor-default ${m.cls}`}
         onMouseEnter={() => showTip && setTip(true)}
         onMouseLeave={() => setTip(false)}
       >
@@ -66,7 +67,7 @@ function ContactPicker({ available, onAdd }) {
   return (
     <div ref={ref} className="relative">
       <button onClick={() => { setOpen(o => !o); setQ(''); }}
-        className="flex items-center gap-1 text-[11px] font-semibold text-blue-600 hover:text-blue-700 px-2 py-0.5 rounded-full border border-dashed border-blue-300 hover:border-blue-500 hover:bg-blue-50 transition-colors">
+        className="flex items-center gap-1 text-[11px] font-semibold text-orange-600 hover:text-orange-700 px-2 py-0.5 rounded-full border border-orange-300 hover:border-orange-500 hover:bg-orange-50 transition-colors">
         <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
         </svg>
@@ -77,19 +78,19 @@ function ContactPicker({ available, onAdd }) {
           <div className="p-2 border-b border-slate-100">
             <input autoFocus value={q} onChange={e => setQ(e.target.value)}
               placeholder="Search contacts…"
-              className="w-full text-xs border border-slate-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-400"
+              className={`${INPUT} text-xs px-2 py-1`}
               onKeyDown={e => e.key === 'Escape' && setOpen(false)}
             />
           </div>
           <div className="max-h-44 overflow-y-auto">
             {filtered.length > 0 ? filtered.map(c => (
               <button key={c.id} onClick={() => { onAdd(c); setOpen(false); setQ(''); }}
-                className="w-full text-left px-3 py-2 hover:bg-blue-50 transition-colors">
-                <p className="text-xs font-medium text-slate-800">{c.name}</p>
-                {c.email && <p className="text-[10px] text-slate-400">{c.email}</p>}
+                className="w-full text-left px-3 py-2 hover:bg-orange-50 transition-colors">
+                <p className="text-xs font-semibold text-slate-800">{c.name}</p>
+                {c.email && <p className="text-[11px] text-slate-500">{c.email}</p>}
               </button>
             )) : (
-              <p className="px-3 py-3 text-xs text-slate-400 italic text-center">
+              <p className="px-3 py-3 text-xs text-slate-500 text-center">
                 {available.length === 0 ? 'All contacts subscribed' : 'No match'}
               </p>
             )}
@@ -149,7 +150,7 @@ function NotificationRow({ notificationType, config, allContacts, onChange }) {
         <div className="w-9 h-5 rounded-full bg-slate-200 shrink-0" />
         <p className="text-sm text-slate-400 flex-1">{meta?.label || notificationType}</p>
         <PatternBadge pattern={meta?.pattern || 'EVENT'} />
-        <span className="text-[10px] text-slate-400 font-medium px-2 py-0.5 rounded border border-slate-200">Coming soon</span>
+        <span className="text-[11px] text-slate-500 font-semibold px-2 py-0.5 rounded border border-slate-200">Coming soon</span>
       </div>
     );
   }
@@ -161,12 +162,12 @@ function NotificationRow({ notificationType, config, allContacts, onChange }) {
         <button
           onClick={toggleGlobal}
           disabled={saving}
-          className={`relative w-9 h-5 rounded-full transition-colors shrink-0 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:ring-offset-1 ${enabled ? 'bg-amber-500' : 'bg-slate-200'}`}
+          className={`relative w-9 h-5 rounded-full transition-colors shrink-0 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-1 ${enabled ? 'bg-orange-500' : 'bg-slate-200'}`}
           title={enabled ? 'Disable for all contacts' : 'Enable for contacts'}
         >
           <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${enabled ? 'translate-x-4' : ''}`} />
         </button>
-        <p className={`text-sm flex-1 ${enabled ? 'text-slate-800 font-medium' : 'text-slate-400'}`}>
+        <p className={`text-sm flex-1 ${enabled ? 'text-slate-800 font-semibold' : 'text-slate-500'}`}>
           {meta?.label || notificationType}
         </p>
         <PatternBadge pattern={meta?.pattern || 'EVENT'} showTip />
@@ -177,7 +178,7 @@ function NotificationRow({ notificationType, config, allContacts, onChange }) {
         <div className="mt-2.5 ml-12">
           <div className="flex flex-wrap gap-1.5 items-center">
             {allContacts.length === 0 ? (
-              <p className="text-[11px] text-slate-300 italic">Add contacts in the section above to subscribe them</p>
+              <p className="text-[11px] text-slate-500">Add contacts in the section above to subscribe them</p>
             ) : (
               <>
                 {/* All contacts shown — subscribed ones highlighted */}
@@ -189,15 +190,15 @@ function NotificationRow({ notificationType, config, allContacts, onChange }) {
                       onClick={() => toggleContact(c)}
                       disabled={saving || !c.email}
                       title={c.email ? (subscribed ? `Remove ${c.name}` : `Subscribe ${c.name}`) : 'No email set for this contact'}
-                      className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium border transition-all ${
+                      className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-semibold border transition-all ${
                         subscribed
-                          ? 'bg-blue-600 text-white border-blue-600'
+                          ? 'bg-orange-50 text-orange-700 border-orange-400'
                           : c.email
-                            ? 'bg-white text-slate-500 border-slate-200 hover:border-blue-400 hover:text-blue-600'
-                            : 'bg-white text-slate-300 border-slate-100 cursor-not-allowed'
+                            ? 'bg-white text-slate-600 border-slate-300 hover:border-orange-400 hover:text-orange-700'
+                            : 'bg-white text-slate-400 border-slate-200 cursor-not-allowed'
                       }`}
                     >
-                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${subscribed ? 'bg-white' : c.email ? 'bg-slate-300' : 'bg-slate-200'}`} />
+                      <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${subscribed ? 'bg-orange-500' : c.email ? 'bg-slate-300' : 'bg-slate-200'}`} />
                       {c.name}
                       {subscribed && (
                         <svg className="w-2.5 h-2.5 ml-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
@@ -208,7 +209,7 @@ function NotificationRow({ notificationType, config, allContacts, onChange }) {
                   );
                 })}
                 {subscribedContacts.length === 0 && (
-                  <p className="text-[11px] text-slate-300 italic ml-1">Click a contact to subscribe them</p>
+                  <p className="text-[11px] text-slate-500 ml-1">Click a contact to subscribe them</p>
                 )}
               </>
             )}
@@ -225,19 +226,19 @@ function ModuleSection({ module, keys, configs, allContacts, onChange }) {
   const activeCount = keys.filter(k => configs[k]?.enabled).length;
 
   return (
-    <div className="border border-slate-200 rounded-xl overflow-hidden mb-3">
+    <div className={`${CARD} overflow-hidden mb-3`}>
       <button onClick={() => setCollapsed(c => !c)}
         className="w-full flex items-center justify-between px-4 py-3 bg-slate-50 hover:bg-slate-100 transition-colors text-left">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-semibold text-slate-700">{module}</span>
+          <span className="text-sm font-semibold text-slate-800">{module}</span>
           {activeCount > 0 && (
-            <span className="text-[10px] font-bold text-amber-600 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-full">
+            <span className="text-[11px] font-semibold text-orange-700 bg-orange-50 border border-orange-200 px-1.5 py-0.5 rounded-full tabular-nums">
               {activeCount} active
             </span>
           )}
         </div>
         <div className="flex items-center gap-2">
-          <span className="text-xs text-slate-400">{keys.length} notification{keys.length !== 1 ? 's' : ''}</span>
+          <span className="text-xs text-slate-500 tabular-nums">{keys.length} notification{keys.length !== 1 ? 's' : ''}</span>
           <svg className={`w-4 h-4 text-slate-400 transition-transform ${collapsed ? '' : 'rotate-180'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
           </svg>
@@ -308,8 +309,8 @@ export default function NotificationSettingsTab({ projectId }) {
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
         <div>
-          <h2 className="text-lg font-semibold text-slate-800">External Notifications</h2>
-          <p className="text-sm text-slate-400 mt-0.5">
+          <h2 className={H2}>External Notifications</h2>
+          <p className="text-sm text-slate-500 mt-0.5">
             {view === 'settings'
               ? 'Choose which project contacts get notified for each event. Toggle a contact to subscribe or unsubscribe them.'
               : 'Audit trail of all notifications triggered for this project.'}
@@ -318,7 +319,7 @@ export default function NotificationSettingsTab({ projectId }) {
         <div className="flex gap-1 bg-slate-100 p-0.5 rounded-lg">
           {[['settings', 'Settings'], ['log', 'Activity Log']].map(([val, lbl]) => (
             <button key={val} onClick={() => setView(val)}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${view === val ? 'bg-white text-slate-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${view === val ? 'bg-white text-slate-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
               {lbl}
             </button>
           ))}
@@ -332,10 +333,10 @@ export default function NotificationSettingsTab({ projectId }) {
 
           {/* Legend — plain English */}
           <div className="flex flex-col gap-2 mb-5 p-4 bg-slate-50 rounded-xl border border-slate-100">
-            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wide mb-1">How notifications are sent</p>
+            <p className={`${LABEL} mb-1`}>How notifications are sent</p>
             {Object.entries(PATTERN_META).map(([key, m]) => (
               <div key={key} className="flex items-start gap-2.5">
-                <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide border shrink-0 mt-0.5 ${m.cls}`}>
+                <span className={`inline-block px-2 py-0.5 rounded text-[11px] font-semibold uppercase tracking-wide border shrink-0 mt-0.5 ${m.cls}`}>
                   {m.label}
                 </span>
                 <span className="text-xs text-slate-500">{m.description}</span>
@@ -375,10 +376,10 @@ export default function NotificationSettingsTab({ projectId }) {
           {!loading && contacts.length > 0 && (() => {
             const allKeys = EXTERNAL_MODULES.flatMap(m => m.keys).filter(k => !ROADMAP_TYPES.has(k));
             return (
-              <div className="mb-5 border border-slate-200 rounded-xl overflow-hidden">
+              <div className={`${CARD} mb-5 overflow-hidden`}>
                 <div className="px-4 py-3 bg-slate-50 border-b border-slate-200">
-                  <p className="text-sm font-semibold text-slate-700">Contact Overview</p>
-                  <p className="text-[11px] text-slate-400 mt-0.5">How many notifications each contact is subscribed to</p>
+                  <p className="text-sm font-semibold text-slate-800">Contact Overview</p>
+                  <p className={`${HELPER} mt-0.5`}>How many notifications each contact is subscribed to</p>
                 </div>
                 <div className="divide-y divide-slate-50">
                   {contacts.map(c => {
@@ -393,10 +394,10 @@ export default function NotificationSettingsTab({ projectId }) {
                           {(c.name || '?')[0].toUpperCase()}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-xs font-medium text-slate-800 truncate">{c.name}</p>
-                          {c.email ? <p className="text-[10px] text-slate-400 truncate">{c.email}</p> : <p className="text-[10px] text-red-400 italic">No email — can't receive notifications</p>}
+                          <p className="text-xs font-semibold text-slate-800 truncate">{c.name}</p>
+                          {c.email ? <p className="text-[11px] text-slate-500 truncate">{c.email}</p> : <p className="text-[11px] text-red-600">No email, cannot receive notifications</p>}
                         </div>
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${count > 0 ? 'bg-blue-50 text-blue-700 border-blue-200' : 'bg-slate-50 text-slate-400 border-slate-200'}`}>
+                        <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border tabular-nums ${count > 0 ? 'bg-orange-50 text-orange-700 border-orange-200' : 'bg-slate-50 text-slate-500 border-slate-200'}`}>
                           {count} notification{count !== 1 ? 's' : ''}
                         </span>
                       </div>
@@ -408,7 +409,7 @@ export default function NotificationSettingsTab({ projectId }) {
           })()}
 
           {loading ? (
-            <div className="text-center py-10 text-sm text-slate-400">Loading…</div>
+            <div className="text-center py-10 text-sm text-slate-500">Loading...</div>
           ) : (
             <div>
               {EXTERNAL_MODULES.map(({ module, keys }) => (

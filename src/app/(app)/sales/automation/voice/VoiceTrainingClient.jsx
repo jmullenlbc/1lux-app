@@ -1,5 +1,8 @@
 'use client';
 import { useEffect, useRef, useState } from 'react';
+import { TD, TH, CARD, CARD_PADDED, CARD_TITLE } from '@/components/ui/tokens';
+import UiCard from '@/components/ui/Card';
+import { WidgetLoading } from '@/components/ui/WidgetFrame';
 import { extractSentEmails, parseMessage, parsePastedEmail, newest } from '@/lib/tone/mbox';
 import { extractPstEmails, extractOlmEmails, parseMsgFile, zipEntries, zipEntryStream } from '@/lib/tone/outlook';
 import { postParked } from '@/lib/parkedFetch';
@@ -121,7 +124,7 @@ function Chips({ label, items, tone = 'slate' }) {
   const cls = tone === 'orange' ? 'bg-orange-50 text-orange-700 border-orange-200' : 'bg-slate-50 text-slate-700 border-slate-200';
   return (
     <div>
-      <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">{label}</p>
+      <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">{label}</p>
       <div className="flex flex-wrap gap-1.5">
         {items.map(t => <span key={t} className={`text-xs border px-2 py-0.5 rounded-full ${cls}`}>{t}</span>)}
       </div>
@@ -133,7 +136,7 @@ function Lines({ label, items }) {
   if (!items?.length) return null;
   return (
     <div>
-      <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">{label}</p>
+      <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">{label}</p>
       <ul className="space-y-1">{items.map(t => <li key={t} className="text-sm text-slate-700">&ldquo;{t}&rdquo;</li>)}</ul>
     </div>
   );
@@ -142,13 +145,13 @@ function Lines({ label, items }) {
 const times = w => `${w === 0.5 ? '\u00bd' : w === 0.25 ? '\u00bc' : w}x`;
 const monthYear = d => (d ? new Date(d).toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : '');
 
-function Card({ title, note, children }) {
+function Section({ title, note, children }) {
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 p-6">
-      <h2 className="text-sm font-semibold text-slate-700">{title}</h2>
+    <UiCard padded>
+      <h2 className={CARD_TITLE}>{title}</h2>
       {note && <p className="text-xs text-slate-500 mt-1 max-w-2xl">{note}</p>}
       <div className="mt-4">{children}</div>
-    </div>
+    </UiCard>
   );
 }
 
@@ -162,7 +165,7 @@ function TopSentences({ sentences }) {
         <li key={t.sentence} className="flex items-baseline gap-3 text-sm">
           <span className="w-5 text-right text-slate-400 shrink-0">{i + 1}.</span>
           <span className="text-slate-800 font-medium">&ldquo;{t.sentence}&rdquo;</span>
-          <span className="text-xs text-slate-400 shrink-0">in {t.emails} emails{t.recent ? `, ${t.recent} in the last year` : ''}</span>
+          <span className="text-xs text-slate-500 shrink-0">in {t.emails} emails{t.recent ? `, ${t.recent} in the last year` : ''}</span>
         </li>
       ))}
     </ol>
@@ -191,27 +194,27 @@ function Evolution({ insights, profile: p }) {
   const periods = insights?.periods || [];
   const plan = Object.fromEntries((insights?.plan || []).map(b => [b.key, b]));
   if (!periods.length) return <p className="text-sm text-slate-500">Nothing yet.</p>;
-  const cell = 'py-2 px-2 text-right';
+  const cell = `${TD} text-right tabular-nums`;
   return (
     <div className="space-y-4">
       <div className="overflow-x-auto">
         <table className="w-full text-sm min-w-[640px]">
           <thead>
-            <tr className="text-[11px] uppercase tracking-wide text-slate-400 border-b border-slate-100">
-              <th className="py-2 pr-2 font-medium text-left">When sent</th>
-              <th className={`${cell} font-medium`}>Emails</th>
-              <th className={`${cell} font-medium`} title="How much one email from this period counts">Counts</th>
-              <th className={`${cell} font-medium`} title="Share of the emails the bot reads when it learns the voice">Bot reads</th>
-              <th className={`${cell} font-medium`}>Avg words</th>
-              <th className={`${cell} font-medium`}>Words per sentence</th>
-              <th className={`${cell} font-medium`}>Ask a question</th>
-              <th className={`${cell} font-medium`} title="just, maybe, sorry, I think, touch base and the like">Soft words</th>
+            <tr className="border-b border-slate-100">
+              <th className={TH}>When sent</th>
+              <th className={`${TH} text-right`}>Emails</th>
+              <th className={`${TH} text-right`} title="How much one email from this period counts">Counts</th>
+              <th className={`${TH} text-right`} title="Share of the emails the bot reads when it learns the voice">Bot reads</th>
+              <th className={`${TH} text-right`}>Avg words</th>
+              <th className={`${TH} text-right`}>Words per sentence</th>
+              <th className={`${TH} text-right`}>Ask a question</th>
+              <th className={`${TH} text-right`} title="just, maybe, sorry, I think, touch base and the like">Soft words</th>
             </tr>
           </thead>
           <tbody>
             {periods.map(r => (
               <tr key={r.key} className="border-b border-slate-50 text-slate-700">
-                <td className="py-2 pr-2">{r.label}</td>
+                <td className={TD}>{r.label}</td>
                 <td className={cell}>{r.emails}</td>
                 <td className={`${cell} font-semibold text-orange-600`}>{times(r.weight)}</td>
                 <td className={cell}>{plan[r.key]?.share ?? 0}%</td>
@@ -247,7 +250,7 @@ function Bullets({ label, items, tone }) {
   if (!items?.length) return null;
   return (
     <div>
-      <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">{label}</p>
+      <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">{label}</p>
       <ul className="space-y-1 list-disc pl-4">
         {items.map(t => <li key={t} className={`text-sm ${tone === 'green' ? 'text-green-800' : 'text-slate-700'}`}>{t}</li>)}
       </ul>
@@ -264,7 +267,7 @@ function Templates({ templates, busy, onAction }) {
     <div className="space-y-3">
       {!live.length && <p className="text-sm text-slate-500">None yet. After a relearn, any topic you have written about in 3 or more emails shows up here.</p>}
       {live.map(t => (
-        <div key={t.id} className="border border-slate-200 rounded-xl p-4">
+        <div key={t.id} className={`${CARD} p-4`}>
           <div className="flex items-start justify-between gap-3">
             <div>
               <div className="text-sm font-semibold text-slate-800">{t.name}</div>
@@ -280,7 +283,7 @@ function Templates({ templates, busy, onAction }) {
                 <>
                   <button onClick={() => onAction(t, 'dismiss')} disabled={busy} className="text-xs text-slate-500 hover:underline disabled:opacity-40">Not useful</button>
                   <button onClick={() => onAction(t, 'save')} disabled={busy}
-                    className="px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white">Save as email template</button>
+                    className="px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-500 disabled:opacity-40 text-white">Save as email template</button>
                 </>
               )}
             </div>
@@ -536,7 +539,7 @@ export default function VoiceTrainingClient() {
     setMsg(r.rebuildError ? { type: 'error', text: r.rebuildError } : { type: 'success', text: `Learned. Your answers come first, then ${r.count} emails in the library.` });
   });
 
-  if (!data) return <p className="text-sm text-slate-400">{msg?.text || 'Loading…'}</p>;
+  if (!data) return (msg?.text ? <p className="text-sm text-slate-500">{msg.text}</p> : <WidgetLoading />);
   const p = data.profile;
 
   return (
@@ -547,7 +550,7 @@ export default function VoiceTrainingClient() {
           rewrites the templates below. Press it after adding or putting back emails.
         </p>
         <button onClick={relearnNow} disabled={busy || data.count < 5}
-          className="px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white transition-colors disabled:opacity-40 shrink-0">
+          className="px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-500 text-white transition-colors disabled:opacity-40 shrink-0">
           Relearn
         </button>
       </div>
@@ -564,10 +567,10 @@ export default function VoiceTrainingClient() {
 
       <QandA batches={data.batches} busy={busy} who={who} onSave={saveAnswer} onLearn={learnNow} />
 
-      <div className="bg-white rounded-2xl border border-slate-200 p-6">
+      <div className={CARD_PADDED}>
         <div className="flex items-start justify-between gap-4 mb-4">
           <div>
-            <h2 className="text-sm font-semibold text-slate-700">Add emails</h2>
+            <h2 className={CARD_TITLE}>Add emails</h2>
             <p className="text-xs text-slate-500 mt-1 max-w-2xl">
               A whole Sent folder works best (hundreds of emails at once). From Gmail, Google Takeout sends several
               .zip parts: drop them all here together, no need to unzip. A loose .mbox works too. From Outlook,
@@ -578,7 +581,7 @@ export default function VoiceTrainingClient() {
             </p>
           </div>
           <div className="text-right shrink-0">
-            <div className="text-2xl font-bold text-slate-900">{data.count}</div>
+            <div className="text-2xl font-bold text-slate-900 tabular-nums">{data.count}</div>
             <div className="text-[11px] text-slate-500">emails in {who} library</div>
           </div>
         </div>
@@ -591,7 +594,7 @@ export default function VoiceTrainingClient() {
           <input ref={fileRef} type="file" multiple accept=".zip,.mbox,.pst,.olm,.eml,.msg,.txt" className="hidden"
             onChange={e => e.target.files?.length && onFiles(e.target.files)} />
           <div className="text-sm font-medium text-slate-700">Drop Takeout .zip parts, or .mbox, .pst, .olm, .eml, .msg or .txt files here</div>
-          <div className="text-xs text-slate-400 mt-1">or click to choose. Drop every part at once.</div>
+          <div className="text-xs text-slate-500 mt-1">or click to choose. Drop every part at once.</div>
         </label>
 
         {prog && (
@@ -612,10 +615,10 @@ export default function VoiceTrainingClient() {
         <div className="mt-4">
           <textarea value={paste} onChange={e => setPaste(e.target.value)} rows={5} disabled={busy}
             placeholder={'Or paste emails here.\n\nSubject: Lunch next week?\nHi Lee, ...\n---\nSubject: ...'}
-            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300" />
+            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500" />
           <div className="flex justify-end mt-2">
             <button onClick={onPaste} disabled={busy || !paste.trim()}
-              className="px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white">Add pasted emails</button>
+              className="px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-500 disabled:opacity-40 text-white">Add pasted emails</button>
           </div>
         </div>
 
@@ -624,11 +627,11 @@ export default function VoiceTrainingClient() {
         )}
       </div>
 
-      <div className="bg-white rounded-2xl border border-slate-200 p-6">
+      <div className={CARD_PADDED}>
         <div className="flex items-start justify-between gap-4 mb-4">
           <div>
-            <h2 className="text-sm font-semibold text-slate-700">What the bot learned</h2>
-            {data.builtAt && <p className="text-xs text-slate-400 mt-1">Learned {new Date(data.builtAt).toLocaleString()}</p>}
+            <h2 className={CARD_TITLE}>What the bot learned</h2>
+            {data.builtAt && <p className="text-xs text-slate-500 mt-1">Learned {new Date(data.builtAt).toLocaleString()}</p>}
           </div>
         </div>
         {!p ? (
@@ -648,7 +651,7 @@ export default function VoiceTrainingClient() {
               <div className="space-y-4">
                 {p.subjectStyle && (
                   <div>
-                    <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">How subjects are written</p>
+                    <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1.5">How subjects are written</p>
                     <p className="text-sm text-slate-700">{p.subjectStyle}</p>
                   </div>
                 )}
@@ -666,46 +669,46 @@ export default function VoiceTrainingClient() {
         )}
       </div>
 
-      <Card title="Top 20 sentences"
+      <Section title="Top 20 sentences"
         note="Whole sentences written word for word in 3 or more emails, counted once per email. Newer emails count more, so these lean to how you write now.">
         <TopSentences sentences={data.insights?.sentences} />
-      </Card>
+      </Section>
 
-      <Card title="How you get personal"
+      <Section title="How you get personal"
         note="The personal things you say: family, weekends, trips, congratulations, catching up. Found across every email, sorted into kinds at each relearn. The bot only uses one when it knows a real fact about the person.">
         <Personal items={p?.personal} />
-      </Card>
+      </Section>
 
-      <Card title="How the writing has changed"
+      <Section title="How the writing has changed"
         note="The bot copies how you write now. One email from the last 3 months counts 8 times as much as one from 2 to 3 years ago, and 32 times as much as one from over 5 years ago.">
         <Evolution insights={data.insights} profile={p} />
-      </Card>
+      </Section>
 
-      <Card title="Emails written over and over"
+      <Section title="Emails written over and over"
         note="Emails you send again and again on the same topic, even when the wording changes, written up as templates in today's wording. Out-of-office and calendar mail never counts. Save one and it joins the email templates.">
         <Templates templates={data.templates} busy={busy} onAction={templateAction} />
-      </Card>
+      </Section>
 
-      <div className="bg-white rounded-2xl border border-slate-200 p-6">
-        <h2 className="text-sm font-semibold text-slate-700 mb-3">Uploads</h2>
+      <div className={CARD_PADDED}>
+        <h2 className={`${CARD_TITLE} mb-3`}>Uploads</h2>
         {!data.batches.length ? (
           <p className="text-sm text-slate-500">No uploads yet.</p>
         ) : (
           <table className="w-full text-sm">
             <thead>
-              <tr className="text-left text-[11px] uppercase tracking-wide text-slate-400 border-b border-slate-100">
-                <th className="py-2 font-medium">Added</th><th className="py-2 font-medium">What</th>
-                <th className="py-2 font-medium text-right">Emails</th><th className="py-2 font-medium">By</th><th />
+              <tr className="border-b border-slate-100">
+                <th className={TH}>Added</th><th className={TH}>What</th>
+                <th className={`${TH} text-right`}>Emails</th><th className={TH}>By</th><th className={TH} />
               </tr>
             </thead>
             <tbody>
               {data.batches.map(b => (
                 <tr key={b.id} className={`border-b border-slate-50 ${b.archivedAt ? 'text-slate-400' : 'text-slate-700'}`}>
-                  <td className="py-2">{new Date(b.createdAt).toLocaleDateString()}</td>
-                  <td className="py-2">{b.fileName || SOURCE_LABEL[b.source] || b.source}{b.archivedAt && <span className="ml-2 text-[11px] bg-slate-100 rounded px-1.5 py-0.5">put away</span>}</td>
-                  <td className="py-2 text-right">{b.emailsAdded}</td>
-                  <td className="py-2">{b.uploadedBy?.name || ''}</td>
-                  <td className="py-2 text-right">
+                  <td className={`${TD} tabular-nums`}>{new Date(b.createdAt).toLocaleDateString()}</td>
+                  <td className={TD}>{b.fileName || SOURCE_LABEL[b.source] || b.source}{b.archivedAt && <span className="ml-2 text-[11px] bg-slate-100 rounded px-1.5 py-0.5">put away</span>}</td>
+                  <td className={`${TD} text-right tabular-nums`}>{b.emailsAdded}</td>
+                  <td className={TD}>{b.uploadedBy?.name || ''}</td>
+                  <td className={`${TD} text-right tabular-nums`}>
                     <button onClick={() => toggleBatch(b)} disabled={busy} className="text-xs text-orange-600 hover:underline disabled:opacity-40">
                       {b.archivedAt ? 'Restore' : 'Put away'}
                     </button>
@@ -715,13 +718,13 @@ export default function VoiceTrainingClient() {
             </tbody>
           </table>
         )}
-        <p className="text-xs text-slate-400 mt-3">Putting an upload away stops it teaching the voice. Nothing is deleted; Restore brings it back.</p>
+        <p className="text-xs text-slate-500 mt-3">Putting an upload away stops it teaching the voice. Nothing is deleted; Restore brings it back.</p>
       </div>
 
-      <Card title="Set aside automatically"
+      <Section title="Set aside automatically"
         note="Out-of-office replies and calendar invites, accepts and declines come from a template or a machine, so they never teach the voice. Every relearn checks the whole library for them. Nothing is deleted.">
         <SetAside data={data.autoSetAside} busy={busy} onPutBack={putBack} />
-      </Card>
+      </Section>
     </div>
   );
 }
@@ -760,7 +763,7 @@ function SetAside({ data, busy, onPutBack }) {
           ))}
         </ul>
       )}
-      {open && total > data.items.length && <p className="text-xs text-slate-400 mt-2">Showing the newest {data.items.length}.</p>}
+      {open && total > data.items.length && <p className="text-xs text-slate-500 mt-2">Showing the newest {data.items.length}.</p>}
     </div>
   );
 }
@@ -780,7 +783,7 @@ function QandA({ batches, busy, who, onSave, onLearn }) {
     setPick(rest[0]?.key || null); setSubject(''); setBody('');
   };
   return (
-    <Card title="Start here: write a few typical emails"
+    <Section title="Start here: write a few typical emails"
       note={`Each question is an everyday sales email. Write it the way you would really send it, in ${who} own words. These answers count most when the bot learns the voice, so a handful aims it in the right place, even before a mailbox is added.`}>
       <div className="flex items-center justify-between gap-3 mb-3">
         <p className="text-xs text-slate-500">{answered.size} of {QUESTIONS.length} answered</p>
@@ -794,20 +797,20 @@ function QandA({ batches, busy, who, onSave, onLearn }) {
           <p className="text-sm text-slate-800 font-medium">{q.ask}</p>
           {answered.has(q.key) && <p className="text-xs text-green-700">Already answered. Another answer adds a second example.</p>}
           <input value={subject} onChange={e => setSubject(e.target.value)} disabled={busy} placeholder={`Subject (blank uses "${q.subject}")`}
-            className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300" />
+            className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500" />
           <textarea value={body} onChange={e => setBody(e.target.value)} rows={7} disabled={busy}
             placeholder={'Hi Lee,\n\n...'}
-            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300" />
+            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500" />
           <div className="flex flex-wrap items-center justify-end gap-3">
             <button onClick={next} disabled={busy} className="text-xs text-slate-500 hover:underline disabled:opacity-40">Skip</button>
             <button onClick={async () => { if (await onSave(q, subject, body)) next(); }} disabled={busy || body.trim().length < 40}
-              className="px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white">Save and next</button>
+              className="px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-500 disabled:opacity-40 text-white">Save and next</button>
             {answered.size > 0 && (
               <button onClick={onLearn} disabled={busy} className="text-sm border border-orange-300 text-orange-700 hover:bg-orange-50 disabled:opacity-40 rounded-lg px-4 py-1.5">Learn from my answers</button>
             )}
           </div>
         </div>
       )}
-    </Card>
+    </Section>
   );
 }

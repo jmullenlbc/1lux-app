@@ -74,7 +74,7 @@ function MarkdownContent({ content }) {
         );
         if (b.type === 'ordered-list') return (
           <ol key={i} className="space-y-1 pl-4">
-            {b.items.map((item, j) => <li key={j} className="flex gap-2"><span className="text-slate-400 shrink-0 w-4 text-right">{j + 1}.</span><span>{renderInline(item)}</span></li>)}
+            {b.items.map((item, j) => <li key={j} className="flex gap-2"><span className="text-slate-500 shrink-0 w-4 text-right">{j + 1}.</span><span>{renderInline(item)}</span></li>)}
           </ol>
         );
         if (b.type === 'hr') return <hr key={i} className="border-slate-200 my-2" />;
@@ -89,11 +89,11 @@ function MarkdownContent({ content }) {
 // ── Confidence badge from answer text ─────────────────────────────────────────
 function ConfidenceBadge({ text }) {
   if (text.includes('✅ CERTAIN'))
-    return <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-200">✅ CERTAIN</span>;
+    return <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-200">✅ CERTAIN</span>;
   if (text.includes('⚠️ LIKELY'))
-    return <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">⚠️ LIKELY</span>;
+    return <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">⚠️ LIKELY</span>;
   if (text.includes('🔍 VERIFY WITH EOR'))
-    return <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-200">🔍 VERIFY WITH EOR</span>;
+    return <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-200">🔍 VERIFY WITH EOR</span>;
   return null;
 }
 
@@ -194,7 +194,7 @@ export default function CodeSearchClient({ codeMeta = [] }) {
           <div className="flex items-start justify-between mb-1">
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <Link href="/knowledge-base" className="text-[10px] font-bold text-violet-600 uppercase tracking-wider hover:text-violet-700 transition-colors">
+                <Link href="/knowledge-base" className="text-[11px] font-bold text-orange-600 uppercase tracking-wide hover:text-orange-700 transition-colors">
                   ← Knowledge Base
                 </Link>
               </div>
@@ -202,7 +202,7 @@ export default function CodeSearchClient({ codeMeta = [] }) {
                 <span className="text-2xl">⚖️</span>
                 Code Search
               </h1>
-              <p className="text-xs text-slate-400 mt-0.5">Ask any question about building codes relevant to lighting design</p>
+              <p className="text-xs text-slate-500 mt-0.5">Ask any question about building codes relevant to lighting design</p>
             </div>
             <div className="flex items-center gap-2">
               {!isEmpty && (
@@ -218,7 +218,7 @@ export default function CodeSearchClient({ codeMeta = [] }) {
           {/* Code chips */}
           <div className="flex flex-wrap gap-2 mt-3">
             {codeMeta.map(c => (
-              <span key={c.code} className="text-[10px] font-medium px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+              <span key={c.code} className="text-[11px] font-medium px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
                 {c.code}
               </span>
             ))}
@@ -242,7 +242,7 @@ export default function CodeSearchClient({ codeMeta = [] }) {
               </div>
 
               <div>
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-3">Try asking:</p>
+                <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-3">Try asking:</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {SUGGESTIONS.map((s, i) => (
                     <button key={i} onClick={() => handleSearch(s)}
@@ -261,15 +261,15 @@ export default function CodeSearchClient({ codeMeta = [] }) {
               {history.map((msg, i) => (
                 <div key={i} className={msg.role === 'user' ? 'flex justify-end' : 'flex justify-start'}>
                   {msg.role === 'user' ? (
-                    <div className="max-w-[80%] bg-violet-600 text-white rounded-2xl rounded-tr-sm px-4 py-3 text-sm">
+                    <div className="max-w-[80%] bg-orange-500 text-white rounded-xl rounded-tr-sm px-4 py-3 text-sm">
                       {msg.content}
                     </div>
                   ) : (
-                    <div className="max-w-[90%] bg-white rounded-2xl rounded-tl-sm border border-slate-200 shadow-sm overflow-hidden">
+                    <div className="max-w-[90%] bg-white rounded-xl rounded-tl-sm border border-slate-200 shadow-sm overflow-hidden">
                       <div className="px-5 py-4">
                         <div className="flex items-center gap-2 mb-3">
-                          <div className="w-5 h-5 rounded-full bg-violet-100 flex items-center justify-center text-[10px]">⚖️</div>
-                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Code Reference</span>
+                          <div className="w-5 h-5 rounded-full bg-orange-50 flex items-center justify-center text-[11px]">⚖️</div>
+                          <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Code Reference</span>
                           <div className="ml-auto">
                             <ConfidenceBadge text={msg.content} />
                           </div>
@@ -284,15 +284,15 @@ export default function CodeSearchClient({ codeMeta = [] }) {
               {/* Streaming current answer */}
               {(loading || current) && (
                 <div className="flex justify-start">
-                  <div className="max-w-[90%] bg-white rounded-2xl rounded-tl-sm border border-slate-200 shadow-sm overflow-hidden">
+                  <div className="max-w-[90%] bg-white rounded-xl rounded-tl-sm border border-slate-200 shadow-sm overflow-hidden">
                     <div className="px-5 py-4">
                       <div className="flex items-center gap-2 mb-3">
-                        <div className="w-5 h-5 rounded-full bg-violet-100 flex items-center justify-center text-[10px]">⚖️</div>
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Code Reference</span>
+                        <div className="w-5 h-5 rounded-full bg-orange-50 flex items-center justify-center text-[11px]">⚖️</div>
+                        <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Code Reference</span>
                         {loading && !current && (
                           <div className="flex gap-1 ml-2">
                             {[0, 1, 2].map(d => (
-                              <span key={d} className="w-1.5 h-1.5 rounded-full bg-violet-400 animate-bounce" style={{ animationDelay: `${d * 0.15}s` }} />
+                              <span key={d} className="w-1.5 h-1.5 rounded-full bg-orange-400 animate-bounce" style={{ animationDelay: `${d * 0.15}s` }} />
                             ))}
                           </div>
                         )}
@@ -322,14 +322,14 @@ export default function CodeSearchClient({ codeMeta = [] }) {
                 placeholder="Ask a code question… e.g. 'What is the LPD allowance for a hotel guest room?'"
                 rows={2}
                 disabled={loading}
-                className="w-full text-sm border border-slate-200 rounded-xl px-4 py-3 pr-12 resize-none focus:outline-none focus:ring-2 focus:ring-violet-400 bg-slate-50 focus:bg-white transition-all placeholder:text-slate-400 disabled:opacity-60"
+                className="w-full text-sm border border-slate-300 rounded-lg px-4 py-3 pr-12 resize-none focus:outline-none focus:ring-2 focus:ring-orange-500 bg-slate-50 focus:bg-white transition-all placeholder:text-slate-500 disabled:opacity-60"
               />
-              <div className="absolute right-3 bottom-3 text-[10px] text-slate-300">⏎ send</div>
+              <div className="absolute right-3 bottom-3 text-[11px] text-slate-500">⏎ send</div>
             </div>
             <button
               onClick={() => handleSearch()}
               disabled={!query.trim() || loading}
-              className="h-11 px-5 rounded-xl bg-violet-600 text-white text-sm font-semibold hover:bg-violet-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2 shrink-0">
+              className="h-11 px-5 rounded-lg bg-orange-500 text-white text-sm font-semibold hover:bg-orange-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2 shrink-0">
               {loading ? (
                 <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
@@ -343,7 +343,7 @@ export default function CodeSearchClient({ codeMeta = [] }) {
               {loading ? 'Searching…' : 'Search'}
             </button>
           </div>
-          <p className="text-[10px] text-slate-400 mt-2">
+          <p className="text-[11px] text-slate-500 mt-2">
             Loaded: {codeMeta.map(c => c.code).join(' · ')}
             {' · '}Answers include section citations and confidence levels
           </p>

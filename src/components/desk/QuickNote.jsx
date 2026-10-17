@@ -77,27 +77,27 @@ export default function QuickNote({ onPublished }) {
     return (
       <div className="mb-6">
         <button type="button" onClick={() => { setOpen(true); setMsg(null); }}
-          className="w-full min-h-[52px] rounded-xl bg-amber-500 text-white text-base font-semibold shadow-sm active:bg-amber-600">+ Quick note</button>
-        {msg && <p className={`mt-2 text-sm ${msg.tone === 'ok' ? 'text-emerald-700' : 'text-amber-700'}`}>{msg.text}</p>}
+          className="w-full min-h-[52px] rounded-lg bg-orange-500 text-white text-base font-semibold shadow-sm hover:bg-orange-600 active:bg-orange-600">+ Quick note</button>
+        {msg && <p className={`mt-2 text-sm ${msg.tone === 'ok' ? 'text-green-700' : 'text-amber-700'}`}>{msg.text}</p>}
       </div>
     );
   }
 
   return (
-    <section className="mb-6 rounded-xl border border-amber-200 bg-amber-50/40 p-3 space-y-3">
+    <section className="mb-6 rounded-lg border border-slate-200 bg-white shadow-sm p-3 space-y-3">
       <div className="flex items-center">
         <h2 className="text-sm font-semibold text-slate-700">Quick note</h2>
-        <button type="button" onClick={() => setOpen(false)} className="ml-auto text-xs text-slate-400">Hide (kept on this phone)</button>
+        <button type="button" onClick={() => setOpen(false)} className="ml-auto text-xs font-semibold text-slate-600 hover:underline">Hide (kept on this phone)</button>
       </div>
 
       <div>
         {n.people.length > 0 && (
           <div className="flex flex-wrap gap-2 mb-2">
             {n.people.map(p => (
-              <span key={p.id} className="inline-flex items-center gap-1 rounded-full bg-white border border-slate-200 pl-3 pr-1 py-1 text-sm text-slate-700">
+              <span key={p.id} className="inline-flex items-center gap-1 rounded-lg bg-white border border-slate-200 pl-3 pr-1 py-1 text-sm text-slate-700">
                 {p.name}
                 <button type="button" aria-label={`Remove ${p.name}`} onClick={() => set({ people: n.people.filter(x => x.id !== p.id) })}
-                  className="w-7 h-7 rounded-full text-slate-400 hover:bg-slate-100">×</button>
+                  className="w-7 h-7 rounded-lg text-slate-500 hover:bg-slate-100">×</button>
               </span>
             ))}
           </div>
@@ -109,7 +109,7 @@ export default function QuickNote({ onPublished }) {
       <div className="flex flex-wrap gap-2">
         {QUICK_NOTE_TYPES.map(t => (
           <button key={t.key} type="button" onClick={() => set({ activityType: t.key })}
-            className={`min-h-[40px] px-3 rounded-full text-sm border ${n.activityType === t.key ? 'bg-amber-500 border-amber-500 text-white' : 'bg-white border-slate-200 text-slate-600'}`}>{t.label}</button>
+            className={`min-h-[40px] px-3 rounded-lg text-sm font-semibold border ${n.activityType === t.key ? 'bg-orange-500 border-orange-500 text-white' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}>{t.label}</button>
         ))}
       </div>
 
@@ -122,16 +122,16 @@ export default function QuickNote({ onPublished }) {
       <div>
         <textarea value={n.text} onChange={e => set({ text: e.target.value })} rows={6}
           placeholder="What did you talk about? What happens next?"
-          className="w-full rounded-lg border border-slate-200 bg-white p-3 text-base text-slate-900 outline-none focus:border-amber-400" />
-        <p className="text-xs text-slate-400">Tap the mic on your phone keyboard to talk instead of type.</p>
+          className="w-full rounded-lg border border-slate-200 bg-white p-3 text-base text-slate-900 outline-none focus:border-orange-500" />
+        <p className="text-xs text-slate-500">Tap the mic on your phone keyboard to talk instead of type.</p>
       </div>
 
-      {msg && <p className={`text-sm ${msg.tone === 'ok' ? 'text-emerald-700' : 'text-amber-700'}`}>{msg.text}</p>}
+      {msg && <p className={`text-sm ${msg.tone === 'ok' ? 'text-green-700' : 'text-amber-700'}`}>{msg.text}</p>}
       <div className="flex flex-wrap gap-2">
         <button type="button" onClick={() => publish(false)} disabled={busy}
-          className="min-h-[48px] flex-1 rounded-lg bg-emerald-600 text-white text-base font-semibold disabled:opacity-40">{busy ? 'Publishing…' : 'Publish'}</button>
+          className="min-h-[48px] flex-1 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-base font-semibold disabled:opacity-40">{busy ? 'Publishing…' : 'Publish'}</button>
         <button type="button" onClick={() => publish(true)} disabled={busy}
-          className="min-h-[48px] px-4 rounded-lg border border-slate-200 bg-white text-sm text-slate-600 disabled:opacity-40">Finish later</button>
+          className="min-h-[48px] px-4 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-sm font-semibold text-slate-600 disabled:opacity-40">Finish later</button>
       </div>
     </section>
   );

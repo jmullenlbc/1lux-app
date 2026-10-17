@@ -3,20 +3,17 @@ import { useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import TasksClient from './TasksClient';
 import QcBoardClient from '../qc/QcBoardClient';
+import { TAB_ACTIVE, TAB_INACTIVE } from '@/components/ui/tokens';
 
 function TabBtn({ label, count, active, onClick }) {
   return (
     <button
       onClick={onClick}
-      className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-colors -mb-px whitespace-nowrap ${
-        active
-          ? 'border-slate-900 text-slate-900'
-          : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
-      }`}
+      className={`flex items-center gap-2 px-4 py-3 text-sm font-semibold border-b-2 transition-colors -mb-px whitespace-nowrap ${active ? TAB_ACTIVE : TAB_INACTIVE}`}
     >
       {label}
-      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full min-w-[18px] text-center leading-none ${
-        active ? 'bg-slate-900 text-white' : 'bg-slate-100 text-slate-500'
+      <span className={`text-[11px] font-bold tabular-nums px-1.5 py-0.5 rounded-full min-w-[18px] text-center leading-none ${
+        active ? 'bg-orange-500 text-white' : 'bg-slate-100 text-slate-500'
       }`}>
         {count}
       </span>

@@ -51,7 +51,7 @@ function OverrideBox({ value, onChange, masterPrice, suffix = '/unit', disabled 
             className={cn(
               'w-28 rounded-md border pl-5 pr-2 py-1 text-sm font-mono transition-colors',
               active
-                ? 'border-amber-400 bg-amber-50 text-amber-900'
+                ? 'border-orange-400 bg-amber-50 text-amber-900'
                 : 'border-slate-200 text-slate-700 focus:border-slate-300',
             )}
           />
@@ -98,7 +98,7 @@ const moneyEach = v => {
 function Delta({ v, what }) {
   if (!v) return null;
   return (
-    <span className={cn('ml-2 font-mono text-[11px] font-semibold', v > 0 ? 'text-red-600' : 'text-emerald-700')}>
+    <span className={cn('ml-2 font-mono text-[11px] font-semibold', v > 0 ? 'text-red-600' : 'text-green-700')}>
       {v > 0 ? '+' : '-'}{money(Math.abs(v))} {what}
     </span>
   );
@@ -139,7 +139,7 @@ export function CostImpact({ impact, delta = null }) {
   const Row = ({ label, value, strong }) => (
     <div className={cn('flex items-baseline justify-between gap-3', strong ? 'font-semibold text-slate-900' : 'text-slate-600')}>
       <span>{label} =</span>
-      <span className={cn('font-mono', value < 0 && 'text-emerald-700')}>{value < 0 ? '-' : ''}{money(Math.abs(value))}</span>
+      <span className={cn('font-mono', value < 0 && 'text-green-700')}>{value < 0 ? '-' : ''}{money(Math.abs(value))}</span>
     </div>
   );
   return (
@@ -189,7 +189,7 @@ export default function QuestionCard({ question, note, options, value, onChange,
             className={cn(
               'flex items-start gap-3 rounded-lg border px-4 py-3 cursor-pointer transition-colors',
               value === opt.value
-                ? 'border-amber-400 bg-amber-50'
+                ? 'border-orange-400 bg-amber-50'
                 : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50',
             )}
           >

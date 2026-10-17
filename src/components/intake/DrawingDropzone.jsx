@@ -5,6 +5,7 @@ import { uploadDirect, holdScreenAwake } from '@/lib/uploadClient';
 import { READING_TIME_HINT } from '@/components/ReadingWait';
 import { runStagedParse, STEP_WORDS } from '@/lib/intake/stagedParse';
 import ReadingSteps from './ReadingSteps';
+import { BTN_SECONDARY, CARD } from '@/components/ui/tokens';
 // Words only, never '@/lib/siteFeatures', which carries the price defaults.
 import { siteFeatureFindings, SITE_FEATURE_KINDS_SENTENCE } from '@/lib/siteFeatureWords';
 
@@ -39,7 +40,7 @@ const MAX_FILES = 3;
 
 const STATUS = {
   queued:    { label: 'Queued',      cls: 'bg-slate-100 text-slate-500 border-slate-200' },
-  uploading: { label: 'Uploading…',  cls: 'bg-sky-50 text-sky-700 border-sky-200' },
+  uploading: { label: 'Uploading…',  cls: 'bg-slate-50 text-slate-700 border-slate-200' },
   parsing:   { label: 'Reading…',    cls: 'bg-amber-50 text-amber-700 border-amber-200' },
   done:      { label: 'Read',        cls: 'bg-green-50 text-green-700 border-green-200' },
   error:     { label: 'Failed',      cls: 'bg-red-50 text-red-600 border-red-200' },
@@ -369,7 +370,7 @@ export default function DrawingDropzone({ onResults, restored = null }) {
         onDrop={e => { e.preventDefault(); setDrag(false); addFiles(e.dataTransfer.files); }}
         onClick={() => inputRef.current?.click()}
         className={`rounded-xl border-2 border-dashed px-6 py-10 flex flex-col items-center gap-3 cursor-pointer transition-colors
-          ${dragging ? 'border-amber-400 bg-amber-50' : 'border-slate-200 bg-white hover:border-amber-300 hover:bg-amber-50/30'}`}
+          ${dragging ? 'border-orange-400 bg-orange-50' : 'border-slate-200 bg-white hover:border-orange-300 hover:bg-orange-50/30'}`}
       >
         <svg className="w-9 h-9 text-slate-300" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
@@ -381,7 +382,7 @@ export default function DrawingDropzone({ onResults, restored = null }) {
             the <strong>unit matrix</strong> (unit counts and square footage) and the{' '}
             <strong>site plan</strong> (lot size, parking, buildings). Landscape or civil can be separate files.
           </p>
-          <p className="text-[11px] text-slate-400 mt-1.5">
+          <p className="text-[11px] text-slate-500 mt-1.5">
             PDF or Excel · <strong>{MAX_FILES} files maximum</strong>, {Math.round(MAX_UPLOAD_BYTES / (1024 * 1024))} MB each
           </p>
           {/* Said before anything is chosen, not after. A set is read sheet by
@@ -389,7 +390,7 @@ export default function DrawingDropzone({ onResults, restored = null }) {
               working page as a broken one and closes it. */}
           <p className="text-[11px] text-slate-500 mt-1">{READING_TIME_HINT}</p>
         </div>
-        <span className="text-sm font-semibold text-amber-600 border border-amber-200 rounded-lg px-4 py-2 hover:bg-amber-50">
+        <span className={BTN_SECONDARY}>
           Browse files
         </span>
         <input
@@ -411,9 +412,9 @@ export default function DrawingDropzone({ onResults, restored = null }) {
       {/* The read kept from last time, the files themselves were never
           stored, so there is nothing to re-open, only what we found. */}
       {earlier && (
-        <div className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+        <div className={`${CARD} px-4 py-3`}>
           <div className="flex items-center gap-3">
-            <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border shrink-0 ${STATUS.done.cls}`}>
+            <span className={`text-[11px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full border shrink-0 ${STATUS.done.cls}`}>
               Read earlier
             </span>
             <span className="text-sm font-mono text-slate-700 truncate flex-1" title={(earlier.sources ?? []).join(', ')}>
@@ -421,7 +422,7 @@ export default function DrawingDropzone({ onResults, restored = null }) {
             </span>
             <button
               onClick={removeEarlier}
-              className="text-slate-300 hover:text-red-400 text-lg leading-none shrink-0"
+              className="text-slate-500 hover:text-red-600 text-lg leading-none shrink-0"
               aria-label="Remove the drawings read earlier"
             >
               &times;
@@ -440,13 +441,13 @@ export default function DrawingDropzone({ onResults, restored = null }) {
             const s = STATUS[item.status] ?? STATUS.queued;
             const types = item.proposal?.unitTypes?.length ?? 0;
             return (
-              <li key={item.id} className="rounded-xl border border-slate-200 bg-white px-4 py-3">
+              <li key={item.id} className={`${CARD} px-4 py-3`}>
                 <div className="flex items-center gap-3">
-                  <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border shrink-0 ${s.cls}`}>
+                  <span className={`text-[11px] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full border shrink-0 ${s.cls}`}>
                     {s.label}
                   </span>
                   <span className="text-sm font-mono text-slate-700 truncate flex-1" title={item.name}>{item.name}</span>
-                  <span className="text-xs text-slate-400 shrink-0 tabular-nums">
+                  <span className="text-xs text-slate-500 shrink-0 tabular-nums">
                     {item.status === 'uploading' && item.progress != null
                       // A percentage alone reads as frozen on a 250 MB set over a
                       // job-site connection. Megabytes moved is the number that
@@ -455,13 +456,13 @@ export default function DrawingDropzone({ onResults, restored = null }) {
                       : fmtBytes(item.size)}
                   </span>
                   {item.status === 'error' && (
-                    <button onClick={() => retry(item.id)} className="text-xs font-semibold text-amber-600 hover:text-amber-700 shrink-0">
+                    <button onClick={() => retry(item.id)} className="text-xs font-semibold text-orange-600 hover:text-orange-700 shrink-0">
                       Retry
                     </button>
                   )}
                   <button
                     onClick={() => removeItem(item.id)}
-                    className="text-slate-300 hover:text-red-400 text-lg leading-none shrink-0"
+                    className="text-slate-500 hover:text-red-600 text-lg leading-none shrink-0"
                     aria-label={`Remove ${item.name}`}
                   >
                     &times;
@@ -471,7 +472,7 @@ export default function DrawingDropzone({ onResults, restored = null }) {
                 {item.status === 'uploading' && item.progress != null && (
                   <div className="mt-2 h-1 rounded-full bg-slate-100 overflow-hidden">
                     <div
-                      className="h-full bg-sky-400 transition-[width] duration-300"
+                      className="h-full bg-orange-400 transition-[width] duration-300"
                       style={{ width: `${Math.max(2, item.progress)}%` }}
                     />
                   </div>
@@ -506,7 +507,7 @@ export default function DrawingDropzone({ onResults, restored = null }) {
                 {/* On a full set, saying WHICH sheets we opened is the difference
                     between "it read my drawings" and "it read something". */}
                 {item.status === 'done' && item.proposal?.totalPages > 1 && (
-                  <p className="text-[11px] text-slate-400 mt-1 pl-1">
+                  <p className="text-[11px] text-slate-500 mt-1 pl-1">
                     {item.proposal.sheetsRead?.length
                       ? <>Read {item.proposal.sheetsRead.length === 1 ? 'page' : 'pages'}{' '}
                           {item.proposal.sheetsRead.join(', ')} of {fmt(item.proposal.totalPages)}</>
@@ -516,7 +517,7 @@ export default function DrawingDropzone({ onResults, restored = null }) {
                     {/* The memory brake stopped the text read early: say so, or a
                         set read one page deep looks the same as one read in full. */}
                     {item.proposal.readBraked && (
-                      <span className="text-amber-600"> · too large to hold open in full, a smaller PDF of just the site plan, area summary and unit matrix sheets reads best</span>
+                      <span className="text-amber-700"> · too large to hold open in full, a smaller PDF of just the site plan, area summary and unit matrix sheets reads best</span>
                     )}
                   </p>
                 )}
@@ -532,7 +533,7 @@ export default function DrawingDropzone({ onResults, restored = null }) {
       {/* Merged rollup */}
       {merged && (merged.unitTypes.length > 0 || merged.siteData) && (
         <div className="rounded-xl border border-amber-200 bg-amber-50/60 px-4 py-3">
-          <div className="text-[10px] font-bold text-amber-700 uppercase tracking-wider mb-2">
+          <div className="text-[11px] font-semibold text-amber-700 uppercase tracking-wide mb-2">
             Combined from {merged.sources.length} file{merged.sources.length !== 1 ? 's' : ''}
           </div>
           {/* Which file the unit count came from, and why, the decision the
@@ -682,15 +683,15 @@ export default function DrawingDropzone({ onResults, restored = null }) {
                     <span className="font-medium">{c.field}:</span>{' '}
                     {c.values.map((v, j) => (
                       <span key={j}>
-                        {j > 0 && <span className="text-slate-400"> vs </span>}
+                        {j > 0 && <span className="text-slate-500"> vs </span>}
                         {fmt(v.value)}
-                        {v.file && <span className="text-slate-400"> ({j === 0 ? 'kept, ' : ''}{v.file})</span>}
+                        {v.file && <span className="text-slate-500"> ({j === 0 ? 'kept, ' : ''}{v.file})</span>}
                       </span>
                     ))}
                   </li>
                 ))}
               </ul>
-              <p className="text-[11px] text-slate-400 mt-1">
+              <p className="text-[11px] text-slate-500 mt-1">
                 Where files disagree we keep the file the unit count came from, then the more confident read.
                 Someone at ILC will confirm these.
               </p>
@@ -701,7 +702,7 @@ export default function DrawingDropzone({ onResults, restored = null }) {
 
       {parsing && (
         <p className="text-xs text-slate-500 flex items-center gap-2">
-          <svg className="w-3.5 h-3.5 text-amber-400 animate-spin" fill="none" viewBox="0 0 24 24">
+          <svg className="w-3.5 h-3.5 text-orange-400 animate-spin" fill="none" viewBox="0 0 24 24">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
           </svg>
@@ -709,7 +710,7 @@ export default function DrawingDropzone({ onResults, restored = null }) {
             ? 'Sending your drawings… you can leave this page open, a full set takes a few minutes.'
             : 'Reading your drawings…'}
           {(combined.total > 1 || earlier) && (
-            <span className="text-slate-400">
+            <span className="text-slate-500">
               {' '}Holding the figures until every file is read
               ({combined.done + (earlier ? 1 : 0)} of {combined.total + (earlier ? 1 : 0)} done).
             </span>

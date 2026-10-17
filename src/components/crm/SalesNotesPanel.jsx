@@ -10,6 +10,7 @@
  */
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { LABEL, HELPER } from '@/components/ui/tokens';
 
 const TYPE_LABEL = {
   COFFEE: 'Coffee', MEAL: 'Meal', LUNCH: 'Meal', TRAVEL: 'Travel', HAPPY_HOUR: 'Happy Hour',
@@ -47,14 +48,14 @@ export default function SalesNotesPanel({ clientId, contactId, limit = 20, compa
   }, [clientId, contactId]);
 
   const heading = (
-    <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">Sales notes</div>
+    <div className={`${LABEL} mb-1`}>Sales notes</div>
   );
 
   if (failed) {
-    return <div className={compact ? 'mt-2' : 'mt-5 pt-5 border-t border-slate-100'}>{heading}<p className="text-xs text-slate-400">Could not load notes.</p></div>;
+    return <div className={compact ? 'mt-2' : 'mt-5 pt-5 border-t border-slate-100'}>{heading}<p className={HELPER}>Could not load notes.</p></div>;
   }
   if (notes === null) {
-    return <div className={compact ? 'mt-2' : 'mt-5 pt-5 border-t border-slate-100'}>{heading}<p className="text-xs text-slate-400">Loading…</p></div>;
+    return <div className={compact ? 'mt-2' : 'mt-5 pt-5 border-t border-slate-100'}>{heading}<p className={HELPER}>Loading...</p></div>;
   }
 
   const rows = showAll ? notes : notes.slice(0, limit);
@@ -63,7 +64,7 @@ export default function SalesNotesPanel({ clientId, contactId, limit = 20, compa
     <div className={compact ? 'mt-2' : 'mt-5 pt-5 border-t border-slate-100'}>
       {heading}
       {notes.length === 0 ? (
-        <p className="text-xs text-slate-400">No published notes yet.</p>
+        <p className={HELPER}>No published notes yet.</p>
       ) : (
         <ul className="divide-y divide-slate-100">
           {rows.map(n => {
@@ -71,8 +72,8 @@ export default function SalesNotesPanel({ clientId, contactId, limit = 20, compa
             return (
               <li key={n.id} className="py-1.5">
                 <Link href={`/crm/notes?note=${n.id}`} className="group flex items-baseline gap-2 text-sm">
-                  <span className="text-slate-800 group-hover:text-amber-600 truncate">{n.title || 'Untitled note'}</span>
-                  <span className="ml-auto shrink-0 text-xs text-slate-400">
+                  <span className="text-slate-800 group-hover:text-orange-600 truncate">{n.title || 'Untitled note'}</span>
+                  <span className="ml-auto shrink-0 text-xs text-slate-500 tabular-nums">
                     {when ? new Date(when).toLocaleDateString() : ''}
                   </span>
                   {n.activityType && (

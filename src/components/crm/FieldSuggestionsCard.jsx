@@ -23,11 +23,11 @@ async function patch(url, body) {
 
 function Btn({ children, onClick, tone = 'plain', disabled }) {
   const cls = tone === 'go'
-    ? 'bg-emerald-600 text-white hover:bg-emerald-700'
-    : 'border border-slate-200 text-slate-600 bg-white hover:bg-slate-50';
+    ? 'bg-green-600 text-white hover:bg-green-700'
+    : 'border border-slate-300 text-slate-700 bg-white hover:bg-slate-50';
   return (
     <button type="button" onClick={onClick} disabled={disabled}
-      className={`min-h-[40px] px-3 rounded-lg text-sm font-medium disabled:opacity-40 ${cls}`}>{children}</button>
+      className={`min-h-[40px] px-3 rounded-lg text-sm font-semibold disabled:opacity-40 ${cls}`}>{children}</button>
   );
 }
 
@@ -50,22 +50,22 @@ export function FieldSuggestionRow({ s, onDone }) {
 
   return (
     <li className="rounded-xl border border-amber-200 bg-white p-3">
-      <div className="text-sm font-medium text-slate-800">
+      <div className="text-sm font-semibold text-slate-800">
         {s.contact?.clientId
           ? <Link href={`/clients/${s.contact.clientId}`} className="hover:underline">{who}</Link>
           : who}
-        <span className="text-slate-400 font-normal">: {field}</span>
+        <span className="text-slate-500 font-normal">: {field}</span>
       </div>
       <dl className="grid grid-cols-[auto,1fr] gap-x-3 gap-y-1 text-sm my-2">
-        <dt className="text-slate-400">Signature says</dt>
+        <dt className="text-slate-500">Signature says</dt>
         <dd className="text-slate-700 min-w-0 break-words">{s.suggestedValue}</dd>
-        <dt className="text-slate-400">We have</dt>
+        <dt className="text-slate-500">We have</dt>
         <dd className="text-slate-700 min-w-0 break-words">{s.currentValue || 'Nothing'}</dd>
       </dl>
       {s.sourceMessage?.subject && (
-        <p className="text-xs text-slate-400 mb-2">From "{s.sourceMessage.subject}"</p>
+        <p className="text-xs text-slate-500 mb-2">From "{s.sourceMessage.subject}"</p>
       )}
-      {err && <p className="text-sm text-rose-600">{err}</p>}
+      {err && <p className="text-sm text-red-600">{err}</p>}
       <div className="flex flex-wrap gap-2">
         <Btn tone="go" disabled={busy} onClick={() => act('accept')}>Accept</Btn>
         <Btn disabled={busy} onClick={() => act('reject')}>Keep ours</Btn>
@@ -90,14 +90,14 @@ export default function FieldSuggestionsCard({ title = 'Email signatures say...'
 
   if (!rows?.length) return null;
   return (
-    <section className="rounded-2xl border border-amber-200 bg-amber-50/40 p-4">
+    <section className="rounded-xl border border-amber-200 bg-amber-50/40 p-4 shadow-sm">
       <h2 className="text-base font-semibold text-slate-800 mb-1">{title}</h2>
       <p className="text-xs text-slate-500 mb-3">A signature said something different from the person's card. Blanks were filled already; these need a decision.</p>
-      {note && <p className="text-sm text-emerald-700 mb-2">{note}</p>}
+      {note && <p className="text-sm text-green-700 mb-2">{note}</p>}
       <ul className="space-y-2">
         {rows.slice(0, limit).map(s => <FieldSuggestionRow key={s.id} s={s} onDone={async m => { setNote(m); await load(); }} />)}
       </ul>
-      {rows.length > limit && <p className="text-xs text-slate-400 mt-2">{rows.length - limit} more after these.</p>}
+      {rows.length > limit && <p className="text-xs text-slate-500 mt-2">{rows.length - limit} more after these.</p>}
     </section>
   );
 }

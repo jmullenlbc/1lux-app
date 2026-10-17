@@ -162,7 +162,7 @@ export default function DesignWizardClient({ project, projectData, initialSectio
   // getDesignNextStep('controls') returns 'summary' (a real entry in
   // DESIGN_WIZARD_STEPS), so goToNext sets currentStep='summary' rather than
   // hitting its router.push fallback. Without this effect the wizard renders the
-  // "Redirecting to summary…" interstitial forever and never navigates — and
+  // "Redirecting to summary..." interstitial forever and never navigates — and
   // because 'summary' gets persisted to the DB, a reload stays stuck too.
   // Mirror of the redirect in WizardClient.
   useEffect(() => {
@@ -214,18 +214,18 @@ export default function DesignWizardClient({ project, projectData, initialSectio
         <div className="max-w-3xl mx-auto px-6 py-8">
           {/* Step header */}
           <div className="mb-6">
-            <div className="flex items-center gap-2 text-xs text-slate-400 mb-2">
+            <div className="flex items-center gap-2 text-xs text-slate-500 mb-2">
               <span>Step {Math.min(stepIndex + 1, totalSteps)} of {totalSteps}</span>
               <div className="flex-1 max-w-32 bg-slate-100 rounded-full h-1">
                 <div
-                  className="bg-amber-500 h-1 rounded-full transition-all"
+                  className="bg-orange-500 h-1 rounded-full transition-all"
                   style={{ width: `${(Math.min(stepIndex, totalSteps - 1) / (totalSteps - 1)) * 100}%` }}
                 />
               </div>
-              <span className="ml-1 text-amber-600 font-medium text-[10px] uppercase tracking-wider">Design Budget</span>
+              <span className="ml-1 text-orange-600 font-semibold text-[11px] uppercase tracking-wide">Design Budget</span>
             </div>
             {saving && (
-              <div className="flex items-center gap-1.5 text-xs text-slate-400">
+              <div className="flex items-center gap-1.5 text-xs text-slate-500">
                 <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24" fill="none">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>

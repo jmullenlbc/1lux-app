@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { BTN_PRIMARY, BTN_SECONDARY, INPUT } from '@/components/ui/tokens';
 import TemplateTextarea from '@/components/salesAutomation/TemplateTextarea';
 
 const EXECUTORS = [
@@ -89,7 +90,7 @@ export default function NoteActionTypesEditor({ initialTypes }) {
       <div className="flex items-center justify-between mb-4">
         <p className="text-sm text-slate-500">{types.length} types</p>
         <button onClick={startAdd} disabled={editing}
-          className="px-3 py-1.5 text-sm font-medium rounded-md bg-orange-600 text-white hover:bg-orange-700 disabled:opacity-40">
+          className={BTN_PRIMARY}>
           + Add type
         </button>
       </div>
@@ -101,33 +102,33 @@ export default function NoteActionTypesEditor({ initialTypes }) {
       <div className="space-y-2">
         {types.map(t => (
           <div key={t.key}
-            className={`border rounded-lg px-4 py-3 flex items-start gap-3 ${t.isActive ? 'border-slate-200 bg-white' : 'border-slate-200 bg-slate-50 opacity-70'}`}>
+            className={`border rounded-xl shadow-sm px-4 py-3 flex items-start gap-3 ${t.isActive ? 'border-slate-200 bg-white' : 'border-slate-200 bg-slate-50 opacity-70'}`}>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="font-semibold text-slate-900">{t.label}</span>
                 <span className="text-[11px] font-mono px-1.5 py-0.5 rounded bg-slate-100 text-slate-500">{t.key}</span>
                 <span className="text-[11px] px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-600 border border-indigo-100">{t.executor}</span>
-                {t.kind === 'INTEL' && <span className="text-[11px] px-1.5 py-0.5 rounded bg-amber-50 text-amber-600 border border-amber-100">INTEL</span>}
+                {t.kind === 'INTEL' && <span className="text-[11px] px-1.5 py-0.5 rounded bg-amber-50 text-amber-600 border border-amber-200">INTEL</span>}
                 {WAIT_EXECUTORS.has(t.executor) && (
-                  <span className="text-[11px] px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-100">
+                  <span className="text-[11px] px-1.5 py-0.5 rounded bg-green-50 text-green-700 border border-green-100">
                     remind after {t.reminderDays || '—'}d
                   </span>
                 )}
                 {TEMPLATE_EXECUTORS.has(t.executor) && !t.emailTemplate && (
-                  <span className="text-[11px] px-1.5 py-0.5 rounded bg-rose-50 text-rose-600 border border-rose-100">template blank</span>
+                  <span className="text-[11px] px-1.5 py-0.5 rounded bg-red-50 text-red-600 border border-red-100">template blank</span>
                 )}
               </div>
               {t.description && <p className="text-xs text-slate-500 mt-1">{t.description}</p>}
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <button onClick={() => toggleActive(t)} disabled={editing}
-                className={`text-xs px-2 py-1 rounded border ${t.isActive ? 'border-emerald-200 text-emerald-700 bg-emerald-50' : 'border-slate-200 text-slate-400'}`}>
+                className={`text-xs font-semibold px-2 py-1 rounded-lg border ${t.isActive ? 'border-green-200 text-green-700 bg-green-50' : 'border-slate-300 text-slate-500'}`}>
                 {t.isActive ? 'Active' : 'Inactive'}
               </button>
               <button onClick={() => startEdit(t)} disabled={editing}
                 className="text-xs px-2 py-1 rounded border border-slate-200 text-slate-600 hover:bg-slate-50">Edit</button>
               <button onClick={() => remove(t)} disabled={editing}
-                className="text-xs px-2 py-1 rounded border border-rose-200 text-rose-600 hover:bg-rose-50">Delete</button>
+                className="text-xs px-2 py-1 rounded border border-red-200 text-red-600 hover:bg-red-50">Delete</button>
             </div>
           </div>
         ))}
@@ -140,7 +141,7 @@ function Field({ label, hint, children }) {
   return (
     <label className="block">
       <span className="text-xs font-medium text-slate-600">{label}</span>
-      {hint && <span className="text-xs text-slate-400 ml-1">{hint}</span>}
+      {hint && <span className="text-xs text-slate-500 ml-1">{hint}</span>}
       <div className="mt-1">{children}</div>
     </label>
   );
@@ -150,7 +151,7 @@ function TypeForm({ draft, setDraft, onSave, onCancel, busy, msg }) {
   const set = (k, v) => setDraft(d => ({ ...d, [k]: v }));
   const showTemplate = TEMPLATE_EXECUTORS.has(draft.executor);
   const showReminder = WAIT_EXECUTORS.has(draft.executor);
-  const input = 'w-full px-2.5 py-1.5 text-sm border border-slate-300 rounded-md focus:ring-1 focus:ring-slate-400 focus:border-slate-400 outline-none';
+  const input = INPUT;
 
   return (
     <div className="border border-slate-300 rounded-lg p-4 mb-4 bg-slate-50">
@@ -214,11 +215,11 @@ function TypeForm({ draft, setDraft, onSave, onCancel, busy, msg }) {
           Active
         </label>
         <div className="flex-1" />
-        {msg && <span className="text-xs text-rose-600">{msg}</span>}
+        {msg && <span className="text-xs text-red-600">{msg}</span>}
         <button onClick={onCancel} disabled={busy}
-          className="px-3 py-1.5 text-sm rounded-md border border-slate-300 text-slate-600 hover:bg-white">Cancel</button>
+          className={BTN_SECONDARY}>Cancel</button>
         <button onClick={onSave} disabled={busy}
-          className="px-3 py-1.5 text-sm font-medium rounded-md bg-orange-600 text-white hover:bg-orange-700 disabled:opacity-40">
+          className={BTN_PRIMARY}>
           {busy ? 'Saving…' : 'Save'}
         </button>
       </div>

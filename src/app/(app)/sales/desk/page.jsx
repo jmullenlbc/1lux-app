@@ -1,5 +1,5 @@
 'use client';
-import { Suspense, useCallback, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import DraftCard from '@/components/sales/DraftCard';
@@ -14,6 +14,11 @@ import AlertMark from '@/components/ui/AlertMark';
 import IntelClient from '../../crm/intel/IntelClient';
 import IntroductionsCard from '@/components/crm/IntroductionsCard';
 import FieldSuggestionsCard from '@/components/crm/FieldSuggestionsCard';
+import { FilterToolbar, FilterPanel, countFilters } from '@/components/ui/FilterPanel';
+import { SortSelect, sortRows } from '@/components/ui/SortHeader';
+import { WidgetLoading } from '@/components/ui/WidgetFrame';
+import { useUrlView } from '@/lib/useUrlView';
+import { CARD, INPUT, TAB_ACTIVE, TAB_INACTIVE, H1 } from '@/components/ui/tokens';
 
 // My Desk (Mike 9-26): the one place a salesperson looks. Reminders from their
 // sales notes, email drafts to review, check-ins due, notes still to finish.
@@ -29,6 +34,23 @@ const TABS = [
 const HASH_TABS = { '#look-alikes': 'pool', '#pool': 'pool' };
 const BUNDLED = new Set(['OVERDUE', 'TODAY', 'WEEK', 'LATER']);
 const LOCKED_TITLE = 'Only the owner can change this';
+
+// Whose desk and the step sort live in the address (useUrlView); the tab keeps
+// its own search param. Whose drives the server fetch.
+const FILTER_FIELDS = [{ key: 'whose', label: 'Whose desk', kind: 'pick' }];
+const SORT_FIELDS = [
+  { key: 'due',   label: 'Due date' },
+  { key: 'who',   label: 'Person' },
+  { key: 'label', label: 'Kind' },
+];
+const VIEW_FIELDS = [...FILTER_FIELDS, ...SORT_FIELDS.map(f => ({ key: f.key, kind: 'sort' }))];
+const SORT_DEFAULT = { key: '', dir: 'asc' };
+const STEP_GETTERS = {
+  due:   a => { const d = a.snoozedUntil || a.remindAt || a.dueDate; return d ? new Date(d).getTime() : null; },
+  who:   a => a.who || '',
+  label: a => a.label || '',
+};
+const ROW = `${CARD} p-3`;
 
 
 
@@ -46,18 +68,18 @@ function when(d) {
 function Btn({ children, onClick, tone = 'plain', disabled, title }) {
   const cls = {
     plain: 'border border-slate-200 text-slate-600 bg-white hover:bg-slate-50',
-    go:    'bg-emerald-600 text-white hover:bg-emerald-700',
+    go:    'bg-green-600 text-white hover:bg-green-700',
     warn:  'border border-amber-200 text-amber-700 bg-amber-50 hover:bg-amber-100',
   }[tone];
   return (
     <button type="button" onClick={onClick} disabled={disabled} title={title}
-      className={`min-h-[40px] px-3 rounded-lg text-sm font-medium disabled:opacity-40 ${cls}`}>{children}</button>
+      className={`min-h-[40px] px-3 rounded-lg text-sm font-semibold disabled:opacity-40 ${cls}`}>{children}</button>
   );
 }
 
 function OwnerChip({ name }) {
   if (!name) return null;
-  return <span className="inline-block rounded-full bg-slate-100 text-slate-600 text-[11px] px-2 py-0.5 ml-1">{name}</span>;
+  return <span className="inline-block rounded-lg bg-slate-100 text-slate-600 text-xs px-2 py-0.5 ml-1">{name}</span>;
 }
 
 // `locked` = somebody else's step: look, do not touch (the server refuses too).
@@ -74,7 +96,7 @@ function StepRow({ a, group, onAct, locked = false, showOwner = false, indent = 
   const off = busy || locked;
   const title = locked ? LOCKED_TITLE : undefined;
   return (
-    <li className={`rounded-xl border border-slate-200 bg-white p-3 ${indent ? 'ml-4' : ''}`}>
+    <li className={`${ROW} ${indent ? 'ml-4' : ''}`}>
       <div className="flex items-start gap-2">
         <div className="flex-1 min-w-0">
           <p className="text-sm text-slate-800">{a.detail || a.rawText}{showOwner && <OwnerChip name={a.ownerName} />}</p>
@@ -84,7 +106,7 @@ function StepRow({ a, group, onAct, locked = false, showOwner = false, indent = 
             {a.note && <> · <Link href={`/crm/notes?note=${a.note.id}`} className="hover:underline">{a.note.title || 'note'}</Link></>}
           </p>
         </div>
-        <span className={`shrink-0 text-xs ${group === 'OVERDUE' ? 'text-rose-600 font-semibold' : 'text-slate-400'}`}>
+        <span className={`shrink-0 text-xs tabular-nums ${group === 'OVERDUE' ? 'text-red-600 font-semibold' : 'text-slate-500'}`}>
           {group === 'SNOOZED' ? `Until ${when(due)}` : group === 'PAUSED' ? 'Paused' : when(due)}
         </span>
       </div>
@@ -104,13 +126,14 @@ function StepRow({ a, group, onAct, locked = false, showOwner = false, indent = 
 
 // One desk group's rows, bundled by person (10-5): 2+ steps for one person
 // inside a rolling week sit under one header with the alert mark.
-function GroupRows({ items, group, onAct, isLocked, showOwner }) {
-  const bundles = BUNDLED.has(group) ? groupStepsByPerson(items, { now: new Date() }) : items.map(a => ({ key: a.id, items: [a], alert: false }));
+function GroupRows({ items, group, onAct, isLocked, showOwner, sort }) {
+  const sorted = useMemo(() => sortRows(items, sort, STEP_GETTERS), [items, sort]);
+  const bundles = BUNDLED.has(group) ? groupStepsByPerson(sorted, { now: new Date() }) : sorted.map(a => ({ key: a.id, items: [a], alert: false }));
   return (
     <ul className="space-y-2">
       {bundles.map(b => b.items.length > 1 ? (
         <li key={b.key} className="space-y-2">
-          <div className="flex items-center gap-2 text-sm font-medium text-slate-800">
+          <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">
             <AlertMark label={`${b.items.length} steps for ${b.who || 'this person'} this week`} />
             <span>{b.who || 'Someone'} ({b.items.length} steps this week)</span>
           </div>
@@ -147,23 +170,23 @@ function CheckInRow({ c, draft, onSnoozed, onWritten }) {
   }
   const jump = () => document.getElementById(`draft-${draft.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   return (
-    <li className="rounded-xl border border-slate-200 bg-white p-3">
+    <li className={ROW}>
       <div className="flex items-start gap-2">
         <div className="flex-1 min-w-0">
           <p className="text-sm text-slate-800">{c.preferredName || c.name}</p>
           <p className="text-xs text-slate-500">{c.client?.name || c.company || ''}</p>
         </div>
-        <span className="shrink-0 text-xs text-rose-600 font-semibold">{c.daysOverdue} days over</span>
+        <span className="shrink-0 text-xs text-red-600 font-semibold tabular-nums">{c.daysOverdue} days over</span>
       </div>
       <div className="flex flex-wrap gap-2 mt-2">
         {draft
           ? <Btn tone="go" onClick={jump}>Email ready</Btn>
           : c.email && <Btn tone="go" disabled={writing} onClick={write}>{writing ? 'Writing…' : 'Write email'}</Btn>}
-        {c.client?.id && <Link href={`/clients/${c.client.id}`} className="min-h-[40px] px-3 rounded-lg text-sm font-medium border border-slate-200 text-slate-600 bg-white hover:bg-slate-50 inline-flex items-center">Open</Link>}
+        {c.client?.id && <Link href={`/clients/${c.client.id}`} className="min-h-[40px] px-3 rounded-lg text-sm font-semibold border border-slate-200 text-slate-600 bg-white hover:bg-slate-50 inline-flex items-center">Open</Link>}
         <Btn onClick={() => setSnoozing(s => !s)}>Snooze</Btn>
       </div>
       {snoozing && <SnoozeBox onPick={snooze} onClose={() => setSnoozing(false)} />}
-      {err && <p className="text-xs text-rose-600 mt-1">{err}</p>}
+      {err && <p className="text-xs text-red-600 mt-1">{err}</p>}
     </li>
   );
 }
@@ -193,12 +216,12 @@ function MeetingRow({ m, onDone }) {
   );
 
   return (
-    <li className="rounded-xl border border-amber-200 bg-white p-3">
-      <div className="text-sm font-medium text-slate-800">{m.title || 'In-person meeting'}</div>
-      <div className="text-xs text-slate-400 mb-2">{when(m.meetingDate)}{m.isPublished ? '' : ' · note not published yet'}</div>
+    <li className="rounded-lg border border-amber-200 bg-white shadow-sm p-3">
+      <div className="text-sm font-semibold text-slate-800">{m.title || 'In-person meeting'}</div>
+      <div className="text-xs text-slate-500 mb-2">{when(m.meetingDate)}{m.isPublished ? '' : ' · note not published yet'}</div>
       {m.unknown.map(g => (
         <div key={g.email} className="mb-2">
-          <p className="text-sm text-slate-600"><b>{g.name}</b> <span className="text-slate-400">{g.email}</span> is not in the system. Add them so the follow-up email can be written.</p>
+          <p className="text-sm text-slate-600"><b>{g.name}</b> <span className="text-slate-500">{g.email}</span> is not in the system. Add them so the follow-up email can be written.</p>
           <div className="mt-1 flex flex-wrap gap-2">
             <Btn tone="go" disabled={busy} onClick={() => setPicking({ key: g.email, start: g, addOnly: true })}>Add them</Btn>
             <Btn disabled={busy} onClick={() => setPicking({ key: `${g.email}:find`, start: { name: g.name } })}>They are in, under another email</Btn>
@@ -212,7 +235,7 @@ function MeetingRow({ m, onDone }) {
           <div className="mt-2"><PersonPicker onPick={add} /></div>
         </div>
       )}
-      {err && <p className="text-sm text-rose-600">{err}</p>}
+      {err && <p className="text-sm text-red-600">{err}</p>}
       <div className="flex gap-2 mt-1">
         <Btn disabled={busy} onClick={() => run({ do: 'skip' })}>Nobody to add</Btn>
       </div>
@@ -231,14 +254,14 @@ function NoOwnerRow({ c, onDone }) {
     setBusy(false);
   }
   return (
-    <li className="rounded-xl border border-slate-200 bg-white p-3 flex flex-wrap items-center gap-2">
+    <li className={`${ROW} flex flex-wrap items-center gap-2`}>
       <div className="min-w-0 flex-1">
-        <div className="text-sm font-medium text-slate-800">{c.name}</div>
-        <div className="text-xs text-slate-400">{[c.company, `check-in ${when(c.due).toLowerCase()}`, c.email ? '' : 'no email on file'].filter(Boolean).join(' · ')}</div>
-        {err && <p className="text-sm text-rose-600">{err}</p>}
+        <div className="text-sm font-semibold text-slate-800">{c.name}</div>
+        <div className="text-xs text-slate-500">{[c.company, `check-in ${when(c.due).toLowerCase()}`, c.email ? '' : 'no email on file'].filter(Boolean).join(' · ')}</div>
+        {err && <p className="text-sm text-red-600">{err}</p>}
       </div>
       <Btn tone="go" disabled={busy} onClick={take}>Take them</Btn>
-      {c.clientId && <Link href={`/clients/${c.clientId}`} className="min-h-[40px] px-3 rounded-lg text-sm border border-slate-200 text-slate-600 inline-flex items-center">Open</Link>}
+      {c.clientId && <Link href={`/clients/${c.clientId}`} className="min-h-[40px] px-3 rounded-lg text-sm font-semibold border border-slate-200 text-slate-600 bg-white hover:bg-slate-50 inline-flex items-center">Open</Link>}
     </li>
   );
 }
@@ -257,23 +280,23 @@ function PoolRow({ p, salesPeople, myId, onDone }) {
     setBusy(false);
   }
   return (
-    <li className="rounded-xl border border-slate-200 bg-white p-3 flex flex-wrap items-center gap-2">
+    <li className={`${ROW} flex flex-wrap items-center gap-2`}>
       <div className="min-w-0 flex-1">
-        <Link href={`/project/${p.id}`} className="text-sm font-medium text-slate-800 hover:underline">
+        <Link href={`/project/${p.id}`} className="text-sm font-semibold text-slate-800 hover:underline">
           {p.name}{p.conceptualDraft?.budgetName ? <span className="font-normal text-slate-500">, {p.conceptualDraft.budgetName}</span> : null}
         </Link>
         {p.conceptualDraft?.copiedFromId && (
-          <span className="ml-2 inline-block rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600" title="Made in the company portal as a copy of an earlier budget">copy of an earlier budget</span>
+          <span className="ml-2 inline-block rounded-lg bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-600" title="Made in the company portal as a copy of an earlier budget">copy of an earlier budget</span>
         )}
-        <div className="text-xs text-slate-400">
+        <div className="text-xs text-slate-500">
           {[p.budgetNumber, [p.city, p.state].filter(Boolean).join(', '), p.client?.name, p.contactName, `made ${new Date(p.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`].filter(Boolean).join(' · ')}
         </div>
-        {err && <p className="text-sm text-rose-600">{err}</p>}
+        {err && <p className="text-sm text-red-600">{err}</p>}
       </div>
       <Btn tone="go" disabled={busy} onClick={() => give(null)}>Take it</Btn>
       {salesPeople.length > 0 && (
         <select disabled={busy} value="" onChange={e => e.target.value && give(e.target.value)}
-          className="min-h-[40px] rounded-lg border border-slate-200 bg-white px-2 text-sm text-slate-600">
+          className={`${INPUT} w-auto min-h-[40px] px-2`}>
           <option value="">Give to...</option>
           {salesPeople.filter(u => u.id !== myId).map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
         </select>
@@ -287,7 +310,7 @@ function Section({ title, count, children, right, id }) {
     <section id={id} className="mb-6 scroll-mt-4">
       <div className="flex items-baseline gap-2 mb-2">
         <h2 className="text-sm font-semibold text-slate-700">{title}</h2>
-        {count != null && <span className="text-xs text-slate-400">{count}</span>}
+        {count != null && <span className="text-xs text-slate-500 tabular-nums">{count}</span>}
         {right && <span className="ml-auto">{right}</span>}
       </div>
       {children}
@@ -301,8 +324,8 @@ function TabBar({ tab, onPick, counts }) {
       {/* Same look as the Sales Automation tabs (Mike 10-6). */}
       {TABS.map(t => (
         <button key={t.key} type="button" onClick={() => onPick(t.key)}
-          className={`px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap ${tab === t.key ? 'border-orange-500 text-orange-600' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'}`}>
-          {t.label}{counts?.[t.key] > 0 && <span className="ml-1 text-xs text-slate-400">{counts[t.key]}</span>}
+          className={`px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px transition-colors whitespace-nowrap ${tab === t.key ? TAB_ACTIVE : TAB_INACTIVE}`}>
+          {t.label}{counts?.[t.key] > 0 && <span className="ml-1 text-xs text-slate-500 tabular-nums">{counts[t.key]}</span>}
         </button>
       ))}
     </div>
@@ -310,23 +333,23 @@ function TabBar({ tab, onPick, counts }) {
 }
 
 // Whose desk (10-5): mine, everyone's, or one salesperson's. Others' desks are look-only.
-function WhosePicker({ whose, salesPeople, onPick }) {
+function WhosePicker({ whose, salesPeople, filters, filterCount, open, onToggle, onClear, onChange, sort, onSort, steps }) {
+  const choices = { whose: [['mine', 'Mine'], ['everyone', 'Everyone'], ...salesPeople.map(u => [u.id, u.name])] };
   return (
-    <label className="flex items-center gap-2 text-xs text-slate-500 mb-3">
-      <span>Whose desk</span>
-      <select value={whose} onChange={e => onPick(e.target.value)}
-        className="min-h-[36px] rounded-lg border border-slate-200 bg-white px-2 text-sm text-slate-700">
-        <option value="mine">Mine</option>
-        <option value="everyone">Everyone</option>
-        {salesPeople.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
-      </select>
-    </label>
+    <div className="mb-3">
+      <FilterToolbar count={filterCount} open={open} onToggle={onToggle} onClear={onClear}
+        shown={steps} total={steps} noun="steps"
+        right={<SortSelect fields={SORT_FIELDS} sort={sort} onChange={onSort} />}>
+        {filterCount === 0 && <span className="text-xs text-slate-500">My desk</span>}
+      </FilterToolbar>
+      <FilterPanel open={open} fields={FILTER_FIELDS} filters={{ ...filters, whose }} choices={choices} onChange={onChange} />
+    </div>
   );
 }
 
 export default function MyDeskPageShell() {
   return (
-    <Suspense fallback={<div className="p-4 text-sm text-slate-400">Loading your desk…</div>}>
+    <Suspense fallback={<WidgetLoading />}>
       <MyDeskPage />
     </Suspense>
   );
@@ -337,7 +360,9 @@ function MyDeskPage() {
   const params = useSearchParams();
   const urlTab = TABS.some(t => t.key === params.get('tab')) ? params.get('tab') : 'todos';
   const [tab, setTabState] = useState(urlTab);
-  const [whose, setWhose] = useState('mine');
+  const { filters, setFilter, clearFilters, sort, setSort, ready } = useUrlView({ fields: VIEW_FIELDS, sortDefault: SORT_DEFAULT });
+  const [filterOpen, setFilterOpen] = useState(false);
+  const whose = filters.whose || 'mine';
   const [desk, setDesk] = useState(null);
   const [checkIns, setCheckIns] = useState([]);
   const [err, setErr] = useState('');
@@ -376,7 +401,7 @@ function MyDeskPage() {
     fetch('/api/crm/contacts/check-ins-due?status=overdue').then(r => r.json())
       .then(d => setCheckIns(d.contacts || [])).catch(() => {});
   }, [whose]);
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { if (ready) load(); }, [ready, load]);
 
   async function act(id, body) {
     const res = await fetch(`/api/sales/desk/${id}`, {
@@ -395,7 +420,7 @@ function MyDeskPage() {
     window.dispatchEvent(new Event(DESK_CHANGED));
   };
 
-  if (!desk) return <div className="p-4 text-sm text-slate-400">{err || 'Loading your desk…'}</div>;
+  if (!desk) return err ? <p className="p-4 text-sm text-red-600">{err}</p> : <WidgetLoading />;
   const myId = desk.viewerId || desk.userId;
   const everyone = desk.scope === 'everyone';
   const lookOnly = !everyone && desk.userId !== myId;
@@ -411,7 +436,7 @@ function MyDeskPage() {
       {/* Tab line starts at the left edge like every other page (Mike 10-6); the content stays centered. */}
       <TabBar tab={tab} onPick={setTab} counts={{ pool: poolCount }} />
       <div className="max-w-2xl mx-auto">
-      <h1 className="text-lg font-semibold text-slate-800">My Desk</h1>
+      <h1 className={H1}>My Desk</h1>
       <p className="text-xs text-slate-500 mb-4">Everything waiting on you: reminders, emails to review, check-ins and notes to finish.</p>
 
       {tab === 'intel' && <IntelClient />}
@@ -420,40 +445,41 @@ function MyDeskPage() {
         <>
           {desk.reviews?.length > 0 && (
             <Section id="look-alikes" title="Same person? Same company? Same job?" count={desk.reviews.length}>
-              <p className="text-xs text-slate-400 mb-2">A web budget looks like one we already have. Nothing is joined or made until somebody answers.</p>
+              <p className="text-xs text-slate-500 mb-2">A web budget looks like one we already have. Nothing is joined or made until somebody answers.</p>
               <ul className="space-y-2">{desk.reviews.map(r => <ReviewRow key={r.id} r={r} onDone={changed} />)}</ul>
             </Section>
           )}
           {desk.pool?.length > 0 && (
             <Section id="pool" title="Web budgets with no salesperson" count={desk.pool.length}>
-              <p className="text-xs text-slate-400 mb-2">Made from the website. Take one, or give it to someone in Sales.</p>
+              <p className="text-xs text-slate-500 mb-2">Made from the website. Take one, or give it to someone in Sales.</p>
               <ul className="space-y-2">{desk.pool.map(p => <PoolRow key={p.id} p={p} salesPeople={desk.salesPeople || []} myId={myId} onDone={changed} />)}</ul>
             </Section>
           )}
-          {poolCount === 0 && <p className="text-sm text-slate-500 rounded-xl border border-dashed border-slate-200 p-6 text-center">No look-alikes to answer and no web budgets waiting for a salesperson.</p>}
+          {poolCount === 0 && <p className="text-sm text-slate-500 rounded-lg border border-dashed border-slate-200 p-6 text-center">No look-alikes to answer and no web budgets waiting for a salesperson.</p>}
         </>
       )}
 
       {tab === 'todos' && (<>
-      <WhosePicker whose={whose} salesPeople={desk.salesPeople || []} onPick={setWhose} />
+      <WhosePicker whose={whose} salesPeople={desk.salesPeople || []} filters={filters} filterCount={countFilters(filters, FILTER_FIELDS)}
+        open={filterOpen} onToggle={() => setFilterOpen(o => !o)} onClear={clearFilters} onChange={setFilter} sort={sort} onSort={setSort} steps={steps} />
       {lookOnly && <p className="text-xs text-slate-500 mb-3">You are looking at {desk.ownerName || 'someone else'}&apos;s desk. Only the owner can change these.</p>}
-      {err && <p className="text-sm text-rose-600 mb-3">{err}</p>}
+      {err && <p className="text-sm text-red-600 mb-3">{err}</p>}
       {!lookOnly && <QuickNote onPublished={() => changed()} />}
-      {flash && <p className="text-sm text-emerald-700 mb-3">{flash}</p>}
-      {quiet && <p className="text-sm text-slate-500 rounded-xl border border-dashed border-slate-200 p-6 text-center">{lookOnly || everyone ? 'Nothing waiting here. Nice.' : 'Nothing waiting on you. Nice.'}</p>}
+      {flash && <p className="text-sm text-green-700 mb-3">{flash}</p>}
+      {quiet && <p className="text-sm text-slate-500 rounded-lg border border-dashed border-slate-200 p-6 text-center">{lookOnly || everyone ? 'Nothing waiting here. Nice.' : 'Nothing waiting on you. Nice.'}</p>}
 
       {desk.budgetsNotSent?.length > 0 && (
         <Section title="Budgets made, not sent" count={desk.budgetsNotSent.length}>
-          <p className="text-xs text-slate-400 mb-2">A budget figure is on file but no sent date. Send it, or set the date on the project.</p>
+          <p className="text-xs text-slate-500 mb-2">A budget figure is on file but no sent date. Send it, or set the date on the project.</p>
           <ul className="space-y-2">
             {desk.budgetsNotSent.map(p => (
-              <li key={p.id} className="rounded-xl border border-slate-200 bg-white p-3 flex items-center gap-2">
+              <li key={p.id} className={`${ROW} flex items-center gap-2`}>
                 <AlertMark label="Budget made, not sent" />
                 <div className="min-w-0 flex-1">
-                  <Link href={`/project/${p.id}`} className="text-sm font-medium text-slate-800 hover:underline">
+                  <Link href={`/project/${p.id}`} className="text-sm font-semibold text-slate-800 hover:underline">
           {p.name}{p.conceptualDraft?.budgetName ? <span className="font-normal text-slate-500">, {p.conceptualDraft.budgetName}</span> : null}
         </Link>
-                  <div className="text-xs text-slate-400">{[p.budgetNumber, p.client?.name].filter(Boolean).join(' · ')}</div>
+                  <div className="text-xs text-slate-500">{[p.budgetNumber, p.client?.name].filter(Boolean).join(' · ')}</div>
                 </div>
               </li>
             ))}
@@ -469,7 +495,7 @@ function MyDeskPage() {
       )}
 
       {notesToFinish > 0 && !lookOnly && (
-        <Link href="/crm/notes?status=mine" className="block mb-6 rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+        <Link href="/crm/notes?status=mine" className="block mb-6 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-700">
           {notesToFinish} meeting {notesToFinish === 1 ? 'note' : 'notes'} to finish. Tap to write {notesToFinish === 1 ? 'it' : 'them'} up.
         </Link>
       )}
@@ -485,22 +511,22 @@ function MyDeskPage() {
         return (
           <Section key={g.key} title={g.label} count={g.items.length}
             right={(g.key === 'SNOOZED' || g.key === 'PAUSED') && (
-              <button type="button" onClick={() => setOpenGroups(o => ({ ...o, [g.key]: !o[g.key] }))} className="text-xs text-slate-400 hover:underline">
+              <button type="button" onClick={() => setOpenGroups(o => ({ ...o, [g.key]: !o[g.key] }))} className="text-xs font-semibold text-slate-600 hover:underline">
                 {folded ? 'Show' : 'Hide'}
               </button>
             )}>
-            {!folded && <GroupRows items={g.items} group={g.key} onAct={act} isLocked={isLocked} showOwner={everyone} />}
+            {!folded && <GroupRows items={g.items} group={g.key} onAct={act} isLocked={isLocked} showOwner={everyone} sort={sort} />}
           </Section>
         );
       })}
 
       {desk.drafts.length > 0 && (
         <Section title="Emails to review" count={desk.drafts.length}>
-          <p className="text-xs text-slate-400 mb-2">Nothing sends on its own. Edit, copy, or dismiss. Check-in emails are written the day before each one comes due.</p>
+          <p className="text-xs text-slate-500 mb-2">Nothing sends on its own. Edit, copy, or dismiss. Check-in emails are written the day before each one comes due.</p>
           <div className="space-y-2">
             {desk.drafts.map(d => (
               <div key={d.id} id={`draft-${d.id}`} className="scroll-mt-4">
-              {everyone && d.ownerName && <p className="text-[11px] text-slate-500 mb-1">On {d.ownerName}&apos;s desk</p>}
+              {everyone && d.ownerName && <p className="text-xs text-slate-500 mb-1">On {d.ownerName}&apos;s desk</p>}
               <DraftCard draft={d} currentUserId={myId}
                 onCancel={id => setDesk(s => ({ ...s, drafts: s.drafts.filter(x => x.id !== id) }))}
                 onUpdate={nd => setDesk(s => ({ ...s, drafts: s.drafts.map(x => (x.id === nd.id ? { ...x, ...nd } : x)) }))} />
@@ -512,7 +538,7 @@ function MyDeskPage() {
 
       {checkIns.length > 0 && !lookOnly && (
         <Section title="Check-ins due" count={checkIns.length}
-          right={<Link href="/sales/check-ins" className="text-xs text-slate-400 hover:underline">All check-ins</Link>}>
+          right={<Link href="/sales/check-ins" className="text-xs font-semibold text-slate-600 hover:underline">All check-ins</Link>}>
           <ul className="space-y-2">
             {checkIns.slice(0, 10).map(c => <CheckInRow key={c.id} c={c} draft={desk.drafts.find(d => d.contactId === c.id)}
               onSnoozed={id => { setCheckIns(l => l.filter(x => x.id !== id)); load(); }}
@@ -523,7 +549,7 @@ function MyDeskPage() {
 
       {desk.noOwner?.length > 0 && (
         <Section title="Nobody looks after these people" count={desk.noOwner.length}>
-          <p className="text-xs text-slate-400 mb-2">Their check-in is due, but no company owner and no one who met them, so no email gets written. Take them and it lands on your desk.</p>
+          <p className="text-xs text-slate-500 mb-2">Their check-in is due, but no company owner and no one who met them, so no email gets written. Take them and it lands on your desk.</p>
           <ul className="space-y-2">{desk.noOwner.slice(0, 10).map(c => <NoOwnerRow key={c.id} c={c} onDone={changed} />)}</ul>
         </Section>
       )}

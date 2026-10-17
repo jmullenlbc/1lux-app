@@ -1,6 +1,26 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
 import * as XLSX from 'xlsx';
+import StatTile from '@/components/ui/StatTile';
+import SortHeader from '@/components/ui/SortHeader';
+import { FilterToolbar, FilterPanel, SearchBox, countFilters } from '@/components/ui/FilterPanel';
+import { WidgetLoading, WidgetEmpty } from '@/components/ui/WidgetFrame';
+import { useUrlView } from '@/lib/useUrlView';
+import { CARD, LABEL, STAT_VALUE, HELPER, CARD_TITLE, INPUT, TD, TH, BTN_PRIMARY, BTN_SECONDARY, BTN_COMPACT, BTN_DANGER } from '@/components/ui/tokens';
+
+// Filter fields for the list view; the address keeps them (useUrlView).
+const DATE_RANGES = [
+  { id: '6mo', label: 'Next 6 mo' }, { id: '12mo', label: 'Next 12 mo' },
+  { id: 'year', label: 'This year' }, { id: 'nextyear', label: 'Next year' },
+];
+const FILTER_FIELDS = [
+  { key: 'projectType',  label: 'Project type',  kind: 'pick' },
+  { key: 'buildingType', label: 'Building type', kind: 'pick' },
+  { key: 'phase',        label: 'Phase',         kind: 'pick' },
+  { key: 'range',        label: 'Start date',    kind: 'pick' },
+];
+const VIEW_FIELDS  = [...FILTER_FIELDS, { key: 'q', kind: 'text' }];
+const SORT_DEFAULT = { key: 'startDate', dir: 'asc' };
 
 // Fields we normalize every client's pipeline into.
 const FIELDS = [
@@ -70,12 +90,14 @@ export default function PipelineTab({ clientId, canEdit = false }) {
   const [drag, setDrag]         = useState(false);
   const [selected, setSelected] = useState(() => new Set());
   const [perUnit, setPerUnit]   = useState('');
-  const [search, setSearch]     = useState('');
-  const [fType, setFType]       = useState('');
-  const [fBuilding, setFBuilding] = useState('');
-  const [fPhase, setFPhase]     = useState('');
-  const [dateRange, setDateRange] = useState('all');
-  const [sort, setSort]         = useState({ col: 'startDate', dir: 'asc' });
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  // Filters, search and sort live in the address so a reload keeps them.
+  const { filters, setFilter, clearFilters, sort, toggleSort } = useUrlView({ fields: VIEW_FIELDS, sortDefault: SORT_DEFAULT });
+  const search    = filters.q || '';
+  const fType     = filters.projectType || '';
+  const fBuilding = filters.buildingType || '';
+  const fPhase    = filters.phase || '';
+  const dateRange = filters.range || 'all';
   const fileInput = useRef(null);
 
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [clientId]);
@@ -111,7 +133,7 @@ export default function PipelineTab({ clientId, canEdit = false }) {
         b.onload = (ev) => setFileB64(ev.target.result);
         b.readAsDataURL(file);
         setView('import');
-      } catch { setErr('Could not read that file — please upload an .xlsx or .xls.'); }
+      } catch { setErr('Could not read that file. Please upload an .xlsx or .xls.'); }
     };
     ab.readAsArrayBuffer(file);
   }
@@ -159,7 +181,7 @@ export default function PipelineTab({ clientId, canEdit = false }) {
   }
 
   async function doImport() {
-    if (mapping.name == null || mapping.name === '') { setErr('Map the “Project name” column first.'); return; }
+    if (mapping.name == null || mapping.name === '') { setErr('Map the "Project name" column first.'); return; }
     const rows = buildRows();
     if (!rows.length) { setErr('No project rows found after mapping.'); return; }
     setSaving(true); setErr('');
@@ -181,7 +203,7 @@ export default function PipelineTab({ clientId, canEdit = false }) {
   }
 
   if (data === null) {
-    return <div className="flex items-center justify-center h-48 text-sm text-slate-400">Loading pipeline…</div>;
+    return <WidgetLoading className="h-48 flex items-center justify-center">Loading pipeline...</WidgetLoading>;
   }
 
   // ── Import view ──
@@ -190,23 +212,23 @@ export default function PipelineTab({ clientId, canEdit = false }) {
     return (
       <div className="space-y-5">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-slate-800">Import pipeline — <span className="text-slate-500 font-normal">{fileName}</span></h3>
-          <button onClick={() => { resetImport(); setView('list'); }} className="text-xs text-slate-500 hover:text-slate-700">Cancel</button>
+          <h3 className={CARD_TITLE}>Import pipeline: <span className="text-slate-500 font-normal">{fileName}</span></h3>
+          <button onClick={() => { resetImport(); setView('list'); }} className="text-xs font-semibold text-slate-600 hover:text-slate-800">Cancel</button>
         </div>
 
         {!fileName ? (
           <DropZone drag={drag} setDrag={setDrag} onFile={handleFile} fileInput={fileInput} />
         ) : (
           <>
-            <p className="text-xs text-slate-500">Match your spreadsheet columns to our fields. We guessed from the headers — adjust any that are off.</p>
+            <p className={HELPER}>Match your spreadsheet columns to our fields. We guessed from the headers, adjust any that are off.</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-3xl">
               {FIELDS.map(f => (
                 <div key={f.key} className="flex items-center gap-2">
-                  <label className="text-xs font-medium text-slate-600 w-40 shrink-0">{f.label}{f.required && <span className="text-rose-500"> *</span>}</label>
+                  <label className="text-xs font-medium text-slate-600 w-40 shrink-0">{f.label}{f.required && <span className="text-red-600"> *</span>}</label>
                   <select
                     value={mapping[f.key] ?? ''}
                     onChange={e => setMapping(m => ({ ...m, [f.key]: e.target.value === '' ? '' : Number(e.target.value) }))}
-                    className="flex-1 rounded-lg border border-slate-200 px-2 py-1.5 text-xs bg-white">
+                    className={`${INPUT} flex-1 px-2 py-1.5 text-xs`}>
                     <option value="">— none —</option>
                     {headers.map((h, i) => <option key={i} value={i}>{h}</option>)}
                   </select>
@@ -214,27 +236,27 @@ export default function PipelineTab({ clientId, canEdit = false }) {
               ))}
             </div>
 
-            <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+            <div className={`${CARD} overflow-hidden`}>
               <div className="px-4 py-2 border-b border-slate-100 text-xs font-semibold text-slate-600">
-                Preview — {preview.length} project{preview.length !== 1 ? 's' : ''} (subtotal rows skipped)
+                Preview: {preview.length} project{preview.length !== 1 ? 's' : ''} (subtotal rows skipped)
               </div>
               <div className="overflow-x-auto max-h-72 overflow-y-auto">
                 <table className="w-full text-xs">
                   <thead className="bg-slate-50 sticky top-0">
-                    <tr className="text-[10px] font-bold text-slate-500 uppercase">
-                      <th className="px-3 py-2 text-left">Project</th><th className="px-3 py-2 text-right">Units</th>
-                      <th className="px-3 py-2 text-left">Start</th><th className="px-3 py-2 text-left">Building type</th>
-                      <th className="px-3 py-2 text-left">GC</th>
+                    <tr>
+                      <th className={TH}>Project</th><th className={`${TH} text-right`}>Units</th>
+                      <th className={TH}>Start</th><th className={TH}>Building type</th>
+                      <th className={TH}>GC</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
                     {preview.slice(0, 50).map((r, i) => (
                       <tr key={i}>
-                        <td className="px-3 py-1.5 font-medium text-slate-800">{r.name}</td>
-                        <td className="px-3 py-1.5 text-right text-slate-600">{r.units || '—'}</td>
-                        <td className="px-3 py-1.5 text-slate-600">{fmtDate(r.startDate)}</td>
-                        <td className="px-3 py-1.5 text-slate-600">{r.buildingType || '—'}</td>
-                        <td className="px-3 py-1.5 text-slate-600">{r.gc || '—'}</td>
+                        <td className={`${TD} py-1.5 font-medium text-slate-800`}>{r.name}</td>
+                        <td className={`${TD} py-1.5 text-right tabular-nums`}>{r.units || '—'}</td>
+                        <td className={`${TD} py-1.5 tabular-nums`}>{fmtDate(r.startDate)}</td>
+                        <td className={`${TD} py-1.5`}>{r.buildingType || '—'}</td>
+                        <td className={`${TD} py-1.5`}>{r.gc || '—'}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -242,15 +264,15 @@ export default function PipelineTab({ clientId, canEdit = false }) {
               </div>
             </div>
 
-            {err && <p className="text-xs text-rose-600">{err}</p>}
+            {err && <p className="text-xs text-red-600">{err}</p>}
             <div className="flex gap-2">
               <button onClick={doImport} disabled={saving}
-                className="px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white disabled:opacity-50">
-                {saving ? 'Importing…' : `Import ${preview.length} project${preview.length !== 1 ? 's' : ''}`}
+                className={BTN_PRIMARY}>
+                {saving ? 'Importing...' : `Import ${preview.length} project${preview.length !== 1 ? 's' : ''}`}
               </button>
-              <button onClick={() => resetImport()} className="px-4 py-2 rounded-lg border border-slate-200 text-slate-600 text-sm hover:bg-slate-50">Choose a different file</button>
+              <button onClick={() => resetImport()} className={BTN_SECONDARY}>Choose a different file</button>
             </div>
-            <p className="text-[11px] text-slate-400">Importing syncs the live pipeline (adds new, updates existing, removes dropped projects — matched by name) and keeps this file in the history.</p>
+            <p className={HELPER}>Importing syncs the live pipeline (adds new, updates existing, removes dropped projects, matched by name) and keeps this file in the history.</p>
           </>
         )}
       </div>
@@ -289,7 +311,7 @@ export default function PipelineTab({ clientId, canEdit = false }) {
     return true;
   });
   rows = [...rows].sort((a, b) => {
-    const { col, dir } = sort; const s = dir === 'asc' ? 1 : -1;
+    const col = sort.key || SORT_DEFAULT.key, dir = sort.dir; const s = dir === 'asc' ? 1 : -1;
     if (col === 'units' || col === 'ilcRevenue') return ((a[col] || 0) - (b[col] || 0)) * s;
     const av = String(a[col] ?? '').toLowerCase(), bv = String(b[col] ?? '').toLowerCase();
     return av < bv ? -s : av > bv ? s : 0;
@@ -298,16 +320,12 @@ export default function PipelineTab({ clientId, canEdit = false }) {
   const shownUnits  = rows.reduce((n, p) => n + (p.units || 0), 0);
   const totalValue  = (Number(perUnit) || 0) * shownUnits;
   const allSelected = rows.length > 0 && rows.every(p => selected.has(p.id));
-  const filtersOn   = !!(search || fType || fBuilding || fPhase || dateRange !== 'all');
+  const filterCount = countFilters(filters, FILTER_FIELDS);
 
   const toggleOne = (id) => setSelected(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const toggleAll = () => setSelected(allSelected ? new Set() : new Set(rows.map(p => p.id)));
-  const sortBy = (col) => setSort(s => s.col === col ? { col, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { col, dir: 'asc' });
   const sortTh = (col, label, right) => (
-    <th onClick={() => sortBy(col)}
-      className={`px-4 py-2.5 cursor-pointer select-none hover:text-slate-700 ${right ? 'text-right' : 'text-left'}`}>
-      {label}{sort.col === col ? (sort.dir === 'asc' ? ' ▲' : ' ▼') : ''}
-    </th>
+    <SortHeader field={col} label={label} sort={sort} onSort={toggleSort} align={right ? 'right' : 'left'} className="px-4 py-2.5" />
   );
 
   async function patch(ids, body) {
@@ -318,43 +336,34 @@ export default function PipelineTab({ clientId, canEdit = false }) {
   async function savePerUnit(v) {
     await fetch(`/api/clients/${clientId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ pipelinePerUnit: v === '' ? null : Number(v) }) }).catch(() => {});
   }
-  const clearFilters = () => { setSearch(''); setFType(''); setFBuilding(''); setFPhase(''); setDateRange('all'); };
-
-  const DATE_RANGES = [
-    { id: 'all', label: 'All' }, { id: '6mo', label: 'Next 6 mo' }, { id: '12mo', label: 'Next 12 mo' },
-    { id: 'year', label: 'This year' }, { id: 'nextyear', label: 'Next year' },
-  ];
+  const choices = {
+    projectType:  distinct('projectType'),
+    buildingType: distinct('buildingType'),
+    phase:        distinct('phase'),
+    range:        DATE_RANGES.map(r => [r.id, r.label]),
+  };
 
   return (
     <div className="space-y-5">
-      {/* Stats + $/unit + value · date range · update */}
+      {/* Stats + $/unit + value, update */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap gap-3">
-          <Stat label="Projects" value={rows.length} />
-          <Stat label="Total units" value={shownUnits.toLocaleString()} />
-          <div className="bg-white rounded-xl border border-slate-200 px-4 py-2 min-w-[120px]">
-            <div className="text-[11px] text-slate-400 font-medium mb-0.5">ILC $/unit</div>
-            <div className="flex items-center text-slate-800 font-bold text-xl leading-none">
+          <StatTile label="Projects" value={rows.length} className="min-w-[110px] py-2.5" />
+          <StatTile label="Total units" value={shownUnits.toLocaleString()} className="min-w-[110px] py-2.5" />
+          <div className={`${CARD} px-4 py-2.5 min-w-[120px]`}>
+            <div className={LABEL}>ILC $/unit</div>
+            <div className={`flex items-center ${STAT_VALUE} mt-1 leading-tight`}>
               <span className="text-slate-400 mr-0.5 text-base">$</span>
               <input type="number" value={perUnit} disabled={!canEdit} placeholder="1,600"
                 onChange={e => setPerUnit(e.target.value)} onBlur={e => savePerUnit(e.target.value)}
                 className="w-20 bg-transparent outline-none disabled:opacity-70" />
             </div>
           </div>
-          <Stat label="Total pipeline value" value={totalValue ? money(totalValue) : '—'} />
+          <StatTile label="Total pipeline value" value={totalValue ? money(totalValue) : '—'} className="min-w-[110px] py-2.5" />
         </div>
         <div className="flex items-center gap-3">
-          <div className="flex gap-1 bg-slate-100 rounded-xl p-1">
-            {DATE_RANGES.map(({ id, label }) => (
-              <button key={id} onClick={() => setDateRange(id)}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${dateRange === id ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
-                {label}
-              </button>
-            ))}
-          </div>
           {canEdit && (
-            <button onClick={() => { resetImport(); setView('import'); }}
-              className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white">
+            <button onClick={() => { resetImport(); setView('import'); }} className={BTN_PRIMARY}>
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v12m0-12l-4 4m4-4l4 4M4 20h16" /></svg>
               {projects.length ? 'Update' : 'Import'}
             </button>
@@ -366,33 +375,38 @@ export default function PipelineTab({ clientId, canEdit = false }) {
         canEdit ? (
           <DropZone drag={drag} setDrag={setDrag} onFile={(f) => { handleFile(f); }} fileInput={fileInput} />
         ) : (
-          <div className="py-16 text-center text-slate-400 border-2 border-dashed border-slate-200 rounded-xl">No pipeline uploaded yet.</div>
+          <div className={CARD}><WidgetEmpty>No pipeline uploaded yet.</WidgetEmpty></div>
         )
       ) : (
         <>
-          {/* Filters */}
-          <div className="flex flex-wrap items-center gap-2">
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search any column…"
-              className="flex-1 min-w-[180px] rounded-lg border border-slate-200 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
-            <FilterSelect value={fType} onChange={setFType} options={distinct('projectType')} placeholder="All project types" />
-            <FilterSelect value={fBuilding} onChange={setFBuilding} options={distinct('buildingType')} placeholder="All building types" />
-            <FilterSelect value={fPhase} onChange={setFPhase} options={distinct('phase')} placeholder="All phases" />
-            {filtersOn && <button onClick={clearFilters} className="text-xs text-slate-500 hover:text-slate-700">Clear</button>}
+          {/* Filters: one funnel button, panel under it, search on the right */}
+          <div>
+            <FilterToolbar
+              count={filterCount}
+              open={filtersOpen}
+              onToggle={() => setFiltersOpen(o => !o)}
+              onClear={clearFilters}
+              shown={rows.length}
+              total={active.length}
+              noun="projects"
+              right={<SearchBox value={search} onChange={v => setFilter('q', v)} placeholder="Search any column..." />}
+            />
+            <FilterPanel open={filtersOpen} fields={FILTER_FIELDS} filters={filters} choices={choices} onChange={setFilter} />
           </div>
 
-          <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+          <div className={`${CARD} overflow-hidden`}>
             {canEdit && selected.size > 0 && (
-              <div className="flex flex-wrap items-center gap-2 px-4 py-2 bg-amber-50 border-b border-amber-100">
-                <span className="text-xs font-medium text-amber-800 mr-auto">{selected.size} selected</span>
-                <button onClick={() => patch([...selected], { projectType: 'New Construction' })} className="px-2.5 py-1 rounded-lg border border-slate-300 bg-white text-slate-700 text-xs font-semibold hover:bg-slate-50">Set New Construction</button>
-                <button onClick={() => patch([...selected], { projectType: 'Rehab' })} className="px-2.5 py-1 rounded-lg border border-slate-300 bg-white text-slate-700 text-xs font-semibold hover:bg-slate-50">Set Rehab</button>
-                <button onClick={() => patch([...selected], { dismissed: true })} className="px-2.5 py-1 rounded-lg bg-rose-500 hover:bg-rose-600 text-white text-xs font-semibold">Remove</button>
+              <div className="flex flex-wrap items-center gap-2 px-4 py-2 bg-orange-50 border-b border-orange-200">
+                <span className="text-xs font-semibold text-orange-700 mr-auto tabular-nums">{selected.size} selected</span>
+                <button onClick={() => patch([...selected], { projectType: 'New Construction' })} className={BTN_COMPACT}>Set New Construction</button>
+                <button onClick={() => patch([...selected], { projectType: 'Rehab' })} className={BTN_COMPACT}>Set Rehab</button>
+                <button onClick={() => patch([...selected], { dismissed: true })} className={`${BTN_DANGER} px-3 py-1.5 text-xs`}>Remove</button>
               </div>
             )}
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="bg-slate-50 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                  <tr className="bg-slate-50">
                     {canEdit && <th className="px-4 py-2.5 w-8"><input type="checkbox" checked={allSelected} onChange={toggleAll} /></th>}
                     {sortTh('name', 'Project')}
                     {sortTh('startDate', 'Start')}
@@ -406,20 +420,20 @@ export default function PipelineTab({ clientId, canEdit = false }) {
                 </thead>
                 <tbody className="divide-y divide-slate-50">
                   {rows.map(p => (
-                    <tr key={p.id} className={`hover:bg-slate-50/50 ${selected.has(p.id) ? 'bg-amber-50/40' : ''}`}>
+                    <tr key={p.id} className={`hover:bg-slate-50/50 ${selected.has(p.id) ? 'bg-orange-50/40' : ''}`}>
                       {canEdit && <td className="px-4 py-2.5"><input type="checkbox" checked={selected.has(p.id)} onChange={() => toggleOne(p.id)} /></td>}
-                      <td className="px-4 py-2.5 font-medium text-slate-800">{p.name}</td>
-                      <td className="px-4 py-2.5 text-slate-500">{fmtDate(p.startDate)}</td>
-                      <td className="px-4 py-2.5 text-right text-slate-600">{p.units?.toLocaleString() || '—'}</td>
-                      <td className="px-4 py-2.5"><TypePill t={p.projectType} /></td>
-                      <td className="px-4 py-2.5 text-slate-600">{p.buildingType || '—'}</td>
-                      <td className="px-4 py-2.5 text-slate-600">{p.phase || '—'}</td>
-                      <td className="px-4 py-2.5 text-slate-600">{p.gc || '—'}</td>
-                      <td className="px-4 py-2.5 text-right text-slate-600">{money(p.ilcRevenue)}</td>
+                      <td className={`${TD} px-4 py-2.5 font-medium text-slate-800`}>{p.name}</td>
+                      <td className={`${TD} px-4 py-2.5 tabular-nums`}>{fmtDate(p.startDate)}</td>
+                      <td className={`${TD} px-4 py-2.5 text-right tabular-nums`}>{p.units?.toLocaleString() || '—'}</td>
+                      <td className={`${TD} px-4 py-2.5`}><TypePill t={p.projectType} /></td>
+                      <td className={`${TD} px-4 py-2.5`}>{p.buildingType || '—'}</td>
+                      <td className={`${TD} px-4 py-2.5`}>{p.phase || '—'}</td>
+                      <td className={`${TD} px-4 py-2.5`}>{p.gc || '—'}</td>
+                      <td className={`${TD} px-4 py-2.5 text-right tabular-nums`}>{money(p.ilcRevenue)}</td>
                     </tr>
                   ))}
                   {rows.length === 0 && (
-                    <tr><td colSpan={9} className="px-4 py-8 text-center text-sm text-slate-400">No projects match the filters.</td></tr>
+                    <tr><td colSpan={9}><WidgetEmpty>No projects match the filters.</WidgetEmpty></td></tr>
                   )}
                 </tbody>
               </table>
@@ -429,14 +443,14 @@ export default function PipelineTab({ clientId, canEdit = false }) {
       )}
 
       {removed.length > 0 && (
-        <details className="bg-white rounded-xl border border-slate-200 px-4 py-3">
-          <summary className="text-xs font-semibold text-slate-500 cursor-pointer">Removed — not working on ({removed.length})</summary>
+        <details className={`${CARD} px-4 py-3`}>
+          <summary className="text-xs font-semibold text-slate-500 cursor-pointer">Removed, not working on ({removed.length})</summary>
           <div className="mt-3 space-y-1.5">
             {removed.map(p => (
               <div key={p.id} className="flex items-center justify-between text-sm">
                 <span className="text-slate-500 line-through">{p.name}{p.units ? ` · ${p.units} units` : ''}</span>
                 {canEdit && (
-                  <button onClick={() => setDismissed([p.id], false)} className="text-xs font-semibold text-amber-600 hover:text-amber-500">Restore</button>
+                  <button onClick={() => setDismissed([p.id], false)} className="text-xs font-semibold text-orange-600 hover:text-orange-700">Restore</button>
                 )}
               </div>
             ))}
@@ -446,16 +460,16 @@ export default function PipelineTab({ clientId, canEdit = false }) {
 
       {uploads.length > 0 && (
         <div>
-          <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-2">Uploaded files</h3>
+          <h3 className={`${LABEL} mb-2`}>Uploaded files</h3>
           <div className="space-y-1.5">
             {uploads.map(u => (
-              <div key={u.id} className="flex items-center justify-between bg-white rounded-lg border border-slate-200 px-3 py-2 text-sm">
+              <div key={u.id} className={`flex items-center justify-between ${CARD} px-3 py-2 text-sm`}>
                 <span className="flex items-center gap-2 text-slate-700">
-                  <svg className="w-4 h-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-6h6m-6 6h6m-9 4h12a2 2 0 002-2V7l-5-4H6a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
+                  <svg className="w-4 h-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 17v-6h6m-6 6h6m-9 4h12a2 2 0 002-2V7l-5-4H6a2 2 0 00-2 2v14a2 2 0 002 2z" /></svg>
                   {u.fileName}
-                  <span className="text-xs text-slate-400">· {u.rowCount} rows · {fmtDate(u.createdAt)}</span>
+                  <span className={`${HELPER} tabular-nums`}>· {u.rowCount} rows · {fmtDate(u.createdAt)}</span>
                 </span>
-                {u.url && <a href={u.url} target="_blank" rel="noopener noreferrer" className="text-xs font-semibold text-amber-600 hover:text-amber-500">Download</a>}
+                {u.url && <a href={u.url} target="_blank" rel="noopener noreferrer" className="text-xs font-semibold text-orange-600 hover:text-orange-700">Download</a>}
               </div>
             ))}
           </div>
@@ -465,31 +479,12 @@ export default function PipelineTab({ clientId, canEdit = false }) {
   );
 }
 
-function Stat({ label, value }) {
-  return (
-    <div className="bg-white rounded-xl border border-slate-200 px-4 py-2.5 text-center min-w-[110px]">
-      <div className="text-xl font-bold text-slate-800">{value}</div>
-      <div className="text-[11px] text-slate-400 font-medium">{label}</div>
-    </div>
-  );
-}
-
-function FilterSelect({ value, onChange, options, placeholder }) {
-  if (!options.length) return null;
-  return (
-    <select value={value} onChange={e => onChange(e.target.value)}
-      className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-sm bg-white text-slate-600 focus:outline-none focus:ring-2 focus:ring-amber-500">
-      <option value="">{placeholder}</option>
-      {options.map(o => <option key={o} value={o}>{o}</option>)}
-    </select>
-  );
-}
 
 function TypePill({ t }) {
-  if (!t) return <span className="text-slate-300">—</span>;
+  if (!t) return <span className="text-slate-400">—</span>;
   const rehab = /rehab/i.test(t);
   return (
-    <span className={`px-2 py-0.5 rounded-full text-xs font-medium border ${rehab ? 'bg-violet-50 text-violet-700 border-violet-200' : 'bg-emerald-50 text-emerald-700 border-emerald-200'}`}>
+    <span className={`px-2 py-0.5 rounded-full text-xs font-medium border ${rehab ? 'bg-violet-50 text-violet-700 border-violet-200' : 'bg-green-50 text-green-700 border-green-200'}`}>
       {t}
     </span>
   );
@@ -502,10 +497,10 @@ function DropZone({ drag, setDrag, onFile, fileInput }) {
       onDragLeave={() => setDrag(false)}
       onDrop={e => { e.preventDefault(); setDrag(false); onFile(e.dataTransfer.files?.[0]); }}
       onClick={() => fileInput.current?.click()}
-      className={`cursor-pointer py-16 text-center border-2 border-dashed rounded-xl transition-colors ${drag ? 'border-amber-400 bg-amber-50' : 'border-slate-200 hover:border-slate-300'}`}>
+      className={`cursor-pointer py-16 text-center border-2 border-dashed rounded-xl transition-colors ${drag ? 'border-orange-400 bg-orange-50' : 'border-slate-200 hover:border-slate-300'}`}>
       <div className="text-3xl mb-2">📥</div>
       <p className="text-sm font-medium text-slate-600">Drag &amp; drop the pipeline Excel here</p>
-      <p className="text-xs text-slate-400 mt-1">or click to choose a file (.xlsx / .xls)</p>
+      <p className={`${HELPER} mt-1`}>or click to choose a file (.xlsx / .xls)</p>
       <input ref={fileInput} type="file" accept=".xlsx,.xls" className="hidden"
         onChange={e => onFile(e.target.files?.[0])} />
     </div>

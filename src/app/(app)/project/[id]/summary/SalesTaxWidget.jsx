@@ -37,7 +37,7 @@ export default function SalesTaxWidget({ projectId, initialPct, taxAmount }) {
       const raw = String(draft).trim();
       const val = raw === '' ? 0 : parseFloat(raw);
       if (isNaN(val) || val < 0 || val > 25) {
-        setError('Sales tax must be 0–25%');
+        setError('Sales tax must be 0 to 25%');
         setSaving(false);
         return;
       }
@@ -50,7 +50,7 @@ export default function SalesTaxWidget({ projectId, initialPct, taxAmount }) {
       if (!res.ok) throw new Error((await res.json()).error || 'Failed to save');
       setPct(decimal);
       setEditing(false);
-      router.refresh();   // the totals above are server-rendered — pull the new budget
+      router.refresh();   // the totals above are server-rendered, pull the new budget
     } catch (e) {
       setError(e.message);
     } finally {
@@ -69,17 +69,17 @@ export default function SalesTaxWidget({ projectId, initialPct, taxAmount }) {
       {!editing && pct === 0 ? (
         <button
           onClick={() => { setEditing(true); setDraft(''); }}
-          className="text-right text-xs text-slate-400 hover:text-slate-600 font-medium transition-colors"
+          className="text-right text-xs text-slate-500 hover:text-slate-700 font-semibold transition-colors"
         >
           + Add sales tax %
         </button>
       ) : !editing ? (
         <div className="text-sm text-slate-600">
           Sales tax ({pctLabel(pct)}) +${Number(taxAmount || 0).toLocaleString('en-US', { maximumFractionDigits: 0 })}
-          <span className="text-xs text-slate-400"> — included in the totals above</span>
+          <span className="text-xs text-slate-400">, included in the totals above</span>
           <button
             onClick={() => { setEditing(true); setDraft(String(Math.round(pct * 10000) / 100)); }}
-            className="ml-2 text-xs text-slate-400 hover:text-slate-600 font-medium transition-colors"
+            className="ml-2 text-xs text-slate-500 hover:text-slate-700 font-semibold transition-colors"
           >
             Edit
           </button>
@@ -96,21 +96,21 @@ export default function SalesTaxWidget({ projectId, initialPct, taxAmount }) {
               onChange={e => setDraft(e.target.value)}
               placeholder="8.25"
               autoFocus
-              className="w-20 px-2 py-1 text-sm border border-slate-200 rounded focus:outline-none focus:ring-2 focus:ring-orange-400"
+              className="w-20 rounded-lg border border-slate-300 bg-white px-2 py-1 text-sm text-slate-900 tabular-nums focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
             />
             <span className="text-xs text-slate-500">% sales tax</span>
             <button
               onClick={handleSave}
               disabled={saving}
-              className="text-xs px-3 py-1 bg-slate-800 text-white rounded disabled:opacity-40 transition-opacity"
+              className="text-xs px-3 py-1 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg disabled:opacity-40 transition-opacity"
             >
               {saving ? 'Saving...' : 'Save'}
             </button>
-            <button onClick={handleCancel} className="text-xs text-slate-400 hover:text-slate-600">
+            <button onClick={handleCancel} className="text-xs text-slate-500 hover:text-slate-700">
               Cancel
             </button>
           </div>
-          {error && <div className="text-xs text-red-500">{error}</div>}
+          {error && <div className="text-xs text-red-600">{error}</div>}
         </div>
       )}
     </div>

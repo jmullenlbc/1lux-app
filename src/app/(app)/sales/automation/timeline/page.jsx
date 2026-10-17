@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { redirect } from 'next/navigation';
+import { H1 } from '@/components/ui/tokens';
 import { getSession, isSalesTeam } from '@/lib/auth';
 import { getAllActionTypes } from '@/lib/noteActionTypesStore';
 import { WAIT_EXECUTORS } from '@/lib/followUp/watch';
@@ -34,7 +35,7 @@ export default async function ReminderTimelinePage() {
       <AutomationNav />
       <div className="max-w-5xl mx-auto">
       <div className="mb-5">
-        <h1 className="text-xl font-bold text-slate-900">Reminder Timeline</h1>
+        <h1 className={H1}>Reminder Timeline</h1>
         <p className="text-slate-500 text-sm mt-1 max-w-3xl">
           When a meeting note says <em>they</em> will do something &mdash; reply, send drawings, send an invite,
           make an intro &mdash; the app watches email for it and marks it done when it arrives. If it

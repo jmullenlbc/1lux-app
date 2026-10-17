@@ -13,7 +13,7 @@ function Row({ label, value }) {
   return (
     <div className="flex items-center justify-between py-1 border-b border-slate-50 print:border-slate-100">
       <span className="text-sm print:text-xs text-slate-500">{label}</span>
-      <span className={`text-sm print:text-xs font-mono font-semibold ${value === 0 ? 'text-slate-300' : 'text-slate-900'}`}>
+      <span className={`text-sm print:text-xs font-mono font-semibold tabular-nums ${value === 0 ? 'text-slate-300' : 'text-slate-900'}`}>
         {formatCurrency(value)}
       </span>
     </div>
@@ -59,7 +59,7 @@ export default function SummaryBudgetBreakdown({ budget, freightPct, warehousing
         { label: 'Corridor disks',     value: sections?.corridors?.disks?.product      || 0 },
         { label: 'Unit entry sconces', value: sections?.corridors?.sconces?.product    || 0 },
         { label: sections?.corridors?.stairwells?.breezeway
-                   ? `Breezeway stairs (${sections.corridors.stairwells.breezeway.landings} landings — ${sections.corridors.stairwells.breezeway.style === 'long' ? 'long' : 'small'} breezeway)`
+                   ? `Breezeway stairs (${sections.corridors.stairwells.breezeway.landings} landings, ${sections.corridors.stairwells.breezeway.style === 'long' ? 'long' : 'small'} breezeway)`
                    : 'Stairwell fixtures',
           value: sections?.corridors?.stairwells?.product || 0 },
         { label: 'Accent downlights',  value: sections?.corridors?.accents?.product    || 0 },
@@ -166,7 +166,7 @@ export default function SummaryBudgetBreakdown({ budget, freightPct, warehousing
       {/* Solar site design — labor note rides with the budget wherever it's shown */}
       {sections?.exterior?.solar && (
         <div className="mt-2 mb-1 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800 print:bg-transparent print:border-amber-300">
-          <span className="font-semibold">Solar site lighting</span> — area lighting priced at {sections.exterior.solar.multiplier}× conventional. {sections.exterior.solar.note}
+          <span className="font-semibold">Solar site lighting</span>: area lighting priced at {sections.exterior.solar.multiplier}× conventional. {sections.exterior.solar.note}
         </div>
       )}
 
@@ -186,7 +186,7 @@ export default function SummaryBudgetBreakdown({ budget, freightPct, warehousing
       <div className="border-t-2 border-slate-900 pt-3 mt-2 pb-1">
         <div className="flex justify-between font-bold text-base print:text-sm">
           <span>Lighting Subtotal</span>
-          <span className="font-mono">{formatCurrency(lightingProductSubtotal)}</span>
+          <span className="font-mono tabular-nums">{formatCurrency(lightingProductSubtotal)}</span>
         </div>
       </div>
 
@@ -215,7 +215,7 @@ export default function SummaryBudgetBreakdown({ budget, freightPct, warehousing
       <div className="border-t-2 border-slate-900 pt-2 mt-1 mb-3">
         <div className="flex justify-between font-bold text-base print:text-sm py-1">
           <span>Lighting Total</span>
-          <span className="font-mono">{formatCurrency(subtotalLightingOnly)}</span>
+          <span className="font-mono tabular-nums">{formatCurrency(subtotalLightingOnly)}</span>
         </div>
       </div>
 
@@ -265,7 +265,7 @@ export default function SummaryBudgetBreakdown({ budget, freightPct, warehousing
       <div className="border-t-2 border-slate-900 pt-2 mt-1 mb-3">
         <div className="flex justify-between font-bold text-base print:text-sm py-1">
           <span>Controls Total</span>
-          <span className="font-mono">{formatCurrency(controlsTotal || 0)}</span>
+          <span className="font-mono tabular-nums">{formatCurrency(controlsTotal || 0)}</span>
         </div>
       </div>
 
@@ -273,7 +273,7 @@ export default function SummaryBudgetBreakdown({ budget, freightPct, warehousing
       <div className="border-t-2 border-slate-900 pt-3 mt-2">
         <div className="flex justify-between font-bold text-base print:text-sm">
           <span>Total w/ Controls</span>
-          <span className="font-mono">{formatCurrency(totalWithControls)}</span>
+          <span className="font-mono tabular-nums">{formatCurrency(totalWithControls)}</span>
         </div>
       </div>
 
@@ -293,7 +293,7 @@ export default function SummaryBudgetBreakdown({ budget, freightPct, warehousing
           <div className="border-t-2 border-slate-900 pt-3 mt-2">
             <div className="flex justify-between font-bold text-base print:text-sm">
               <span>Total w/ Contingency</span>
-              <span className="font-mono">{formatCurrency(totalWithContingency)}</span>
+              <span className="font-mono tabular-nums">{formatCurrency(totalWithContingency)}</span>
             </div>
           </div>
         </>

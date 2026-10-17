@@ -89,7 +89,7 @@ export default function FixtureImportModal({ projectId, onImported, onClose }) {
         setMapping(autoMapped);
         setStep('map');
       } catch (err) {
-        setError('Could not parse file — make sure it is an Excel (.xlsx/.xls) or CSV file');
+        setError('Could not parse file, make sure it is an Excel (.xlsx/.xls) or CSV file');
       }
     };
     reader.readAsArrayBuffer(file);
@@ -153,14 +153,14 @@ export default function FixtureImportModal({ projectId, onImported, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-xl w-full max-w-3xl max-h-[90vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
           <div>
-            <h2 className="font-semibold text-slate-800">Import Fixture Schedule</h2>
-            <p className="text-xs text-slate-400 mt-0.5">Excel (.xlsx/.xls) or CSV</p>
+            <h2 className="text-lg font-semibold text-slate-900">Import Fixture Schedule</h2>
+            <p className="text-xs text-slate-500 mt-0.5">Excel (.xlsx/.xls) or CSV</p>
           </div>
-          <button className="text-slate-400 hover:text-slate-600" onClick={onClose}>
+          <button className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-100" onClick={onClose}>
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -174,7 +174,7 @@ export default function FixtureImportModal({ projectId, onImported, onClose }) {
           {step === 'upload' && (
             <div
               className={`border-2 border-dashed rounded-xl p-12 text-center transition-colors cursor-pointer
-                ${dragOver ? 'border-blue-400 bg-blue-50' : 'border-slate-200 hover:border-slate-300'}`}
+                ${dragOver ? 'border-orange-400 bg-orange-50' : 'border-slate-200 hover:border-slate-300'}`}
               onDragOver={e => { e.preventDefault(); setDragOver(true); }}
               onDragLeave={() => setDragOver(false)}
               onDrop={onDrop}
@@ -185,7 +185,7 @@ export default function FixtureImportModal({ projectId, onImported, onClose }) {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
               </svg>
               <p className="text-sm font-medium text-slate-600">Drop a file here or click to browse</p>
-              <p className="text-xs text-slate-400 mt-1">Excel or CSV · First row should be column headers</p>
+              <p className="text-xs text-slate-500 mt-1">Excel or CSV · First row should be column headers</p>
             </div>
           )}
 
@@ -201,9 +201,9 @@ export default function FixtureImportModal({ projectId, onImported, onClose }) {
                 <table className="min-w-full text-sm">
                   <thead className="bg-slate-50 border-b border-slate-200">
                     <tr>
-                      <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Your Column</th>
-                      <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Preview</th>
-                      <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Maps to</th>
+                      <th className="px-4 py-2.5 text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Your Column</th>
+                      <th className="px-4 py-2.5 text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Preview</th>
+                      <th className="px-4 py-2.5 text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Maps to</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -219,22 +219,22 @@ export default function FixtureImportModal({ projectId, onImported, onClose }) {
                           <td className="px-4 py-2 font-medium text-slate-700">
                             {h}
                             {!mapped && hasData && (
-                              <span className="ml-1.5 text-[10px] font-bold text-red-400 uppercase">needs mapping</span>
+                              <span className="ml-1.5 text-[11px] font-bold text-red-400 uppercase">needs mapping</span>
                             )}
                           </td>
-                          <td className="px-4 py-2 text-slate-400 truncate max-w-[140px]">
-                            {rows.slice(0, 3).map(r => r[i]).filter(v => v != null && v !== '').join(', ') || '—'}
+                          <td className="px-4 py-2 text-slate-500 truncate max-w-[140px]">
+                            {rows.slice(0, 3).map(r => r[i]).filter(v => v != null && v !== '').join(', ') || '-'}
                           </td>
                           <td className="px-4 py-2">
                             <select
-                              className={`text-xs border rounded px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-blue-200 ${
+                              className={`text-xs border rounded-lg px-2 py-1 bg-white focus:outline-none focus:ring-2 focus:ring-orange-500 ${
                                 mapped ? 'border-green-300 text-green-700 font-semibold' :
                                 hasData ? 'border-red-300 text-slate-600' : 'border-slate-200 text-slate-400'
                               }`}
                               value={mapped || ''}
                               onChange={e => setMap(h, e.target.value)}
                             >
-                              <option value="">— skip —</option>
+                              <option value="">skip</option>
                               {FIXTURE_FIELDS.map(f => (
                                 <option key={f.key} value={f.key}>{f.label}</option>
                               ))}
@@ -258,7 +258,7 @@ export default function FixtureImportModal({ projectId, onImported, onClose }) {
                     <label
                       key={opt.value}
                       className={`flex-1 flex items-start gap-3 rounded-xl border p-3.5 cursor-pointer transition-colors
-                        ${mode === opt.value ? 'border-blue-400 bg-blue-50' : 'border-slate-200 hover:border-slate-300'}`}
+                        ${mode === opt.value ? 'border-orange-400 bg-orange-50' : 'border-slate-200 hover:border-slate-300'}`}
                     >
                       <input
                         type="radio"
@@ -266,11 +266,11 @@ export default function FixtureImportModal({ projectId, onImported, onClose }) {
                         value={opt.value}
                         checked={mode === opt.value}
                         onChange={() => setMode(opt.value)}
-                        className="mt-0.5 accent-blue-500"
+                        className="mt-0.5 accent-orange-500"
                       />
                       <div>
                         <p className="text-sm font-semibold text-slate-700">{opt.label}</p>
-                        <p className="text-xs text-slate-400 mt-0.5">{opt.desc}</p>
+                        <p className="text-xs text-slate-500 mt-0.5">{opt.desc}</p>
                       </div>
                     </label>
                   ))}
@@ -278,11 +278,11 @@ export default function FixtureImportModal({ projectId, onImported, onClose }) {
               </div>
 
               <div className="flex justify-between items-center pt-1">
-                <button className="text-sm text-slate-500 hover:text-slate-700" onClick={() => setStep('upload')}>
+                <button className="text-sm font-semibold text-slate-500 hover:text-slate-700" onClick={() => setStep('upload')}>
                   ← Choose different file
                 </button>
                 <button
-                  className="text-sm px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-40 transition-colors"
+                  className="text-sm font-semibold px-4 py-2 rounded-lg bg-orange-500 text-white hover:bg-orange-600 disabled:opacity-40 transition-colors"
                   disabled={mappedCount === 0 || mappedRows.length === 0}
                   onClick={() => setStep('confirm')}
                 >
@@ -295,7 +295,7 @@ export default function FixtureImportModal({ projectId, onImported, onClose }) {
           {/* ── Step 3: Confirm preview ────────────────────────────────────── */}
           {step === 'confirm' && (
             <>
-              <div className={`rounded-xl p-3 text-sm ${mode === 'replace' ? 'bg-amber-50 border border-amber-200 text-amber-800' : 'bg-blue-50 border border-blue-200 text-blue-800'}`}>
+              <div className={`rounded-xl p-3 text-sm ${mode === 'replace' ? 'bg-amber-50 border border-amber-200 text-amber-800' : 'bg-orange-50 border border-orange-200 text-orange-700'}`}>
                 {mode === 'replace'
                   ? `⚠ This will replace all existing draft rows with ${mappedRows.length} imported rows.`
                   : `${mappedRows.length} rows will be appended to the existing draft.`}
@@ -306,7 +306,7 @@ export default function FixtureImportModal({ projectId, onImported, onClose }) {
                   <thead className="bg-slate-50 border-b border-slate-200 sticky top-0">
                     <tr>
                       {FIXTURE_FIELDS.filter(f => Object.values(mapping).includes(f.key)).map(f => (
-                        <th key={f.key} className="px-3 py-2 text-left font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">
+                        <th key={f.key} className="px-3 py-2 text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">
                           {f.label}
                         </th>
                       ))}
@@ -316,23 +316,23 @@ export default function FixtureImportModal({ projectId, onImported, onClose }) {
                     {mappedRows.slice(0, 50).map((row, i) => (
                       <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}>
                         {FIXTURE_FIELDS.filter(f => Object.values(mapping).includes(f.key)).map(f => (
-                          <td key={f.key} className="px-3 py-1.5 text-slate-600 max-w-[120px] truncate">{row[f.key] || '—'}</td>
+                          <td key={f.key} className="px-3 py-1.5 text-slate-600 max-w-[120px] truncate">{row[f.key] || '-'}</td>
                         ))}
                       </tr>
                     ))}
                     {mappedRows.length > 50 && (
-                      <tr><td colSpan={99} className="px-3 py-2 text-slate-400 text-center">…and {mappedRows.length - 50} more rows</td></tr>
+                      <tr><td colSpan={99} className="px-3 py-2 text-slate-500 text-center">and {mappedRows.length - 50} more rows</td></tr>
                     )}
                   </tbody>
                 </table>
               </div>
 
               <div className="flex justify-between items-center pt-1">
-                <button className="text-sm text-slate-500 hover:text-slate-700" onClick={() => setStep('map')}>
+                <button className="text-sm font-semibold text-slate-500 hover:text-slate-700" onClick={() => setStep('map')}>
                   ← Back to mapping
                 </button>
                 <button
-                  className="text-sm px-5 py-2 rounded-lg bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50 transition-colors flex items-center gap-2"
+                  className="text-sm font-semibold px-5 py-2 rounded-lg bg-orange-500 text-white hover:bg-orange-600 disabled:opacity-50 transition-colors flex items-center gap-2"
                   disabled={importing}
                   onClick={doImport}
                 >

@@ -28,7 +28,7 @@ function strategyOptions(P) {
     {
       value: 'generator',
       label: 'Building generator',
-      sub:   'Generator covers all lighting circuits — no separate emergency fixtures or garage batteries required. Most cost-effective when a generator already exists.',
+      sub:   'Generator covers all lighting circuits, no separate emergency fixtures or garage batteries required. Most cost-effective when a generator already exists.',
     },
     {
       value: 'frogeyes',
@@ -117,7 +117,7 @@ export default function EmergencySection({ responses, projectData, allSections, 
 
       {/* Scope summary */}
       <div className="bg-slate-50 rounded-xl border border-slate-200 p-4">
-        <div className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Areas Requiring Emergency Lighting</div>
+        <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Areas Requiring Emergency Lighting</div>
         <div className={`grid gap-3 text-center ${frogeyes > 0 && garageFrogeyes > 0 ? 'grid-cols-5' : frogeyes > 0 || garageFrogeyes > 0 ? 'grid-cols-4' : 'grid-cols-3'}`}>
           {[
             { label: 'Corridor SF',         value: corridorSf.toLocaleString() },
@@ -160,7 +160,7 @@ export default function EmergencySection({ responses, projectData, allSections, 
                 key={opt.value}
                 className={cn(
                   'flex items-start gap-3 rounded-lg border px-4 py-3 cursor-pointer transition-colors',
-                  isSelected ? 'border-amber-400 bg-amber-50' : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50',
+                  isSelected ? 'border-orange-400 bg-amber-50' : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50',
                 )}
               >
                 <input
@@ -208,7 +208,7 @@ export default function EmergencySection({ responses, projectData, allSections, 
 
       {/* Manual adder */}
       <div>
-        <div className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Manual Adder</div>
+        <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Manual Adder</div>
         <Input
           label="Emergency Lighting manual adder"
           type="number"

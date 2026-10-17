@@ -28,7 +28,7 @@ function RequestFeatureButton() {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="flex items-center gap-2 px-4 py-2 rounded-xl border border-amber-300 bg-amber-50 hover:bg-amber-100 text-amber-700 text-sm font-medium transition-colors"
+        className="flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-sm font-semibold transition-colors"
       >
         <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -41,7 +41,7 @@ function RequestFeatureButton() {
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
             <div className="px-6 pt-6 pb-4 border-b border-slate-100 flex items-center justify-between">
               <h2 className="text-lg font-semibold text-slate-800">Request a Feature</h2>
-              <button onClick={handleClose} className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100">
+              <button onClick={handleClose} className="text-slate-500 hover:text-slate-700 p-1 rounded-lg hover:bg-slate-100">
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
               </button>
             </div>
@@ -52,7 +52,7 @@ function RequestFeatureButton() {
                 </div>
                 <p className="text-slate-700 font-medium">Request received!</p>
                 <p className="text-sm text-slate-500 mt-1">We'll review it and add it to the roadmap if it fits.</p>
-                <button onClick={handleClose} className="mt-5 px-5 py-2 rounded-lg bg-slate-800 text-white text-sm font-medium hover:bg-slate-900 transition-colors">Done</button>
+                <button onClick={handleClose} className="mt-5 px-4 py-2 rounded-lg bg-orange-500 text-white text-sm font-semibold hover:bg-orange-600 transition-colors">Done</button>
               </div>
             ) : (
               <>
@@ -60,7 +60,7 @@ function RequestFeatureButton() {
                   <p className="text-sm text-slate-500 mb-3">Describe the feature you'd like to see added to the platform.</p>
                   <textarea autoFocus rows={4} value={text} onChange={e => setText(e.target.value)}
                     placeholder="e.g. Allow exporting the fixture schedule as a PDF with ILC branding..."
-                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300 resize-none" />
+                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 resize-none" />
                 </div>
                 <div className="px-6 py-4 border-t border-slate-100 flex justify-end gap-2">
                   <button onClick={handleClose} className="px-4 py-2 rounded-lg text-sm text-slate-600 hover:bg-slate-100 transition-colors">Cancel</button>
@@ -127,7 +127,7 @@ export default function RoadmapClient({ nodes, statusMeta, priorities = [] }) {
         <PriorityStack initialPriorities={priorities} />
       </div>
 
-      {/* Stats + search bar — same layout as Changelog */}
+      {/* Stats + search bar, same layout as Changelog */}
       <div className="flex items-center justify-between gap-4 flex-wrap mb-5">
         <div className="flex items-center gap-4 text-sm text-slate-500">
           <span><strong className="text-slate-700">{topicCount}</strong> topic{topicCount !== 1 ? 's' : ''}</span>
@@ -138,7 +138,7 @@ export default function RoadmapClient({ nodes, statusMeta, priorities = [] }) {
         <input
           type="text"
           placeholder="Search roadmap…"
-          className="text-sm border border-slate-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-amber-200 w-56"
+          className="text-sm border border-slate-300 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-orange-500 w-56"
           value={search}
           onChange={e => setSearch(e.target.value)}
         />
@@ -147,7 +147,7 @@ export default function RoadmapClient({ nodes, statusMeta, priorities = [] }) {
       {/* Rendered roadmap */}
       <div className="bg-white rounded-xl border border-slate-200 p-6 space-y-0">
         {displayNodes.length === 0 && (
-          <p className="text-center text-slate-400 text-sm py-8">No results for &ldquo;{search}&rdquo;</p>
+          <p className="text-center text-slate-500 text-sm py-8">No results for &ldquo;{search}&rdquo;</p>
         )}
         {displayNodes.map((node, idx) => {
           if (node.type === 'h1') return (
@@ -165,7 +165,7 @@ export default function RoadmapClient({ nodes, statusMeta, priorities = [] }) {
               <h3 key={idx} className="flex items-center gap-2 mt-5 mb-2">
                 <span className="text-sm font-bold text-slate-800">{node.text}</span>
                 {meta && (
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border"
+                  <span className="text-[11px] font-bold px-2 py-0.5 rounded-full border"
                     style={{ color: meta.color, backgroundColor: meta.bg, borderColor: meta.border }}>
                     {meta.label}
                   </span>

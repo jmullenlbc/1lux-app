@@ -8,6 +8,7 @@ import Link from 'next/link';
 import PreConBudgetsTable from './PreConBudgetsTable';
 import GuessAccuracyCard from './GuessAccuracyCard';
 import { conceptualAccuracy } from '@/lib/budgetAmounts';
+import { CARD, H1, H2, HELPER, STAT_VALUE } from '@/components/ui/tokens';
 
 export default async function PreConPage() {
   const { error, user } = await requireAuth();
@@ -75,56 +76,56 @@ export default async function PreConPage() {
       <div className="max-w-6xl mx-auto space-y-8">
 
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Pre-Construction</h1>
-          <p className="text-sm text-slate-500 mt-1">Manage your manufacturer catalog, products, and all budgets.</p>
+          <h1 className={H1}>Pre-Construction</h1>
+          <p className={`${HELPER} mt-1`}>Manage your manufacturer catalog, products, and all budgets.</p>
         </div>
 
         {/* ── Catalog cards ── */}
         <div className="grid grid-cols-2 gap-6">
 
           <Link href="/manufacturers"
-            className="group bg-white rounded-2xl border border-slate-200 shadow-sm p-6 hover:shadow-md hover:border-blue-200 transition-all">
+            className={`group ${CARD} p-5 hover:shadow-md hover:border-orange-300 transition-all`}>
             <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-xl bg-blue-50 group-hover:bg-blue-100 flex items-center justify-center transition-colors shrink-0">
-                <svg className="w-6 h-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+              <div className="w-12 h-12 rounded-lg bg-orange-50 group-hover:bg-orange-100 flex items-center justify-center transition-colors shrink-0">
+                <svg className="w-6 h-6 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 21v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21m0 0h4.5V3.545M12.75 21h7.5V10.75M2.25 21h1.5m18 0h-18M2.25 9l4.5-1.636M18.75 3l-1.5.545m0 6.205l3 1m1.5.5l-1.5-.5M6.75 7.364V3h-3v18m3-13.636l10.5-3.819" />
                 </svg>
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2">
-                  <h2 className="text-base font-bold text-slate-900 group-hover:text-blue-700 transition-colors">Manufacturers</h2>
-                  <svg className="w-4 h-4 text-slate-300 group-hover:text-blue-400 transition-colors shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <h2 className={`${H2} group-hover:text-orange-600 transition-colors`}>Manufacturers</h2>
+                  <svg className="w-4 h-4 text-slate-400 group-hover:text-orange-500 transition-colors shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
                   </svg>
                 </div>
                 <p className="text-sm text-slate-500 mt-1">Account details, terms, credit limits, and contact info for all vendors.</p>
                 <div className="mt-4 flex items-center gap-1.5">
-                  <span className="text-2xl font-bold text-slate-800">{mfrCount.toLocaleString()}</span>
-                  <span className="text-sm text-slate-400">manufacturers</span>
+                  <span className={STAT_VALUE}>{mfrCount.toLocaleString()}</span>
+                  <span className={HELPER}>manufacturers</span>
                 </div>
               </div>
             </div>
           </Link>
 
           <Link href="/products"
-            className="group bg-white rounded-2xl border border-slate-200 shadow-sm p-6 hover:shadow-md hover:border-violet-200 transition-all">
+            className={`group ${CARD} p-5 hover:shadow-md hover:border-orange-300 transition-all`}>
             <div className="flex items-start gap-4">
-              <div className="w-12 h-12 rounded-xl bg-violet-50 group-hover:bg-violet-100 flex items-center justify-center transition-colors shrink-0">
-                <svg className="w-6 h-6 text-violet-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+              <div className="w-12 h-12 rounded-lg bg-orange-50 group-hover:bg-orange-100 flex items-center justify-center transition-colors shrink-0">
+                <svg className="w-6 h-6 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 9.776c.112-.017.227-.026.344-.026h15.812c.117 0 .232.009.344.026m-16.5 0a2.25 2.25 0 00-1.883 2.542l.857 6a2.25 2.25 0 002.227 1.932H19.05a2.25 2.25 0 002.227-1.932l.857-6a2.25 2.25 0 00-1.883-2.542m-16.5 0V6A2.25 2.25 0 016 3.75h3.879a1.5 1.5 0 011.06.44l2.122 2.12a1.5 1.5 0 001.06.44H18A2.25 2.25 0 0120.25 9v.776" />
                 </svg>
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center justify-between gap-2">
-                  <h2 className="text-base font-bold text-slate-900 group-hover:text-violet-700 transition-colors">Product Catalog</h2>
-                  <svg className="w-4 h-4 text-slate-300 group-hover:text-violet-400 transition-colors shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <h2 className={`${H2} group-hover:text-orange-600 transition-colors`}>Product Catalog</h2>
+                  <svg className="w-4 h-4 text-slate-400 group-hover:text-orange-500 transition-colors shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
                   </svg>
                 </div>
                 <p className="text-sm text-slate-500 mt-1">All part numbers, specs, pricing, and fixture types across every manufacturer.</p>
                 <div className="mt-4 flex items-center gap-1.5">
-                  <span className="text-2xl font-bold text-slate-800">{productCount.toLocaleString()}</span>
-                  <span className="text-sm text-slate-400">part numbers</span>
+                  <span className={STAT_VALUE}>{productCount.toLocaleString()}</span>
+                  <span className={HELPER}>part numbers</span>
                 </div>
               </div>
             </div>

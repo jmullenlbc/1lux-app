@@ -1,5 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { CARD_PADDED, CARD_TITLE } from '@/components/ui/tokens';
+import { WidgetLoading } from '@/components/ui/WidgetFrame';
 import { signatureBlock } from '@/lib/bot/emailStyle';
 import MySignatureFields from '@/components/salesAutomation/MySignatureFields';
 
@@ -24,7 +26,7 @@ export default function SignatureClient() {
       .catch(() => setMsg({ type: 'error', text: 'Could not load the signature.' }));
   }, []);
 
-  if (!data) return <p className="text-sm text-slate-400">{msg?.text || 'Loading…'}</p>;
+  if (!data) return (msg?.text ? <p className="text-sm text-slate-500">{msg.text}</p> : <WidgetLoading />);
 
   const dirty = draft !== data.template;
   const who = me || data.me || {};
@@ -48,15 +50,15 @@ export default function SignatureClient() {
 
   return (
     <div className="grid md:grid-cols-2 gap-5">
-      <div className="bg-white rounded-2xl border border-slate-200 p-6">
-        <h2 className="text-sm font-semibold text-slate-700 mb-1">Layout</h2>
+      <div className={CARD_PADDED}>
+        <h2 className={`${CARD_TITLE} mb-1`}>Layout</h2>
         <p className="text-xs text-slate-500 mb-3">
           {data.canEdit
             ? 'Type the lines as they should appear. The words in curly brackets are swapped for each person. A line whose details are blank is left out.'
             : 'Only a Sales Admin can change the layout.'}
         </p>
         <textarea value={draft} onChange={e => setDraft(e.target.value)} rows={7} disabled={!data.canEdit || saving}
-          className="w-full font-mono border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300 disabled:bg-slate-50 disabled:text-slate-600" />
+          className="w-full font-mono border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 disabled:bg-slate-50 disabled:text-slate-600" />
         <div className="mt-3 space-y-1">
           {FIELDS.map(f => (
             <div key={f.key} className="flex items-center gap-2 text-xs">
@@ -75,7 +77,7 @@ export default function SignatureClient() {
               {dirty && <button onClick={() => setDraft(data.template)} disabled={saving}
                 className="text-sm text-slate-600 border border-slate-200 rounded-lg px-3 py-1.5">Cancel</button>}
               <button onClick={save} disabled={!dirty || saving}
-                className="px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 disabled:opacity-40 text-white">
+                className="px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-500 disabled:opacity-40 text-white">
                 {saving ? 'Saving…' : 'Save'}
               </button>
             </div>
@@ -84,8 +86,8 @@ export default function SignatureClient() {
         {msg && <p className={`text-sm mt-3 ${msg.type === 'error' ? 'text-red-600' : 'text-green-700'}`}>{msg.text}</p>}
       </div>
 
-      <div className="bg-white rounded-2xl border border-slate-200 p-6">
-        <h2 className="text-sm font-semibold text-slate-700 mb-3">Your signature</h2>
+      <div className={CARD_PADDED}>
+        <h2 className={`${CARD_TITLE} mb-3`}>Your signature</h2>
         <div className="bg-slate-50 rounded-xl p-4 text-sm text-slate-700 whitespace-pre-line leading-relaxed">
           {preview || <span className="text-slate-400">Nothing to show yet.</span>}
         </div>

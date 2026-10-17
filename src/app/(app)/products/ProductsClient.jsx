@@ -1,7 +1,12 @@
 'use client';
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { setArchived } from '@/components/salesAutomation/ConfirmArchiveModal';
+import { CARD, BTN_COMPACT, BTN_COMPACT_PRIMARY, LABEL, HELPER, NUM } from '@/components/ui/tokens';
+import { FilterToolbar, FilterPanel, countFilters, SearchBox } from '@/components/ui/FilterPanel';
+import SortHeader, { Th, sortRows } from '@/components/ui/SortHeader';
+import { WidgetEmpty, WidgetLoading } from '@/components/ui/WidgetFrame';
+import { useUrlView } from '@/lib/useUrlView';
 
 const FIXTURE_TYPES = ['FIXTURE', 'CONTROL_DEVICE'];
 
@@ -22,18 +27,26 @@ const COLS = [
   { key: 'notes',        label: 'Notes',        width: 'w-48',  align: 'left',  sortable: false },
 ];
 
-function SortIcon({ dir }) {
-  if (!dir) return (
-    <svg className="w-3 h-3 text-slate-300 ml-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M8 9l4-4 4 4M16 15l-4 4-4-4" />
-    </svg>
-  );
-  return (
-    <svg className="w-3 h-3 text-blue-500 ml-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-      <path strokeLinecap="round" strokeLinejoin="round" d={dir === 'asc' ? 'M4.5 15.75l7.5-7.5 7.5 7.5' : 'M19.5 8.25l-7.5 7.5-7.5-7.5'} />
-    </svg>
-  );
-}
+// Filters shown in the panel. The server fetch reads these.
+const PRODUCT_FIELDS = [
+  { key: 'mfrName',     label: 'Manufacturer', kind: 'pick' },
+  { key: 'fixtureType', label: 'Type',         kind: 'pick' },
+];
+// Sort-only keys ride in the address too so a reload keeps the sort.
+const URL_FIELDS = [
+  ...PRODUCT_FIELDS,
+  ...COLS.filter(c => c.sortable && !PRODUCT_FIELDS.some(f => f.key === c.key)).map(c => ({ key: c.key, kind: 'text' })),
+];
+const SORT_DEFAULT = { key: 'mfrName', dir: 'asc' };
+const GETTERS = {
+  numericId:   p => p.numericId,
+  mfrName:     p => p.manufacturer?.name || '',
+  partNumber:  p => p.partNumber,
+  fixtureType: p => p.fixtureType,
+  wattage:     p => p.wattage,
+  cost:        p => p.cost,
+  salePrice:   p => p.salePrice,
+};
 
 function fmtMoney(n) {
   if (n == null) return '';
@@ -41,17 +54,17 @@ function fmtMoney(n) {
 }
 
 function TypeBadge({ type }) {
-  if (!type) return <span className="text-slate-300 text-[10px]">—</span>;
+  if (!type) return <span className="text-slate-400 text-[11px]">-</span>;
   const isControl = type === 'CONTROL_DEVICE';
   return (
-    <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${isControl ? 'bg-violet-100 text-violet-700' : 'bg-blue-100 text-blue-700'}`}>
+    <span className={`px-1.5 py-0.5 rounded-full text-[11px] font-semibold ${isControl ? 'bg-violet-100 text-violet-700' : 'bg-blue-100 text-blue-700'}`}>
       {isControl ? 'Control' : 'Fixture'}
     </span>
   );
 }
 
 // Inline editable cell
-function EditCell({ value, onSave, type = 'text', options, placeholder = '—', mono = false, align = 'left' }) {
+function EditCell({ value, onSave, type = 'text', options, placeholder = '-', mono = false, align = 'left' }) {
   const [editing, setEditing] = useState(false);
   const [val, setVal] = useState('');
   const ref = useRef(null);
@@ -74,8 +87,8 @@ function EditCell({ value, onSave, type = 'text', options, placeholder = '—', 
     return (
       <select value={value ?? ''} onClick={e => e.stopPropagation()}
         onChange={e => { onSave(e.target.value || null); }}
-        className="w-full bg-transparent text-xs focus:outline-none focus:ring-1 focus:ring-blue-300 rounded px-0.5 cursor-pointer">
-        <option value="">—</option>
+        className="w-full bg-transparent text-xs focus:outline-none focus:ring-1 focus:ring-orange-500 rounded px-0.5 cursor-pointer">
+        <option value="">-</option>
         {options.map(o => <option key={o} value={o}>{o === 'CONTROL_DEVICE' ? 'Control' : o === 'FIXTURE' ? 'Fixture' : o}</option>)}
       </select>
     );
@@ -86,14 +99,14 @@ function EditCell({ value, onSave, type = 'text', options, placeholder = '—', 
       <input ref={ref} value={val} onChange={e => setVal(e.target.value)}
         onBlur={commit} onClick={e => e.stopPropagation()}
         onKeyDown={e => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') { setEditing(false); } }}
-        className={`w-full bg-blue-50 border border-blue-300 rounded px-1 py-0.5 text-xs focus:outline-none focus:ring-1 focus:ring-blue-400 ${mono ? 'font-mono' : ''} ${align === 'right' ? 'text-right' : 'text-left'}`}
+        className={`w-full bg-orange-50 border border-orange-400 rounded px-1 py-0.5 text-xs focus:outline-none focus:ring-2 focus:ring-orange-500 ${mono ? 'font-mono' : ''} ${type === 'number' ? NUM : ''} ${align === 'right' ? 'text-right' : 'text-left'}`}
       />
     );
   }
 
   return (
     <span onClick={start}
-      className={`block w-full px-1 py-0.5 rounded cursor-text hover:bg-blue-50 hover:ring-1 hover:ring-blue-200 transition-all text-xs ${mono ? 'font-mono' : ''} ${align === 'right' ? 'text-right' : 'text-left'} ${value == null ? 'text-slate-300' : ''}`}>
+      className={`block w-full px-1 py-0.5 rounded cursor-text hover:bg-orange-50 hover:ring-1 hover:ring-orange-200 transition-all text-xs ${mono ? 'font-mono' : ''} ${type === 'number' ? NUM : ''} ${align === 'right' ? 'text-right' : 'text-left'} ${value == null ? 'text-slate-400' : ''}`}>
       {value != null ? (type === 'number' && typeof value === 'number' && (value >= 100 || String(value).includes('.')) ? fmtMoney(value) : String(value)) : placeholder}
     </span>
   );
@@ -104,15 +117,15 @@ export default function ProductsClient({ manufacturers, isAdmin }) {
   const [total,         setTotal]         = useState(0);
   const [loading,       setLoading]       = useState(true);
   const [search,        setSearch]        = useState('');
-  const [mfrFilter,     setMfrFilter]     = useState('');
-  const [typeFilter,    setTypeFilter]    = useState('');
-  const [sortKey,       setSortKey]       = useState('mfrName');
-  const [sortDir,       setSortDir]       = useState('asc');
   const [page,          setPage]          = useState(1);
   const [confirmId,     setConfirmId]     = useState(null);
   const [deletingId,    setDeletingId]    = useState(null);
+  const [panelOpen,     setPanelOpen]     = useState(false);
   const limit = 100;
   const searchTimer = useRef(null);
+  const { filters, setFilter, clearFilters, sort, toggleSort, ready } = useUrlView({ fields: URL_FIELDS, sortDefault: SORT_DEFAULT });
+  const mfrFilter  = filters.mfrName || '';
+  const typeFilter = filters.fixtureType || '';
 
   const fetchProducts = useCallback(async (opts = {}) => {
     setLoading(true);
@@ -126,22 +139,15 @@ export default function ProductsClient({ manufacturers, isAdmin }) {
     const res  = await fetch(`/api/products?${params}`);
     const data = await res.json();
 
-    let rows = data.products || [];
-    const sk = opts.sortKey ?? sortKey;
-    const sd = opts.sortDir ?? sortDir;
-    rows = [...rows].sort((a, b) => {
-      let av = sk === 'mfrName' ? (a.manufacturer?.name || '') : (a[sk] ?? '');
-      let bv = sk === 'mfrName' ? (b.manufacturer?.name || '') : (b[sk] ?? '');
-      if (typeof av === 'number' && typeof bv === 'number') return sd === 'asc' ? av - bv : bv - av;
-      return sd === 'asc' ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av));
-    });
-
-    setProducts(rows);
+    setProducts(data.products || []);
     setTotal(data.total || 0);
     setLoading(false);
-  }, [search, mfrFilter, typeFilter, sortKey, sortDir, page]);
+  }, [search, mfrFilter, typeFilter, page]);
 
-  useEffect(() => { fetchProducts(); }, []);
+  // First fetch waits for the address to be read so a shared link's filters apply.
+  useEffect(() => { if (ready) fetchProducts(); }, [ready]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const rows = useMemo(() => sortRows(products, sort, GETTERS), [products, sort]);
 
   function handleSearch(val) {
     setSearch(val);
@@ -151,15 +157,17 @@ export default function ProductsClient({ manufacturers, isAdmin }) {
   }
 
   function handleFilter(key, val) {
-    if (key === 'mfrFilter') { setMfrFilter(val); fetchProducts({ mfrFilter: val, page: 1 }); setPage(1); }
-    if (key === 'typeFilter') { setTypeFilter(val); fetchProducts({ typeFilter: val, page: 1 }); setPage(1); }
+    setFilter(key, val);
+    setPage(1);
+    if (key === 'mfrName')     fetchProducts({ mfrFilter: val, page: 1 });
+    if (key === 'fixtureType') fetchProducts({ typeFilter: val, page: 1 });
   }
 
-  function handleSort(key) {
-    const newDir = sortKey === key && sortDir === 'asc' ? 'desc' : 'asc';
-    setSortKey(key);
-    setSortDir(newDir);
-    fetchProducts({ sortKey: key, sortDir: newDir });
+  function handleClear() {
+    clearFilters();
+    setSearch('');
+    setPage(1);
+    fetchProducts({ search: '', mfrFilter: '', typeFilter: '', page: 1 });
   }
 
   // Products are archived, never deleted (Mike, 2026-09-11). The row only
@@ -191,6 +199,11 @@ export default function ProductsClient({ manufacturers, isAdmin }) {
   }
 
   const totalPages = Math.ceil(total / limit);
+  const choices = useMemo(() => ({
+    mfrName:     manufacturers.map(m => [m.id, m.name]),
+    fixtureType: [['FIXTURE', 'Fixtures'], ['CONTROL_DEVICE', 'Control Devices']],
+  }), [manufacturers]);
+  const filterCount = countFilters(filters, PRODUCT_FIELDS);
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
@@ -198,74 +211,51 @@ export default function ProductsClient({ manufacturers, isAdmin }) {
       {/* ── Top bar ── */}
       <div className="bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between sticky top-0 z-20">
         <div className="flex items-center gap-3">
-          <Link href="/pre-con" className="text-slate-400 hover:text-slate-600 transition-colors">
+          <Link href="/pre-con" className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
             </svg>
           </Link>
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-[10px] font-bold text-violet-600 uppercase tracking-wider">Pre-Con</span>
+              <span className={LABEL}>Pre-Con</span>
               <span className="text-slate-300">·</span>
               <span className="text-sm font-semibold text-slate-900">Product Catalog</span>
             </div>
-            <p className="text-[10px] text-slate-400">Click any cell to edit · Click row to open detail</p>
+            <p className={HELPER}>Click any cell to edit · Click row to open detail</p>
           </div>
         </div>
-        <div className="flex items-center gap-2 text-xs text-slate-500">
+        <div className={`flex items-center gap-2 ${HELPER} ${NUM}`}>
           <span className="font-semibold text-slate-700">{total.toLocaleString()}</span> total products
         </div>
       </div>
 
       {/* ── Filters ── */}
-      <div className="bg-white border-b border-slate-100 px-6 py-2.5 flex items-center gap-3 flex-wrap">
-        <div className="relative flex-1 min-w-48 max-w-72">
-          <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-          </svg>
-          <input value={search} onChange={e => handleSearch(e.target.value)}
-            placeholder="Search part #, description, manufacturer…"
-            className="w-full pl-8 pr-3 py-1.5 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-400" />
-        </div>
-
-        <select value={mfrFilter} onChange={e => handleFilter('mfrFilter', e.target.value)}
-          className="text-xs border border-slate-200 rounded-lg px-2.5 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400 max-w-48">
-          <option value="">All Manufacturers</option>
-          {manufacturers.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-        </select>
-
-        <select value={typeFilter} onChange={e => handleFilter('typeFilter', e.target.value)}
-          className="text-xs border border-slate-200 rounded-lg px-2.5 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400">
-          <option value="">All Types</option>
-          <option value="FIXTURE">Fixtures</option>
-          <option value="CONTROL_DEVICE">Control Devices</option>
-        </select>
-
-        {(search || mfrFilter || typeFilter) && (
-          <button onClick={() => { setSearch(''); setMfrFilter(''); setTypeFilter(''); setPage(1); fetchProducts({ search: '', mfrFilter: '', typeFilter: '', page: 1 }); }}
-            className="text-xs text-slate-500 hover:text-red-600 px-2 py-1.5 rounded-lg hover:bg-red-50 transition-colors">
-            Clear filters
-          </button>
-        )}
+      <div className="bg-white border-b border-slate-100 px-6 py-2.5">
+        <FilterToolbar
+          count={filterCount}
+          open={panelOpen}
+          onToggle={() => setPanelOpen(o => !o)}
+          onClear={handleClear}
+          shown={products.length}
+          total={total}
+          noun="products"
+          right={<SearchBox value={search} onChange={handleSearch} placeholder="Search part #, description, manufacturer..." className="w-72" />}
+        />
+        <FilterPanel open={panelOpen} fields={PRODUCT_FIELDS} filters={filters} choices={choices} onChange={handleFilter} />
       </div>
 
       {/* ── Table ── */}
       <div className="flex-1 px-6 py-4">
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className={`${CARD} overflow-hidden`}>
           <div className="overflow-x-auto">
             <table className="w-full text-xs" style={{ minWidth: '1100px' }}>
               <thead className="sticky top-0 z-10">
-                <tr className="bg-slate-50 border-b-2 border-slate-200 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                <tr className="bg-slate-50 border-b-2 border-slate-200">
                   {COLS.map(col => (
-                    <th key={col.key}
-                      className={`px-3 py-2.5 ${col.align === 'right' ? 'text-right' : 'text-left'} ${col.width} ${col.sortable ? 'cursor-pointer select-none hover:text-slate-800' : ''}`}
-                      onClick={col.sortable ? () => handleSort(col.key) : undefined}>
-                      <span className="flex items-center gap-0.5 whitespace-nowrap">
-                        {col.align === 'right' && col.sortable && <SortIcon dir={sortKey === col.key ? sortDir : null} />}
-                        {col.label}
-                        {col.align !== 'right' && col.sortable && <SortIcon dir={sortKey === col.key ? sortDir : null} />}
-                      </span>
-                    </th>
+                    col.sortable
+                      ? <SortHeader key={col.key} label={col.label} field={col.key} sort={sort} onSort={toggleSort} align={col.align} className={`${col.width} whitespace-nowrap`} />
+                      : <Th key={col.key} align={col.align} className={`${col.width} whitespace-nowrap`}>{col.label}</Th>
                   ))}
                   <th className="w-8"></th>
                   {isAdmin && <th className="w-8"></th>}
@@ -274,34 +264,30 @@ export default function ProductsClient({ manufacturers, isAdmin }) {
               <tbody className="divide-y divide-slate-50">
                 {loading && (
                   <tr>
-                    <td colSpan={COLS.length + 1 + (isAdmin ? 1 : 0)} className="px-4 py-12 text-center text-slate-400 text-xs">
-                      <svg className="animate-spin w-5 h-5 mx-auto mb-2 text-blue-400" viewBox="0 0 24 24" fill="none">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
-                      </svg>
-                      Loading…
+                    <td colSpan={COLS.length + 1 + (isAdmin ? 1 : 0)} className="px-4 py-6">
+                      <WidgetLoading />
                     </td>
                   </tr>
                 )}
                 {!loading && products.length === 0 && (
                   <tr>
-                    <td colSpan={COLS.length + 1 + (isAdmin ? 1 : 0)} className="px-4 py-12 text-center text-slate-400 text-xs">
-                      No products found{search ? ` matching "${search}"` : ''}.
+                    <td colSpan={COLS.length + 1 + (isAdmin ? 1 : 0)} className="px-4 py-6">
+                      <WidgetEmpty>No products found{search ? ` matching "${search}"` : ''}.</WidgetEmpty>
                     </td>
                   </tr>
                 )}
-                {!loading && products.map(p => (
+                {!loading && rows.map(p => (
                   <tr key={p.id} className="hover:bg-slate-50/80 transition-colors group">
-                    <td className="px-3 py-1.5 text-right font-mono text-[10px] text-slate-400">{p.numericId}</td>
+                    <td className="px-3 py-1.5 text-right font-mono text-[11px] text-slate-500 tabular-nums">{p.numericId}</td>
                     <td className="px-3 py-1.5 font-medium text-slate-700 truncate max-w-[12rem]">
                       <Link href={`/manufacturers/${p.manufacturerId}`}
-                        className="hover:text-blue-600 hover:underline transition-colors text-xs" title={p.manufacturer?.name}>
-                        {p.manufacturer?.name || '—'}
+                        className="hover:text-orange-600 hover:underline transition-colors text-xs" title={p.manufacturer?.name}>
+                        {p.manufacturer?.name || '-'}
                       </Link>
                     </td>
                     <td className="px-3 py-1.5">
                       <EditCell value={p.partNumber} mono onSave={v => patchProduct(p.id, 'partNumber', v)}
-                        placeholder="—" />
+                        placeholder="-" />
                     </td>
                     <td className="px-3 py-1.5 max-w-[18rem]">
                       <EditCell value={p.description} onSave={v => patchProduct(p.id, 'description', v)} />
@@ -339,7 +325,7 @@ export default function ProductsClient({ manufacturers, isAdmin }) {
                     </td>
                     <td className="px-2 py-1.5">
                       <Link href={`/products/${p.id}`}
-                        className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-blue-600"
+                        className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-600 hover:text-orange-600"
                         title="Open detail">
                         <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
@@ -352,17 +338,17 @@ export default function ProductsClient({ manufacturers, isAdmin }) {
                           <div className="flex items-center gap-1">
                             <button onClick={() => archiveProduct(p.id)} disabled={deletingId === p.id}
                               title="Archive it. Restore any time from the Archive page."
-                              className="text-[10px] px-1.5 py-0.5 rounded bg-amber-600 text-white hover:bg-amber-500 disabled:opacity-50 transition-colors">
+                              className={BTN_COMPACT_PRIMARY}>
                               {deletingId === p.id ? '…' : 'Archive'}
                             </button>
                             <button onClick={() => setConfirmId(null)}
-                              className="text-[10px] px-1.5 py-0.5 rounded border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors">
+                              className={BTN_COMPACT}>
                               Keep
                             </button>
                           </div>
                         ) : (
                           <button onClick={e => { e.stopPropagation(); setConfirmId(p.id); }}
-                            className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-300 hover:text-amber-600"
+                            className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-orange-600"
                             title="Archive product">
                             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                               <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
@@ -380,18 +366,18 @@ export default function ProductsClient({ manufacturers, isAdmin }) {
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="mt-4 flex items-center justify-between text-xs text-slate-500">
+          <div className={`mt-4 flex items-center justify-between ${HELPER} ${NUM}`}>
             <span>
-              Showing {((page - 1) * limit + 1).toLocaleString()}–{Math.min(page * limit, total).toLocaleString()} of {total.toLocaleString()}
+              Showing {((page - 1) * limit + 1).toLocaleString()} to {Math.min(page * limit, total).toLocaleString()} of {total.toLocaleString()}
             </span>
             <div className="flex items-center gap-1">
               <button onClick={() => { const p = page - 1; setPage(p); fetchProducts({ page: p }); }} disabled={page === 1}
-                className="px-2.5 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+                className={BTN_COMPACT}>
                 ← Prev
               </button>
               <span className="px-3 py-1.5">{page} / {totalPages}</span>
               <button onClick={() => { const p = page + 1; setPage(p); fetchProducts({ page: p }); }} disabled={page >= totalPages}
-                className="px-2.5 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors">
+                className={BTN_COMPACT}>
                 Next →
               </button>
             </div>

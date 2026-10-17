@@ -5,7 +5,7 @@ import { prisma }      from '@/lib/db';
 import { redirect }    from 'next/navigation';
 import SalesRepsClient from './SalesRepsClient';
 
-export const metadata = { title: 'Sales Reps — ILC Studios' };
+export const metadata = { title: 'Sales Reps: ILC Studios' };
 
 export default async function SalesRepsPage() {
   const { user, error } = await requireAuth();

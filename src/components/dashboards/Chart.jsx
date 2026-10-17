@@ -16,7 +16,7 @@ function fmtVal(v, unit) {
 
 export default function Chart({ chartType = 'BAR', series = [], unit, height = 170 }) {
   if (!series.length) {
-    return <div className="flex items-center justify-center text-xs text-slate-300 italic" style={{ height }}>No data</div>;
+    return <div className="flex items-center justify-center text-xs text-slate-500" style={{ height }}>No data</div>;
   }
   const W = 640, H = height, padX = 8, padTop = 18, padBottom = 26;
   const plotW = W - padX * 2, plotH = H - padTop - padBottom;
@@ -41,11 +41,11 @@ export default function Chart({ chartType = 'BAR', series = [], unit, height = 1
         <>
           <polyline
             points={series.map((s, i) => `${x(i)},${y(s.value)}`).join(' ')}
-            fill="none" stroke="#f59e0b" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round"
+            fill="none" stroke="#f97316" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round"
           />
           {series.map((s, i) => (
             <g key={i}>
-              <circle cx={x(i)} cy={y(s.value)} r="3.5" fill="#f59e0b" />
+              <circle cx={x(i)} cy={y(s.value)} r="3.5" fill="#f97316" />
               <text x={x(i)} y={y(s.value) - 8} textAnchor="middle" fontSize="10" fontWeight="700" fill="#475569">{fmtVal(s.value, unit)}</text>
             </g>
           ))}
@@ -59,7 +59,7 @@ export default function Chart({ chartType = 'BAR', series = [], unit, height = 1
           const top = Math.min(by, zeroY), h = Math.abs(zeroY - by);
           return (
             <g key={i}>
-              <rect x={bx} y={top} width={bw} height={h} rx="4" fill={v < 0 ? '#ef4444' : '#f59e0b'} />
+              <rect x={bx} y={top} width={bw} height={h} rx="4" fill={v < 0 ? '#ef4444' : '#f97316'} />
               <text x={x(i)} y={v < 0 ? by + 11 : by - 5} textAnchor="middle" fontSize="10" fontWeight="700" fill="#475569">{fmtVal(v, unit)}</text>
             </g>
           );

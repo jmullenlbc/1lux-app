@@ -56,7 +56,7 @@ export default function DesignInteriorAmenitiesSection({
 
       {/* Scope */}
       <div className="bg-slate-50 rounded-xl border border-slate-200 p-4">
-        <div className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Amenity Scope</div>
+        <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Amenity Scope</div>
         <div className="grid grid-cols-2 gap-3 text-center max-w-xs">
           <div className="bg-white rounded-lg border border-slate-100 p-3">
             <div className="text-xl font-bold text-slate-900">
@@ -87,20 +87,20 @@ export default function DesignInteriorAmenitiesSection({
         options={[
           {
             value: 'low',
-            label:  `$${rateMap.low}/SF — Low Finish`,
-            sub:    'Garden walk-up, surface park — simple lobby and basic amenity lighting',
+            label:  `$${rateMap.low}/SF, Low Finish`,
+            sub:    'Garden walk-up, surface park, simple lobby and basic amenity lighting',
             cost:   intAmenitySf * rateMap.low,
           },
           {
             value: 'medium',
-            label:  `$${rateMap.medium}/SF — Medium Finish`,
-            sub:    'Standard mid-market multifamily — mix of decorative and functional lighting',
+            label:  `$${rateMap.medium}/SF, Medium Finish`,
+            sub:    'Standard mid-market multifamily, mix of decorative and functional lighting',
             cost:   intAmenitySf * rateMap.medium,
           },
           {
             value: 'high',
-            label:  `$${rateMap.high}/SF — High Finish`,
-            sub:    'High-end mid-rise or high-rise — significant decorative, accent, and architectural lighting',
+            label:  `$${rateMap.high}/SF, High Finish`,
+            sub:    'High-end mid-rise or high-rise, significant decorative, accent, and architectural lighting',
             cost:   intAmenitySf * rateMap.high,
           },
         ]}
@@ -109,7 +109,7 @@ export default function DesignInteriorAmenitiesSection({
         onChange={v => setAns(a => ({ ...a, interiorLevel: v }))}
       />
 
-      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-xs text-blue-800">
+      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-xs text-orange-700">
         <p className="font-semibold mb-1">What&apos;s Included</p>
         <ul className="space-y-0.5 list-disc list-inside">
           <li>Lobby / entry vestibule</li>

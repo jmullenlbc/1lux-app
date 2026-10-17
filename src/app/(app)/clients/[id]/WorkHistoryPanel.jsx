@@ -8,11 +8,13 @@
  */
 import { useState, useEffect } from 'react';
 import { describeJob, MAX_PASTE_CHARS } from '@/lib/workHistory';
+import { LABEL, HELPER, BTN_COMPACT_PRIMARY, BTN_GHOST } from '@/components/ui/tokens';
+import { WidgetLoading } from '@/components/ui/WidgetFrame';
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const EMPTY_JOB = { company: '', title: '', startMonth: '', startYear: '', endMonth: '', endYear: '', isCurrent: false };
 
-const inputCls = 'border border-slate-200 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-amber-400';
+const inputCls = 'border border-slate-300 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500';
 
 export default function WorkHistoryPanel({ clientId, contactId, name }) {
   const url = `/api/clients/${clientId}/contacts/${contactId}/work-history`;
@@ -73,21 +75,21 @@ export default function WorkHistoryPanel({ clientId, contactId, name }) {
   );
 
   return (
-    <div className="mt-2 ml-1 border-l-2 border-amber-200 pl-3 py-1 space-y-2">
-      <p className="text-[11px] uppercase tracking-wide text-slate-400">Work history</p>
+    <div className="mt-2 ml-1 border-l-2 border-orange-200 pl-3 py-1 space-y-2">
+      <p className={LABEL}>Work history</p>
 
       {jobs === null ? (
-        <p className="text-xs text-slate-400">Loading…</p>
+        <WidgetLoading className="py-1 text-left text-xs">Loading...</WidgetLoading>
       ) : jobs.length ? (
         <ul className="space-y-0.5">
           {jobs.map(j => (
             <li key={j.id} className="group/job flex items-center gap-2 text-sm text-slate-700">
               <span>{describeJob(j)}</span>
-              {j.source === 'linkedin_paste' && <span className="text-[10px] text-slate-400">from LinkedIn paste</span>}
+              {j.source === 'linkedin_paste' && <span className={HELPER}>from LinkedIn paste</span>}
               <button type="button" onClick={() => send('PATCH', { id: j.id, archived: true }, j.id)} disabled={busy === j.id}
-                className="text-[11px] text-slate-300 hover:text-amber-600 md:opacity-0 md:group-hover/job:opacity-100 disabled:opacity-50"
+                className="text-[11px] text-slate-500 hover:text-orange-600 md:opacity-0 md:group-hover/job:opacity-100 disabled:opacity-50"
                 title="Archive this job. It can be restored later.">
-                {busy === j.id ? 'Archiving…' : 'Archive'}
+                {busy === j.id ? 'Archiving...' : 'Archive'}
               </button>
             </li>
           ))}
@@ -110,16 +112,16 @@ export default function WorkHistoryPanel({ clientId, contactId, name }) {
         />
         <div className="flex items-center gap-3 mt-1">
           <button type="button" onClick={readPaste} disabled={!paste.trim() || busy === 'read'}
-            className="px-3 py-1 text-xs font-semibold bg-amber-500 text-white rounded-lg hover:bg-amber-600 disabled:opacity-50">
-            {busy === 'read' ? 'Reading…' : 'Read it'}
+            className={BTN_COMPACT_PRIMARY}>
+            {busy === 'read' ? 'Reading...' : 'Read it'}
           </button>
-          <span className="text-[11px] text-slate-400">Reading a new paste replaces the jobs from the last paste. Jobs typed in by hand stay.</span>
+          <span className={HELPER}>Reading a new paste replaces the jobs from the last paste. Jobs typed in by hand stay.</span>
         </div>
       </div>
 
       {adding === null ? (
         <button type="button" onClick={() => { setAdding({ ...EMPTY_JOB }); setError(''); }}
-          className="text-xs text-amber-600 hover:text-amber-500">+ Add a job by hand</button>
+          className="text-xs font-semibold text-orange-600 hover:text-orange-700">+ Add a job by hand</button>
       ) : (
         <div className="space-y-2 bg-slate-50 rounded-lg p-2">
           <div className="flex flex-wrap gap-2">
@@ -144,10 +146,10 @@ export default function WorkHistoryPanel({ clientId, contactId, name }) {
           </div>
           <div className="flex gap-2">
             <button type="button" onClick={addJob} disabled={!adding.company.trim() || busy === 'add'}
-              className="px-3 py-1 text-xs font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50">
-              {busy === 'add' ? 'Adding…' : 'Add job'}
+              className={BTN_COMPACT_PRIMARY}>
+              {busy === 'add' ? 'Adding...' : 'Add job'}
             </button>
-            <button type="button" onClick={() => setAdding(null)} className="px-3 py-1 text-xs text-slate-500 hover:text-slate-700">Cancel</button>
+            <button type="button" onClick={() => setAdding(null)} className={`${BTN_GHOST} px-3 py-1.5 text-xs`}>Cancel</button>
           </div>
         </div>
       )}

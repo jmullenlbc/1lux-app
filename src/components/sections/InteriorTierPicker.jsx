@@ -42,7 +42,7 @@ export default function InteriorTierPicker({ value, onChange }) {
                     className={cn(
                       'min-w-[3.75rem] rounded-lg border px-3 py-2 text-center transition-all',
                       isSelected
-                        ? 'border-amber-400 bg-amber-50 shadow-sm'
+                        ? 'border-orange-400 bg-amber-50 shadow-sm'
                         : 'border-slate-200 bg-white hover:border-slate-300 hover:bg-slate-50',
                     )}
                   >

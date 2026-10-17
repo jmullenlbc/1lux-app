@@ -198,7 +198,7 @@ export default function SurveyRunner({ projectId, showPrices = true }) {
         <button
           onClick={async () => { if (await send(`/api/projects/${projectId}/unit-selections`, {})) load(); }}
           disabled={busy}
-          className="mt-5 px-5 py-2.5 rounded-2xl bg-amber-500 text-white text-sm font-medium hover:bg-amber-600 disabled:opacity-50"
+          className="mt-5 px-5 py-2.5 rounded-lg bg-orange-500 text-white text-sm font-semibold hover:bg-orange-600 disabled:opacity-50"
         >
           Start the selections
         </button>
@@ -227,7 +227,7 @@ export default function SurveyRunner({ projectId, showPrices = true }) {
             className="px-3 py-1 rounded-full text-xs bg-white text-slate-600 border border-slate-200 hover:border-slate-300"
           >
             {r.userId && me && r.userId === me.id ? 'Back to mine' : r.respondentName}
-            {r.submittedAt && <span className="ml-1 text-emerald-500">&#10003;</span>}
+            {r.submittedAt && <span className="ml-1 text-green-500">&#10003;</span>}
           </button>
         ))}
         <button onClick={() => setAskingWho(v => !v)} className="text-xs text-slate-400 hover:text-slate-600 underline">
@@ -241,7 +241,7 @@ export default function SurveyRunner({ projectId, showPrices = true }) {
       {askingWho && <WhoForm onCancel={() => setAskingWho(false)} onAdd={addSomeone} busy={busy} />}
 
       {drifted.length > 0 && (
-        <div className="mb-5 px-4 py-3 rounded-2xl bg-amber-50 border border-amber-200 text-sm text-amber-800">
+        <div className="mb-5 px-4 py-3 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-800">
           The design questionnaire has moved since this survey started &mdash; the budget for{' '}
           <strong>{drifted.join(', ')}</strong> is different now. These selections are still running on
           the older figures on purpose. Start a new version when you want the new ones.
@@ -263,8 +263,8 @@ export default function SurveyRunner({ projectId, showPrices = true }) {
                     key={look.key}
                     onClick={() => pickLook(look.key)}
                     disabled={busy}
-                    className={`snap-start shrink-0 w-56 text-left rounded-2xl border bg-white p-3 transition disabled:opacity-60 ${
-                      on ? 'border-amber-500 ring-2 ring-amber-200' : 'border-slate-200 hover:border-slate-300'
+                    className={`snap-start shrink-0 w-56 text-left rounded-lg border bg-white p-3 transition disabled:opacity-60 ${
+                      on ? 'border-orange-500 ring-2 ring-orange-500' : 'border-slate-200 hover:border-slate-300'
                     }`}
                   >
                     <div className="grid grid-cols-3 gap-1 h-24">
@@ -291,7 +291,7 @@ export default function SurveyRunner({ projectId, showPrices = true }) {
                   disabled={busy}
                   title={f.label}
                   className={`flex items-center gap-1.5 pl-1 pr-2.5 py-1 rounded-full text-xs border transition disabled:opacity-60 ${
-                    active.finishOverride === f.key ? 'border-amber-500 bg-amber-50 text-amber-800' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                    active.finishOverride === f.key ? 'border-orange-500 bg-amber-50 text-amber-800' : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
                   }`}
                 >
                   <span className="w-5 h-5 rounded-full border border-slate-300" style={{ background: f.color }} />
@@ -348,7 +348,7 @@ export default function SurveyRunner({ projectId, showPrices = true }) {
           )}
 
           {/* ── Hand it in ── */}
-          <div className="mt-8 flex flex-wrap items-center justify-between gap-3 px-5 py-4 rounded-2xl bg-slate-50 border border-slate-200">
+          <div className="mt-8 flex flex-wrap items-center justify-between gap-3 px-5 py-4 rounded-lg bg-slate-50 border border-slate-200">
             <p className="text-sm text-slate-600">
               <strong className="text-slate-900">{answered} of {inPlay.length}</strong> fixtures chosen
               {active.finishOverride && <> &middot; {finishLabel(active.finishOverride).toLowerCase()} throughout</>}
@@ -356,7 +356,7 @@ export default function SurveyRunner({ projectId, showPrices = true }) {
             </p>
             {active.submittedAt ? (
               <div className="flex items-center gap-3">
-                <span className="text-sm text-emerald-700">Handed in.</span>
+                <span className="text-sm text-green-700">Handed in.</span>
                 <button onClick={() => patchResponse({ submitted: false })} disabled={busy} className="text-sm text-slate-500 hover:text-slate-700 disabled:opacity-50">
                   Change something
                 </button>
@@ -365,7 +365,7 @@ export default function SurveyRunner({ projectId, showPrices = true }) {
               <button
                 onClick={() => patchResponse({ submitted: true })}
                 disabled={busy || answered === 0}
-                className="px-5 py-2 rounded-2xl bg-amber-500 text-white text-sm font-medium hover:bg-amber-600 disabled:opacity-50"
+                className="px-5 py-2 rounded-lg bg-orange-500 text-white text-sm font-semibold hover:bg-orange-600 disabled:opacity-50"
               >
                 Hand it in
               </button>
@@ -409,26 +409,26 @@ function WhoForm({ onAdd, onCancel, busy }) {
   const [name, setName] = useState('');
   const [role, setRole] = useState('DEVELOPER');
   return (
-    <div className="mb-5 p-4 rounded-2xl border border-slate-200 bg-slate-50 flex flex-wrap gap-3 items-end">
+    <div className="mb-5 p-4 rounded-xl border border-slate-200 bg-slate-50 flex flex-wrap gap-3 items-end">
       <div className="flex-1 min-w-[180px]">
         <label className="block text-xs font-medium text-slate-600 mb-1">Their name</label>
         <input
           value={name}
           onChange={e => setName(e.target.value)}
-          className="w-full px-3 py-2 rounded-2xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+          className="w-full px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
         />
       </div>
       <select
         value={role}
         onChange={e => setRole(e.target.value)}
-        className="px-3 py-2 rounded-2xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+        className="px-3 py-2 rounded-lg border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
       >
         {ROLES.map(r => <option key={r.key} value={r.key}>{r.label}</option>)}
       </select>
       <button
         onClick={() => onAdd(name.trim(), role)}
         disabled={busy || !name.trim()}
-        className="px-4 py-2 rounded-2xl bg-amber-500 text-white text-sm font-medium hover:bg-amber-600 disabled:opacity-50"
+        className="px-4 py-2 rounded-lg bg-orange-500 text-white text-sm font-semibold hover:bg-orange-600 disabled:opacity-50"
       >
         Start their answers
       </button>
@@ -502,7 +502,7 @@ function FixturePanel({ category, added, pick, rejected, wantedFinish, showPrice
   return (
     <section className="mb-7 p-4 sm:p-5 rounded-3xl border border-slate-200 bg-white">
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <p className="text-xs uppercase tracking-wide text-slate-400">{ROOM[category.key]}</p>
+        <p className="text-xs uppercase tracking-wide text-slate-500">{ROOM[category.key]}</p>
         <h3 className="text-lg font-semibold text-slate-900">{category.label}</h3>
         {!category.skipped && category.level && <Pill>{LEVEL_LABEL[category.level] || category.level}</Pill>}
         {!category.skipped && category.count > 1 && <Pill>{category.count} per unit</Pill>}
@@ -514,13 +514,13 @@ function FixturePanel({ category, added, pick, rejected, wantedFinish, showPrice
       </div>
 
       {category.skipped ? (
-        <div className="mt-4 px-5 py-6 rounded-2xl border border-dashed border-slate-300 bg-slate-50">
+        <div className="mt-4 px-5 py-6 rounded-lg border border-dashed border-slate-300 bg-slate-50">
           <p className="font-medium text-slate-700">Not in this job.</p>
           <p className="text-sm text-slate-500 mt-1">The design questionnaire left this fixture out. Add it here if people should pick one anyway.</p>
           <button
             onClick={() => onInclude(true)}
             disabled={busy}
-            className="mt-3 px-4 py-2 rounded-2xl bg-slate-800 text-white text-sm font-medium hover:bg-slate-700 disabled:opacity-50"
+            className="mt-3 px-4 py-2 rounded-lg bg-orange-500 text-white text-sm font-semibold hover:bg-orange-600 disabled:opacity-50"
           >
             Add it to this job
           </button>
@@ -538,7 +538,7 @@ function FixturePanel({ category, added, pick, rejected, wantedFinish, showPrice
           {category.key === 'w1' && <EntryMountQuestion value={facts?.entryMountHigh ?? null} busy={busy} onSet={onSetMount} />}
 
           {category.options.length === 0 ? (
-            <div className="mt-5 px-5 py-6 rounded-2xl border border-amber-200 bg-amber-50">
+            <div className="mt-5 px-5 py-6 rounded-lg border border-amber-200 bg-amber-50">
               <p className="font-medium text-amber-900">Nothing in the pool fits this one.</p>
               <ul className="mt-2 text-sm text-amber-800 space-y-1">
                 {Object.entries(reasons).map(([reason, n]) => (
@@ -552,12 +552,12 @@ function FixturePanel({ category, added, pick, rejected, wantedFinish, showPrice
                     onChange={e => setRaising(e.target.value)}
                     inputMode="decimal"
                     placeholder={category.target !== null ? String(category.target) : 'New budget'}
-                    className="px-3 py-2 rounded-2xl border border-amber-300 bg-white text-sm w-40 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                    className="px-3 py-2 rounded-lg border border-amber-300 bg-white text-sm w-40 focus:outline-none focus:ring-2 focus:ring-orange-500"
                   />
                   <button
                     onClick={() => onSetTarget(raising)}
                     disabled={busy || !raising.trim()}
-                    className="px-4 py-2 rounded-2xl bg-amber-500 text-white text-sm font-medium hover:bg-amber-600 disabled:opacity-50"
+                    className="px-4 py-2 rounded-lg bg-orange-500 text-white text-sm font-semibold hover:bg-orange-600 disabled:opacity-50"
                   >
                     Raise the budget
                   </button>
@@ -603,7 +603,7 @@ function FixturePanel({ category, added, pick, rejected, wantedFinish, showPrice
 /** The 6'-8" question. Nowhere in the app knows it, so it gets asked once. */
 function EntryMountQuestion({ value, onSet, busy }) {
   return (
-    <div className="mt-4 px-4 py-3 rounded-2xl border border-slate-200 bg-slate-50">
+    <div className="mt-4 px-4 py-3 rounded-lg border border-slate-200 bg-slate-50">
       <p className="text-sm font-medium text-slate-700">How high does the sconce beside the unit door sit?</p>
       <p className="text-xs text-slate-500 mt-0.5">
         Below 6&#8242;-8&#8243; it reaches into the corridor, so anything sticking out more than 4in is off the table.
@@ -618,8 +618,8 @@ function EntryMountQuestion({ value, onSet, busy }) {
             key={String(o.v)}
             onClick={() => onSet(o.v)}
             disabled={busy}
-            className={`px-3.5 py-1.5 rounded-2xl text-sm transition disabled:opacity-50 ${
-              value === o.v ? 'bg-slate-800 text-white' : 'bg-white text-slate-600 border border-slate-200 hover:border-slate-300'
+            className={`px-3.5 py-1.5 rounded-lg text-sm transition disabled:opacity-50 ${
+              value === o.v ? 'bg-orange-50 text-orange-700 border border-orange-400' : 'bg-white text-slate-600 border border-slate-200 hover:border-slate-300'
             }`}
           >
             {o.label}
@@ -642,8 +642,8 @@ function OptionCard({ category, option, showPrices, pick, wantedFinish, rejected
   const picked = !!pick;
 
   return (
-    <div className={`rounded-2xl border bg-white overflow-hidden transition ${
-      picked ? 'border-amber-500 ring-2 ring-amber-200' : rejected ? 'border-slate-200 opacity-40' : 'border-slate-200'
+    <div className={`rounded-xl border bg-white overflow-hidden transition ${
+      picked ? 'border-orange-500 ring-2 ring-orange-500' : rejected ? 'border-slate-200 opacity-40' : 'border-slate-200'
     }`}>
       <div className="relative h-48 bg-slate-50 flex items-center justify-center">
         {(shown?.imageUrl || option.imageUrl) ? (
@@ -657,7 +657,7 @@ function OptionCard({ category, option, showPrices, pick, wantedFinish, rejected
             onClick={onReject}
             disabled={busy}
             aria-label={rejected ? 'Uncross' : 'Cross it off'}
-            title={rejected ? 'Crossed off — tap to undo' : 'Not for us'}
+            title={rejected ? 'Crossed off, tap to undo' : 'Not for us'}
             className={`w-9 h-9 rounded-full flex items-center justify-center text-base shadow-sm transition disabled:opacity-50 ${
               rejected ? 'bg-slate-700 text-white' : 'bg-white text-slate-400 hover:text-slate-700'
             }`}
@@ -668,9 +668,9 @@ function OptionCard({ category, option, showPrices, pick, wantedFinish, rejected
             onClick={() => onPick(shown?.finishKey || null)}
             disabled={busy}
             aria-label={picked ? 'Un-choose' : 'Choose this'}
-            title={picked ? 'Chosen — tap to undo' : 'This one'}
+            title={picked ? 'Chosen, tap to undo' : 'This one'}
             className={`w-9 h-9 rounded-full flex items-center justify-center text-lg shadow-sm transition disabled:opacity-50 ${
-              picked ? 'bg-amber-500 text-white' : 'bg-white text-slate-400 hover:text-amber-500'
+              picked ? 'bg-orange-500 text-white' : 'bg-white text-slate-400 hover:text-amber-500'
             }`}
           >
             &#9829;
@@ -694,7 +694,7 @@ function OptionCard({ category, option, showPrices, pick, wantedFinish, rejected
               disabled={busy}
               title={finishLabel(f.finishKey)}
               className={`w-7 h-7 rounded-full border-2 transition disabled:opacity-50 ${
-                shown?.finishKey === f.finishKey ? 'border-amber-500 scale-110' : 'border-white ring-1 ring-slate-200'
+                shown?.finishKey === f.finishKey ? 'border-orange-500 scale-110' : 'border-white ring-1 ring-slate-200'
               }`}
               style={{ background: finishColor(f.finishKey) }}
             />
@@ -709,7 +709,7 @@ function OptionCard({ category, option, showPrices, pick, wantedFinish, rejected
 /** Rows are fixtures, columns are people. Disagreement is amber, never averaged. */
 function WhoAgrees({ categories, responses, optionById, pickFor, onOpen }) {
   return (
-    <div className="overflow-x-auto rounded-2xl border border-slate-200">
+    <div className="overflow-x-auto rounded-xl border border-slate-200">
       <table className="min-w-full text-sm">
         <thead className="bg-slate-50">
           <tr>
@@ -717,7 +717,7 @@ function WhoAgrees({ categories, responses, optionById, pickFor, onOpen }) {
             {responses.map(r => (
               <th key={r.id} className="text-left font-medium text-slate-500 px-3 py-2 whitespace-nowrap">
                 {r.respondentName}
-                <span className="block text-[10px] font-normal text-slate-400">{ROLE_LABEL[r.respondentRole] || r.respondentRole}{r.submittedAt ? ' · handed in' : ''}</span>
+                <span className="block text-[11px] font-normal text-slate-400">{ROLE_LABEL[r.respondentRole] || r.respondentRole}{r.submittedAt ? ' · handed in' : ''}</span>
               </th>
             ))}
           </tr>
@@ -730,8 +730,8 @@ function WhoAgrees({ categories, responses, optionById, pickFor, onOpen }) {
             return (
               <tr key={c.key} className={`border-t border-slate-100 ${split ? 'bg-amber-50' : ''}`}>
                 <td className="px-3 py-2 whitespace-nowrap">
-                  <button onClick={() => onOpen(c.key)} className="font-medium text-slate-700 hover:text-amber-600">{c.label}</button>
-                  {split && <span className="block text-[10px] text-amber-700">people differ</span>}
+                  <button onClick={() => onOpen(c.key)} className="font-semibold text-slate-700 hover:text-orange-600">{c.label}</button>
+                  {split && <span className="block text-[11px] text-amber-700">people differ</span>}
                 </td>
                 {picks.map((p, i) => (
                   <td key={responses[i].id} className="px-3 py-2">
@@ -846,5 +846,5 @@ function Pill({ children }) {
 }
 
 function ErrorNote({ children }) {
-  return <div className="mb-4 px-4 py-3 rounded-2xl bg-red-50 border border-red-200 text-sm text-red-700">{children}</div>;
+  return <div className="mb-4 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">{children}</div>;
 }

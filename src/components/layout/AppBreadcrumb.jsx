@@ -20,7 +20,7 @@ const SEGMENT_MAP = {
   wizard:        { label: 'Design Wizard',     href: null         },
   'peer-review': { label: 'Peer Review Matrix', href: null         },
   new:           { label: 'New',               href: null         },
-  project:       null, // skip — the project name is fetched directly
+  project:       null, // skip, the project name is fetched directly
   users:         { label: 'Users',             href: null         },
 };
 
@@ -142,16 +142,16 @@ export default function AppBreadcrumb() {
   if (crumbs.length <= 1 && pathname === '/dashboard') return null;
 
   return (
-    <div className="bg-white border-b border-slate-100 px-4 md:px-6 py-2 flex items-center gap-1.5 text-xs text-slate-400 overflow-hidden print:hidden">
+    <div className="bg-white border-b border-slate-100 px-4 md:px-6 py-2 flex items-center gap-1.5 text-xs text-slate-500 overflow-hidden print:hidden">
       {crumbs.map((crumb, idx) => (
         <span key={idx} className="flex items-center gap-1.5">
-          {idx > 0 && <span className="text-slate-300">›</span>}
+          {idx > 0 && <span className="text-slate-400">›</span>}
           {crumb.href && idx < crumbs.length - 1 ? (
-            <Link href={crumb.href} className="hover:text-amber-600 transition-colors truncate max-w-[120px] md:max-w-[200px]">
+            <Link href={crumb.href} className="hover:text-orange-600 transition-colors truncate max-w-[120px] md:max-w-[200px]">
               {crumb.label}
             </Link>
           ) : (
-            <span className={idx === crumbs.length - 1 ? 'text-slate-600 font-medium truncate max-w-[120px] md:max-w-[200px]' : 'truncate max-w-[120px] md:max-w-[200px]'}>
+            <span className={idx === crumbs.length - 1 ? 'text-slate-700 font-semibold truncate max-w-[120px] md:max-w-[200px]' : 'truncate max-w-[120px] md:max-w-[200px]'}>
               {crumb.label}
             </span>
           )}

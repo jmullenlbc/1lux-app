@@ -72,7 +72,7 @@ export default function DesignEmergencySection({
       {/* Scope */}
       {hasSf && (
         <div className="bg-slate-50 rounded-xl border border-slate-200 p-4">
-          <div className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Emergency Scope</div>
+          <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Emergency Scope</div>
           <div className="grid grid-cols-3 gap-3 text-center">
             {[
               { label: 'Corridor SF',       value: corridorSf   > 0 ? corridorSf.toLocaleString()   : '—' },
@@ -93,7 +93,7 @@ export default function DesignEmergencySection({
         <p className="font-semibold text-slate-900 mb-1">Emergency lighting strategy?</p>
         <p className="text-xs text-slate-400 mb-4 leading-relaxed">
           Without a building generator every egress path needs independent battery backup.
-          Integrated battery fixtures are the cleanest approach — no visible frogeye bugs.
+          Integrated battery fixtures are the cleanest approach, no visible frogeye bugs.
           Inverter systems provide the best optical consistency.
         </p>
         <div className="space-y-2">
@@ -107,31 +107,31 @@ export default function DesignEmergencySection({
             {
               key:   'frogeyes',
               label: 'Frogeyes everywhere (corridors, amenity and garage)',
-              sub:   `Corridors + amenity ${fe}${gar}${hasSf ? ` — est. $${calcCost('frogeyes').toLocaleString()}` : ''}`,
+              sub:   `Corridors + amenity ${fe}${gar}${hasSf ? `, est. $${calcCost('frogeyes').toLocaleString()}` : ''}`,
               tag:   null,
             },
             {
               key:   'frogeyes_inv',
               label: 'Frogeyes in corridors + garage, inverters in amenity spaces',
-              sub:   `Corridors ${rate('frogeyes_inv', 'corridorPerSf')} + amenity ${rate('frogeyes_inv', 'amenityPerSf')}${gar}${hasSf ? ` — est. $${calcCost('frogeyes_inv').toLocaleString()}` : ''}`,
+              sub:   `Corridors ${rate('frogeyes_inv', 'corridorPerSf')} + amenity ${rate('frogeyes_inv', 'amenityPerSf')}${gar}${hasSf ? `, est. $${calcCost('frogeyes_inv').toLocaleString()}` : ''}`,
               tag:   null,
             },
             {
               key:   'integrated_frogeyes',
               label: 'Integrated batteries (garage) + frogeyes (corridors) + inverters (amenity)',
-              sub:   `Corridors ${rate('integrated_frogeyes', 'corridorPerSf')} + amenity ${rate('integrated_frogeyes', 'amenityPerSf')}${batt}${hasSf ? ` — est. $${calcCost('integrated_frogeyes').toLocaleString()}` : ''}`,
+              sub:   `Corridors ${rate('integrated_frogeyes', 'corridorPerSf')} + amenity ${rate('integrated_frogeyes', 'amenityPerSf')}${batt}${hasSf ? `, est. $${calcCost('integrated_frogeyes').toLocaleString()}` : ''}`,
               tag:   null,
             },
             {
               key:   'integrated_inverters',
               label: 'Integrated batteries (garage) + inverters (corridors + amenity)',
-              sub:   `Corridors ${rate('integrated_inverters', 'corridorPerSf')} + amenity ${rate('integrated_inverters', 'amenityPerSf')}${batt}${hasSf ? ` — est. $${calcCost('integrated_inverters').toLocaleString()}` : ''}`,
+              sub:   `Corridors ${rate('integrated_inverters', 'corridorPerSf')} + amenity ${rate('integrated_inverters', 'amenityPerSf')}${batt}${hasSf ? `, est. $${calcCost('integrated_inverters').toLocaleString()}` : ''}`,
               tag:   'Recommended',
             },
             {
               key:   'inverters',
               label: 'Inverters everywhere (corridors, amenity and garage)',
-              sub:   `Corridors ${rate('inverters', 'corridorPerSf')} + amenity ${rate('inverters', 'amenityPerSf')}${gar}${hasSf ? ` — est. $${calcCost('inverters').toLocaleString()}` : ''}`,
+              sub:   `Corridors ${rate('inverters', 'corridorPerSf')} + amenity ${rate('inverters', 'amenityPerSf')}${gar}${hasSf ? `, est. $${calcCost('inverters').toLocaleString()}` : ''}`,
               tag:   'Best optics',
             },
           ].map(opt => (
@@ -140,7 +140,7 @@ export default function DesignEmergencySection({
               className={[
                 'flex items-start gap-3 rounded-lg border px-4 py-3 cursor-pointer transition-colors',
                 ans.strategy === opt.key
-                  ? 'border-amber-400 bg-amber-50'
+                  ? 'border-orange-400 bg-amber-50'
                   : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50',
               ].join(' ')}
             >
@@ -156,7 +156,7 @@ export default function DesignEmergencySection({
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="text-sm font-medium text-slate-800">{opt.label}</span>
                   {opt.tag && (
-                    <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-green-100 text-green-700">
+                    <span className="px-1.5 py-0.5 rounded text-[11px] font-bold bg-green-100 text-green-700">
                       {opt.tag}
                     </span>
                   )}
@@ -188,13 +188,13 @@ export default function DesignEmergencySection({
       </div>
 
       {/* Explanation */}
-      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-xs text-blue-800">
+      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-xs text-orange-700">
         <p className="font-semibold mb-2">Strategy Comparison</p>
         <div className="space-y-1.5">
           <div><span className="font-medium">Garage:</span> Unless a building generator covers it, every other garage fixture gets an integrated battery under every strategy.</div>
-          <div><span className="font-medium">Frogeyes:</span> Battery-backed emergency heads — visible, lower cost, meets code.</div>
-          <div><span className="font-medium">Integrated batteries:</span> Battery module inside every other normal fixture — invisible, meets code, cleaner look.</div>
-          <div><span className="font-medium">Inverters:</span> Central or room-level inverter powers normal circuits during outage — best optical consistency, highest cost.</div>
+          <div><span className="font-medium">Frogeyes:</span> Battery-backed emergency heads, visible, lower cost, meets code.</div>
+          <div><span className="font-medium">Integrated batteries:</span> Battery module inside every other normal fixture, invisible, meets code, cleaner look.</div>
+          <div><span className="font-medium">Inverters:</span> Central or room-level inverter powers normal circuits during outage, best optical consistency, highest cost.</div>
           <div className="mt-2 text-blue-700 font-medium">Recommendation: Integrated batteries in garage (cleaner than frogeyes) + inverters in corridors/amenity (best optics where residents see it).</div>
         </div>
       </div>

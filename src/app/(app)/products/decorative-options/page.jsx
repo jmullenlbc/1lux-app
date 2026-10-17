@@ -24,7 +24,7 @@ export default async function DecorativeOptionsPage() {
   return (
     <div className="max-w-6xl mx-auto">
       <div className="px-6 py-8 border-b border-slate-200">
-        <div className="flex items-center gap-2 text-sm text-slate-400 mb-2">
+        <div className="flex items-center gap-2 text-sm text-slate-500 mb-2">
           <span>Pre-con</span>
           <span>/</span>
           <span className="text-slate-600">Unit Fixture Choices</span>

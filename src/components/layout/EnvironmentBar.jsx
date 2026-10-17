@@ -28,9 +28,9 @@ export default function EnvironmentBar() {
   if (env !== 'staging') return null;
   return (
     <div role="alert" className="env-bar fixed inset-x-0 top-0 z-[9999] flex items-center justify-center gap-4 px-4 text-sm font-bold text-black print:hidden">
-      <span className="rounded bg-black px-2 py-0.5 text-xs font-black tracking-widest text-yellow-300">STAGING</span>
-      <span className="truncate">Test copy — nothing here touches real clients, deals or budgets.</span>
-      <a href={liveUrl(pathname)} className="shrink-0 rounded border-2 border-black bg-white px-2 py-0.5 text-xs font-black hover:bg-yellow-100">
+      <span className="rounded-lg bg-black px-2 py-0.5 text-xs font-black tracking-wide text-amber-300">STAGING</span>
+      <span className="truncate">Test copy: nothing here touches real clients, deals or budgets.</span>
+      <a href={liveUrl(pathname)} className="shrink-0 rounded-lg border-2 border-black bg-white px-2 py-0.5 text-xs font-black hover:bg-amber-100">
         Go to live →
       </a>
     </div>

@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { NOTIFICATION_TYPES } from '@/lib/notificationTypes';
+import { CARD, CARD_TITLE, HELPER } from '@/components/ui/tokens';
 
 function relativeTime(dateStr) {
   if (!dateStr) return '';
@@ -17,8 +18,8 @@ function relativeTime(dateStr) {
 
 function AudienceBadge({ audience }) {
   return audience === 'EXTERNAL'
-    ? <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 font-mono">EXT</span>
-    : <span className="text-[10px] px-1.5 py-0.5 rounded bg-green-50 text-green-700 border border-green-200 font-mono">INT</span>;
+    ? <span className="text-[11px] px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 font-mono">EXT</span>
+    : <span className="text-[11px] px-1.5 py-0.5 rounded bg-green-50 text-green-700 border border-green-200 font-mono">INT</span>;
 }
 
 function PatternBadge({ type }) {
@@ -31,7 +32,7 @@ function PatternBadge({ type }) {
   };
   const labels = { EVENT: 'Event', DIGEST: 'Digest', THRESHOLD: 'Threshold' };
   return (
-    <span className={`text-[10px] px-1.5 py-0.5 rounded border font-semibold uppercase tracking-wide ${styles[pattern]}`}>
+    <span className={`text-[11px] px-1.5 py-0.5 rounded border font-semibold uppercase tracking-wide ${styles[pattern]}`}>
       {labels[pattern]}
     </span>
   );
@@ -60,16 +61,16 @@ function LogRow({ log }) {
 
       {/* Label + recipient */}
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-slate-700 truncate">{label}</p>
+        <p className="text-sm font-semibold text-slate-800 truncate">{label}</p>
         <div className="flex items-center gap-2 mt-0.5">
           {log.recipientEmail && (
-            <span className="text-xs text-slate-400 truncate max-w-[180px]">{log.recipientEmail}</span>
+            <span className="text-xs text-slate-500 truncate max-w-[180px]">{log.recipientEmail}</span>
           )}
           {payloadSummary && (
             <span className="text-xs text-slate-300">·</span>
           )}
           {payloadSummary && (
-            <span className="text-xs text-slate-400 truncate">{payloadSummary}</span>
+            <span className="text-xs text-slate-500 truncate">{payloadSummary}</span>
           )}
         </div>
       </div>
@@ -82,7 +83,7 @@ function LogRow({ log }) {
         opened ? (
           <span
             title={`Opened ${new Date(log.openedAt).toLocaleString()}`}
-            className="flex items-center gap-1 text-[10px] text-green-600 font-semibold"
+            className="flex items-center gap-1 text-[11px] text-green-600 font-semibold"
           >
             <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
@@ -90,12 +91,12 @@ function LogRow({ log }) {
             Opened
           </span>
         ) : (
-          <span className="text-[10px] text-slate-300 font-medium">Unopened</span>
+          <span className="text-[11px] text-slate-500 font-semibold">Unopened</span>
         )
       )}
 
       {/* Timestamp */}
-      <span className="text-xs text-slate-400 shrink-0">{relativeTime(log.sentAt)}</span>
+      <span className="text-xs text-slate-500 shrink-0 tabular-nums">{relativeTime(log.sentAt)}</span>
     </div>
   );
 }
@@ -123,8 +124,8 @@ export default function NotificationLog({ projectId }) {
       {/* Header row */}
       <div className="flex items-center justify-between mb-4">
         <div>
-          <h3 className="text-sm font-semibold text-slate-700">Notification Activity</h3>
-          <p className="text-xs text-slate-400 mt-0.5">Last 100 log entries, most recent first</p>
+          <h3 className={CARD_TITLE}>Notification Activity</h3>
+          <p className={`${HELPER} mt-0.5`}>Last 100 log entries, most recent first</p>
         </div>
 
         {/* Filter pills */}
@@ -133,7 +134,7 @@ export default function NotificationLog({ projectId }) {
             <button
               key={val}
               onClick={() => setFilter(val)}
-              className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+              className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors ${
                 filter === val ? 'bg-white text-slate-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'
               }`}
             >
@@ -144,7 +145,7 @@ export default function NotificationLog({ projectId }) {
       </div>
 
       {loading ? (
-        <div className="text-center py-10 text-sm text-slate-400">Loading…</div>
+        <div className="text-center py-10 text-sm text-slate-500">Loading...</div>
       ) : visible.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-14 text-center">
           <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center mb-3">
@@ -153,10 +154,10 @@ export default function NotificationLog({ projectId }) {
             </svg>
           </div>
           <p className="text-sm text-slate-500">No notifications logged yet</p>
-          <p className="text-xs text-slate-400 mt-1">Events will appear here as they are triggered</p>
+          <p className={`${HELPER} mt-1`}>Events will appear here as they are triggered</p>
         </div>
       ) : (
-        <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+        <div className={`${CARD} overflow-hidden`}>
           {visible.map(log => (
             <LogRow key={log.id} log={log} />
           ))}

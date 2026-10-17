@@ -1,5 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { CARD, LABEL, NUM, TH, TD } from '@/components/ui/tokens';
+import { WidgetLoading } from '@/components/ui/WidgetFrame';
 
 function fmt(n, showSign = false) {
   if (n == null || isNaN(n)) return '—';
@@ -13,7 +15,7 @@ function pct(n) { return n != null ? `${(Number(n) * 100).toFixed(2).replace(/\.
 
 const STATUS_META = {
   DRAFT:    'bg-amber-50 text-amber-700 border-amber-200',
-  SENT:     'bg-blue-50  text-blue-700  border-blue-200',
+  SENT:     'bg-slate-50 text-slate-700 border-slate-200',
   APPROVED: 'bg-green-50 text-green-700 border-green-200',
 };
 
@@ -36,29 +38,29 @@ export default function SharedCOView({ token }) {
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Header */}
-      <div className="bg-slate-900 text-white px-6 py-4 flex items-center justify-between">
+      <div className="bg-navy-950 text-white px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <span className="text-lg font-black tracking-tight">ILC<span className="text-amber-400">.</span>Studios</span>
+          <span className="text-lg font-black tracking-tight">ILC<span className="text-orange-400">.</span>Studios</span>
           <span className="text-slate-400 text-xs">Change Order</span>
         </div>
-        <span className="text-[10px] bg-slate-700 px-3 py-1 rounded-full text-slate-300 font-medium">
-          View-only — pricing shown net of ILC costs
+        <span className="text-xs bg-slate-700 px-3 py-1 rounded-full text-slate-300 font-semibold">
+          View-only: pricing shown net of ILC costs
         </span>
       </div>
 
       <div className="max-w-5xl mx-auto px-4 py-8">
-        {loading && <p className="text-center text-slate-400 py-16">Loading…</p>}
+        {loading && <div className="py-10"><WidgetLoading /></div>}
         {error   && <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center text-red-700">{error}</div>}
 
         {!loading && !error && co && (
           <>
             {/* CO info */}
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 mb-6">
+            <div className={`${CARD} p-5 mb-6`}>
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <div className="flex items-center gap-2 mb-1">
                     <span className="font-mono text-sm font-bold text-slate-500">{co.coNumber}</span>
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border ${STATUS_META[co.status] || ''}`}>
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border ${STATUS_META[co.status] || ''}`}>
                       {co.status}
                     </span>
                   </div>
@@ -67,8 +69,8 @@ export default function SharedCOView({ token }) {
                   {co.notes && <p className="text-sm text-slate-500 mt-2 italic">"{co.notes}"</p>}
                 </div>
                 <div className="text-right shrink-0">
-                  <p className="text-[10px] text-slate-400 uppercase tracking-wide font-semibold">Date</p>
-                  <p className="text-sm text-slate-700">{new Date(co.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
+                  <p className={LABEL}>Date</p>
+                  <p className={`text-sm text-slate-700 ${NUM}`}>{new Date(co.date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
                 </div>
               </div>
             </div>
@@ -76,11 +78,11 @@ export default function SharedCOView({ token }) {
             {/* Option groups */}
             <div className="space-y-6">
               {co.optionGroups?.map(group => (
-                <div key={group.id} className={`bg-white rounded-2xl border shadow-sm overflow-hidden ${group.isSelected ? 'border-slate-800' : 'border-slate-200'}`}>
-                  <div className={`flex items-center gap-3 px-5 py-3 ${group.isSelected ? 'bg-slate-800 text-white' : 'bg-slate-50 border-b border-slate-200'}`}>
-                    <h3 className={`text-sm font-semibold ${group.isSelected ? 'text-white' : 'text-slate-700'}`}>{group.label}</h3>
+                <div key={group.id} className={`${CARD} overflow-hidden ${group.isSelected ? 'border-orange-400' : ''}`}>
+                  <div className={`flex items-center gap-3 px-5 py-3 ${group.isSelected ? 'bg-orange-50 border-b border-orange-200' : 'bg-slate-50 border-b border-slate-200'}`}>
+                    <h3 className={`text-sm font-semibold ${group.isSelected ? 'text-orange-700' : 'text-slate-700'}`}>{group.label}</h3>
                     {group.isSelected && (
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/20 text-white">SELECTED</span>
+                      <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-orange-500 text-white">SELECTED</span>
                     )}
                   </div>
 
@@ -89,7 +91,7 @@ export default function SharedCOView({ token }) {
                       <thead>
                         <tr className="border-b border-slate-100 bg-white">
                           {['Type', 'Qty', 'Manufacturer', 'Part #', 'Description', 'CN Unit', 'Total CN', 'Quote Ref', 'Lead Time'].map(h => (
-                            <th key={h} className="px-3 py-2 text-left text-[10px] font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap">{h}</th>
+                            <th key={h} className={`${TH} whitespace-nowrap`}>{h}</th>
                           ))}
                         </tr>
                       </thead>
@@ -97,12 +99,12 @@ export default function SharedCOView({ token }) {
                         {(group.lineItems || []).map((li, idx) => (
                           <tr key={li.id} className={`border-b last:border-0 ${li.qty < 0 ? 'text-red-600 bg-red-50/20' : idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/40'}`}>
                             <td className="px-3 py-2 font-semibold">{li.fixtureType || '—'}</td>
-                            <td className="px-3 py-2 text-right">{li.qty}</td>
+                            <td className={`px-3 py-2 text-right ${NUM}`}>{li.qty}</td>
                             <td className="px-3 py-2">{li.manufacturer || '—'}</td>
                             <td className="px-3 py-2 font-mono text-[11px]">{li.partNumber || '—'}</td>
                             <td className="px-3 py-2">{li.description || '—'}</td>
-                            <td className="px-3 py-2 text-right">{fmt(li.cnUnitPrice)}</td>
-                            <td className={`px-3 py-2 text-right font-bold ${li.totalCN < 0 ? 'text-red-600' : 'text-blue-700'}`}>{fmt(li.totalCN, true)}</td>
+                            <td className={`px-3 py-2 text-right ${NUM}`}>{fmt(li.cnUnitPrice)}</td>
+                            <td className={`px-3 py-2 text-right font-bold ${NUM} ${li.totalCN < 0 ? 'text-red-600' : 'text-slate-900'}`}>{fmt(li.totalCN, true)}</td>
                             <td className="px-3 py-2 text-[11px]">{li.quoteReference || '—'}</td>
                             <td className="px-3 py-2 text-[11px]">{li.leadTime || '—'}</td>
                           </tr>
@@ -113,7 +115,7 @@ export default function SharedCOView({ token }) {
 
                   {/* Footer */}
                   <div className="px-5 py-3 border-t border-slate-200 bg-slate-50">
-                    <div className="ml-auto w-64 space-y-1 text-xs">
+                    <div className={`ml-auto w-64 space-y-1 text-xs ${NUM}`}>
                       {[
                         { label: 'Subtotal', val: group.footer?.subtotal },
                         rates.salesTaxPct != null && { label: `Sales Tax (${pct(rates.salesTaxPct)})`, val: group.footer?.tax },
@@ -126,7 +128,7 @@ export default function SharedCOView({ token }) {
                       ))}
                       <div className="flex justify-between border-t border-slate-300 pt-1 font-bold text-sm">
                         <span>TOTAL</span>
-                        <span className={group.footer?.total < 0 ? 'text-red-600' : 'text-blue-700'}>{fmt(group.footer?.total, true)}</span>
+                        <span className={group.footer?.total < 0 ? 'text-red-600' : 'text-slate-900'}>{fmt(group.footer?.total, true)}</span>
                       </div>
                     </div>
                   </div>
@@ -134,7 +136,7 @@ export default function SharedCOView({ token }) {
               ))}
             </div>
 
-            <p className="text-[10px] text-slate-300 text-center mt-8">
+            <p className="text-xs text-slate-500 text-center mt-8">
               Shared by ILC Studios · View-only · {new Date().getFullYear()}
             </p>
           </>

@@ -19,10 +19,10 @@ function ConfChip({ tier, pct }) {
   // about it to let it slide past without a human looking. It shows the actual
   // percentage rather than a word, because "we're 48% sure" and "we're 71% sure"
   // deserve different amounts of squinting and a single label hides that.
-  if (tier === 'check')   return <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-300">{pct != null ? `${pct}%` : 'Check'}</span>;
-  if (tier === 'high')    return <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-200">{pct != null ? `${pct}%` : 'High'}</span>;
-  if (tier === 'confirm') return <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">{pct != null ? `${pct}%` : 'Confirm'}</span>;
-  return                         <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-slate-100 text-slate-400 border border-slate-200">Manual</span>;
+  if (tier === 'check')   return <span className="text-[11px] font-bold uppercase px-2 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-300">{pct != null ? `${pct}%` : 'Check'}</span>;
+  if (tier === 'high')    return <span className="text-[11px] font-bold uppercase px-2 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-200">{pct != null ? `${pct}%` : 'High'}</span>;
+  if (tier === 'confirm') return <span className="text-[11px] font-bold uppercase px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">{pct != null ? `${pct}%` : 'Confirm'}</span>;
+  return                         <span className="text-[11px] font-bold uppercase px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 border border-slate-200">Manual</span>;
 }
 
 // ── rollup calculation ────────────────────────────────────────────────────────
@@ -67,7 +67,7 @@ function CheckList({ review }) {
         <span>
           <span className="font-semibold">{passed.length} automatic check{passed.length !== 1 ? 's' : ''} passed.</span>
           {' '}The numbers add up against each other.
-          {skipped.length > 0 && <span className="text-green-700/70"> {skipped.length} check{skipped.length !== 1 ? 's' : ''} couldn&apos;t run — the document didn&apos;t give them anything to compare.</span>}
+          {skipped.length > 0 && <span className="text-green-700/70"> {skipped.length} check{skipped.length !== 1 ? 's' : ''} couldn&apos;t run, the document didn&apos;t give them anything to compare.</span>}
         </span>
       </div>
     );
@@ -92,7 +92,7 @@ function CheckList({ review }) {
         ))}
       </ul>
       <p className="mt-2.5 text-[11px] text-red-600/80 border-t border-red-200 pt-2">
-        These are arithmetic, not opinions — something in the extraction contradicts something else in it.
+        These are arithmetic, not opinions, something in the extraction contradicts something else in it.
         Fix the rows below before applying, or apply anyway if the document really is like this.
       </p>
     </div>
@@ -232,7 +232,7 @@ function ReviewModal({ proposal, fileName, onConfirm, onCancel }) {
           <div className="flex items-center gap-3">
             <span className="text-lg font-semibold text-slate-800">Review Unit Matrix</span>
             {rows.length > 0 && (
-              <span className="text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-200">
+              <span className="text-[11px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-200">
                 {rows.length} type{rows.length !== 1 ? 's' : ''} detected
               </span>
             )}
@@ -262,7 +262,7 @@ function ReviewModal({ proposal, fileName, onConfirm, onCancel }) {
           {/* ── Section 1: Unit Types ── */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <div className="text-[10px] font-bold text-amber-600 uppercase tracking-wider">Unit Types Extracted</div>
+              <div className="text-[11px] font-bold text-amber-600 uppercase tracking-wide">Unit Types Extracted</div>
               <button onClick={addRow} className="text-[11px] text-slate-500 hover:text-slate-700 flex items-center gap-1">
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4"/>
@@ -273,14 +273,14 @@ function ReviewModal({ proposal, fileName, onConfirm, onCancel }) {
             <div className="rounded-xl border border-slate-200 overflow-hidden">
               <table className="w-full text-sm">
                 <thead className="bg-slate-50 border-b border-slate-200">
-                  <tr className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider text-left">
+                  <tr className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide text-left">
                     <th className="px-4 py-2.5">Type</th>
                     <th className="px-4 py-2.5">Label</th>
                     <th className="px-4 py-2.5 text-right">Qty</th>
                     <th className="px-4 py-2.5 text-right">Unit SF</th>
                     <th className="px-4 py-2.5 text-center">Bed</th>
                     <th className="px-4 py-2.5 text-center">Bath</th>
-                    <th className="px-4 py-2.5 text-center" title="0 or 1 per unit — never square feet">Balcony</th>
+                    <th className="px-4 py-2.5 text-center" title="0 or 1 per unit, never square feet">Balcony</th>
                     <th className="px-4 py-2.5 text-center">Conf.</th>
                     <th className="px-2 py-2.5 w-6"></th>
                   </tr>
@@ -324,7 +324,7 @@ function ReviewModal({ proposal, fileName, onConfirm, onCancel }) {
             {/* Rollup bar */}
             {rows.length > 0 && (
               <div className="mt-3 flex items-center gap-5 rounded-xl bg-amber-50 border border-amber-100 px-4 py-2.5 text-sm flex-wrap">
-                <span className="text-[10px] font-bold text-amber-600 uppercase tracking-wider">Rolls up to</span>
+                <span className="text-[11px] font-bold text-amber-600 uppercase tracking-wide">Rolls up to</span>
                 <span className="text-slate-700"><span className="font-mono font-semibold">{fmt(live.units)}</span> units</span>
                 {live.sf   != null && <><span className="text-slate-300">·</span><span className="text-slate-700"><span className="font-mono font-semibold">{fmt(live.sf)}</span> unit SF</span></>}
                 {live.bed  != null && <><span className="text-slate-300">·</span><span className="text-slate-700"><span className="font-mono font-semibold">{fmt(live.bed)}</span> bed</span></>}
@@ -336,14 +336,14 @@ function ReviewModal({ proposal, fileName, onConfirm, onCancel }) {
 
           {/* ── Section 2: Apply to Project Info ── */}
           <div>
-            <div className="text-[10px] font-bold text-amber-600 uppercase tracking-wider mb-1">Apply to Project Info</div>
+            <div className="text-[11px] font-bold text-amber-600 uppercase tracking-wide mb-1">Apply to Project Info</div>
             <p className="text-xs text-slate-400 mb-4">Checked fields write to the dashboard. Unchecked fields are left untouched.</p>
 
             <div className="grid grid-cols-2 gap-x-10 gap-y-6">
 
               {/* Square Footage */}
               <div>
-                <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2 border-b border-slate-100 pb-1">Square Footage</div>
+                <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-2 border-b border-slate-100 pb-1">Square Footage</div>
                 <div className="space-y-1.5">
                   <FieldRow
                     label="Unit / Room SF"
@@ -398,7 +398,7 @@ function ReviewModal({ proposal, fileName, onConfirm, onCancel }) {
 
               {/* Counts */}
               <div>
-                <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2 border-b border-slate-100 pb-1">Counts</div>
+                <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-2 border-b border-slate-100 pb-1">Counts</div>
                 <div className="space-y-1.5">
                   <FieldRow
                     label="# Units / Rooms"
@@ -584,7 +584,7 @@ export default function UnitMatrixUpload({ projectId, onCommitted }) {
     const ext = file.name.split('.').pop()?.toLowerCase();
 
     if (['png', 'jpg', 'jpeg', 'gif', 'webp'].includes(ext)) {
-      setErrMsg('Image files aren\'t supported yet — please upload a text PDF or Excel file.');
+      setErrMsg('Image files aren\'t supported yet, please upload a text PDF or Excel file.');
       setState('error');
       return;
     }
@@ -679,13 +679,13 @@ export default function UnitMatrixUpload({ projectId, onCommitted }) {
     } catch {
       // Return to reviewing so the user can retry without re-uploading
       setState('reviewing');
-      showToast('Save failed — please try again');
+      showToast('Save failed, please try again');
     }
   }
 
   // Drag-and-drop
-  function onDragOver(e) { e.preventDefault(); dropRef.current?.classList.add('border-amber-400', 'bg-amber-50'); }
-  function onDragLeave()  { dropRef.current?.classList.remove('border-amber-400', 'bg-amber-50'); }
+  function onDragOver(e) { e.preventDefault(); dropRef.current?.classList.add('border-orange-400', 'bg-amber-50'); }
+  function onDragLeave()  { dropRef.current?.classList.remove('border-orange-400', 'bg-amber-50'); }
   function onDrop(e)      { e.preventDefault(); onDragLeave(); handleFiles(e.dataTransfer.files); }
 
   // ── Committed state: show saved unit types ───────────────────────────────
@@ -705,7 +705,7 @@ export default function UnitMatrixUpload({ projectId, onCommitted }) {
             </div>
             <button
               onClick={() => setShowReplaceWarning(true)}
-              className="text-xs text-slate-400 hover:text-amber-600 font-semibold border border-slate-200 hover:border-amber-300 px-3 py-1.5 rounded-lg transition-colors"
+              className="text-xs text-slate-400 hover:text-orange-600 font-semibold border border-slate-200 hover:border-amber-300 px-3 py-1.5 rounded-lg transition-colors"
             >
               Replace
             </button>
@@ -714,13 +714,13 @@ export default function UnitMatrixUpload({ projectId, onCommitted }) {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead className="bg-slate-50 border-b border-slate-100">
-                <tr className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider text-left">
+                <tr className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide text-left">
                   <th className="px-4 py-2.5">Type</th>
                   <th className="px-4 py-2.5 text-right">Qty</th>
                   <th className="px-4 py-2.5 text-right">Unit SF</th>
                   <th className="px-4 py-2.5 text-center">Bed</th>
                   <th className="px-4 py-2.5 text-center">Bath</th>
-                  <th className="px-4 py-2.5 text-center" title="0 or 1 per unit — never square feet">Balcony</th>
+                  <th className="px-4 py-2.5 text-center" title="0 or 1 per unit, never square feet">Balcony</th>
                 </tr>
               </thead>
               <tbody className="text-slate-700">
@@ -739,7 +739,7 @@ export default function UnitMatrixUpload({ projectId, onCommitted }) {
           </div>
 
           <div className="px-5 py-2.5 bg-amber-50 border-t border-amber-100 flex items-center gap-5 text-sm flex-wrap">
-            <span className="text-[10px] font-bold text-amber-600 uppercase tracking-wider">Rolls up to</span>
+            <span className="text-[11px] font-bold text-amber-600 uppercase tracking-wide">Rolls up to</span>
             <span className="text-slate-700"><span className="font-mono font-semibold">{fmt(live.units)}</span> units</span>
             {live.sf   != null && <><span className="text-slate-300">·</span><span className="text-slate-700"><span className="font-mono font-semibold">{fmt(live.sf)}</span> unit SF</span></>}
             {live.bed  != null && <><span className="text-slate-300">·</span><span className="text-slate-700"><span className="font-mono font-semibold">{fmt(live.bed)}</span> bed</span></>}
@@ -791,7 +791,7 @@ export default function UnitMatrixUpload({ projectId, onCommitted }) {
   // ── Idle / error: upload zone ─────────────────────────────────────────────
   return (
     <div className="mb-6">
-      <div className="text-[10px] font-bold text-amber-600 uppercase tracking-wider mb-2">Unit Matrix</div>
+      <div className="text-[11px] font-bold text-amber-600 uppercase tracking-wide mb-2">Unit Matrix</div>
 
       {state === 'loading' || state === 'uploading' || state === 'parsing' || state === 'saving' ? (
         <div className="rounded-xl border border-slate-200 bg-white px-6 py-8 flex flex-col items-center gap-3">

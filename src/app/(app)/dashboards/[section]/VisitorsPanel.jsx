@@ -19,7 +19,7 @@ const RECENT_ROWS = 100;
 const BASE = '/dashboards/sales?tab=visitors';
 
 const OUTCOME_STYLE = {
-  submitted: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  submitted: 'bg-green-50 text-green-700 border-green-200',
   lead:      'bg-orange-50 text-orange-700 border-orange-200',
   browsed:   'bg-slate-50 text-slate-600 border-slate-200',
   looked:    'bg-white text-slate-400 border-slate-200',
@@ -35,7 +35,7 @@ function minutesOnPage(v) {
 function Tile({ label, value, sub }) {
   return (
     <div className="bg-white border border-slate-200 rounded-xl px-4 py-3">
-      <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{label}</div>
+      <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{label}</div>
       <div className="text-2xl font-bold text-slate-800 mt-0.5">{value}</div>
       {sub && <div className="text-xs text-slate-500 mt-0.5">{sub}</div>}
     </div>
@@ -86,7 +86,7 @@ export default async function VisitorsPanel({ days: rawDays }) {
         <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-1">
           {VISIT_RANGES.map(r => (
             <Link key={r} href={`${BASE}&days=${r}`}
-              className={`px-3 py-1 rounded-md text-xs font-semibold ${r === days ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
+              className={`px-3 py-1 rounded-lg text-xs font-semibold ${r === days ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
               Last {r} days
             </Link>
           ))}
@@ -109,7 +109,7 @@ export default async function VisitorsPanel({ days: rawDays }) {
           <div className="grid md:grid-cols-2 gap-4">
             <div className="bg-white border border-slate-200 rounded-xl p-4">
               <h2 className="text-sm font-semibold text-slate-700">How far people get</h2>
-              <p className="text-xs text-slate-400 mb-3">Visits that reached each step or further.</p>
+              <p className="text-xs text-slate-500 mb-3">Visits that reached each step or further.</p>
               <div className="space-y-1.5">
                 {s.funnel.map(f => (
                   <div key={f.stepId} className="flex items-center gap-2 text-xs">
@@ -125,7 +125,7 @@ export default async function VisitorsPanel({ days: rawDays }) {
 
             <div className="bg-white border border-slate-200 rounded-xl p-4">
               <h2 className="text-sm font-semibold text-slate-700">Where they came from</h2>
-              <p className="text-xs text-slate-400 mb-3">
+              <p className="text-xs text-slate-500 mb-3">
                 The site that sent them, or the campaign tag on the link. {s.byDevice.desktop} computer · {s.byDevice.mobile} phone · {s.byDevice.tablet} tablet.
               </p>
               <table className="w-full text-xs">
@@ -134,7 +134,7 @@ export default async function VisitorsPanel({ days: rawDays }) {
                     <tr key={src.source} className="border-t border-slate-100">
                       <td className="py-1.5 text-slate-700">{src.source}</td>
                       <td className="py-1.5 text-right text-slate-500">{src.count}</td>
-                      <td className="py-1.5 text-right text-slate-400 w-12">{src.pct}%</td>
+                      <td className="py-1.5 text-right text-slate-500 w-12">{src.pct}%</td>
                     </tr>
                   ))}
                 </tbody>
@@ -145,7 +145,7 @@ export default async function VisitorsPanel({ days: rawDays }) {
           <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
             <div className="px-4 py-3 border-b border-slate-100">
               <h2 className="text-sm font-semibold text-slate-700">Recent visits</h2>
-              <p className="text-xs text-slate-400">
+              <p className="text-xs text-slate-500">
                 A name shows only once that person saved their details or sent a request.
                 {rows.length > RECENT_ROWS ? ` Showing the latest ${RECENT_ROWS} of ${rows.length}.` : ''}
               </p>
@@ -180,12 +180,12 @@ export default async function VisitorsPanel({ days: rawDays }) {
                               <div className="text-slate-500">{[company, project].filter(Boolean).join(' · ')}</div>
                             </>
                           ) : (
-                            <span className="text-slate-400">Anonymous{seenBefore.get(v.visitorKey) > 1 ? ' · returning' : ''}</span>
+                            <span className="text-slate-500">Anonymous{seenBefore.get(v.visitorKey) > 1 ? ' · returning' : ''}</span>
                           )}
                         </td>
                         <td className="px-4 py-2 text-slate-600">
                           {v.utmSource || v.referrerHost || 'Direct / typed in'}
-                          {v.utmCampaign && <div className="text-slate-400">{v.utmCampaign}</div>}
+                          {v.utmCampaign && <div className="text-slate-500">{v.utmCampaign}</div>}
                         </td>
                         <td className="px-4 py-2 text-slate-600 capitalize">{v.deviceKind === 'desktop' ? 'Computer' : v.deviceKind === 'mobile' ? 'Phone' : 'Tablet'}</td>
                         <td className="px-4 py-2 text-slate-600">{stepLabel(v.stepReached)}</td>

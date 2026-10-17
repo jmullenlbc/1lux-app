@@ -1,5 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
+import { TH, TD, CARD_PADDED, CARD_TITLE } from '@/components/ui/tokens';
+import { WidgetLoading } from '@/components/ui/WidgetFrame';
 import DisabledSection from '@/components/salesAutomation/DisabledSection';
 import { PIPELINE_STAGES } from '@/lib/pipeline';
 
@@ -61,7 +63,7 @@ function TriggerConfig({ triggerType, config, onChange }) {
           <select
             value={config.pipeline || 'Procurement'}
             onChange={e => set('pipeline', e.target.value)}
-            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-400"
+            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-500"
           >
             <option value="Procurement">Procurement</option>
             <option value="Design">Design</option>
@@ -101,7 +103,7 @@ function TriggerConfig({ triggerType, config, onChange }) {
             );
           })()}
           {!(config.stages || '') && (
-            <p className="text-[10px] text-slate-400 mt-1">Select one or more stages above</p>
+            <p className="text-[11px] text-slate-500 mt-1">Select one or more stages above</p>
           )}
         </div>
         <div>
@@ -112,7 +114,7 @@ function TriggerConfig({ triggerType, config, onChange }) {
               min={1}
               value={config.staleDays ?? 14}
               onChange={e => set('staleDays', parseInt(e.target.value) || 1)}
-              className="w-20 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-400"
+              className="w-20 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-500"
             />
             <span className="text-xs text-slate-500">days</span>
           </div>
@@ -132,7 +134,7 @@ function TriggerConfig({ triggerType, config, onChange }) {
           step={0.05}
           value={config.confidenceThreshold ?? 0.75}
           onChange={e => set('confidenceThreshold', parseFloat(e.target.value) || 0)}
-          className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-400"
+          className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-500"
         />
       </div>
     );
@@ -147,7 +149,7 @@ function TriggerConfig({ triggerType, config, onChange }) {
             type="text"
             value={config.signalTypes || ''}
             onChange={e => set('signalTypes', e.target.value)}
-            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-400"
+            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-500"
             placeholder="NEW_DEVELOPMENT, RENOVATION, FINANCING"
           />
         </div>
@@ -173,7 +175,7 @@ function TriggerConfig({ triggerType, config, onChange }) {
             type="text"
             value={config.fromStage || ''}
             onChange={e => set('fromStage', e.target.value)}
-            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-400"
+            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-500"
             placeholder="QUALIFIED"
           />
         </div>
@@ -183,7 +185,7 @@ function TriggerConfig({ triggerType, config, onChange }) {
             type="text"
             value={config.toStage || ''}
             onChange={e => set('toStage', e.target.value)}
-            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-400"
+            className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-500"
             placeholder="PRECONSTRUCTION"
           />
         </div>
@@ -193,7 +195,7 @@ function TriggerConfig({ triggerType, config, onChange }) {
 
   if (triggerType === 'MANUAL') {
     return (
-      <p className="text-xs text-slate-400 italic">Triggered manually from a project.</p>
+      <p className="text-xs text-slate-500 italic">Triggered manually from a project.</p>
     );
   }
 
@@ -216,7 +218,7 @@ function ActionConfig({ actionType, config, onChange }) {
             type="number"
             value={config.reviewWindowMinutes ?? 30}
             onChange={e => set('reviewWindowMinutes', parseInt(e.target.value))}
-            className="w-20 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-400"
+            className="w-20 border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-500"
           />
           <span className="text-xs text-slate-500">min, -1 = always manual</span>
         </div>
@@ -226,7 +228,7 @@ function ActionConfig({ actionType, config, onChange }) {
 
   if (actionType === 'DRAFT_LINKEDIN_MESSAGE') {
     return (
-      <p className="text-xs text-slate-400 italic">Always requires manual send.</p>
+      <p className="text-xs text-slate-500 italic">Always requires manual send.</p>
     );
   }
 
@@ -238,7 +240,7 @@ function ActionConfig({ actionType, config, onChange }) {
           type="text"
           value={config.notificationMessage || ''}
           onChange={e => set('notificationMessage', e.target.value)}
-          className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-400"
+          className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-500"
           placeholder="New signal for {clientName}"
         />
       </div>
@@ -324,8 +326,8 @@ function RuleDrawer({ open, onClose, rule, onSaved }) {
       <div className={`fixed top-0 right-0 bottom-0 w-[560px] bg-white border-l border-slate-200 shadow-2xl flex flex-col z-50 transition-transform duration-200 ${open ? 'translate-x-0' : 'translate-x-full'}`}>
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 shrink-0">
-          <h2 className="text-sm font-bold text-slate-900">{rule ? 'Edit Rule' : 'New Rule'}</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors">
+          <h2 className={CARD_TITLE}>{rule ? 'Edit Rule' : 'New Rule'}</h2>
+          <button onClick={onClose} className="text-slate-600 hover:bg-slate-100 rounded-lg p-1 transition-colors">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -337,15 +339,15 @@ function RuleDrawer({ open, onClose, rule, onSaved }) {
           {/* Two-panel WHEN / THEN */}
           <div className="grid grid-cols-2 gap-4">
             {/* WHEN */}
-            <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">When</p>
+            <div className="bg-slate-50 rounded-lg border border-slate-200 p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-3">When</p>
               <div className="space-y-3">
                 <div>
                   <label className="block text-[11px] font-semibold text-slate-600 mb-1">Trigger type</label>
                   <select
                     value={form.triggerType}
                     onChange={e => set('triggerType', e.target.value)}
-                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-orange-400"
+                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-orange-500"
                   >
                     <option value="DEAL_STALE">Project Stale</option>
                     <option value="INBOUND_EMAIL_INTENT">Scheduling Intent</option>
@@ -363,15 +365,15 @@ function RuleDrawer({ open, onClose, rule, onSaved }) {
             </div>
 
             {/* THEN */}
-            <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Then</p>
+            <div className="bg-slate-50 rounded-lg border border-slate-200 p-4">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 mb-3">Then</p>
               <div className="space-y-3">
                 <div>
                   <label className="block text-[11px] font-semibold text-slate-600 mb-1">Action type</label>
                   <select
                     value={form.actionType}
                     onChange={e => set('actionType', e.target.value)}
-                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-orange-400"
+                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-xs text-slate-800 bg-white focus:outline-none focus:ring-2 focus:ring-orange-500"
                   >
                     <option value="DRAFT_FOLLOW_UP_EMAIL">Draft Follow-Up Email</option>
                     <option value="DRAFT_SCHEDULING_REPLY">Draft Scheduling Reply</option>
@@ -395,13 +397,13 @@ function RuleDrawer({ open, onClose, rule, onSaved }) {
               type="text"
               value={form.name}
               onChange={e => set('name', e.target.value)}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-400"
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-500"
               placeholder="e.g. Stale Proposal Follow-Up"
             />
           </div>
 
           {/* Applies to */}
-          <p className="text-xs text-slate-400">Applies to: All Sales</p>
+          <p className="text-xs text-slate-500">Applies to: All Sales</p>
 
           {err && (
             <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{err}</p>
@@ -416,9 +418,9 @@ function RuleDrawer({ open, onClose, rule, onSaved }) {
           <button
             onClick={handleSave}
             disabled={saving}
-            className="px-4 py-2 rounded-lg bg-orange-600 text-white text-sm font-semibold hover:bg-orange-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+            className="px-4 py-2 rounded-lg bg-orange-500 text-white text-sm font-semibold hover:bg-orange-600 transition-colors disabled:opacity-50 flex items-center gap-2"
           >
-            {saving && <div className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />}
+            
             {saving ? 'Saving…' : 'Save Rule'}
           </button>
         </div>
@@ -491,10 +493,10 @@ export default function BotRulesPanel() {
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <div>
-          <h2 className="text-sm font-bold text-slate-900">Bot Rules</h2>
+          <h2 className={CARD_TITLE}>Bot Rules</h2>
           <p className="text-xs text-slate-500 mt-0.5">What triggers the bot and what it does. Disabled rules stop affecting automations but are kept for history.</p>
         </div>
-        <button onClick={openNew} className="px-4 py-2 rounded-lg bg-orange-600 text-white text-sm font-semibold hover:bg-orange-700 transition-colors shrink-0">
+        <button onClick={openNew} className="px-4 py-2 rounded-lg bg-orange-500 text-white text-sm font-semibold hover:bg-orange-600 transition-colors shrink-0">
           + New Rule
         </button>
       </div>
@@ -503,23 +505,21 @@ export default function BotRulesPanel() {
         <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mb-4">{err}</p>
       )}
 
-      <div className="bg-white border border-slate-200 rounded-xl p-5">
+      <div className={CARD_PADDED}>
         {loading ? (
-          <div className="flex items-center justify-center py-14">
-            <div className="w-5 h-5 border-2 border-slate-200 border-t-orange-500 rounded-full animate-spin" />
-          </div>
+          <WidgetLoading />
         ) : rules.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-16 text-center">
-            <div className="w-14 h-14 rounded-2xl bg-slate-100 flex items-center justify-center mb-4">
+            <div className="w-14 h-14 rounded-lg bg-slate-100 flex items-center justify-center mb-4">
               <svg className="w-7 h-7 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
               </svg>
             </div>
             <p className="text-sm font-semibold text-slate-700 mb-1">No rules yet</p>
-            <p className="text-xs text-slate-400 max-w-xs leading-relaxed">
+            <p className="text-xs text-slate-500 max-w-xs leading-relaxed">
               Create your first rule to start automating follow-ups and scheduling replies.
             </p>
-            <button onClick={openNew} className="mt-4 px-4 py-2 rounded-lg bg-orange-600 text-white text-sm font-semibold hover:bg-orange-700 transition-colors">
+            <button onClick={openNew} className="mt-4 px-4 py-2 rounded-lg bg-orange-500 text-white text-sm font-semibold hover:bg-orange-600 transition-colors">
               + New Rule
             </button>
           </div>
@@ -528,46 +528,46 @@ export default function BotRulesPanel() {
             <table className="w-full text-xs">
               <thead>
                 <tr className="border-b border-slate-100">
-                  <th className="text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wide pb-2 pr-4">Name</th>
-                  <th className="text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wide pb-2 pr-4">Trigger</th>
-                  <th className="text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wide pb-2 pr-4">Action</th>
-                  <th className="text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wide pb-2 pr-4">Status</th>
-                  <th className="text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wide pb-2 pr-4">Created</th>
-                  <th className="pb-2"></th>
+                  <th className={TH}>Name</th>
+                  <th className={TH}>Trigger</th>
+                  <th className={TH}>Action</th>
+                  <th className={TH}>Status</th>
+                  <th className={TH}>Created</th>
+                  <th className={TH}></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
                 {rules.filter(r => r.isActive).length === 0 ? (
-                  <tr><td colSpan={6} className="py-6 text-center text-xs text-slate-400">No active rules — all are disabled below.</td></tr>
+                  <tr><td colSpan={6} className="py-6 text-center text-xs text-slate-500">No active rules — all are disabled below.</td></tr>
                 ) : rules.filter(r => r.isActive).map(rule => (
                   <tr
                     key={rule.id}
                     onClick={() => openEdit(rule)}
                     className="hover:bg-slate-50 cursor-pointer transition-colors group"
                   >
-                    <td className="py-3 pr-4 font-semibold text-slate-800">{rule.name}</td>
-                    <td className="py-3 pr-4">
-                      <span className="inline-flex items-center text-[10px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
+                    <td className={`${TD} font-semibold text-slate-800`}>{rule.name}</td>
+                    <td className={TD}>
+                      <span className="inline-flex items-center text-[11px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">
                         {fmtTrigger(rule.triggerType)}
                       </span>
                     </td>
-                    <td className="py-3 pr-4">
-                      <span className="inline-flex items-center text-[10px] font-semibold px-2 py-0.5 rounded-full bg-orange-50 text-orange-700 border border-orange-200">
+                    <td className={TD}>
+                      <span className="inline-flex items-center text-[11px] font-semibold px-2 py-0.5 rounded-full bg-orange-50 text-orange-700 border border-orange-200">
                         {fmtAction(rule.actionType)}
                       </span>
                     </td>
-                    <td className="py-3 pr-4" onClick={e => e.stopPropagation()}>
+                    <td className={TD} onClick={e => e.stopPropagation()}>
                       <ToggleSwitch
                         checked={!!rule.isActive}
                         onChange={() => handleToggle(rule)}
                         disabled={!!toggling[rule.id]}
                       />
                     </td>
-                    <td className="py-3 pr-4 text-slate-400">{fmtDate(rule.createdAt)}</td>
-                    <td className="py-3 text-right">
+                    <td className={`${TD} text-slate-500 tabular-nums`}>{fmtDate(rule.createdAt)}</td>
+                    <td className={`${TD} text-right tabular-nums`}>
                       <button
                         onClick={e => { e.stopPropagation(); openEdit(rule); }}
-                        className="text-[11px] font-semibold text-slate-500 hover:text-orange-600 transition-colors opacity-0 group-hover:opacity-100 px-2 py-1 rounded hover:bg-orange-50"
+                        className="text-[11px] font-semibold text-slate-500 hover:text-orange-600 transition-colors opacity-0 group-hover:opacity-100 px-2 py-1 rounded-lg hover:bg-orange-50"
                       >
                         Edit
                       </button>
@@ -585,7 +585,7 @@ export default function BotRulesPanel() {
               <div key={rule.id} className="flex items-center gap-3 py-2">
                 <button onClick={() => openEdit(rule)} className="flex-1 text-left min-w-0">
                   <span className="text-xs font-semibold text-slate-600">{rule.name}</span>
-                  <span className="ml-2 text-[10px] text-slate-400">{fmtTrigger(rule.triggerType)} → {fmtAction(rule.actionType)}</span>
+                  <span className="ml-2 text-[11px] text-slate-500">{fmtTrigger(rule.triggerType)} → {fmtAction(rule.actionType)}</span>
                 </button>
                 <ToggleSwitch
                   checked={!!rule.isActive}

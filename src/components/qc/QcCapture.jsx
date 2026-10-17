@@ -85,10 +85,10 @@ export default function QcCapture() {
 
       const res = await fetch('/api/qc/reports', { method: 'POST', body: fd });
       if (!res.ok) throw new Error('submit failed');
-      toast.success('Bug reported — thank you!');
+      toast.success('Bug reported, thank you!');
       handleClose();
     } catch {
-      toast.error('Failed to submit — try again');
+      toast.error('Failed to submit, try again');
     } finally {
       setLoading(false);
     }
@@ -96,15 +96,15 @@ export default function QcCapture() {
 
   const set = k => e => setForm(f => ({ ...f, [k]: e.target.value }));
 
-  const inputCls = 'mt-1 w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400';
-  const labelCls = 'text-[11px] font-semibold text-slate-400 uppercase tracking-wider';
+  const inputCls = 'mt-1 w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500';
+  const labelCls = 'text-[11px] font-semibold text-slate-500 uppercase tracking-wide';
 
   return (
     <>
       {/* Floating button */}
       <button
         onClick={handleOpen}
-        className="fixed bottom-40 md:bottom-20 right-4 md:right-6 z-30 flex items-center gap-2 px-4 py-2.5 rounded-full bg-slate-800 hover:bg-slate-700 text-white text-sm font-semibold shadow-lg transition-colors print:hidden"
+        className="fixed bottom-40 md:bottom-20 right-4 md:right-6 z-30 flex items-center gap-2 px-4 py-2.5 rounded-full bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold shadow-lg transition-colors print:hidden"
       >
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <rect x="8" y="6" width="8" height="14" rx="4"/>
@@ -130,7 +130,7 @@ export default function QcCapture() {
               <div>
                 <div className="flex items-center justify-between mb-1.5">
                   <span className={labelCls}>Screenshot</span>
-                  <span className="text-[10px] font-semibold text-green-600">
+                  <span className="text-[11px] font-semibold text-green-600">
                     {screenshotUrl ? '✓ Captured' : 'Capturing…'}
                   </span>
                 </div>
@@ -140,14 +140,14 @@ export default function QcCapture() {
                     : <span className="text-[11px] text-slate-400">Capturing page…</span>
                   }
                 </div>
-                <div className="text-[10px] text-slate-400 mt-1">Snapshot of the current page taken automatically.</div>
+                <div className="text-[11px] text-slate-400 mt-1">Snapshot of the current page taken automatically.</div>
               </div>
 
               {/* Screen recording — v1.1 */}
               <div className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5 opacity-50 cursor-not-allowed select-none">
                 <div>
                   <div className="text-sm text-slate-600 font-medium">Add screen recording</div>
-                  <div className="text-[10px] text-slate-400">Coming soon</div>
+                  <div className="text-[11px] text-slate-400">Coming soon</div>
                 </div>
                 <div className="w-11 h-6 rounded-full bg-slate-200 relative shrink-0">
                   <span className="absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow" />
@@ -192,7 +192,7 @@ export default function QcCapture() {
                 <label className={labelCls}>Page URL</label>
                 <input value={form.pageUrl} onChange={set('pageUrl')} type="text"
                   className={`${inputCls} font-mono text-[12px] text-slate-600 bg-slate-50`} />
-                <div className="text-[10px] text-slate-400 mt-1">Auto-filled. Editable if the bug was on a different page.</div>
+                <div className="text-[11px] text-slate-400 mt-1">Auto-filled. Editable if the bug was on a different page.</div>
               </div>
 
               {/* Auto-captured context */}
@@ -201,14 +201,14 @@ export default function QcCapture() {
                   onClick={() => setCtxOpen(x => !x)}
                   className="w-full flex items-center justify-between px-3 py-2.5"
                 >
-                  <span className="flex items-center gap-2 text-[11px] font-semibold text-slate-500 uppercase tracking-wider">
+                  <span className="flex items-center gap-2 text-[11px] font-semibold text-slate-500 uppercase tracking-wide">
                     <svg className={`transition-transform duration-150 ${ctxOpen ? 'rotate-90' : ''}`}
                       width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
                       <path d="M9 6l6 6-6 6"/>
                     </svg>
                     Auto-captured silently
                   </span>
-                  <span className="text-[10px] text-green-600 font-semibold">✓ Attached</span>
+                  <span className="text-[11px] text-green-600 font-semibold">✓ Attached</span>
                 </button>
                 {ctxOpen && (
                   <div className="px-3 pb-3 space-y-2 text-[11px] text-slate-600">
@@ -223,7 +223,7 @@ export default function QcCapture() {
                     {consoleSnap.length > 0 && (
                       <div>
                         <span className="text-slate-400">Console ({consoleSnap.length})</span>
-                        <div className="mt-1 rounded-lg bg-slate-900 text-red-300 font-mono text-[10px] px-2.5 py-2 leading-relaxed max-h-20 overflow-y-auto">
+                        <div className="mt-1 rounded-lg bg-slate-900 text-red-300 font-mono text-[11px] px-2.5 py-2 leading-relaxed max-h-20 overflow-y-auto">
                           {consoleSnap.slice(-3).map((e, i) => (
                             <div key={i}>{e.level === 'error' ? '✕' : '⚠'} {e.msg}</div>
                           ))}
@@ -233,7 +233,7 @@ export default function QcCapture() {
                     {networkSnap.length > 0 && (
                       <div>
                         <span className="text-slate-400">Failed requests ({networkSnap.length})</span>
-                        <div className="mt-1 rounded-lg bg-slate-900 text-amber-300 font-mono text-[10px] px-2.5 py-2 leading-relaxed max-h-20 overflow-y-auto">
+                        <div className="mt-1 rounded-lg bg-slate-900 text-amber-300 font-mono text-[11px] px-2.5 py-2 leading-relaxed max-h-20 overflow-y-auto">
                           {networkSnap.slice(-3).map((e, i) => (
                             <div key={i}>{e.status} {e.method} {String(e.url).replace(/^https?:\/\/[^/]+/, '')}</div>
                           ))}
@@ -241,7 +241,7 @@ export default function QcCapture() {
                       </div>
                     )}
                     {consoleSnap.length === 0 && networkSnap.length === 0 && (
-                      <p className="text-slate-400 text-[10px]">No console errors or failed requests captured.</p>
+                      <p className="text-slate-400 text-[11px]">No console errors or failed requests captured.</p>
                     )}
                   </div>
                 )}

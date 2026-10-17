@@ -35,9 +35,9 @@ test('the delete route refuses with a 405 and says to archive instead', () => {
 });
 
 test('the bot only ever picks a template that is not archived', () => {
-  const src = read('src/lib/bot/followUpDrafter.js');
+  const src = read('src/lib/bot/templatePick.js');
   const finds = src.match(/messageTemplate\.find\w+\(\{[^]*?\}\)/g) || [];
-  assert.ok(finds.length >= 2);
+  assert.ok(finds.length >= 1);
   for (const f of finds) assert.match(f, /isActive: true/);
 });
 

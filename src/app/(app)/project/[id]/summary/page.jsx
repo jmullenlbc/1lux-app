@@ -16,6 +16,8 @@ import ContingencyWidget from './ContingencyWidget';
 import SalesTaxWidget from './SalesTaxWidget';
 import MissingInputsWarning from '@/components/MissingInputsWarning';
 import SendBudgetButton from './SendBudgetButton';
+import WidgetFrame from '@/components/ui/WidgetFrame';
+import StatTile from '@/components/ui/StatTile';
 import { SITE_FEATURE_INCLUDE, engineProjectData } from '@/lib/siteFeatureRows';
 import { takeAreaBaseline } from '@/lib/calibration/areaNormsLoad';
 
@@ -75,7 +77,7 @@ export default async function SummaryPage({ params }) {
   }
 
   const LOCAL_LABELS = {
-    diskType:           { flatEdgeLit: 'Flat Edge-Lit (standard)', backlit: 'Backlit Rounded (–$0.04/SF credit)' },
+    diskType:           { flatEdgeLit: 'Flat Edge-Lit (standard)', backlit: 'Backlit Rounded (-$0.04/SF credit)' },
     entryDisk:          { typical: 'Standard (matches rooms)', '12inch': '12" Oversized Entry Disk (+$25/unit)', upgraded12: '12" Oversized Entry Disk (+$25/unit)', decorative: 'Decorative Surface Mount (+$30/unit)' },
     fixtureType:        { disk: 'Surface-Mount Disk', recessed: 'Recessed Downlight' },
     corridorFireRating: { surfaceMount: 'Surface Mount (no fire rating required)', fireRated: 'Fire-Rated Concealed' },
@@ -86,8 +88,8 @@ export default async function SummaryPage({ params }) {
     corridorEnds:       { none: 'None', sconce: 'Sconce at Corridor Ends', downlight: 'Downlight at Corridor Ends' },
     elevatorLobby:      { no: 'No', yes: 'Yes' },
     corridorSpecial:    { no: 'No', yes: 'Yes' },
-    exitSignType:       { thermoplastic: 'Thermoplastic — Code Minimum (~$22/sign)', mixed: 'Mixed — Edge-Lit FOH / Thermoplastic BOH (~$75/sign)', edgelit: 'Edge-Lit Throughout (~$120/sign)' },
-    garageDesignLevel:  { medium: 'Standard — LED Linear Grid ($0.20/SF)', standard: 'Standard — LED Linear Grid ($0.20/SF)', enhanced: 'Enhanced — Higher Uniformity ($0.25/SF)', high: 'Enhanced — Higher Uniformity ($0.25/SF)' },
+    exitSignType:       { thermoplastic: 'Thermoplastic, Code Minimum (~$22/sign)', mixed: 'Mixed, Edge-Lit FOH / Thermoplastic BOH (~$75/sign)', edgelit: 'Edge-Lit Throughout (~$120/sign)' },
+    garageDesignLevel:  { medium: 'Standard, LED Linear Grid ($0.20/SF)', standard: 'Standard, LED Linear Grid ($0.20/SF)', enhanced: 'Enhanced, Higher Uniformity ($0.25/SF)', high: 'Enhanced, Higher Uniformity ($0.25/SF)' },
     garageControls:     { none: 'None', occSensor: 'Occupancy Sensors (+$0.02/SF)', occupancy: 'Occupancy Sensors', battery: 'Integrated Battery Backup (on the Emergency line unless there is a generator)', batteryAndSensor: 'Battery + Occupancy Sensor (battery on the Emergency line unless there is a generator)', daylighting: 'Daylight Harvesting (+$0.10/SF)' },
     livingRoomDisks:    { '1large': '(1) Large 12" Disk (standard)', '4small': '(4) Small Disks (+$34/unit)' },
     boilerRoom:         { no: 'No', yes: 'Yes (+$15/unit)' },
@@ -96,9 +98,9 @@ export default async function SummaryPage({ params }) {
     controlsSystem:     { standalone: 'Standalone / Independent', bms: 'BMS Integrated', none: 'None' },
     decorativeDimming:  { no: 'No', yes: 'Yes' },
     sceneSwitching:     { bankSwitches: 'Bank Switches', dmx: 'DMX / Scene Controller', none: 'None', no: 'None' },
-    zoneReduction:      { no: 'No', yes: 'Yes — Automatic Zone Reduction' },
+    zoneReduction:      { no: 'No', yes: 'Yes, Automatic Zone Reduction' },
     siteType:           { pedestrian: 'Pedestrian-Focused', vehicular: 'Vehicular / Parking-Dominated', mixed: 'Mixed Use' },
-    roadwayLighting:    { no: 'No', yes: 'Yes — Roadway / Streetscape Included' },
+    roadwayLighting:    { no: 'No', yes: 'Yes, Roadway / Streetscape Included' },
     exteriorEmergency:  { wallpack: 'Wall-Pack Fixtures', integrated: 'Integrated Into Design' },
     exteriorPoleControl:{ photocell: 'Photocell', timer: 'Timer', bms: 'BMS / Building Controls' },
   };
@@ -216,12 +218,12 @@ export default async function SummaryPage({ params }) {
 
       {/* ── NO PROJECT DATA WARNING ───────────────────────────────── */}
       {!pd.grossSf && (
-        <div className="print:hidden mb-6 flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl px-5 py-4">
-          <svg className="w-5 h-5 text-amber-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <div className="print:hidden mb-6 flex items-start gap-3 bg-amber-50 border border-amber-200 rounded-xl shadow-sm px-5 py-4">
+          <svg className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
           </svg>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-amber-800">Project data not entered — all figures are $0</p>
+            <p className="text-sm font-semibold text-amber-800">Project data not entered, all figures are $0</p>
             <p className="text-xs text-amber-700 mt-0.5">
               Total Gross SF, # of Units, and area breakdowns are required before the budget can calculate.
               Go to the questionnaire, open <strong>Project Data</strong>, and fill in the building metrics.
@@ -246,7 +248,7 @@ export default async function SummaryPage({ params }) {
       {/* ── SCREEN-ONLY HEADER ─────────────────────────────────────── */}
       <div className="print:hidden flex items-start justify-between mb-8">
         <div>
-          <div className="flex items-center gap-2 text-sm text-slate-400 mb-2">
+          <div className="flex items-center gap-2 text-sm text-slate-500 mb-2">
             <Link href="/dashboard" className="hover:text-slate-600 transition-colors">Projects</Link>
             <span>/</span>
             <Link href={`/project/${project.id}`} className="hover:text-slate-600 transition-colors">{project.name}</Link>
@@ -259,7 +261,7 @@ export default async function SummaryPage({ params }) {
         <div className="flex gap-2">
           <Link
             href={`/project/${project.id}/wizard`}
-            className="px-4 py-2 rounded-lg text-sm font-medium border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
+            className="px-4 py-2 rounded-lg text-sm font-semibold border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 transition-colors"
           >
             Edit Questionnaire
           </Link>
@@ -276,47 +278,38 @@ export default async function SummaryPage({ params }) {
       {/* PRINT PAGE 1                                                  */}
       {/* ══════════════════════════════════════════════════════════════ */}
 
-      {/* Budget hero — dark navy */}
-      <div
-        className="rounded-2xl print:rounded-none p-6 print:p-5 mb-6 print:mb-5 text-white"
-        style={{ backgroundColor: '#0f172a', WebkitPrintColorAdjust: 'exact', printColorAdjust: 'exact' }}
-      >
-        <div className="flex items-start justify-between">
-          <div>
-            <div className="text-xs font-medium mb-1" style={{ color: '#94a3b8' }}>
-          ILC Studios — {project.budgetType === 'design' ? 'Design' : 'Conceptual'} Lighting &amp; Controls Budget
-        </div>
-            <div className="text-3xl print:text-2xl font-bold tabular-nums mb-2">
-              {formatCurrency(budget.totalWithControls)}
-            </div>
-            <div className="flex flex-wrap gap-x-5 gap-y-1 text-sm print:text-xs">
-              <div><span style={{ color: '#94a3b8' }}>Lighting Only: </span><span className="font-semibold">{formatCurrency(budget.subtotalLightingOnly)}</span></div>
-              <div><span style={{ color: '#94a3b8' }}>Controls (w/ F&amp;W): </span><span className="font-semibold">{formatCurrency(budget.controlsTotal)}</span></div>
-              {budget.perSf  > 0 && <div><span style={{ color: '#94a3b8' }}>$/SF: </span><span className="font-semibold">${budget.perSf.toFixed(2)}</span></div>}
-              {budget.perUnit > 0 && <div><span style={{ color: '#94a3b8' }}>$/Unit: </span><span className="font-semibold">{formatCurrency(budget.perUnit)}</span></div>}
-            </div>
-          </div>
+      {/* Budget hero */}
+      <WidgetFrame
+        className="mb-6 print:mb-5 print:rounded-none print:shadow-none print:border-0"
+        title={`ILC Studios ${project.budgetType === 'design' ? 'Design' : 'Conceptual'} Lighting & Controls Budget`}
+        sub={`${project.budgetType === 'design' ? 'Design budget' : 'Conceptual budget'}. ${salesTaxNote}`}
+        actions={(
           <div className="text-right hidden print:block">
-            <div className="text-sm font-semibold" style={{ color: '#e2e8f0' }}>{project.name}</div>
-            {project.location && <div className="text-xs mt-0.5" style={{ color: '#94a3b8' }}>{project.location}</div>}
-            <div className="text-xs mt-0.5" style={{ color: '#64748b' }}>{today}</div>
+            <div className="text-sm font-semibold text-slate-800">{project.name}</div>
+            {project.location && <div className="text-xs mt-0.5 text-slate-500">{project.location}</div>}
+            <div className="text-xs mt-0.5 text-slate-500">{today}</div>
           </div>
+        )}
+      >
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 print:grid-cols-5 gap-3">
+          <StatTile inset label="Total Budget" value={formatCurrency(budget.totalWithControls)} tone="brand" />
+          <StatTile inset label="Lighting Only" value={formatCurrency(budget.subtotalLightingOnly)} />
+          <StatTile inset label="Controls (w/ F&W)" value={formatCurrency(budget.controlsTotal)} />
+          {budget.perSf  > 0 && <StatTile inset label="$/SF" value={`$${budget.perSf.toFixed(2)}`} />}
+          {budget.perUnit > 0 && <StatTile inset label="$/Unit" value={formatCurrency(budget.perUnit)} />}
         </div>
         {pd.clientInitialBudget > 0 && (
-          <div className="mt-3 pt-3 text-sm print:text-xs" style={{ borderTop: '1px solid #1e293b' }}>
-            <span style={{ color: '#94a3b8' }}>Client Budget: </span>
-            <span className="font-semibold">{formatCurrency(pd.clientInitialBudget)}</span>
-            <span className={`ml-3 font-semibold ${budget.totalWithControls <= pd.clientInitialBudget ? 'text-green-400' : 'text-red-400'}`}>
+          <div className="mt-3 pt-3 border-t border-slate-100 text-sm print:text-xs text-slate-700">
+            <span className="text-slate-500">Client Budget: </span>
+            <span className="font-semibold tabular-nums">{formatCurrency(pd.clientInitialBudget)}</span>
+            <span className={`ml-3 font-semibold tabular-nums ${budget.totalWithControls <= pd.clientInitialBudget ? 'text-green-600' : 'text-red-600'}`}>
               {budget.totalWithControls <= pd.clientInitialBudget
-                ? `✓ Under by ${formatCurrency(pd.clientInitialBudget - budget.totalWithControls)}`
-                : `△ Over by ${formatCurrency(budget.totalWithControls - pd.clientInitialBudget)}`}
+                ? `Under by ${formatCurrency(pd.clientInitialBudget - budget.totalWithControls)}`
+                : `Over by ${formatCurrency(budget.totalWithControls - pd.clientInitialBudget)}`}
             </span>
           </div>
         )}
-        <p className="text-xs mt-2 print:hidden" style={{ color: '#475569' }}>
-          {project.budgetType === 'design' ? 'Design budget estimate' : 'Conceptual estimate'}. {salesTaxNote}
-        </p>
-      </div>
+      </WidgetFrame>
 
       <div className="space-y-1">
         <SalesTaxWidget
@@ -333,7 +326,7 @@ export default async function SummaryPage({ params }) {
 
       {/* ── Design disclaimer — small, above Project Data ──────────── */}
       {project.budgetType === 'design' && (
-        <p className="text-[10px] text-slate-400 leading-relaxed mb-3 print:mb-2">
+        <p className="text-xs text-slate-500 leading-relaxed mb-3 print:mb-2">
           This is a design phase budget prepared by ILC Studios for early design and pre-con purposes only.
           Actual costs will vary based on final design, product selections, and market conditions.
           Not a formal bid or contract.
@@ -341,12 +334,12 @@ export default async function SummaryPage({ params }) {
       )}
 
       {/* ── PROJECT DATA — horizontal grid ─────────────────────────── */}
-      <div className="bg-white rounded-xl print:rounded-none border border-slate-200 print:border-0 p-5 print:p-0 mb-6 print:mb-4">
-        <h3 className="font-bold text-slate-900 mb-3 print:text-sm print:font-bold print:text-slate-900 print:mb-2">Project Data</h3>
+      <div className="bg-white rounded-xl print:rounded-none border border-slate-200 shadow-sm print:shadow-none print:border-0 p-5 print:p-0 mb-6 print:mb-4">
+        <h3 className="text-sm font-semibold text-slate-800 mb-3 print:text-sm print:font-bold print:text-slate-900 print:mb-2">Project Data</h3>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 print:grid-cols-4 gap-x-6 gap-y-2 print:gap-x-4 print:gap-y-1.5">
           {projectDataRows.map(row => (
             <div key={row.label}>
-              <div className="text-xs text-slate-400 print:text-slate-400">{row.label}</div>
+              <div className="text-xs text-slate-500 print:text-slate-500">{row.label}</div>
               <div className="text-sm font-semibold text-slate-900 tabular-nums print:text-xs">{row.value}</div>
             </div>
           ))}
@@ -357,21 +350,21 @@ export default async function SummaryPage({ params }) {
       <div className="hidden print:block border-t border-slate-300 my-4" />
 
       {/* ── BUDGET BREAKDOWN — interactive on screen, clean for print ─ */}
-      <div className="bg-white rounded-xl print:rounded-none border border-slate-200 print:border-0 p-5 print:p-0">
+      <div className="bg-white rounded-xl print:rounded-none border border-slate-200 shadow-sm print:shadow-none print:border-0 p-5 print:p-0">
         <div className="flex items-center justify-between mb-3 print:mb-2">
-          <h3 className="font-bold text-slate-900 print:text-sm print:font-bold print:text-slate-900">Budget Breakdown</h3>
-          <span className="print:hidden text-xs text-slate-400 italic">Hover a line for details</span>
+          <h3 className="text-sm font-semibold text-slate-800 print:text-sm print:font-bold print:text-slate-900">Budget Breakdown</h3>
+          <span className="print:hidden text-xs text-slate-500">Hover a line for details</span>
         </div>
         <SummaryBudgetBreakdown budget={budget} freightPct={freightPct} warehousingPct={warehousingPct} />
         <p className="hidden print:block text-xs mt-3 text-slate-400">
-          Conceptual estimate only. {salesTaxNote}
+          Conceptual budget only. {salesTaxNote}
         </p>
       </div>
 
       {/* ══════════════════════════════════════════════════════════════ */}
       {/* PRINT PAGE 2 — Questionnaire Responses                        */}
       {/* ══════════════════════════════════════════════════════════════ */}
-      <div className="print-page-2 bg-white rounded-xl print:rounded-none border border-slate-200 print:border-0 p-5 print:p-0 mt-6 print:mt-0">
+      <div className="print-page-2 bg-white rounded-xl print:rounded-none border border-slate-200 shadow-sm print:shadow-none print:border-0 p-5 print:p-0 mt-6 print:mt-0">
 
         {/* Print page 2 header */}
         <div className="hidden print:flex print:items-center print:justify-between print:mb-4 print:pb-2 print:border-b print:border-slate-300">
@@ -379,16 +372,16 @@ export default async function SummaryPage({ params }) {
             <div className="text-sm font-bold text-slate-800">{project.name}</div>
             {project.location && <div className="text-xs text-slate-500">{project.location}</div>}
           </div>
-          <div className="text-xs text-slate-400">{today}</div>
+          <div className="text-xs text-slate-500">{today}</div>
         </div>
 
-        <h3 className="font-semibold text-slate-900 mb-4 print:hidden">Questionnaire Responses</h3>
+        <h3 className="text-sm font-semibold text-slate-800 mb-4 print:hidden">Questionnaire Responses</h3>
 
         {/* Flat single-column list — sections separated by a heading */}
         <div className="space-y-0">
           {answerRows.map((group, gi) => (
             <div key={group.section} className={gi > 0 ? 'mt-4 print:mt-2' : ''}>
-              <div className="text-xs font-bold text-slate-900 uppercase tracking-widest mb-1 pb-1 border-b border-slate-200 print:border-slate-300 print:mb-0">
+              <div className="text-xs font-bold text-slate-900 uppercase tracking-wide mb-1 pb-1 border-b border-slate-200 print:border-slate-300 print:mb-0">
                 {group.section}
               </div>
               {group.rows.map(row => (
@@ -405,12 +398,12 @@ export default async function SummaryPage({ params }) {
 
       {/* ── BUDGET CHANGE HISTORY — screen only ───────────────────── */}
       {budgetHistory.length > 0 && (
-        <div className="print:hidden bg-white rounded-xl border border-slate-200 p-5 mt-6">
+        <div className="print:hidden bg-white rounded-xl border border-slate-200 shadow-sm p-5 mt-6">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-slate-900">Budget Change History</h3>
+            <h3 className="text-sm font-semibold text-slate-800">Budget Change History</h3>
             <Link
               href={`/project/${project.id}`}
-              className="text-xs text-amber-600 hover:text-amber-700 font-medium transition-colors"
+              className="text-xs text-orange-600 hover:text-orange-700 font-semibold transition-colors"
             >
               View all in Activity tab →
             </Link>
@@ -419,7 +412,7 @@ export default async function SummaryPage({ params }) {
           <div className="space-y-0 divide-y divide-slate-100">
             {budgetHistory.map(activity => (
               <div key={activity.id} className="flex gap-4 py-3 first:pt-0 last:pb-0">
-                <div className="w-32 shrink-0 text-xs text-slate-500">
+                <div className="w-32 shrink-0 text-xs text-slate-500 tabular-nums">
                   {formatActivityTime(activity.createdAt)}
                 </div>
                 <div className="w-24 shrink-0 text-sm font-medium text-slate-700">

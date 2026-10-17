@@ -1,5 +1,5 @@
 'use client';
-// "Things Needing a Look" — the Main-dashboard card.
+// "Things Needing a Look", the Main-dashboard card.
 //
 // Mike, 2026-09-09: "do we need to have a verification area for things that are
 // conflicting or need attention in general but it can't be overwhelming. like
@@ -12,13 +12,14 @@
 //
 // Mike, 2026-09-10: "I don't think these cards should ever get deleted. they
 // should get archived somewhere into an archive that is accessible but not
-// easily." That is the closed line at the bottom — one click away, out of the
+// easily." That is the closed line at the bottom, one click away, out of the
 // way, and only fetched when somebody opens it.
 //
 // This card fetches its own data rather than going through the dashboard render
 // route, because it also has to WRITE (it stamps which items have been shown).
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { WidgetLoading, WidgetEmpty } from '@/components/ui/WidgetFrame';
 
 const TONE = {
   REQUEST_LOOKS_LIKE_JOB: 'bg-violet-50 text-violet-700 border-violet-200',
@@ -94,7 +95,7 @@ export default function VerificationCard() {
     if (next && archive === null) loadArchive();
   }
 
-  // "That's fine" — take it off the list. Nothing is deleted: it goes into the
+  // "That's fine", take it off the list. Nothing is deleted: it goes into the
   // archive below and can be brought back. The row is removed here rather than
   // by reloading, so nothing new slides into its place mid-click and gets put
   // away by accident.
@@ -150,7 +151,7 @@ export default function VerificationCard() {
   }
 
   if (loading) {
-    return <p className="text-xs text-slate-400 italic px-3 py-6 text-center">Having a look…</p>;
+    return <WidgetLoading>Having a look...</WidgetLoading>;
   }
 
   if (err && !data) {
@@ -160,13 +161,13 @@ export default function VerificationCard() {
   const items         = data?.items || [];
   const archivedCount = data?.archivedCount || 0;
 
-  // The archive line. Deliberately plain and small — reachable, not prominent.
+  // The archive line. Deliberately plain and small, reachable, not prominent.
   const archiveSection = archivedCount > 0 && (
     <div className="border-t border-slate-100 mt-1">
       <button
         type="button"
         onClick={toggleArchive}
-        className="w-full flex items-center gap-1.5 px-2 py-2 text-[11px] text-slate-400 hover:text-slate-600 transition-colors"
+        className="w-full flex items-center gap-1.5 px-2 py-2 text-[11px] text-slate-500 hover:text-slate-600 transition-colors"
       >
         <svg
           className={`w-3 h-3 shrink-0 transition-transform ${archiveOpen ? 'rotate-90' : ''}`}
@@ -179,15 +180,15 @@ export default function VerificationCard() {
 
       {archiveOpen && (
         <div className="px-2 pb-3">
-          {archiveLoading && <p className="text-[11px] text-slate-400 italic py-2">Fetching…</p>}
+          {archiveLoading && <WidgetLoading />}
 
           {!archiveLoading && archive && archive.length === 0 && (
-            <p className="text-[11px] text-slate-400 py-2">Nothing in here.</p>
+            <WidgetEmpty>Nothing in here.</WidgetEmpty>
           )}
 
           {!archiveLoading && archive && archive.length > 0 && (
             <>
-              <p className="text-[11px] text-slate-400 pb-2">
+              <p className="text-[11px] text-slate-500 pb-2">
                 Nothing is ever thrown away. Anything here can be put back on the list.
               </p>
               <ul className="divide-y divide-slate-100 border border-slate-100 rounded-lg">
@@ -197,9 +198,9 @@ export default function VerificationCard() {
                       <div className="min-w-0 flex-1">
                         <p className="text-xs font-medium text-slate-600">{item.title}</p>
                         {item.detail && (
-                          <p className="text-[11px] text-slate-400 mt-0.5">{item.detail}</p>
+                          <p className="text-[11px] text-slate-500 mt-0.5">{item.detail}</p>
                         )}
-                        <p className="text-[10px] text-slate-400 mt-1">
+                        <p className="text-[11px] text-slate-500 mt-1">
                           {item.stillTrue
                             ? 'Still reads this way'
                             : 'Has been sorted out since'}
@@ -211,7 +212,7 @@ export default function VerificationCard() {
                         {item.href && (
                           <Link
                             href={item.href}
-                            className="text-[11px] font-medium text-blue-600 hover:text-blue-800 hover:underline"
+                            className="text-[11px] font-semibold text-orange-600 hover:text-orange-700 hover:underline"
                           >
                             {item.hrefLabel || 'Open it'} →
                           </Link>
@@ -220,7 +221,7 @@ export default function VerificationCard() {
                           <button
                             onClick={() => restore(item)}
                             disabled={busy === item.key}
-                            className="text-[11px] text-slate-400 hover:text-slate-700 hover:underline disabled:opacity-50"
+                            className="text-[11px] text-slate-500 hover:text-slate-700 hover:underline disabled:opacity-50"
                             title="Put this back on the list"
                           >
                             {busy === item.key ? 'Bringing it back…' : 'Bring it back'}
@@ -243,7 +244,7 @@ export default function VerificationCard() {
       <div className="px-1">
         <div className="px-3 py-8 text-center">
           <p className="text-sm text-slate-600">Nothing needs a look right now.</p>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className="text-xs text-slate-500 mt-1">
             This checks open jobs and anything closed in the last {data?.scopeDays ?? 90} days.
           </p>
         </div>
@@ -260,7 +261,7 @@ export default function VerificationCard() {
         {items.map(item => (
           <li key={item.key} className="py-3 px-2 flex items-start gap-3">
             <span
-              className={`shrink-0 mt-0.5 text-[10px] font-semibold uppercase tracking-wide px-2 py-1 rounded border ${TONE[item.kind] || 'bg-slate-50 text-slate-600 border-slate-200'}`}
+              className={`shrink-0 mt-0.5 text-[11px] font-semibold uppercase tracking-wide px-2 py-1 rounded border ${TONE[item.kind] || 'bg-slate-50 text-slate-600 border-slate-200'}`}
             >
               {LABEL[item.kind] || 'Look'}
             </span>
@@ -273,7 +274,7 @@ export default function VerificationCard() {
                 {item.href && (
                   <Link
                     href={item.href}
-                    className="text-xs font-medium text-blue-600 hover:text-blue-800 hover:underline"
+                    className="text-xs font-semibold text-orange-600 hover:text-orange-700 hover:underline"
                   >
                     {item.hrefLabel || 'Open it'} →
                   </Link>
@@ -281,8 +282,8 @@ export default function VerificationCard() {
                 <button
                   onClick={() => dismiss(item)}
                   disabled={busy === item.key}
-                  className="text-xs text-slate-400 hover:text-slate-700 hover:underline disabled:opacity-50"
-                  title="Takes it off the list for everyone. Nothing is thrown away — it goes to Put away at the bottom."
+                  className="text-xs text-slate-500 hover:text-slate-700 hover:underline disabled:opacity-50"
+                  title="Takes it off the list for everyone. Nothing is thrown away, it goes to Put away at the bottom."
                 >
                   {busy === item.key ? 'Putting it away…' : "That's fine"}
                 </button>
@@ -292,9 +293,9 @@ export default function VerificationCard() {
         ))}
       </ul>
 
-      <p className="text-[11px] text-slate-400 px-2 pt-2 pb-1">
+      <p className="text-[11px] text-slate-500 px-2 pt-2 pb-1">
         {data.totalOpen > items.length
-          ? `${data.totalOpen - items.length} more waiting — a few at a time, at most ${data.weeklyLimit} new ones a week.`
+          ? `${data.totalOpen - items.length} more waiting, a few at a time, at most ${data.weeklyLimit} new ones a week.`
           : `At most ${data.weeklyLimit} new ones a week. Open jobs and anything closed in the last ${data.scopeDays} days.`}
       </p>
 

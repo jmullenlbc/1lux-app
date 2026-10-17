@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { BTN_PRIMARY, CARD, H1, INPUT } from '@/components/ui/tokens';
 
 export default function InvitePage({ params }) {
   const router = useRouter();
@@ -55,7 +56,7 @@ export default function InvitePage({ params }) {
   }
 
   if (step === 'loading') {
-    return <div className="text-center py-20 text-slate-400">Validating your invite link…</div>;
+    return <div className="text-center py-20 text-sm text-slate-500">Validating your invite link…</div>;
   }
 
   if (step === 'error') {
@@ -66,9 +67,9 @@ export default function InvitePage({ params }) {
             <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
           </svg>
         </div>
-        <h2 className="text-lg font-semibold text-slate-800 mb-2">Invite Link Issue</h2>
+        <h2 className="text-lg font-semibold text-slate-900 mb-2">Invite Link Issue</h2>
         <p className="text-sm text-slate-500 mb-6">{errMsg}</p>
-        <a href="/portal/login" className="text-amber-600 hover:text-amber-700 text-sm font-medium">
+        <a href="/portal/login" className="text-orange-600 hover:text-orange-700 text-sm font-semibold">
           Go to Portal Login →
         </a>
       </div>
@@ -83,10 +84,10 @@ export default function InvitePage({ params }) {
             <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
           </svg>
         </div>
-        <h2 className="text-lg font-semibold text-slate-800 mb-2">Already Accepted</h2>
+        <h2 className="text-lg font-semibold text-slate-900 mb-2">Already Accepted</h2>
         <p className="text-sm text-slate-500 mb-6">You&apos;ve already set up your account. Log in to access your project portal.</p>
         <a href="/portal/login"
-          className="inline-block px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white transition-colors">
+          className={BTN_PRIMARY}>
           Go to Login
         </a>
       </div>
@@ -95,10 +96,10 @@ export default function InvitePage({ params }) {
 
   return (
     <div className="max-w-md mx-auto">
-      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-8">
+      <div className={`${CARD} p-8`}>
         {/* Header */}
         <div className="mb-6 text-center">
-          <h1 className="text-xl font-bold text-slate-800">Welcome to your Project Portal</h1>
+          <h1 className={H1}>Welcome to your Project Portal</h1>
           <p className="text-sm text-slate-500 mt-1">
             You&apos;ve been invited to view <strong>{info?.project?.name}</strong>
           </p>
@@ -113,7 +114,7 @@ export default function InvitePage({ params }) {
               value={name}
               onChange={e => setName(e.target.value)}
               required
-              className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent"
+              className={INPUT}
             />
           </div>
 
@@ -124,7 +125,7 @@ export default function InvitePage({ params }) {
               type="email"
               value={info?.contact?.email || ''}
               readOnly
-              className="w-full px-3 py-2.5 border border-slate-100 rounded-xl text-sm bg-slate-50 text-slate-400"
+              className={INPUT}
             />
           </div>
 
@@ -138,7 +139,7 @@ export default function InvitePage({ params }) {
               required
               minLength={8}
               placeholder="At least 8 characters"
-              className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent"
+              className={INPUT}
             />
           </div>
 
@@ -150,26 +151,26 @@ export default function InvitePage({ params }) {
               value={confirm}
               onChange={e => setConfirm(e.target.value)}
               required
-              className="w-full px-3 py-2.5 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent"
+              className={INPUT}
             />
           </div>
 
           {errMsg && (
-            <p className="text-sm text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">{errMsg}</p>
+            <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{errMsg}</p>
           )}
 
           <button
             type="submit"
             disabled={saving}
-            className="w-full px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white transition-colors disabled:opacity-60"
+            className={`${BTN_PRIMARY} w-full`}
           >
             {saving ? 'Setting up your account…' : 'Accept Invitation'}
           </button>
         </form>
 
-        <p className="text-center text-xs text-slate-400 mt-4">
+        <p className="text-center text-xs text-slate-500 mt-4">
           Already have an account?{' '}
-          <a href="/portal/login" className="text-amber-600 hover:underline">Log in</a>
+          <a href="/portal/login" className="text-orange-600 hover:underline">Log in</a>
         </p>
       </div>
     </div>

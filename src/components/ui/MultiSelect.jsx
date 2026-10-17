@@ -14,7 +14,7 @@ export default function MultiSelect({ options, selected = [], onChange, label, h
   return (
     <div className={className}>
       {label && (
-        <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">{label}</div>
+        <div className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-2">{label}</div>
       )}
       <div className="flex flex-wrap gap-1.5">
         {options.map(o => {
@@ -27,10 +27,10 @@ export default function MultiSelect({ options, selected = [], onChange, label, h
               type="button"
               aria-pressed={active}
               onClick={() => onChange(active ? list.filter(s => s !== val) : [...list, val])}
-              className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
+              className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition-colors ${
                 active
                   ? 'bg-slate-800 text-white border-slate-800'
-                  : 'bg-white text-slate-500 border-slate-200 hover:border-slate-400'
+                  : 'bg-white text-slate-600 border-slate-300 hover:border-slate-400'
               }`}
             >
               {lbl}
@@ -38,7 +38,7 @@ export default function MultiSelect({ options, selected = [], onChange, label, h
           );
         })}
       </div>
-      {hint && <p className="text-xs text-slate-400 mt-1.5">{hint}</p>}
+      {hint && <p className="text-xs text-slate-500 mt-1.5">{hint}</p>}
     </div>
   );
 }

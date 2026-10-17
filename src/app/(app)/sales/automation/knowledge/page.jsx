@@ -1,5 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { TH, TD, CARD_PADDED, H1, CARD_TITLE } from '@/components/ui/tokens';
+import { WidgetLoading } from '@/components/ui/WidgetFrame';
 import AutomationNav from '@/components/salesAutomation/AutomationNav';
 import DisabledSection from '@/components/salesAutomation/DisabledSection';
 import ConfirmArchiveModal from '@/components/salesAutomation/ConfirmArchiveModal';
@@ -51,7 +53,7 @@ function CreatableSelect({ value, onChange, options, placeholder = 'Select or ty
   return (
     <div ref={ref} className="relative">
       <div
-        className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 bg-white flex items-center gap-2 cursor-pointer focus-within:ring-2 focus-within:ring-orange-400 focus-within:border-orange-400"
+        className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 bg-white flex items-center gap-2 cursor-pointer focus-within:ring-2 focus-within:ring-orange-500 focus-within:border-orange-400"
         onClick={() => setOpen(true)}
       >
         {!open && value ? (
@@ -72,7 +74,7 @@ function CreatableSelect({ value, onChange, options, placeholder = 'Select or ty
       {open && (
         <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-52 overflow-y-auto">
           {filtered.length === 0 && !isNew && (
-            <p className="px-3 py-2 text-xs text-slate-400">No options found</p>
+            <p className="px-3 py-2 text-xs text-slate-500">No options found</p>
           )}
           {filtered.map(opt => (
             <button key={opt} type="button" onClick={() => select(opt)}
@@ -188,8 +190,8 @@ function ImportModal({ open, onClose, onImported }) {
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
       <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg border border-slate-200 z-10">
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
-          <h2 className="text-sm font-bold text-slate-900">Import Knowledge from CSV</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors">
+          <h2 className={CARD_TITLE}>Import Knowledge from CSV</h2>
+          <button onClick={onClose} className="text-slate-600 hover:bg-slate-100 rounded-lg p-1 transition-colors">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -216,20 +218,20 @@ function ImportModal({ open, onClose, onImported }) {
             <div>
               <p className="text-xs font-semibold text-slate-600 mb-1.5">{parsed.length} rows detected — preview (first 3):</p>
               <div className="overflow-x-auto rounded-lg border border-slate-200">
-                <table className="w-full text-[10px]">
+                <table className="w-full text-[11px]">
                   <thead className="bg-slate-50">
                     <tr>
-                      <th className="text-left px-2 py-1.5 font-semibold text-slate-500">Category</th>
-                      <th className="text-left px-2 py-1.5 font-semibold text-slate-500">Keywords</th>
-                      <th className="text-left px-2 py-1.5 font-semibold text-slate-500">Question</th>
+                      <th className={TH}>Category</th>
+                      <th className={TH}>Keywords</th>
+                      <th className={TH}>Question</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
                     {parsed.slice(0, 3).map((row, i) => (
                       <tr key={i}>
-                        <td className="px-2 py-1.5 text-slate-600">{row.category}</td>
-                        <td className="px-2 py-1.5 text-slate-500 truncate max-w-[100px]">{row.keywords}</td>
-                        <td className="px-2 py-1.5 text-slate-600 truncate max-w-[180px]">{row.question}</td>
+                        <td className={TD}>{row.category}</td>
+                        <td className={`${TD} text-slate-500 truncate max-w-[100px]`}>{row.keywords}</td>
+                        <td className={`${TD} truncate max-w-[180px]`}>{row.question}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -256,9 +258,9 @@ function ImportModal({ open, onClose, onImported }) {
             <button
               onClick={handleImport}
               disabled={importing || parsed.length === 0}
-              className="px-4 py-2 rounded-lg bg-orange-600 text-white text-sm font-semibold hover:bg-orange-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+              className="px-4 py-2 rounded-lg bg-orange-500 text-white text-sm font-semibold hover:bg-orange-600 transition-colors disabled:opacity-50 flex items-center gap-2"
             >
-              {importing && <div className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />}
+              
               {importing ? 'Importing…' : `Import ${parsed.length} entr${parsed.length === 1 ? 'y' : 'ies'}`}
             </button>
           )}
@@ -339,8 +341,8 @@ function EntryDrawer({ open, onClose, entry, onSaved }) {
       />
       <div className={`fixed top-0 right-0 bottom-0 w-[480px] bg-white border-l border-slate-200 shadow-2xl flex flex-col z-50 transition-transform duration-200 ${open ? 'translate-x-0' : 'translate-x-full'}`}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 shrink-0">
-          <h2 className="text-sm font-bold text-slate-900">{entry ? 'Edit Entry' : 'Add Entry'}</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors">
+          <h2 className={CARD_TITLE}>{entry ? 'Edit Entry' : 'Add Entry'}</h2>
+          <button onClick={onClose} className="text-slate-600 hover:bg-slate-100 rounded-lg p-1 transition-colors">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -351,7 +353,7 @@ function EntryDrawer({ open, onClose, entry, onSaved }) {
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">
               Category
-              <span className="ml-1.5 text-[10px] font-normal text-slate-400">type to add new</span>
+              <span className="ml-1.5 text-[11px] font-normal text-slate-400">type to add new</span>
             </label>
             <CreatableSelect
               value={form.category}
@@ -367,7 +369,7 @@ function EntryDrawer({ open, onClose, entry, onSaved }) {
               type="text"
               value={form.keywords}
               onChange={e => set('keywords', e.target.value)}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-400"
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-500"
               placeholder="comma-separated: fixture, budget, schedule"
             />
           </div>
@@ -378,7 +380,7 @@ function EntryDrawer({ open, onClose, entry, onSaved }) {
               type="text"
               value={form.question}
               onChange={e => set('question', e.target.value)}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-400"
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-500"
               placeholder="What is a typical lead time for custom fixtures?"
             />
           </div>
@@ -389,7 +391,7 @@ function EntryDrawer({ open, onClose, entry, onSaved }) {
               rows={6}
               value={form.answer}
               onChange={e => set('answer', e.target.value)}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-400 resize-none"
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-500 resize-none"
               placeholder="Custom fixture lead times typically run 8–14 weeks..."
             />
           </div>
@@ -416,9 +418,9 @@ function EntryDrawer({ open, onClose, entry, onSaved }) {
           <button
             onClick={handleSave}
             disabled={saving}
-            className="px-4 py-2 rounded-lg bg-orange-600 text-white text-sm font-semibold hover:bg-orange-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+            className="px-4 py-2 rounded-lg bg-orange-500 text-white text-sm font-semibold hover:bg-orange-600 transition-colors disabled:opacity-50 flex items-center gap-2"
           >
-            {saving && <div className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />}
+            
             {saving ? 'Saving…' : 'Save'}
           </button>
         </div>
@@ -496,7 +498,7 @@ function ReachBanner({ refreshKey }) {
           Nothing in the library yet. Everything you add here goes to the sales bot in full.
         </p>
       ) : complete ? (
-        <p className="text-xs text-emerald-800 bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2">
+        <p className="text-xs text-green-800 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
           <span className="font-semibold">The sales bot reads all of this.</span>{' '}
           Every word of {pieces} goes into every email it drafts — {room}.
         </p>
@@ -695,10 +697,10 @@ function DocumentsPanel({ category, onChanged }) {
   }
 
   return (
-    <div className="bg-white border border-slate-200 rounded-xl p-5 mb-4">
+    <div className={`${CARD_PADDED} mb-4`}>
       <div className="flex items-center gap-2 mb-3">
-        <span className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">Documents</span>
-        <span className="text-[10px] text-slate-400 bg-slate-100 rounded-full px-2 py-0.5">{docs.length}</span>
+        <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Documents</span>
+        <span className="text-[11px] text-slate-500 bg-slate-100 rounded-full px-2 py-0.5">{docs.length}</span>
       </div>
 
       {/* Drop zone */}
@@ -722,7 +724,6 @@ function DocumentsPanel({ category, onChanged }) {
         {uploading ? (
           <div className="text-sm text-slate-600">
             <div className="flex items-center justify-center gap-2">
-              <div className="w-4 h-4 border-2 border-slate-200 border-t-orange-500 rounded-full animate-spin" />
               {progress
                 ? <span className="truncate max-w-[22rem]">
                     {progress.total > 1 ? `File ${progress.index} of ${progress.total} — ` : ''}
@@ -738,7 +739,7 @@ function DocumentsPanel({ category, onChanged }) {
                     style={{ width: `${progress.pct}%` }}
                   />
                 </div>
-                <p className="text-xs text-slate-400 mt-2">
+                <p className="text-xs text-slate-500 mt-2">
                   {progress.pct < 100 ? `Sending… ${progress.pct}%` : 'Reading it — a scanned PDF can take a minute.'}
                 </p>
               </>
@@ -747,7 +748,7 @@ function DocumentsPanel({ category, onChanged }) {
         ) : (
           <>
             <p className="text-sm font-semibold text-slate-700">Drop one file here</p>
-            <p className="text-xs text-slate-400 mt-1">
+            <p className="text-xs text-slate-500 mt-1">
               Word, Excel, PDF, images and text files. Up to 25 MB each.
             </p>
             {/* Say the quiet part out loud. Dropping a pile DOES work — the loop
@@ -785,11 +786,9 @@ function DocumentsPanel({ category, onChanged }) {
 
       {/* List */}
       {loading ? (
-        <div className="flex items-center justify-center py-8">
-          <div className="w-4 h-4 border-2 border-slate-200 border-t-orange-500 rounded-full animate-spin" />
-        </div>
+        <WidgetLoading />
       ) : docs.length === 0 ? (
-        <p className="text-xs text-slate-400 text-center py-6">
+        <p className="text-xs text-slate-500 text-center py-6">
           Nothing dropped in yet. Anything you add here, the bot can quote from.
         </p>
       ) : (
@@ -798,19 +797,19 @@ function DocumentsPanel({ category, onChanged }) {
             <div key={doc.id} className={`py-3 flex items-start justify-between gap-3 ${doc.isActive ? '' : 'opacity-50'}`}>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-                  <span className={`text-[10px] font-bold uppercase border rounded px-1.5 py-0.5 shrink-0 ${TYPE_TINT[doc.fileType] || TYPE_TINT.text}`}>
+                  <span className={`text-[11px] font-bold uppercase border rounded px-1.5 py-0.5 shrink-0 ${TYPE_TINT[doc.fileType] || TYPE_TINT.text}`}>
                     {fileTypeLabel(doc.fileType)}
                   </span>
                   <p className="text-sm font-semibold text-slate-800 leading-snug truncate">{doc.title}</p>
                   {doc.status === 'FAILED' && (
-                    <span className="text-[10px] font-semibold text-red-600 bg-red-50 border border-red-200 rounded-full px-2 py-0.5 shrink-0">
+                    <span className="text-[11px] font-semibold text-red-600 bg-red-50 border border-red-200 rounded-full px-2 py-0.5 shrink-0">
                       Not readable
                     </span>
                   )}
                   {!doc.isActive && (
                     <span
                       title="The bot cannot read this file. Nothing has been thrown away — press Restore to put it back."
-                      className="text-[10px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5 shrink-0"
+                      className="text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5 shrink-0"
                     >
                       Archived
                     </span>
@@ -819,7 +818,7 @@ function DocumentsPanel({ category, onChanged }) {
                 {doc.description && (
                   <p className="text-xs text-slate-500 leading-relaxed">{doc.description}</p>
                 )}
-                <p className="text-[10px] text-slate-400 mt-1">
+                <p className="text-[11px] text-slate-500 mt-1">
                   {doc.fileName} · {prettySize(doc.sizeBytes)}
                   {doc.pageCount ? ` · ${doc.pageCount} page${doc.pageCount === 1 ? '' : 's'}` : ''}
                   {doc.status === 'READY' ? ` · ${doc.charCount.toLocaleString()} characters read` : ''}
@@ -852,7 +851,7 @@ function DocumentsPanel({ category, onChanged }) {
                   title={doc.isActive
                     ? 'Archive this file — it leaves the bot, but nothing is thrown away'
                     : 'Put this file back where the bot can read it'}
-                  className="text-[11px] font-semibold text-slate-400 hover:text-amber-600 px-2 py-1 rounded hover:bg-amber-50 transition-colors disabled:opacity-50"
+                  className="text-[11px] font-semibold text-slate-400 hover:text-orange-600 px-2 py-1 rounded-lg hover:bg-orange-50 transition-colors disabled:opacity-50"
                 >
                   {doc.isActive
                     ? (archivingDoc === doc.id ? 'Archiving…' : 'Archive')
@@ -998,7 +997,7 @@ export default function KnowledgePage() {
       <div className="max-w-5xl mx-auto">
       {/* Header */}
       <div className="mb-5">
-        <h1 className="text-xl font-bold text-slate-900">Bot Knowledge</h1>
+        <h1 className={H1}>Bot Knowledge</h1>
         <p className="text-xs text-slate-500 mt-0.5">
           Everything here is read, in full, by the sales bot every time it drafts an email — typed answers below, and any documents you drop in.
         </p>
@@ -1021,13 +1020,13 @@ export default function KnowledgePage() {
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Search entries…"
-            className="w-full pl-8 pr-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-400"
+            className="w-full pl-8 pr-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-500"
           />
         </div>
         <select
           value={categoryFilter}
           onChange={e => setCategoryFilter(e.target.value)}
-          className="border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-400"
+          className="border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500"
         >
           {CATEGORY_OPTIONS.map(o => (
             <option key={o.value} value={o.value}>{o.label}</option>
@@ -1041,7 +1040,7 @@ export default function KnowledgePage() {
         </button>
         <button
           onClick={openNew}
-          className="px-4 py-2 rounded-lg bg-orange-600 text-white text-sm font-semibold hover:bg-orange-700 transition-colors"
+          className="px-4 py-2 rounded-lg bg-orange-500 text-white text-sm font-semibold hover:bg-orange-600 transition-colors"
         >
           + Add Entry
         </button>
@@ -1052,11 +1051,9 @@ export default function KnowledgePage() {
 
       {/* Content */}
       {loading ? (
-        <div className="flex items-center justify-center py-20">
-          <div className="w-5 h-5 border-2 border-slate-200 border-t-orange-500 rounded-full animate-spin" />
-        </div>
+        <WidgetLoading />
       ) : entries.length === 0 ? (
-        <div className="bg-white border border-slate-200 rounded-xl p-5">
+        <div className={CARD_PADDED}>
           <div className="flex flex-col items-center justify-center py-14 text-center">
             <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center mb-3">
               <svg className="w-6 h-6 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -1064,16 +1061,16 @@ export default function KnowledgePage() {
               </svg>
             </div>
             <p className="text-sm font-semibold text-slate-700 mb-1">No knowledge entries yet</p>
-            <p className="text-xs text-slate-400">Add entries manually or import from a CSV file.</p>
+            <p className="text-xs text-slate-500">Add entries manually or import from a CSV file.</p>
           </div>
         </div>
       ) : (
         <div className="space-y-4">
           {groupKeys.filter(cat => grouped[cat].some(e => e.isActive)).map(cat => (
-            <div key={cat} className="bg-white border border-slate-200 rounded-xl p-5">
+            <div key={cat} className={CARD_PADDED}>
               <div className="flex items-center gap-2 mb-3">
-                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-widest">{cat}</span>
-                <span className="text-[10px] text-slate-400 bg-slate-100 rounded-full px-2 py-0.5">{grouped[cat].filter(e => e.isActive).length}</span>
+                <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{cat}</span>
+                <span className="text-[11px] text-slate-500 bg-slate-100 rounded-full px-2 py-0.5">{grouped[cat].filter(e => e.isActive).length}</span>
               </div>
               <div className="divide-y divide-slate-50">
                 {grouped[cat].filter(e => e.isActive).map(entry => (
@@ -1085,14 +1082,14 @@ export default function KnowledgePage() {
                       <div className="flex items-center gap-2 mb-0.5">
                         <p className="text-sm font-semibold text-slate-800 leading-snug">{entry.question}</p>
                         {!entry.isActive && (
-                          <span className="text-[10px] font-semibold text-slate-400 bg-slate-100 border border-slate-200 rounded-full px-2 py-0.5 shrink-0">
+                          <span className="text-[11px] font-semibold text-slate-400 bg-slate-100 border border-slate-200 rounded-full px-2 py-0.5 shrink-0">
                             Archived
                           </span>
                         )}
                       </div>
                       <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed">{entry.answer}</p>
                       {entry.keywords && (
-                        <p className="text-[10px] text-slate-400 mt-1 font-mono">{entry.keywords}</p>
+                        <p className="text-[11px] text-slate-500 mt-1 font-mono">{entry.keywords}</p>
                       )}
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
@@ -1106,7 +1103,7 @@ export default function KnowledgePage() {
                         <button
                           onClick={() => setConfirmEntry(entry)}
                           title="Archive this answer — it leaves the bot, but nothing is thrown away"
-                          className="text-[11px] font-semibold text-slate-400 hover:text-amber-600 px-2 py-1 rounded hover:bg-amber-50 transition-colors"
+                          className="text-[11px] font-semibold text-slate-400 hover:text-orange-600 px-2 py-1 rounded-lg hover:bg-orange-50 transition-colors"
                         >
                           Archive
                         </button>
@@ -1124,8 +1121,8 @@ export default function KnowledgePage() {
                 <div key={entry.id} className="w-full flex items-center gap-2 py-2 text-left">
                   <button onClick={() => openEdit(entry)} className="flex items-center gap-2 min-w-0 flex-1 text-left">
                     <span className="text-xs font-semibold text-slate-600 truncate">{entry.question}</span>
-                    <span className="text-[10px] text-slate-400 shrink-0">{entry.category}</span>
-                    <span className="ml-auto text-[10px] text-slate-400 font-semibold shrink-0">Edit</span>
+                    <span className="text-[11px] text-slate-500 shrink-0">{entry.category}</span>
+                    <span className="ml-auto text-[11px] text-slate-500 font-semibold shrink-0">Edit</span>
                   </button>
                   {/* Archiving is now the only way out, so getting back in has to
                       be one button rather than "open it and change a switch". */}
@@ -1133,7 +1130,7 @@ export default function KnowledgePage() {
                     onClick={() => setActive(entry, true)}
                     disabled={archivingEntry}
                     title="Put this answer back where the bot can read it"
-                    className="text-[10px] font-semibold text-emerald-600 hover:text-emerald-700 px-2 py-0.5 rounded hover:bg-emerald-50 transition-colors shrink-0 disabled:opacity-50"
+                    className="text-[11px] font-semibold text-green-600 hover:text-green-700 px-2 py-0.5 rounded hover:bg-green-50 transition-colors shrink-0 disabled:opacity-50"
                   >
                     Restore
                   </button>

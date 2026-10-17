@@ -1,39 +1,54 @@
 'use client';
-import { useState, useEffect, useCallback, useRef, Suspense } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo, Suspense } from 'react';
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
 import AskPanel from './AskPanel';
 import SectionTabs, { MARKET_INTEL_TABS } from '@/components/ui/SectionTabs';
 import SignalCard, { PROJECT_TYPE_LABELS, SIGNAL_TYPE_META } from '@/components/market-intel/SignalCard';
 import MacroStrip from '@/components/market-intel/MacroStrip';
+import { FilterToolbar, FilterPanel, SearchBox, countFilters } from '@/components/ui/FilterPanel';
+import { SortSelect } from '@/components/ui/SortHeader';
+import { WidgetEmpty, WidgetLoading } from '@/components/ui/WidgetFrame';
+import { useUrlView } from '@/lib/useUrlView';
+import { H1, HELPER, LABEL, INPUT, BTN_PRIMARY, BTN_COMPACT, TONE } from '@/components/ui/tokens';
+import { cn } from '@/lib/utils';
 
-// A bell notification links to /market-intel?signal=<id>. useSearchParams needs
-// a Suspense boundary in Next 14, so the page is a thin wrapper.
+// A bell notification links to /market-intel?signal=<id>. The address is read
+// by useUrlView, so the page keeps a thin Suspense wrapper.
 export default function MarketIntelPage() {
   return (
-    <Suspense fallback={<div className="p-6 text-sm text-slate-400">Loading…</div>}>
+    <Suspense fallback={<WidgetLoading />}>
       <MarketIntelInner />
     </Suspense>
   );
 }
 
-const EMPTY_FILTERS = {
-  projectType:  '',
-  signalType:   '',
-  reviewStatus: 'UNREVIEWED',
-  clientId:     '',
-  metro:        '',
-  state:        '',
-  company:      '',
-  project:      '',
-  assignedTo:   '',
-  signalId:     '',
-  screened:     '',   // '1' = show only the articles the reader screened out (0125)
-};
+// Filters live in the page address (Mike 10-16) so a reload or shared link keeps them.
+// `signal` is the single-article deep link; any filter change leaves it behind.
+const FILTER_FIELDS = [
+  { key: 'reviewStatus', label: 'Review status', kind: 'pick' },
+  { key: 'signalType',   label: 'Signal type',   kind: 'pick' },
+  { key: 'projectType',  label: 'Project type',  kind: 'pick' },
+  { key: 'clientId',     label: 'Client',        kind: 'pick' },
+  { key: 'metro',        label: 'Metro',         kind: 'pick' },
+  { key: 'state',        label: 'State',         kind: 'pick' },
+  { key: 'assignedTo',   label: 'Assigned to',   kind: 'pick' },
+  { key: 'screened',     label: 'Screened out',  kind: 'pick' },
+  { key: 'company',      label: 'Company',       kind: 'text' },
+  { key: 'project',      label: 'Project',       kind: 'text' },
+  { key: 'signal',       label: 'Signal id',     kind: 'text' },
+];
+const PANEL_FIELDS = FILTER_FIELDS.filter(f => f.key !== 'signal' && f.key !== 'reviewStatus');
+const SORT_FIELDS  = [{ key: 'date', label: 'Date' }, { key: 'relevance', label: 'Relevance' }];
+const SORT_DEFAULT = { key: 'date', dir: 'desc' };
+
+// Sort is done by the server because the list is paged (Mike 10-8).
+function serverSort(sort) {
+  if (sort?.key === 'relevance') return 'relevant';
+  return sort?.dir === 'asc' ? 'oldest' : 'newest';
+}
 
 function MarketIntelInner() {
-  const searchParams = useSearchParams();
-  const deepLinkId   = searchParams.get('signal') || '';
+  const { filters, setFilter, replaceFilters, clearFilters, sort, setSort, ready } = useUrlView({ fields: FILTER_FIELDS, sortDefault: SORT_DEFAULT });
   const [signals,      setSignals]      = useState([]);
   const [total,        setTotal]        = useState(0);
   const [loading,      setLoading]      = useState(true);
@@ -43,9 +58,11 @@ function MarketIntelInner() {
   const [clients,      setClients]      = useState([]);  // clients with matched signals
   const [tagOptions,   setTagOptions]   = useState({ METRO: [], STATE: [] });
   const [salesUsers,   setSalesUsers]   = useState([]);
-  const [filters,      setFilters]      = useState(() => deepLinkId ? { ...EMPTY_FILTERS, reviewStatus: '', signalId: deepLinkId } : EMPTY_FILTERS);
-  const [sort,         setSort]         = useState('newest');
+  const [panelOpen,    setPanelOpen]    = useState(false);
   const searchDebounce = useRef(null);
+
+  // Unreviewed is the default view; a deep link to one article shows it whatever its status.
+  const reviewStatus = filters.reviewStatus || (filters.signal ? 'ALL' : 'UNREVIEWED');
 
   // Load clients with signals, the place tags and the sales team once
   useEffect(() => {
@@ -64,14 +81,18 @@ function MarketIntelInner() {
   }, []);
 
   const fetchSignals = useCallback(async () => {
+    if (!ready) return;
     setLoading(true);
     try {
       const params = new URLSearchParams({ page: String(page) });
-      for (const key of ['projectType', 'signalType', 'reviewStatus', 'clientId', 'metro', 'state', 'company', 'project', 'assignedTo', 'signalId', 'screened']) {
+      for (const key of ['projectType', 'signalType', 'clientId', 'metro', 'state', 'company', 'project', 'assignedTo', 'screened']) {
         if (filters[key]) params.set(key, filters[key]);
       }
-      if (search)               params.set('search',       search);
-      if (sort !== 'newest')    params.set('sort',         sort);
+      if (reviewStatus !== 'ALL') params.set('reviewStatus', reviewStatus);
+      if (filters.signal)         params.set('signalId',     filters.signal);
+      if (search)                 params.set('search',       search);
+      const sortValue = serverSort(sort);
+      if (sortValue !== 'newest') params.set('sort',         sortValue);
       const res  = await fetch(`/api/market-intel/signals?${params}`);
       const data = await res.json();
       setSignals(data.signals || []);
@@ -79,13 +100,16 @@ function MarketIntelInner() {
     } finally {
       setLoading(false);
     }
-  }, [filters, page, search, sort]);
+  }, [ready, filters, reviewStatus, page, search, sort]);
 
   useEffect(() => { fetchSignals(); }, [fetchSignals]);
 
-  function setFilter(key, value) {
+  function changeFilter(key, value) {
     // Any filter change leaves the single-article deep link behind.
-    setFilters(f => ({ ...f, [key]: value, signalId: '' }));
+    const next = { ...filters, [key]: value };
+    delete next.signal;
+    if (value === undefined || value === null || value === '') delete next[key];
+    replaceFilters(next);
     setPage(1);
   }
 
@@ -93,7 +117,9 @@ function MarketIntelInner() {
   function filterByTag(tag) {
     const key = { COMPANY: 'company', PROJECT: 'project', METRO: 'metro', STATE: 'state' }[tag.kind];
     if (!key) return;
-    setFilters(f => ({ ...f, [key]: tag.name, reviewStatus: '', signalId: '' }));
+    const next = { ...filters, [key]: tag.name, reviewStatus: 'ALL' };
+    delete next.signal;
+    replaceFilters(next);
     setPage(1);
   }
 
@@ -166,8 +192,21 @@ function MarketIntelInner() {
     }, 350);
   }
 
-  const hasActiveFilters = Object.keys(EMPTY_FILTERS).some(k => filters[k] !== EMPTY_FILTERS[k]) || search;
-  const SELECT_CLS = 'text-sm border border-slate-200 rounded-lg px-3 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-400';
+  const filterCount = countFilters(filters, FILTER_FIELDS);
+  const hasActiveFilters = filterCount > 0 || !!search;
+
+  // Choices for the pick fields; place filters come from the tags articles actually carry (0122).
+  const choices = useMemo(() => ({
+    signalType:  Object.entries(SIGNAL_TYPE_META).filter(([k]) => k !== 'PERMIT').map(([k, v]) => [k, v.label]),
+    projectType: Object.entries(PROJECT_TYPE_LABELS),
+    clientId:    clients.map(c => [c.id, c.name]),
+    metro:       tagOptions.METRO.map(t => [t.name, `${t.name} (${t.count})`]),
+    state:       tagOptions.STATE.map(t => [t.name, `${t.name} (${t.count})`]),
+    assignedTo:  [['me', 'Assigned to me'], ...salesUsers.map(u => [u.id, u.name])],
+    // The reader hides articles that are not about a project (0125). This
+    // shows only those, so a wrong call can be kept.
+    screened:    [['1', 'Only screened out']],
+  }), [clients, tagOptions, salesUsers]);
 
   return (
     <div className="p-6">
@@ -177,34 +216,10 @@ function MarketIntelInner() {
       {/* Header */}
       <div className="flex items-start justify-between mb-5">
         <div>
-          <h1 className="text-xl font-semibold text-slate-900">Market Intelligence</h1>
-          <p className="text-sm text-slate-500 mt-0.5">
+          <h1 className={H1}>Market Intelligence</h1>
+          <p className="text-sm text-slate-500 mt-0.5 tabular-nums">
             {total.toLocaleString()} signal{total !== 1 ? 's' : ''} · industry news matched to clients
           </p>
-        </div>
-        {/* Top-right: Search */}
-        <div className="flex flex-col items-end gap-2">
-          {/* Search bar */}
-          <div className="relative">
-            <svg className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-            </svg>
-            <input
-              type="text"
-              value={searchInput}
-              onChange={e => handleSearchChange(e.target.value)}
-              placeholder="Search signals…"
-              className="text-sm border border-slate-200 rounded-lg pl-8 pr-3 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-400 w-52 placeholder:text-slate-400"
-            />
-            {searchInput && (
-              <button
-                onClick={() => { setSearchInput(''); setSearch(''); setPage(1); }}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
-              >
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
-              </button>
-            )}
-          </div>
         </div>
       </div>
 
@@ -214,12 +229,12 @@ function MarketIntelInner() {
       <AskPanel />
 
       {(unread > 0 || readNote) && (
-        <div className="flex flex-wrap items-center justify-between gap-3 mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
-          <p className="text-sm text-amber-800">
+        <div className={cn('flex flex-wrap items-center justify-between gap-3 mb-4 rounded-xl border px-4 py-3', TONE.warning)}>
+          <p className="text-sm">
             {readNote || `${unread.toLocaleString()} article${unread === 1 ? '' : 's'} not read for tags yet. Tags (companies, projects, project type, place) show once an article is read.`}
           </p>
           {unread > 0 && (
-            <button onClick={readTags} disabled={reading} className="px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white disabled:opacity-50 whitespace-nowrap">
+            <button onClick={readTags} disabled={reading} className={cn(BTN_PRIMARY, 'whitespace-nowrap')}>
               {reading ? 'Reading…' : 'Read tags now'}
             </button>
           )}
@@ -227,118 +242,50 @@ function MarketIntelInner() {
       )}
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-2 mb-5">
-        <select
-          value={filters.reviewStatus}
-          onChange={e => setFilter('reviewStatus', e.target.value)}
-          className="text-sm border border-slate-200 rounded-lg px-3 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-400"
+      <div className="mb-5">
+        <FilterToolbar
+          count={filterCount}
+          open={panelOpen}
+          onToggle={() => setPanelOpen(o => !o)}
+          onClear={() => { clearFilters(); setSearchInput(''); setSearch(''); setPage(1); }}
+          right={
+            <>
+              <SortSelect fields={SORT_FIELDS} sort={sort} onChange={s => { setSort(s.key ? s : SORT_DEFAULT); setPage(1); }} />
+              <SearchBox value={searchInput} onChange={handleSearchChange} placeholder="Search signals…" />
+            </>
+          }
         >
-          <option value="UNREVIEWED">Unreviewed</option>
-          <option value="">All</option>
-          <option value="REVIEWED">Reviewed</option>
-          <option value="DISMISSED">Dismissed</option>
-        </select>
-
-        <select
-          value={filters.signalType}
-          onChange={e => setFilter('signalType', e.target.value)}
-          className="text-sm border border-slate-200 rounded-lg px-3 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-400"
-        >
-          <option value="">All signal types</option>
-          {Object.entries(SIGNAL_TYPE_META).filter(([k]) => k !== 'PERMIT').map(([k, v]) => (
-            <option key={k} value={k}>{v.label}</option>
-          ))}
-        </select>
-
-        <select
-          value={filters.projectType}
-          onChange={e => setFilter('projectType', e.target.value)}
-          className="text-sm border border-slate-200 rounded-lg px-3 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-400"
-        >
-          <option value="">All project types</option>
-          {Object.entries(PROJECT_TYPE_LABELS).map(([k, v]) => (
-            <option key={k} value={k}>{v}</option>
-          ))}
-        </select>
-
-        {/* Client filter — only shows clients that have matched signals */}
-        {clients.length > 0 && (
-          <select
-            value={filters.clientId}
-            onChange={e => setFilter('clientId', e.target.value)}
-            className="text-sm border border-slate-200 rounded-lg px-3 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-400"
-          >
-            <option value="">All clients</option>
-            {clients.map(c => (
-              <option key={c.id} value={c.id}>{c.name}</option>
-            ))}
-          </select>
-        )}
-
-        {/* Place filters come from the tags articles actually carry (0122). */}
-        {tagOptions.METRO.length > 0 && (
-          <select value={filters.metro} onChange={e => setFilter('metro', e.target.value)} className={SELECT_CLS}>
-            <option value="">All metros</option>
-            {tagOptions.METRO.map(t => <option key={t.id} value={t.name}>{t.name} ({t.count})</option>)}
-          </select>
-        )}
-        {tagOptions.STATE.length > 0 && (
-          <select value={filters.state} onChange={e => setFilter('state', e.target.value)} className={SELECT_CLS}>
-            <option value="">All states</option>
-            {tagOptions.STATE.map(t => <option key={t.id} value={t.name}>{t.name} ({t.count})</option>)}
-          </select>
-        )}
-        <select value={filters.assignedTo} onChange={e => setFilter('assignedTo', e.target.value)} className={SELECT_CLS}>
-          <option value="">Anyone's</option>
-          <option value="me">Assigned to me</option>
-          {salesUsers.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
-        </select>
-        {/* Sort is done by the server because the list is paged (Mike 10-8). */}
-        <select value={sort} onChange={e => { setSort(e.target.value); setPage(1); }} className={SELECT_CLS} title="Sort">
-          <option value="newest">Newest first</option>
-          <option value="oldest">Oldest first</option>
-          <option value="relevant">Most relevant</option>
-        </select>
-        {/* The reader hides articles that are not about a project (0125). This
-            shows only those, so a wrong call can be kept. */}
-        <label className={`${SELECT_CLS} flex items-center gap-2 cursor-pointer ${filters.screened ? 'bg-amber-50 border-amber-300' : ''}`}>
-          <input type="checkbox" checked={filters.screened === '1'} onChange={e => setFilter('screened', e.target.checked ? '1' : '')} className="accent-amber-500" />
-          Show screened out
-        </label>
-        {(filters.company || filters.project) && (
-          <span className="text-sm bg-slate-100 text-slate-700 rounded-lg px-3 py-1.5 flex items-center gap-2">
-            {filters.company || filters.project}
-            <button onClick={() => setFilter(filters.company ? 'company' : 'project', '')} className="text-slate-400 hover:text-slate-600" title="Remove">✗</button>
-          </span>
-        )}
-
-        {hasActiveFilters && (
-          <button
-            onClick={() => {
-              setFilters(EMPTY_FILTERS);
-              setSearchInput('');
-              setSearch('');
-              setPage(1);
-            }}
-            className="text-sm text-slate-400 hover:text-slate-600 px-2"
-          >
-            Clear filters
-          </button>
-        )}
+          {hasActiveFilters && !filterCount && (
+            <button type="button" onClick={() => { setSearchInput(''); setSearch(''); setPage(1); }} className="text-xs font-semibold text-orange-600 hover:text-orange-700">
+              Clear search
+            </button>
+          )}
+        </FilterToolbar>
+        <FilterPanel open={panelOpen} fields={PANEL_FIELDS} filters={filters} choices={choices} onChange={changeFilter}>
+          <div>
+            <label htmlFor="flt-reviewStatus" className={LABEL}>Review status</label>
+            <select id="flt-reviewStatus" className={cn(INPUT, 'mt-1')} value={reviewStatus} onChange={e => changeFilter('reviewStatus', e.target.value)}>
+              <option value="UNREVIEWED">Unreviewed</option>
+              <option value="ALL">All</option>
+              <option value="REVIEWED">Reviewed</option>
+              <option value="DISMISSED">Dismissed</option>
+            </select>
+          </div>
+        </FilterPanel>
       </div>
 
       {/* Signal list */}
       {loading ? (
-        <div className="flex items-center justify-center py-16 text-slate-400 text-sm">Loading…</div>
+        <WidgetLoading />
       ) : signals.length === 0 ? (
-        <div className="text-center py-16 text-slate-400">
-          <p className="font-medium">No signals match these filters</p>
-          <p className="text-xs mt-1">Run a poll from Manage Sources to fetch fresh articles</p>
-        </div>
+        <WidgetEmpty>
+          <span className="block font-medium">No signals match these filters</span>
+          <span className={cn(HELPER, 'block mt-1')}>Run a poll from Manage Sources to fetch fresh articles</span>
+        </WidgetEmpty>
       ) : (
         <div className="space-y-2">
           {signals.map(signal => (
-            <SignalCard key={signal.id} signal={signal} onUpdate={updateSignal} onTagClick={filterByTag} onProjectTypeClick={t => setFilter('projectType', t)} onAddToCrm={addToCrm} onNotRelevant={notRelevant} salesUsers={salesUsers} />
+            <SignalCard key={signal.id} signal={signal} onUpdate={updateSignal} onTagClick={filterByTag} onProjectTypeClick={t => changeFilter('projectType', t)} onAddToCrm={addToCrm} onNotRelevant={notRelevant} salesUsers={salesUsers} />
           ))}
         </div>
       )}
@@ -349,15 +296,15 @@ function MarketIntelInner() {
           <button
             onClick={() => setPage(p => Math.max(1, p - 1))}
             disabled={page === 1}
-            className="px-3 py-1.5 text-sm border border-slate-200 rounded-lg disabled:opacity-40 hover:bg-slate-50"
+            className={BTN_COMPACT}
           >
             Previous
           </button>
-          <span className="text-sm text-slate-500">Page {page} of {totalPages}</span>
+          <span className="text-sm text-slate-500 tabular-nums">Page {page} of {totalPages}</span>
           <button
             onClick={() => setPage(p => Math.min(totalPages, p + 1))}
             disabled={page === totalPages}
-            className="px-3 py-1.5 text-sm border border-slate-200 rounded-lg disabled:opacity-40 hover:bg-slate-50"
+            className={BTN_COMPACT}
           >
             Next
           </button>

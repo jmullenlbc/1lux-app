@@ -30,14 +30,14 @@ export default function QuestionnaireUploads({ projectId, projectData, onProject
   const [open, setOpen] = useState(() => !(Number(projectData?.numUnits) > 0));
 
   return (
-    <div className="mb-6 rounded-2xl border border-slate-200 bg-slate-50/60 overflow-hidden">
+    <div className="mb-6 rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden">
       <button
         type="button"
         onClick={() => setOpen(o => !o)}
         className="w-full px-5 py-3.5 flex items-center justify-between gap-3 text-left hover:bg-slate-100/60 transition-colors"
       >
         <div className="flex items-center gap-3 min-w-0">
-          <svg className="w-5 h-5 text-amber-500 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
+          <svg className="w-5 h-5 text-orange-500 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.8" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/>
           </svg>
           <div className="min-w-0">

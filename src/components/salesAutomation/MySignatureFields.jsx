@@ -34,8 +34,8 @@ export default function MySignatureFields({ onChange }) {
           <div key={b.k} className={b.wide ? 'sm:col-span-2' : ''}>
             <label className="block text-xs text-slate-500 mb-1">{b.label}</label>
             <input defaultValue={f[b.k] || ''} placeholder={b.ph(f.name)} onBlur={e => save(b.k, e.target.value)}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300" />
-            {b.help && <p className="text-[11px] text-slate-400 mt-1">{b.help}</p>}
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500" />
+            {b.help && <p className="text-[11px] text-slate-500 mt-1">{b.help}</p>}
           </div>
         ))}
       </div>

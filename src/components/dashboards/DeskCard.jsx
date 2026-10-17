@@ -4,6 +4,7 @@
 // desk page itself, so a salesperson has one place to work from.
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { WidgetLoading } from '@/components/ui/WidgetFrame';
 
 export default function DeskCard() {
   const [desk, setDesk] = useState(null);
@@ -17,16 +18,16 @@ export default function DeskCard() {
   }, []);
 
   if (err) return <p className="text-xs text-red-500 px-2">{err}</p>;
-  if (!desk) return <p className="text-xs text-slate-400 px-2">Loading…</p>;
+  if (!desk) return <WidgetLoading />;
 
   const count = key => desk.groups.find(g => g.key === key)?.items.length || 0;
   const top = desk.groups.filter(g => g.key === 'OVERDUE' || g.key === 'TODAY').flatMap(g => g.items.map(a => ({ ...a, g: g.key }))).slice(0, 5);
   const tiles = [
-    { label: 'Overdue', n: count('OVERDUE'), tone: 'text-rose-600' },
+    { label: 'Overdue', n: count('OVERDUE'), tone: 'text-red-600' },
     { label: 'Today', n: count('TODAY'), tone: 'text-slate-800' },
     { label: 'This week', n: count('WEEK'), tone: 'text-slate-800' },
     { label: 'Waiting on them', n: count('WAITING'), tone: 'text-slate-800' },
-    { label: 'Emails to review', n: desk.drafts.length, tone: 'text-emerald-700' },
+    { label: 'Emails to review', n: desk.drafts.length, tone: 'text-green-700' },
   ];
 
   return (
@@ -43,14 +44,14 @@ export default function DeskCard() {
         <ul className="divide-y divide-slate-100 mb-2">
           {top.map(a => (
             <li key={a.id} className="py-1.5 flex gap-2 text-xs">
-              <span className={a.g === 'OVERDUE' ? 'text-rose-600 font-semibold shrink-0' : 'text-slate-400 shrink-0'}>{a.g === 'OVERDUE' ? 'Late' : 'Today'}</span>
+              <span className={a.g === 'OVERDUE' ? 'text-red-600 font-semibold shrink-0' : 'text-slate-500 shrink-0'}>{a.g === 'OVERDUE' ? 'Late' : 'Today'}</span>
               <span className="text-slate-700 truncate">{a.detail || a.rawText}</span>
-              {a.who && <span className="text-slate-400 shrink-0 ml-auto">{a.who}</span>}
+              {a.who && <span className="text-slate-500 shrink-0 ml-auto">{a.who}</span>}
             </li>
           ))}
         </ul>
       )}
-      <Link href="/sales/desk" className="text-xs text-emerald-700 hover:underline">Open My Desk</Link>
+      <Link href="/sales/desk" className="text-xs text-green-700 hover:underline">Open My Desk</Link>
     </div>
   );
 }

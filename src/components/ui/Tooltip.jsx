@@ -29,7 +29,7 @@ export function TooltipBudgetRow({ label, value, details = [], className = '', b
 
       {show && hasDetails && (
         <div className="absolute right-0 top-7 z-50 bg-slate-900 text-white rounded-xl shadow-2xl p-3 w-60 text-xs pointer-events-none">
-          <div className="text-slate-400 font-semibold uppercase tracking-widest text-[10px] mb-2">{label}</div>
+          <div className="text-slate-300 font-semibold uppercase tracking-wide text-[11px] mb-2">{label}</div>
           <div className="space-y-1">
             {details.filter(d => (d.value ?? 0) !== 0).map(d => (
               <div key={d.label} className="flex justify-between gap-3">

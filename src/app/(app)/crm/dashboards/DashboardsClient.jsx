@@ -8,6 +8,9 @@ import {
 import { PROJECT_TYPES, ALL_SERVICE_TYPES } from '@/lib/utils';
 import { STAGE_KEYS, STAGE_LABEL, PIPELINE_STATUS, STATUS_LABEL } from '@/lib/pipeline';
 import { RELATIVE_DATE_OPTIONS } from '@/lib/dashboardEngine';
+import StatTile from '@/components/ui/StatTile';
+import WidgetFrame, { WidgetEmpty, WidgetLoading, WidgetError } from '@/components/ui/WidgetFrame';
+import { MODAL, BTN_PRIMARY, BTN_GHOST, H1, H2, LABEL, INPUT, TAB_ACTIVE, TAB_INACTIVE, NUM } from '@/components/ui/tokens';
 
 // ── Colour palette ─────────────────────────────────────────────────────────
 
@@ -50,23 +53,12 @@ function fmtDollarFull(v) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(v);
 }
 
-// ── Stat card ──────────────────────────────────────────────────────────────
+// ── Stat tile ──────────────────────────────────────────────────────────────
 
-function StatCard({ label, value, sub, color = 'blue' }) {
-  const colors = {
-    blue:   'bg-blue-50 text-blue-700',
-    green:  'bg-emerald-50 text-emerald-700',
-    red:    'bg-red-50 text-red-700',
-    purple: 'bg-purple-50 text-purple-700',
-    amber:  'bg-amber-50 text-amber-700',
-  };
-  return (
-    <div className={`rounded-lg px-4 py-3 ${colors[color]}`}>
-      <p className="text-[10px] font-semibold uppercase tracking-wider opacity-70">{label}</p>
-      <p className="text-lg font-bold leading-tight mt-0.5">{value}</p>
-      {sub && <p className="text-xs opacity-70 mt-0.5">{sub}</p>}
-    </div>
-  );
+// The shared StatTile, inset inside the widget. Old colour names map to tones.
+const STAT_TONE = { blue: 'default', green: 'success', red: 'danger', purple: 'default', amber: 'warning' };
+function WidgetStat({ label, value, sub, color = 'blue' }) {
+  return <StatTile inset label={label} value={value} sub={sub} tone={STAT_TONE[color] || 'default'} className="min-w-[140px]" />;
 }
 
 // ── Custom tooltip ─────────────────────────────────────────────────────────
@@ -94,10 +86,8 @@ function CustomTooltip({ active, payload, label, isRevenue, isDuration }) {
 // ── Widget chart renderer ──────────────────────────────────────────────────
 
 function WidgetChart({ data }) {
-  if (!data) return <div className="flex items-center justify-center h-full text-slate-400 text-sm">Loading…</div>;
-  if (!data.series?.length) return (
-    <div className="flex items-center justify-center h-full text-slate-400 text-sm">No data for this period</div>
-  );
+  if (!data) return <WidgetLoading />;
+  if (!data.series?.length) return <WidgetEmpty>No data for this period</WidgetEmpty>;
 
   const { category, metric, segmentBy, segments, series } = data;
   const isRevenue  = category === 'REVENUE' || category === 'FORECAST' || (category === 'PROPOSALS' && metric === 'value');
@@ -189,36 +179,36 @@ function WidgetStats({ data, widget }) {
   if (category === 'REVENUE' || category === 'FORECAST') {
     return (
       <div className="flex gap-3 flex-wrap mb-3">
-        <StatCard label="Open" value={fmtDollar(meta.totalOpen)} color="blue" />
-        <StatCard label="Won"  value={fmtDollar(meta.totalWon)}  sub={wonMoneySub(meta.won)} color="green" />
-        <StatCard label="Projects" value={meta.dealCount} sub={dealsSub(meta)} color="purple" />
+        <WidgetStat label="Open" value={fmtDollar(meta.totalOpen)} color="blue" />
+        <WidgetStat label="Won"  value={fmtDollar(meta.totalWon)}  sub={wonMoneySub(meta.won)} color="green" />
+        <WidgetStat label="Projects" value={meta.dealCount} sub={dealsSub(meta)} color="purple" />
       </div>
     );
   }
   if (category === 'CONVERSION') {
     return (
       <div className="flex gap-3 flex-wrap mb-3">
-        <StatCard label="Win Rate" value={`${meta.overallRate}%`} color="green" />
-        <StatCard label="Won"      value={meta.totalWon} sub={wonSub(meta.won)} color="green" />
-        <StatCard label="Lost"     value={meta.totalLost}         color="red" />
-        <StatCard label="Total"    value={meta.dealCount} sub={dealsSub(meta)} color="purple" />
+        <WidgetStat label="Win Rate" value={`${meta.overallRate}%`} color="green" />
+        <WidgetStat label="Won"      value={meta.totalWon} sub={wonSub(meta.won)} color="green" />
+        <WidgetStat label="Lost"     value={meta.totalLost}         color="red" />
+        <WidgetStat label="Total"    value={meta.dealCount} sub={dealsSub(meta)} color="purple" />
       </div>
     );
   }
   if (category === 'DEAL_COUNT') {
     return (
       <div className="flex gap-3 flex-wrap mb-3">
-        <StatCard label="Total Projects" value={meta.dealCount} sub={dealsSub(meta)} color="blue" />
-        <StatCard label="Won"         value={meta.won?.total || 0} sub={wonSub(meta.won)} color="green" />
+        <WidgetStat label="Total Projects" value={meta.dealCount} sub={dealsSub(meta)} color="blue" />
+        <WidgetStat label="Won"         value={meta.won?.total || 0} sub={wonSub(meta.won)} color="green" />
       </div>
     );
   }
   if (category === 'DURATION') {
     return (
       <div className="flex gap-3 flex-wrap mb-3">
-        <StatCard label="Projects Measured" value={meta.dealCount} color="purple" />
+        <WidgetStat label="Projects Measured" value={meta.dealCount} color="purple" />
         {meta.closedWithoutDate > 0 && (
-          <StatCard label="No Close Date" value={meta.closedWithoutDate}
+          <WidgetStat label="No Close Date" value={meta.closedWithoutDate}
             sub="closed before we started recording" color="amber" />
         )}
       </div>
@@ -227,19 +217,19 @@ function WidgetStats({ data, widget }) {
   if (category === 'SALES_ACTIVITY') {
     return (
       <div className="flex gap-3 flex-wrap mb-3">
-        <StatCard label="Activities"     value={meta.totalActivities} color="blue" />
-        <StatCard label="In-Person"      value={meta.inPerson}        color="green" />
-        <StatCard label="Unique Clients" value={meta.uniqueClients}   color="purple" />
+        <WidgetStat label="Activities"     value={meta.totalActivities} color="blue" />
+        <WidgetStat label="In-Person"      value={meta.inPerson}        color="green" />
+        <WidgetStat label="Unique Clients" value={meta.uniqueClients}   color="purple" />
       </div>
     );
   }
   if (category === 'PROPOSALS') {
     return (
       <div className="flex gap-3 flex-wrap mb-3">
-        <StatCard label="Sent"      value={meta.sentCount}            color="blue" />
-        <StatCard label="Accepted"  value={meta.acceptedCount}        color="green" />
-        <StatCard label="Win Rate"  value={`${meta.rate}%`}           color="purple" />
-        <StatCard label="Value"     value={fmtDollar(meta.acceptedValue)} color="green" />
+        <WidgetStat label="Sent"      value={meta.sentCount}            color="blue" />
+        <WidgetStat label="Accepted"  value={meta.acceptedCount}        color="green" />
+        <WidgetStat label="Win Rate"  value={`${meta.rate}%`}           color="purple" />
+        <WidgetStat label="Value"     value={fmtDollar(meta.acceptedValue)} color="green" />
       </div>
     );
   }
@@ -258,7 +248,7 @@ function FilterSummary({ filters }) {
     const one   = v => def?.labels?.[v] || RELATIVE_DATE_LABEL[v] || v;
     const val   = Array.isArray(f.value) ? f.value.map(one).join(', ') : one(f.value);
     return (
-      <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[10px] font-medium">
+      <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[11px] font-semibold">
         <span className="text-slate-400">{def?.label || f.field}</span>
         <span>{typeof val === 'string' ? val : String(val)}</span>
       </span>
@@ -289,55 +279,40 @@ function WidgetCard({ widget, onEdit, onDelete }) {
 
   const chartHeight = widget.width === 'FULL' ? 280 : 240;
 
-  return (
-    <div className="bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col overflow-hidden">
-      {/* Card header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
-        <div>
-          <h3 className="text-sm font-semibold text-slate-800">{widget.name}</h3>
-          <p className="text-[10px] text-slate-400 mt-0.5">
-            {widget.category.replace('_', ' ')} · View by {widget.viewBy}
-            {widget.segmentBy ? ` · Segment by ${widget.segmentBy}` : ''}
-          </p>
-        </div>
-        <div className="flex items-center gap-1">
-          <button onClick={() => onEdit(widget)}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors">
-            <svg className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
-              <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
-            </svg>
-          </button>
-          <button onClick={() => onDelete(widget.id)}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors">
-            <svg className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zm.01 6a1 1 0 10-2 0v4a1 1 0 102 0V8zm3-1a1 1 0 011 1v4a1 1 0 11-2 0V8a1 1 0 011-1z" clipRule="evenodd" />
-            </svg>
-          </button>
-        </div>
-      </div>
+  const sub = `${widget.category.replace('_', ' ')} · View by ${widget.viewBy}${widget.segmentBy ? ` · Segment by ${widget.segmentBy}` : ''}`;
+  const actions = (
+    <>
+      <button onClick={() => onEdit(widget)}
+        className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors">
+        <svg className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+          <path d="M13.586 3.586a2 2 0 112.828 2.828l-.793.793-2.828-2.828.793-.793zM11.379 5.793L3 14.172V17h2.828l8.38-8.379-2.83-2.828z" />
+        </svg>
+      </button>
+      <button onClick={() => onDelete(widget.id)}
+        className="p-1.5 rounded-lg text-slate-600 hover:text-red-600 hover:bg-red-50 transition-colors">
+        <svg className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
+          <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zm.01 6a1 1 0 10-2 0v4a1 1 0 102 0V8zm3-1a1 1 0 011 1v4a1 1 0 11-2 0V8a1 1 0 011-1z" clipRule="evenodd" />
+        </svg>
+      </button>
+    </>
+  );
 
-      {/* Card body */}
-      <div className="flex-1 px-4 pt-3 pb-4">
-        {loading ? (
-          <div className="flex items-center justify-center h-48 text-slate-400">
-            <svg className="animate-spin w-5 h-5" viewBox="0 0 24 24" fill="none">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
-            </svg>
+  return (
+    <WidgetFrame title={widget.name} sub={sub} actions={actions} className="overflow-hidden">
+      {loading ? (
+        <WidgetLoading className="h-48 flex items-center justify-center" />
+      ) : error ? (
+        <WidgetError className="h-48 flex items-center justify-center">{error}</WidgetError>
+      ) : (
+        <>
+          <WidgetStats data={data} widget={widget} />
+          <FilterSummary filters={filters} />
+          <div style={{ height: chartHeight }}>
+            <WidgetChart data={data} />
           </div>
-        ) : error ? (
-          <div className="flex items-center justify-center h-48 text-red-400 text-sm">{error}</div>
-        ) : (
-          <>
-            <WidgetStats data={data} widget={widget} />
-            <FilterSummary filters={filters} />
-            <div style={{ height: chartHeight }}>
-              <WidgetChart data={data} />
-            </div>
-          </>
-        )}
-      </div>
-    </div>
+        </>
+      )}
+    </WidgetFrame>
   );
 }
 
@@ -452,27 +427,27 @@ function FilterRow({ rule, onChange, onRemove }) {
   return (
     <div className="flex items-center gap-2">
       <select value={rule.field} onChange={e => onChange({ ...rule, field: e.target.value, value: '' })}
-        className="flex-1 text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white">
+        className={`${INPUT} flex-1 text-xs px-2 py-1.5`}>
         {FILTER_FIELDS.map(f => <option key={f.key} value={f.key}>{f.label}</option>)}
       </select>
 
       {fieldDef?.type === 'number' && (
         <>
           <select value={rule.operator} onChange={e => onChange({ ...rule, operator: e.target.value })}
-            className="w-24 text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white">
+            className={`${INPUT} w-24 text-xs px-2 py-1.5`}>
             <option value="gte">≥</option>
             <option value="lte">≤</option>
             <option value="eq">=</option>
           </select>
           <input type="number" value={rule.value} onChange={e => onChange({ ...rule, value: e.target.value })}
-            className="w-20 text-xs border border-slate-200 rounded-lg px-2 py-1.5" />
+            className={`${INPUT} ${NUM} w-20 text-xs px-2 py-1.5`} />
         </>
       )}
 
       {fieldDef?.type === 'enum' && (
         <select value={Array.isArray(rule.value) ? rule.value[0] : rule.value}
           onChange={e => onChange({ ...rule, operator: 'is_any_of', value: [e.target.value] })}
-          className="flex-1 text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white">
+          className={`${INPUT} flex-1 text-xs px-2 py-1.5`}>
           <option value="">Any</option>
           {fieldDef.options.map(o => <option key={o} value={o}>{fieldDef.labels?.[o] || o}</option>)}
         </select>
@@ -481,13 +456,13 @@ function FilterRow({ rule, onChange, onRemove }) {
       {fieldDef?.type === 'date' && (
         <select value={typeof rule.value === 'string' ? rule.value : ''}
           onChange={e => onChange({ ...rule, operator: 'is', value: e.target.value })}
-          className="flex-1 text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white">
+          className={`${INPUT} flex-1 text-xs px-2 py-1.5`}>
           <option value="">Select period</option>
           {RELATIVE_DATES.map(d => <option key={d.key} value={d.key}>{d.label}</option>)}
         </select>
       )}
 
-      <button onClick={onRemove} className="p-1 text-slate-400 hover:text-red-500">
+      <button onClick={onRemove} className="p-1 rounded-lg text-slate-600 hover:text-red-600 hover:bg-red-50">
         <svg className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
           <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd"/>
         </svg>
@@ -568,10 +543,10 @@ function WidgetEditModal({ widget, dashboardId, onSave, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col">
+      <div className={`${MODAL} w-full max-w-lg max-h-[90vh] flex flex-col`}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
-          <h2 className="text-base font-semibold text-slate-900">{isNew ? 'Add Widget' : 'Edit Widget'}</h2>
-          <button onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100">
+          <h2 className={H2}>{isNew ? 'Add Widget' : 'Edit Widget'}</h2>
+          <button onClick={onClose} className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-100">
             <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd"/>
             </svg>
@@ -583,7 +558,7 @@ function WidgetEditModal({ widget, dashboardId, onSave, onClose }) {
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1.5">Widget Name</label>
             <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-              className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2" />
+              className={INPUT} />
           </div>
 
           {/* Category */}
@@ -592,9 +567,9 @@ function WidgetEditModal({ widget, dashboardId, onSave, onClose }) {
             <div className="grid grid-cols-2 gap-2">
               {CATEGORY_OPTIONS.map(c => (
                 <button key={c.key} onClick={() => setForm(f => ({ ...f, category: c.key, metric: metricOptions[c.key][0].key, viewBy: viewByOptionsFor(c.key)[0].key, segmentBy: null }))}
-                  className={`text-left px-3 py-2 rounded-lg border text-xs transition-colors ${form.category === c.key ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-slate-200 text-slate-600 hover:border-slate-300'}`}>
+                  className={`text-left px-3 py-2 rounded-lg border text-xs transition-colors ${form.category === c.key ? 'bg-orange-50 border-orange-400 text-orange-700' : 'border-slate-200 text-slate-600 hover:border-slate-300'}`}>
                   <div className="font-semibold">{c.label}</div>
-                  <div className="text-[10px] opacity-70 mt-0.5">{c.desc}</div>
+                  <div className="text-[11px] opacity-70 mt-0.5">{c.desc}</div>
                 </button>
               ))}
             </div>
@@ -604,7 +579,7 @@ function WidgetEditModal({ widget, dashboardId, onSave, onClose }) {
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1.5">Measure</label>
             <select value={form.metric} onChange={e => setForm(f => ({ ...f, metric: e.target.value }))}
-              className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white">
+              className={INPUT}>
               {(metricOptions[form.category] || []).map(m => <option key={m.key} value={m.key}>{m.label}</option>)}
             </select>
           </div>
@@ -614,14 +589,14 @@ function WidgetEditModal({ widget, dashboardId, onSave, onClose }) {
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1.5">View by (X-axis)</label>
               <select value={form.viewBy} onChange={e => setForm(f => ({ ...f, viewBy: e.target.value }))}
-                className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white">
+                className={INPUT}>
                 {viewByOptionsFor(form.category).map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
               </select>
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1.5">Segment by (colour)</label>
               <select value={form.segmentBy || ''} onChange={e => setForm(f => ({ ...f, segmentBy: e.target.value || null }))}
-                className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 bg-white">
+                className={INPUT}>
                 <option value="">None</option>
                 {SEGMENT_OPTIONS.map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
               </select>
@@ -634,7 +609,7 @@ function WidgetEditModal({ widget, dashboardId, onSave, onClose }) {
             <div className="flex gap-2">
               {['HALF','FULL'].map(w => (
                 <button key={w} onClick={() => setForm(f => ({ ...f, width: w }))}
-                  className={`flex-1 py-2 rounded-lg border text-xs font-medium transition-colors ${form.width === w ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-slate-200 text-slate-600 hover:border-slate-300'}`}>
+                  className={`flex-1 py-2 rounded-lg border text-xs font-semibold transition-colors ${form.width === w ? 'bg-orange-50 border-orange-400 text-orange-700' : 'border-slate-200 text-slate-600 hover:border-slate-300'}`}>
                   {w === 'HALF' ? 'Half width' : 'Full width'}
                 </button>
               ))}
@@ -645,7 +620,7 @@ function WidgetEditModal({ widget, dashboardId, onSave, onClose }) {
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <label className="text-xs font-semibold text-slate-700">Filters</label>
-              <button onClick={addFilter} className="text-xs text-blue-600 hover:text-blue-700 font-medium">+ Add filter</button>
+              <button onClick={addFilter} className="text-xs text-orange-600 hover:text-orange-700 font-semibold">+ Add filter</button>
             </div>
             <div className="space-y-2">
               {form.filters.map((rule, i) => (
@@ -654,7 +629,7 @@ function WidgetEditModal({ widget, dashboardId, onSave, onClose }) {
                   onRemove={() => setForm(f => ({ ...f, filters: f.filters.filter((_, ri) => ri !== i) }))} />
               ))}
               {form.filters.length === 0 && (
-                <p className="text-xs text-slate-400 py-2 text-center">No filters — shows all projects</p>
+                <p className="text-xs text-slate-500 py-2 text-center">No filters, shows all projects</p>
               )}
             </div>
           </div>
@@ -664,9 +639,9 @@ function WidgetEditModal({ widget, dashboardId, onSave, onClose }) {
           {saveError && (
             <p className="mr-auto text-sm text-red-600" role="alert">{saveError}</p>
           )}
-          <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600 hover:text-slate-800">Cancel</button>
+          <button onClick={onClose} className={BTN_GHOST}>Cancel</button>
           <button onClick={handleSave} disabled={saving}
-            className="px-5 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-60">
+            className={BTN_PRIMARY}>
             {saving ? 'Saving…' : 'Save Widget'}
           </button>
         </div>
@@ -752,12 +727,12 @@ export default function DashboardsClient({ dashboards: initialDashboards, user }
         <div className="flex items-center justify-between">
           <div>
             <div className="flex items-center gap-2 mb-0.5">
-              <span className="text-[10px] font-bold text-orange-500 uppercase tracking-wider">ILC Studios</span>
+              <span className={`${LABEL} text-orange-500`}>ILC Studios</span>
             </div>
-            <h1 className="text-lg font-bold text-slate-900">Dashboards</h1>
+            <h1 className={H1}>Dashboards</h1>
           </div>
           <button onClick={() => setEditingWidget('new')}
-            className="flex items-center gap-2 px-3 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">
+            className={BTN_PRIMARY}>
             <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clipRule="evenodd"/>
             </svg>
@@ -769,26 +744,24 @@ export default function DashboardsClient({ dashboards: initialDashboards, user }
         <div className="flex items-center gap-1 mt-3 -mb-3">
           {dashboards.map(d => (
             <button key={d.id} onClick={() => setActiveDashboardId(d.id)}
-              className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                d.id === activeDashboard?.id
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-slate-500 hover:text-slate-700'
+              className={`px-4 py-2 text-sm font-semibold border-b-2 transition-colors ${
+                d.id === activeDashboard?.id ? TAB_ACTIVE : TAB_INACTIVE
               }`}>
               {d.name}
-              {d.isDefault && <span className="ml-1.5 text-[9px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-full">default</span>}
+              {d.isDefault && <span className="ml-1.5 text-[11px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-full">default</span>}
             </button>
           ))}
           {showNewDashboard ? (
             <div className="flex items-center gap-2 ml-2">
               <input autoFocus value={newDashboardName} onChange={e => setNewDashboardName(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleCreateDashboard()}
-                placeholder="Dashboard name" className="text-sm border border-slate-300 rounded-lg px-2 py-1 w-40" />
-              <button onClick={handleCreateDashboard} className="text-xs text-blue-600 font-medium">Create</button>
-              <button onClick={() => setShowNewDashboard(false)} className="text-xs text-slate-400">Cancel</button>
+                placeholder="Dashboard name" className={`${INPUT} px-2 py-1 w-40`} />
+              <button onClick={handleCreateDashboard} className="text-xs text-orange-600 hover:text-orange-700 font-semibold">Create</button>
+              <button onClick={() => setShowNewDashboard(false)} className="text-xs text-slate-500 hover:text-slate-700">Cancel</button>
             </div>
           ) : (
             <button onClick={() => setShowNewDashboard(true)}
-              className="ml-1 px-3 py-2 text-xs text-slate-400 hover:text-slate-600 border-b-2 border-transparent">
+              className="ml-1 px-3 py-2 text-xs font-semibold text-slate-500 hover:text-slate-700 border-b-2 border-transparent">
               + New Dashboard
             </button>
           )}
@@ -804,10 +777,10 @@ export default function DashboardsClient({ dashboards: initialDashboards, user }
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
               </svg>
             </div>
-            <h3 className="text-sm font-semibold text-slate-700 mb-1">No widgets yet</h3>
-            <p className="text-xs text-slate-400 mb-4">Click "Add Widget" to build your first chart.</p>
+            <h3 className="text-sm font-semibold text-slate-800 mb-1">No widgets yet</h3>
+            <p className="text-xs text-slate-500 mb-4">Click "Add Widget" to build your first chart.</p>
             <button onClick={() => setEditingWidget('new')}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700">
+              className={BTN_PRIMARY}>
               Add Widget
             </button>
           </div>

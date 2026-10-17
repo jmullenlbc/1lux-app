@@ -69,9 +69,9 @@ export default function TocImportModal({ projectId, onClose, onImported }) {
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
           <div>
             <h2 className="text-base font-bold text-slate-900">Import from PDF TOC</h2>
-            <p className="text-xs text-slate-400 mt-0.5">Parse fixture types from an uploaded submittal PDF</p>
+            <p className="text-xs text-slate-500 mt-0.5">Parse fixture types from an uploaded submittal PDF</p>
           </div>
-          <button onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 transition-colors">
+          <button onClick={onClose} className="p-1.5 rounded-lg text-slate-500 hover:bg-slate-100 transition-colors">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -84,7 +84,7 @@ export default function TocImportModal({ projectId, onClose, onImported }) {
           {files.length === 0 ? (
             <div className="bg-slate-50 rounded-xl border border-dashed border-slate-200 p-6 text-center">
               <p className="text-sm text-slate-500">No submittal PDFs uploaded yet.</p>
-              <p className="text-xs text-slate-400 mt-1">Upload a PDF to the Submittals tab first, then come back here.</p>
+              <p className="text-xs text-slate-500 mt-1">Upload a PDF to the Submittals tab first, then come back here.</p>
             </div>
           ) : (
             <div>
@@ -94,7 +94,7 @@ export default function TocImportModal({ projectId, onClose, onImported }) {
               <select
                 value={fileId}
                 onChange={e => { setFileId(e.target.value); setItems(null); setResult(null); setError(''); }}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-400"
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-orange-500"
               >
                 <option value="">Select a file…</option>
                 {files.map(f => (
@@ -125,7 +125,7 @@ export default function TocImportModal({ projectId, onClose, onImported }) {
                   {items.length} fixture type{items.length !== 1 ? 's' : ''} found
                 </p>
                 {items.length > 0 && (
-                  <p className="text-[11px] text-slate-400">Duplicates will be skipped</p>
+                  <p className="text-[11px] text-slate-500">Duplicates will be skipped</p>
                 )}
               </div>
 
@@ -139,8 +139,8 @@ export default function TocImportModal({ projectId, onClose, onImported }) {
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="bg-slate-50 border-b border-slate-100">
-                        <th className="text-left px-3 py-2 text-[11px] font-semibold text-slate-400 uppercase tracking-wider w-20">Type</th>
-                        <th className="text-left px-3 py-2 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Description</th>
+                        <th className="text-left px-3 py-2 text-[11px] font-semibold text-slate-500 uppercase tracking-wide w-20">Type</th>
+                        <th className="text-left px-3 py-2 text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Description</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50">
@@ -172,7 +172,7 @@ export default function TocImportModal({ projectId, onClose, onImported }) {
             <button
               onClick={preview}
               disabled={!fileId || loading}
-              className="flex-1 px-4 py-2 rounded-lg text-sm font-semibold bg-slate-800 hover:bg-slate-700 text-white transition-colors disabled:opacity-50"
+              className="flex-1 px-4 py-2 rounded-lg text-sm font-semibold bg-orange-500 hover:bg-orange-600 text-white transition-colors disabled:opacity-50"
             >
               {loading ? 'Parsing…' : 'Preview TOC'}
             </button>

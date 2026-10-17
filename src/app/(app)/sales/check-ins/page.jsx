@@ -1,6 +1,31 @@
 'use client';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import SectionTabs, { PIPELINE_TABS } from '@/components/ui/SectionTabs';
+import { FilterToolbar, FilterPanel, countFilters } from '@/components/ui/FilterPanel';
+import { SortSelect, sortRows } from '@/components/ui/SortHeader';
+import { WidgetLoading } from '@/components/ui/WidgetFrame';
+import { useUrlView } from '@/lib/useUrlView';
+import { CARD, BTN_PRIMARY, BTN_SECONDARY, BTN_COMPACT, BTN_COMPACT_PRIMARY, INPUT, LABEL, H1 } from '@/components/ui/tokens';
+
+// Filter and sort live in the address (useUrlView).
+const FILTER_FIELDS = [{ key: 'due', label: 'Due', kind: 'pick' }];
+const DUE_CHOICES = [['overdue', 'Overdue'], ['due_soon', 'Due This Week']];
+const SORT_FIELDS = [
+  { key: 'name',    label: 'Name' },
+  { key: 'company', label: 'Company' },
+  { key: 'due',     label: 'Days overdue' },
+  { key: 'last',    label: 'Last activity' },
+  { key: 'cadence', label: 'Cadence' },
+];
+const VIEW_FIELDS = [...FILTER_FIELDS, ...SORT_FIELDS.map(f => ({ key: f.key, kind: 'sort' }))];
+const SORT_DEFAULT = { key: '', dir: 'asc' };
+const SORT_GETTERS = {
+  name:    c => c.name || '',
+  company: c => c.company?.name || '',
+  due:     c => c.daysOverdue ?? null,
+  last:    c => { const a = c.lastInPersonActivity; const d = a && (a.meetingDate || a.createdAt); return d ? new Date(d).getTime() : null; },
+  cadence: c => c.cadenceDays ?? null,
+};
 
 // ── Activity meta ─────────────────────────────────────────────────────────────
 
@@ -9,7 +34,7 @@ const ACTIVITY_META = {
   MEAL:       { emoji: '🍽', label: 'Meal',        color: 'bg-orange-50 text-orange-700 border-orange-200',  inPerson: true },
   LUNCH:      { emoji: '🍽', label: 'Meal',        color: 'bg-orange-50 text-orange-700 border-orange-200',  inPerson: true, legacy: true },  // notes written before the rename
   TRAVEL:     { emoji: '✈️', label: 'Travel',      color: 'bg-sky-50 text-sky-700 border-sky-200',           inPerson: false },
-  HAPPY_HOUR: { emoji: '🍺', label: 'Happy Hour',  color: 'bg-yellow-50 text-yellow-700 border-yellow-200',  inPerson: true },
+  HAPPY_HOUR: { emoji: '🍺', label: 'Happy Hour',  color: 'bg-amber-50 text-amber-700 border-amber-200',  inPerson: true },
   GOLF:       { emoji: '⛳', label: 'Golf',         color: 'bg-green-50 text-green-700 border-green-200',     inPerson: true },
   SITE_VISIT: { emoji: '🏗', label: 'Site Visit',  color: 'bg-blue-50 text-blue-700 border-blue-200',        inPerson: true },
   CALL:       { emoji: '📞', label: 'Call',         color: 'bg-slate-100 text-slate-600 border-slate-200',    inPerson: false },
@@ -42,7 +67,7 @@ function avatarColor(name) {
   for (let i = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h);
   const colors = [
     'bg-orange-500', 'bg-amber-500', 'bg-blue-500', 'bg-indigo-500',
-    'bg-emerald-500', 'bg-teal-500', 'bg-violet-500', 'bg-rose-500',
+    'bg-green-500', 'bg-teal-500', 'bg-violet-500', 'bg-red-500',
   ];
   return colors[Math.abs(h) % colors.length];
 }
@@ -70,16 +95,16 @@ function QuickLogForm({ contact, onSave, onCancel, saving }) {
   }
 
   return (
-    <div className="mt-3 bg-orange-50 border border-orange-200 rounded-xl p-4 space-y-3">
+    <div className="mt-3 bg-orange-50 border border-orange-200 rounded-lg p-4 space-y-3">
       {/* Activity type pills */}
       <div>
-        <p className="text-xs font-semibold text-slate-600 mb-2">Activity Type</p>
+        <p className={`${LABEL} mb-2`}>Activity Type</p>
         <div className="flex flex-wrap gap-1.5">
           {Object.entries(ACTIVITY_META).filter(([, meta]) => !meta.legacy).map(([key, meta]) => (
             <button
               key={key}
               onClick={() => set('activityType', key)}
-              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium border transition-all ${
+              className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold border transition-all ${
                 form.activityType === key
                   ? 'border-orange-500 bg-orange-500 text-white shadow-sm'
                   : meta.inPerson
@@ -95,24 +120,24 @@ function QuickLogForm({ contact, onSave, onCancel, saving }) {
 
       {/* Date */}
       <div>
-        <label className="block text-xs font-semibold text-slate-600 mb-1">Date</label>
+        <label className={`block ${LABEL} mb-1`}>Date</label>
         <input
           type="date"
           value={form.meetingDate}
           onChange={e => set('meetingDate', e.target.value)}
-          className="border border-slate-200 rounded-lg px-3 py-1.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white"
+          className={`${INPUT} w-auto`}
         />
       </div>
 
       {/* Notes */}
       <div>
-        <label className="block text-xs font-semibold text-slate-600 mb-1">Notes <span className="text-slate-400 font-normal">(optional)</span></label>
+        <label className={`block ${LABEL} mb-1`}>Notes <span className="text-slate-500 font-normal normal-case">(optional)</span></label>
         <textarea
           value={form.notes}
           onChange={e => set('notes', e.target.value)}
           rows={2}
           placeholder="What did you talk about?"
-          className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white resize-none"
+          className={`${INPUT} resize-none`}
         />
       </div>
 
@@ -120,7 +145,7 @@ function QuickLogForm({ contact, onSave, onCancel, saving }) {
         <button
           onClick={handleSave}
           disabled={saving}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-orange-600 text-white text-sm font-semibold hover:bg-orange-700 transition-colors disabled:opacity-50"
+          className={BTN_PRIMARY}
         >
           {saving && <div className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />}
           Save &amp; Log
@@ -128,7 +153,7 @@ function QuickLogForm({ contact, onSave, onCancel, saving }) {
         <button
           onClick={onCancel}
           disabled={saving}
-          className="px-4 py-2 rounded-lg border border-slate-200 text-slate-600 text-sm hover:bg-slate-50 transition-colors"
+          className={BTN_SECONDARY}
         >
           Cancel
         </button>
@@ -156,7 +181,7 @@ function ContactRow({ contact, showQuickLog, onLogActivity, onCancelLog, onSaveL
   }
 
   return (
-    <div className="bg-white border border-slate-200 rounded-xl px-5 py-4 hover:border-slate-300 transition-colors">
+    <div className={`${CARD} px-5 py-4 hover:border-slate-300 transition-colors`}>
       <div className="flex items-start gap-3">
         {/* Avatar */}
         <div className={`w-9 h-9 rounded-full shrink-0 flex items-center justify-center text-white text-sm font-bold ${avatarColor(contact.name)}`}>
@@ -172,22 +197,22 @@ function ContactRow({ contact, showQuickLog, onLogActivity, onCancelLog, onSaveL
                 <span className="text-sm font-semibold text-slate-900">{contact.name}</span>
                 {lastMeta && (
                   <span className="text-xs text-slate-500">
-                    {lastMeta.emoji} {lastMeta.label} — {fmtDate(lastActivity.meetingDate || lastActivity.createdAt)}
-                    {ago !== null && <span className="text-slate-400"> ({ago}d ago)</span>}
+                    {lastMeta.emoji} {lastMeta.label} — <span className="tabular-nums">{fmtDate(lastActivity.meetingDate || lastActivity.createdAt)}</span>
+                    {ago !== null && <span className="text-slate-500 tabular-nums"> ({ago}d ago)</span>}
                   </span>
                 )}
                 {!lastActivity && (
-                  <span className="text-xs text-slate-400 italic">No in-person activity logged</span>
+                  <span className="text-xs text-slate-500 italic">No in-person activity logged</span>
                 )}
               </div>
               {/* Title + company + deal */}
               <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                 {contact.title && <span className="text-xs text-slate-500">{contact.title}</span>}
                 {contact.company?.name && (
-                  <span className="text-xs text-slate-400">· {contact.company.name}</span>
+                  <span className="text-xs text-slate-500">· {contact.company.name}</span>
                 )}
                 {contact.latestDeal && (
-                  <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide border ${
+                  <span className={`inline-flex items-center px-1.5 py-0.5 rounded-lg text-xs font-semibold border ${
                     contact.latestDeal.pipeline === 'PROCUREMENT'
                       ? 'bg-blue-50 text-blue-700 border-blue-200'
                       : 'bg-purple-50 text-purple-700 border-purple-200'
@@ -201,15 +226,15 @@ function ContactRow({ contact, showQuickLog, onLogActivity, onCancelLog, onSaveL
             {/* Status badge */}
             <div className="shrink-0">
               {isOverdue ? (
-                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-red-100 text-red-700 border border-red-200 whitespace-nowrap">
+                <span className="inline-flex items-center px-2 py-0.5 rounded-lg text-xs font-semibold bg-red-50 text-red-700 border border-red-200 whitespace-nowrap tabular-nums">
                   ⚠ {contact.daysOverdue}d overdue
                 </span>
               ) : isDueSoon ? (
-                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-700 border border-amber-200 whitespace-nowrap">
+                <span className="inline-flex items-center px-2 py-0.5 rounded-lg text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200 whitespace-nowrap tabular-nums">
                   Due in {Math.abs(contact.daysOverdue)}d
                 </span>
               ) : (
-                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-500 border border-slate-200 whitespace-nowrap">
+                <span className="inline-flex items-center px-2 py-0.5 rounded-lg text-xs font-semibold bg-slate-50 text-slate-600 border border-slate-200 whitespace-nowrap tabular-nums">
                   In {Math.abs(contact.daysOverdue)}d
                 </span>
               )}
@@ -220,20 +245,20 @@ function ContactRow({ contact, showQuickLog, onLogActivity, onCancelLog, onSaveL
           <div className="flex items-center gap-2 mt-2.5 flex-wrap">
             <button
               onClick={() => onLogActivity(contact.id)}
-              className="px-3 py-1 rounded-lg bg-orange-600 text-white text-xs font-semibold hover:bg-orange-700 transition-colors"
+              className={BTN_COMPACT_PRIMARY}
             >
               Log Activity
             </button>
             <button
               onClick={() => onSnooze(contact.id)}
               disabled={updatingCadence === contact.id}
-              className="px-3 py-1 rounded-lg border border-slate-200 text-slate-600 text-xs font-medium hover:bg-slate-50 transition-colors disabled:opacity-50"
+              className={BTN_COMPACT}
             >
               Snooze 2 wks
             </button>
             <button
               onClick={() => { setEditingCadence(v => !v); setCadenceVal(contact.cadenceDays ?? 30); }}
-              className="px-3 py-1 rounded-lg border border-slate-200 text-slate-600 text-xs font-medium hover:bg-slate-50 transition-colors"
+              className={BTN_COMPACT}
             >
               Edit Cadence
             </button>
@@ -249,7 +274,7 @@ function ContactRow({ contact, showQuickLog, onLogActivity, onCancelLog, onSaveL
                   onBlur={handleCadenceSave}
                   onKeyDown={e => e.key === 'Enter' && handleCadenceSave()}
                   autoFocus
-                  className="w-16 border border-orange-300 rounded-md px-2 py-0.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-400"
+                  className={`${INPUT} w-16 px-2 py-0.5 text-xs tabular-nums`}
                 />
                 <span className="text-xs text-slate-500">days</span>
               </div>
@@ -277,7 +302,7 @@ function Section({ title, count, contacts, headerClass, ...rowProps }) {
   if (contacts.length === 0) return null;
   return (
     <div>
-      <h2 className={`text-xs font-bold uppercase tracking-widest mb-3 px-1 ${headerClass}`}>
+      <h2 className={`text-xs font-semibold uppercase mb-3 px-1 ${headerClass}`}>
         {title} ({count})
       </h2>
       <div className="space-y-2">
@@ -294,7 +319,9 @@ function Section({ title, count, contacts, headerClass, ...rowProps }) {
 export default function CheckInsPage() {
   const [contacts,       setContacts]       = useState([]);
   const [loading,        setLoading]        = useState(true);
-  const [filter,         setFilter]         = useState('all'); // 'all' | 'overdue' | 'due_soon'
+  const { filters, setFilter, clearFilters, sort, setSort } = useUrlView({ fields: VIEW_FIELDS, sortDefault: SORT_DEFAULT });
+  const [filterOpen,     setFilterOpen]     = useState(false);
+  const filter = filters.due || 'all'; // 'all' | 'overdue' | 'due_soon'
   const [showQuickLog,   setShowQuickLog]   = useState(null);  // contactId or null
   const [quickLogForm,   setQuickLogForm]   = useState(null);  // unused — managed inside QuickLogForm
   const [savingLog,      setSavingLog]      = useState(false);
@@ -325,9 +352,11 @@ export default function CheckInsPage() {
     return true;
   });
 
-  const overdue  = visible.filter(c => c.daysOverdue > 0);
-  const dueSoon  = visible.filter(c => c.daysOverdue >= -7 && c.daysOverdue <= 0);
-  const upcoming = visible.filter(c => c.daysOverdue < -7);
+  const sortedVisible = useMemo(() => sortRows(visible, sort, SORT_GETTERS), [visible, sort]);
+  const overdue  = sortedVisible.filter(c => c.daysOverdue > 0);
+  const dueSoon  = sortedVisible.filter(c => c.daysOverdue >= -7 && c.daysOverdue <= 0);
+  const upcoming = sortedVisible.filter(c => c.daysOverdue < -7);
+  const filterCount = countFilters(filters, FILTER_FIELDS);
 
   // Handlers
   function handleLogActivity(contactId) {
@@ -403,12 +432,6 @@ export default function CheckInsPage() {
     }
   }
 
-  const FILTERS = [
-    { id: 'all',      label: 'All' },
-    { id: 'overdue',  label: 'Overdue' },
-    { id: 'due_soon', label: 'Due This Week' },
-  ];
-
   const rowProps = {
     showQuickLog: null,
     onLogActivity: handleLogActivity,
@@ -427,7 +450,7 @@ export default function CheckInsPage() {
       <div className="max-w-5xl mx-auto">
       {/* Header */}
       <div className="mb-5">
-        <h1 className="text-xl font-bold text-slate-900">Check-ins</h1>
+        <h1 className={H1}>Check-ins</h1>
         <p className="text-xs text-slate-500 mt-0.5">Contacts due for an in-person touchpoint</p>
       </div>
 
@@ -435,28 +458,26 @@ export default function CheckInsPage() {
         <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2 mb-4">{err}</p>
       )}
 
-      {/* Filter tabs */}
-      <div className="flex gap-1 bg-slate-100 rounded-xl p-1 mb-6 w-fit">
-        {FILTERS.map(({ id, label }) => (
-          <button
-            key={id}
-            onClick={() => setFilter(id)}
-            className={`px-4 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-              filter === id ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            {label}
-          </button>
-        ))}
+      {/* Filters */}
+      <div className="mb-6">
+        <FilterToolbar
+          count={filterCount}
+          open={filterOpen}
+          onToggle={() => setFilterOpen(o => !o)}
+          onClear={clearFilters}
+          shown={visible.length}
+          total={contacts.length}
+          noun="contacts"
+          right={<SortSelect fields={SORT_FIELDS} sort={sort} onChange={setSort} />}
+        />
+        <FilterPanel open={filterOpen} fields={FILTER_FIELDS} filters={filters} choices={{ due: DUE_CHOICES }} onChange={setFilter} />
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center py-20">
-          <div className="w-5 h-5 border-2 border-slate-200 border-t-orange-500 rounded-full animate-spin" />
-        </div>
+        <WidgetLoading />
       ) : contacts.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
-          <div className="w-12 h-12 rounded-full bg-emerald-100 flex items-center justify-center mb-3 text-2xl">✓</div>
+          <div className="w-12 h-12 rounded-full bg-green-50 text-green-700 flex items-center justify-center mb-3 text-2xl">✓</div>
           <p className="text-sm font-semibold text-slate-700">All caught up</p>
           <p className="text-xs text-slate-500 mt-1">No check-ins due right now.</p>
         </div>

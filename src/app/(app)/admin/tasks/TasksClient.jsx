@@ -1,7 +1,33 @@
 'use client';
 import { useState, useRef } from 'react';
+import { CARD, MODAL, BTN_PRIMARY, BTN_SECONDARY, BTN_DANGER, BTN_GHOST, H1, H2, LABEL, INPUT, HELPER } from '@/components/ui/tokens';
+import { FilterToolbar, FilterPanel, SearchBox, countFilters } from '@/components/ui/FilterPanel';
+import { SortSelect, sortRows } from '@/components/ui/SortHeader';
+import { WidgetEmpty } from '@/components/ui/WidgetFrame';
+import { useUrlView } from '@/lib/useUrlView';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
+
+// Filter fields for the board (address keys). `q` is the search box.
+const TASK_FILTER_FIELDS = [
+  { key: 'q',        label: 'Search',   kind: 'text' },
+  { key: 'assignee', label: 'Assignee', kind: 'pick' },
+  { key: 'priority', label: 'Priority', kind: 'pick' },
+  { key: 'tag',      label: 'Tag',      kind: 'pick' },
+];
+const TASK_SORT_FIELDS = [
+  { key: 'priority', label: 'Priority' },
+  { key: 'dueDate',  label: 'Due date' },
+  { key: 'title',    label: 'Title' },
+  { key: 'created',  label: 'Created' },
+];
+const PRIORITY_RANK = { URGENT: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
+const TASK_SORT_GETTERS = {
+  priority: t => PRIORITY_RANK[t.priority] ?? 9,
+  dueDate:  t => (t.dueDate ? new Date(t.dueDate).getTime() : null),
+  title:    t => t.title,
+  created:  t => (t.createdAt ? new Date(t.createdAt).getTime() : null),
+};
 
 const STATUSES = [
   { id: 'TODO',        label: 'To Do',       color: '#64748b', bg: '#f1f5f9', border: '#e2e8f0' },
@@ -65,7 +91,7 @@ function TagSelector({ selected, onChange }) {
     <div className="space-y-2.5">
       {TAG_GROUPS.map(g => (
         <div key={g.group}>
-          <div className="text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: g.color }}>
+          <div className="text-[11px] font-semibold uppercase tracking-wide mb-1" style={{ color: g.color }}>
             {g.group}
           </div>
           <div className="flex flex-wrap gap-1.5">
@@ -76,7 +102,7 @@ function TagSelector({ selected, onChange }) {
                   key={tag}
                   type="button"
                   onClick={() => onChange(active ? selected.filter(t => t !== tag) : [...selected, tag])}
-                  className="px-2.5 py-0.5 rounded-full text-xs font-medium border transition-all"
+                  className="px-2.5 py-0.5 rounded-full text-xs font-semibold border transition-all"
                   style={active
                     ? { backgroundColor: g.color, color: '#fff', borderColor: g.color }
                     : { backgroundColor: '#f8fafc', color: '#64748b', borderColor: '#e2e8f0' }
@@ -115,10 +141,10 @@ function AttachmentRow({ att, onDelete }) {
     <div className="group flex items-center gap-2.5 px-3 py-2 bg-slate-50 rounded-lg border border-slate-200 hover:border-slate-300 transition-colors">
       <span className="text-base shrink-0">{icon}</span>
       <a href={url} target="_blank" rel="noopener noreferrer"
-        className="flex-1 min-w-0 text-xs font-medium text-slate-700 hover:text-blue-600 truncate">
+        className="flex-1 min-w-0 text-xs font-medium text-slate-700 hover:text-orange-600 truncate">
         {att.originalName}
       </a>
-      <span className="text-[10px] text-slate-400 shrink-0">{fmtBytes(att.size)}</span>
+      <span className="text-[11px] text-slate-500 tabular-nums shrink-0">{fmtBytes(att.size)}</span>
       <button onClick={handleDelete} disabled={deleting}
         className="opacity-0 group-hover:opacity-100 shrink-0 p-0.5 rounded text-slate-300 hover:text-red-500 transition-all">
         <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -185,10 +211,10 @@ function TaskModal({ task, users, onSave, onDelete, onClose }) {
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 backdrop-blur-sm p-4 pt-8 overflow-y-auto"
       onClick={e => e.target === e.currentTarget && onClose()}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-auto mb-8">
+      <div className={`${MODAL} w-full max-w-2xl mx-auto mb-8`}>
         <div className="px-6 pt-5 pb-4 border-b border-slate-100 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-slate-800">{task ? 'Edit Task' : 'New Task'}</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100">
+          <h2 className={H2}>{task ? 'Edit Task' : 'New Task'}</h2>
+          <button onClick={onClose} className="text-slate-600 p-1 rounded-lg hover:bg-slate-100">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
           </button>
         </div>
@@ -196,16 +222,16 @@ function TaskModal({ task, users, onSave, onDelete, onClose }) {
         <div className="px-6 py-5 space-y-5">
           {/* Title */}
           <div>
-            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Title *</label>
-            <input className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
+            <label className="block ${LABEL} mb-1">Title *</label>
+            <input className={INPUT}
               value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
               placeholder="Task title…" autoFocus />
           </div>
 
           {/* Description */}
           <div>
-            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Description</label>
-            <textarea className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300 resize-none"
+            <label className="block ${LABEL} mb-1">Description</label>
+            <textarea className={`${INPUT} resize-none`}
               rows={3} value={form.description}
               onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
               placeholder="Details, notes, acceptance criteria…" />
@@ -214,15 +240,15 @@ function TaskModal({ task, users, onSave, onDelete, onClose }) {
           {/* Status + Priority */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Status</label>
-              <select className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300 bg-white"
+              <label className="block ${LABEL} mb-1">Status</label>
+              <select className={INPUT}
                 value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))}>
                 {STATUSES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Priority</label>
-              <select className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300 bg-white"
+              <label className="block ${LABEL} mb-1">Priority</label>
+              <select className={INPUT}
                 value={form.priority} onChange={e => setForm(f => ({ ...f, priority: e.target.value }))}>
                 {PRIORITIES.map(p => <option key={p.id} value={p.id}>{p.label}</option>)}
               </select>
@@ -232,8 +258,8 @@ function TaskModal({ task, users, onSave, onDelete, onClose }) {
           {/* Assignee + Due Date */}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Assignee</label>
-              <select className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300 bg-white"
+              <label className="block ${LABEL} mb-1">Assignee</label>
+              <select className={INPUT}
                 value={form.assigneeId} onChange={e => setForm(f => ({ ...f, assigneeId: e.target.value }))}>
                 <option value="">Unassigned</option>
                 {users.map(u => (
@@ -242,21 +268,21 @@ function TaskModal({ task, users, onSave, onDelete, onClose }) {
               </select>
             </div>
             <div>
-              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1">Due Date</label>
-              <input type="date" className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-300"
+              <label className="block ${LABEL} mb-1">Due Date</label>
+              <input type="date" className={INPUT}
                 value={form.dueDate} onChange={e => setForm(f => ({ ...f, dueDate: e.target.value }))} />
             </div>
           </div>
 
           {/* Tags */}
           <div>
-            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Tags</label>
+            <label className="block ${LABEL} mb-2">Tags</label>
             <TagSelector selected={form.tags} onChange={tags => setForm(f => ({ ...f, tags }))} />
           </div>
 
           {/* Attachments */}
           <div>
-            <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Attachments</label>
+            <label className="block ${LABEL} mb-2">Attachments</label>
             {attachments.length > 0 && (
               <div className="space-y-1.5 mb-3">
                 {attachments.map(att => (
@@ -265,7 +291,7 @@ function TaskModal({ task, users, onSave, onDelete, onClose }) {
               </div>
             )}
             {task ? (
-              <label className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg border-2 border-dashed border-slate-200 hover:border-amber-300 hover:bg-amber-50/50 cursor-pointer transition-colors ${uploading ? 'opacity-60 pointer-events-none' : ''}`}>
+              <label className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg border-2 border-dashed border-slate-200 hover:border-orange-300 hover:bg-orange-50/50 cursor-pointer transition-colors ${uploading ? 'opacity-60 pointer-events-none' : ''}`}>
                 <input ref={fileRef} type="file" className="sr-only" multiple
                   accept=".pdf,.xls,.xlsx,.jpg,.jpeg,.png,.gif,.webp"
                   onChange={handleFileChange} disabled={uploading} />
@@ -273,11 +299,11 @@ function TaskModal({ task, users, onSave, onDelete, onClose }) {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M18.375 12.739l-7.693 7.693a4.5 4.5 0 01-6.364-6.364l10.94-10.94A3 3 0 1119.5 7.372L8.552 18.32m.009-.01l-.01.01m5.699-9.941l-7.81 7.81a1.5 1.5 0 002.112 2.13" />
                 </svg>
                 <span className="text-sm text-slate-500">
-                  {uploading ? 'Uploading…' : 'Attach files — PDF, Excel, JPG, PNG'}
+                  {uploading ? 'Uploading…' : 'Attach files: PDF, Excel, JPG, PNG'}
                 </span>
               </label>
             ) : (
-              <p className="text-xs text-slate-400 italic">Save the task first, then you can add attachments.</p>
+              <p className={HELPER}>Save the task first, then you can add attachments.</p>
             )}
           </div>
         </div>
@@ -285,14 +311,14 @@ function TaskModal({ task, users, onSave, onDelete, onClose }) {
         <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-between gap-3">
           {task ? (
             <button onClick={() => setDeleteConfirm(task.id)} disabled={deleting}
-              className="text-sm text-red-500 hover:text-red-700 hover:bg-red-50 px-3 py-2 rounded-lg transition-colors disabled:opacity-50">
+              className={BTN_DANGER}>
               {deleting ? 'Deleting…' : 'Delete task'}
             </button>
           ) : <div />}
           <div className="flex gap-2">
-            <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm text-slate-600 hover:bg-slate-100 transition-colors">Cancel</button>
+            <button onClick={onClose} className={BTN_GHOST}>Cancel</button>
             <button onClick={handleSave} disabled={saving || !form.title.trim()}
-              className="px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white transition-colors disabled:opacity-50">
+              className={BTN_PRIMARY}>
               {saving ? 'Saving…' : task ? 'Save changes' : 'Create task'}
             </button>
           </div>
@@ -312,17 +338,17 @@ function TaskCard({ task, onEdit, onStatusChange }) {
 
   return (
     <div
-      className="bg-white border border-slate-200 rounded-xl p-3 hover:border-amber-300 hover:shadow-sm transition-all cursor-pointer group"
+      className={`${CARD} p-3 hover:border-orange-300 transition-all cursor-pointer group`}
       onClick={() => onEdit(task)}
     >
       {/* Priority + status change */}
       <div className="flex items-start justify-between gap-2 mb-2">
-        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+        <span className="text-[11px] font-bold px-2 py-0.5 rounded-full"
           style={{ color: priority.color, backgroundColor: priority.bg }}>
           {priority.label}
         </span>
         <select
-          className="text-[10px] text-slate-400 border-0 bg-transparent cursor-pointer focus:outline-none opacity-0 group-hover:opacity-100 transition-opacity"
+          className="text-[11px] text-slate-500 border-0 bg-transparent cursor-pointer focus:outline-none opacity-0 group-hover:opacity-100 transition-opacity"
           value={task.status}
           onClick={e => e.stopPropagation()}
           onChange={e => { e.stopPropagation(); onStatusChange(task.id, e.target.value); }}
@@ -338,7 +364,7 @@ function TaskCard({ task, onEdit, onStatusChange }) {
 
       {/* Description preview */}
       {task.description && (
-        <p className="text-xs text-slate-400 leading-relaxed line-clamp-2 mb-2">{task.description}</p>
+        <p className="text-xs text-slate-500 leading-relaxed line-clamp-2 mb-2">{task.description}</p>
       )}
 
       {/* Tags */}
@@ -347,14 +373,14 @@ function TaskCard({ task, onEdit, onStatusChange }) {
           {tags.slice(0, 3).map(tag => {
             const m = tagMeta(tag);
             return (
-              <span key={tag} className="text-[9px] font-semibold px-1.5 py-0.5 rounded-full"
+              <span key={tag} className="text-[11px] font-semibold px-1.5 py-0.5 rounded-full"
                 style={{ backgroundColor: m.color + '20', color: m.color }}>
                 {tag}
               </span>
             );
           })}
           {tags.length > 3 && (
-            <span className="text-[9px] text-slate-400">+{tags.length - 3}</span>
+            <span className="text-[11px] text-slate-500 tabular-nums">+{tags.length - 3}</span>
           )}
         </div>
       )}
@@ -364,15 +390,15 @@ function TaskCard({ task, onEdit, onStatusChange }) {
         <div className="flex items-center gap-2">
           {task.assignee ? (
             <div className="flex items-center gap-1">
-              <div className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[9px] font-bold shrink-0"
+              <div className="w-5 h-5 rounded-full flex items-center justify-center text-white text-[11px] font-bold shrink-0"
                 style={{ backgroundColor: avatarColor(task.assignee.email) }}>
                 {initials(task.assignee)}
               </div>
-              <span className="text-[10px] text-slate-400">{(task.assignee.name || task.assignee.email).split(' ')[0]}</span>
+              <span className="text-[11px] text-slate-500">{(task.assignee.name || task.assignee.email).split(' ')[0]}</span>
             </div>
           ) : null}
           {attCount > 0 && (
-            <span className="flex items-center gap-0.5 text-[10px] text-slate-400">
+            <span className="flex items-center gap-0.5 text-[11px] text-slate-500 tabular-nums">
               <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M18.375 12.739l-7.693 7.693a4.5 4.5 0 01-6.364-6.364l10.94-10.94A3 3 0 1119.5 7.372L8.552 18.32m.009-.01l-.01.01m5.699-9.941l-7.81 7.81a1.5 1.5 0 002.112 2.13" />
               </svg>
@@ -381,7 +407,7 @@ function TaskCard({ task, onEdit, onStatusChange }) {
           )}
         </div>
         {task.dueDate && (
-          <span className={`text-[10px] font-medium ${overdue ? 'text-red-500' : 'text-slate-400'}`}>
+          <span className={`text-[11px] font-semibold tabular-nums ${overdue ? "text-red-600" : "text-slate-500"}`}>
             {overdue ? '⚠ ' : ''}{fmtDate(task.dueDate)}
           </span>
         )}
@@ -402,10 +428,10 @@ function KanbanColumn({ status, tasks, users, onEdit, onStatusChange, onAddNew }
             style={{ color: s.color, backgroundColor: s.bg, borderColor: s.border }}>
             {s.label}
           </span>
-          <span className="text-xs text-slate-400 font-medium">{tasks.length}</span>
+          <span className="text-xs text-slate-500 font-semibold tabular-nums">{tasks.length}</span>
         </div>
         <button onClick={() => onAddNew(status)}
-          className="w-6 h-6 rounded-md text-slate-400 hover:text-slate-600 hover:bg-slate-100 flex items-center justify-center transition-colors"
+          className="w-6 h-6 rounded-lg text-slate-600 hover:bg-slate-100 flex items-center justify-center transition-colors"
           title={`Add to ${s.label}`}>
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -417,7 +443,7 @@ function KanbanColumn({ status, tasks, users, onEdit, onStatusChange, onAddNew }
           <TaskCard key={task.id} task={task} onEdit={onEdit} onStatusChange={onStatusChange} />
         ))}
         {tasks.length === 0 && (
-          <div className="text-center py-6 text-xs text-slate-300 border-2 border-dashed border-slate-100 rounded-xl">No tasks</div>
+          <WidgetEmpty className="py-4 text-xs">No tasks</WidgetEmpty>
         )}
       </div>
     </div>
@@ -429,16 +455,28 @@ function KanbanColumn({ status, tasks, users, onEdit, onStatusChange, onAddNew }
 export default function TasksClient({ tasks: initialTasks, users, currentUser }) {
   const [tasks,  setTasks]  = useState(initialTasks);
   const [modal,  setModal]  = useState(null);
-  const [filter, setFilter] = useState('ALL');
-  const [search, setSearch] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState(null);
   const [deleting, setDeleting] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+
+  // Filters and sort live in the address (useUrlView). `q` is the search box.
+  const { filters, setFilter, clearFilters, sort, setSort } = useUrlView({ fields: TASK_FILTER_FIELDS });
+  const search = filters.q || '';
+  const filterCount = countFilters(filters, TASK_FILTER_FIELDS.filter(f => f.key !== 'q'));
+  const filterChoices = {
+    assignee: [['me', 'My Tasks'], ...users.filter(u => u.id !== currentUser.id).map(u => [u.id, u.name || u.email])],
+    priority: PRIORITIES.map(p => [p.id, p.label]),
+    tag: ALL_TAGS.map(t => t.tag),
+  };
 
   const filtered = tasks.filter(t => {
-    if (filter === 'MY' && t.assigneeId !== currentUser.id) return false;
+    const tags = (() => { try { return JSON.parse(t.tags || '[]'); } catch { return []; } })();
+    if (filters.assignee === 'me' && t.assigneeId !== currentUser.id) return false;
+    if (filters.assignee && filters.assignee !== 'me' && t.assigneeId !== filters.assignee) return false;
+    if (filters.priority && t.priority !== filters.priority) return false;
+    if (filters.tag && !tags.includes(filters.tag)) return false;
     if (search.trim()) {
       const q = search.toLowerCase();
-      const tags = (() => { try { return JSON.parse(t.tags || '[]'); } catch { return []; } })();
       if (!t.title.toLowerCase().includes(q) &&
           !(t.description || '').toLowerCase().includes(q) &&
           !tags.some(tag => tag.toLowerCase().includes(q))) return false;
@@ -446,7 +484,8 @@ export default function TasksClient({ tasks: initialTasks, users, currentUser })
     return true;
   });
 
-  const byStatus = (status) => filtered.filter(t => t.status === status);
+  const sorted = sortRows(filtered, sort, TASK_SORT_GETTERS);
+  const byStatus = (status) => sorted.filter(t => t.status === status);
 
   async function handleCreate(data) {
     const res = await fetch('/api/tasks', {
@@ -503,11 +542,11 @@ export default function TasksClient({ tasks: initialTasks, users, currentUser })
       {/* Header */}
       <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Tasks</h1>
+          <h1 className={H1}>Tasks</h1>
           <p className="text-sm text-slate-500 mt-0.5">Track work, assign priorities, move things forward.</p>
         </div>
         <button onClick={() => setModal({ task: null, defaultStatus: 'TODO' })}
-          className="flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white transition-colors shadow-sm">
+          className={BTN_PRIMARY}>
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
           </svg>
@@ -516,18 +555,29 @@ export default function TasksClient({ tasks: initialTasks, users, currentUser })
       </div>
 
       {/* Filters */}
-      <div className="flex items-center gap-3 mb-6 flex-wrap">
-        <input type="text" placeholder="Search tasks…" value={search} onChange={e => setSearch(e.target.value)}
-          className="text-sm border border-slate-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-amber-200 w-52" />
-        <div className="flex items-center gap-1 p-1 bg-slate-100 rounded-lg">
-          {[{ id: 'ALL', label: 'All Tasks' }, { id: 'MY', label: 'My Tasks' }].map(f => (
-            <button key={f.id} onClick={() => setFilter(f.id)}
-              className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
-                filter === f.id ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-              }`}>{f.label}</button>
-          ))}
-        </div>
-        <span className="text-xs text-slate-400">{filtered.length} task{filtered.length !== 1 ? 's' : ''}</span>
+      <div className="mb-6">
+        <FilterToolbar
+          count={filterCount + (search.trim() ? 1 : 0)}
+          open={filtersOpen}
+          onToggle={() => setFiltersOpen(o => !o)}
+          onClear={clearFilters}
+          shown={filtered.length}
+          total={tasks.length}
+          noun="tasks"
+          right={(
+            <>
+              <SortSelect fields={TASK_SORT_FIELDS} sort={sort} onChange={setSort} />
+              <SearchBox value={search} onChange={v => setFilter('q', v)} placeholder="Search tasks..." />
+            </>
+          )}
+        />
+        <FilterPanel
+          open={filtersOpen}
+          fields={TASK_FILTER_FIELDS.filter(f => f.key !== 'q')}
+          filters={filters}
+          choices={filterChoices}
+          onChange={setFilter}
+        />
       </div>
 
       {/* Kanban */}
@@ -554,8 +604,8 @@ export default function TasksClient({ tasks: initialTasks, users, currentUser })
       {/* Delete confirmation modal */}
       {deleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6">
-            <h3 className="text-base font-bold text-slate-900 mb-2">Delete task?</h3>
+          <div className={`${MODAL} w-full max-w-sm p-6`}>
+            <h3 className={`${H2} mb-2`}>Delete task?</h3>
             <p className="text-sm text-slate-600 mb-6">
               This will permanently delete the task and all its attachments. This action cannot be undone.
             </p>
@@ -563,14 +613,14 @@ export default function TasksClient({ tasks: initialTasks, users, currentUser })
               <button
                 onClick={() => setDeleteConfirm(null)}
                 disabled={deleting}
-                className="px-4 py-2 text-sm rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors disabled:opacity-50"
+                className={BTN_SECONDARY}
               >
                 Cancel
               </button>
               <button
                 onClick={() => handleDelete(deleteConfirm)}
                 disabled={deleting}
-                className="px-4 py-2 text-sm font-semibold rounded-lg bg-red-500 text-white hover:bg-red-600 transition-colors disabled:opacity-50"
+                className={BTN_DANGER}
               >
                 {deleting ? 'Deleting…' : 'Delete'}
               </button>

@@ -27,6 +27,13 @@ import FirstProjectCostCard from '@/components/crm/FirstProjectCostCard';
 import WorkHistoryPanel from './WorkHistoryPanel';
 import LookAlikeReviews from '@/components/crm/LookAlikeReviews';
 import { WORK_HISTORY_READY } from '@/lib/workHistory';
+import StatTile from '@/components/ui/StatTile';
+import { WidgetEmpty, WidgetLoading } from '@/components/ui/WidgetFrame';
+import { Th } from '@/components/ui/SortHeader';
+import {
+  CARD, MODAL, BTN_PRIMARY, BTN_SECONDARY, BTN_COMPACT, BTN_COMPACT_PRIMARY,
+  H2, CARD_TITLE, LABEL, TD, TAB_ACTIVE, TAB_INACTIVE,
+} from '@/components/ui/tokens';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -75,7 +82,7 @@ function parseJSON(val, fallback = []) {
 }
 
 function tierColor(t) {
-  return { '1': 'bg-amber-100 text-amber-700', '2': 'bg-blue-100 text-blue-700', '3': 'bg-slate-100 text-slate-500' }[t] || '';
+  return { '1': 'bg-orange-50 text-orange-700', '2': 'bg-blue-100 text-blue-700', '3': 'bg-slate-100 text-slate-500' }[t] || '';
 }
 
 function orgTypeColor(t) {
@@ -106,7 +113,7 @@ function Spinner({ className = 'w-4 h-4' }) {
 function MultiSelect({ options, selected, onChange, label, className = '' }) {
   return (
     <div className={className}>
-      {label && <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">{label}</div>}
+      {label && <div className={`${LABEL} mb-2`}>{label}</div>}
       <div className="flex flex-wrap gap-1.5">
         {options.map(o => {
           const val  = typeof o === 'string' ? o : o.value;
@@ -115,8 +122,8 @@ function MultiSelect({ options, selected, onChange, label, className = '' }) {
           return (
             <button key={val} type="button"
               onClick={() => onChange(active ? selected.filter(s => s !== val) : [...selected, val])}
-              className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
-                active ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-400'
+              className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition-colors ${
+                active ? 'bg-orange-50 text-orange-700 border-orange-400' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-400'
               }`}>
               {lbl}
             </button>
@@ -159,7 +166,7 @@ function CreatableSelect({ value, onChange, options, placeholder = 'Select or cr
       <button
         type="button"
         onClick={() => { setOpen(v => !v); setQuery(''); }}
-        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm bg-white text-left flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-amber-500"
+        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm bg-white text-left flex items-center justify-between focus:outline-none focus:ring-2 focus:ring-orange-500"
       >
         <span className={value ? 'text-slate-900' : 'text-slate-400'}>
           {value ? selectedLabel : placeholder}
@@ -184,7 +191,7 @@ function CreatableSelect({ value, onChange, options, placeholder = 'Select or cr
                 if (e.key === 'Escape') setOpen(false);
               }}
               placeholder="Search or type to create…"
-              className="w-full text-sm rounded px-2 py-1.5 bg-slate-50 border border-slate-200 outline-none focus:border-amber-500"
+              className="w-full text-sm rounded-lg px-2 py-1.5 bg-slate-50 border border-slate-200 outline-none focus:border-orange-500"
             />
           </div>
           <div className="max-h-48 overflow-y-auto">
@@ -193,7 +200,7 @@ function CreatableSelect({ value, onChange, options, placeholder = 'Select or cr
                 key={o.value}
                 type="button"
                 onClick={() => select(o.value)}
-                className={`w-full text-left px-3 py-2 text-sm hover:bg-slate-50 transition-colors ${value === o.value ? 'text-amber-600 font-medium' : 'text-slate-700'}`}
+                className={`w-full text-left px-3 py-2 text-sm hover:bg-slate-50 transition-colors ${value === o.value ? 'text-orange-600 font-semibold' : 'text-slate-700'}`}
               >
                 {o.label}
               </button>
@@ -202,14 +209,14 @@ function CreatableSelect({ value, onChange, options, placeholder = 'Select or cr
               <button
                 type="button"
                 onClick={create}
-                className="w-full text-left px-3 py-2 text-sm text-amber-600 hover:bg-amber-50 transition-colors flex items-center gap-1.5"
+                className="w-full text-left px-3 py-2 text-sm text-orange-600 hover:bg-orange-50 transition-colors flex items-center gap-1.5"
               >
                 <span className="font-medium">Create</span>
-                <span className="bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded text-xs">"{query.trim()}"</span>
+                <span className="bg-orange-50 text-orange-700 px-1.5 py-0.5 rounded-lg text-xs">"{query.trim()}"</span>
               </button>
             )}
             {filtered.length === 0 && !canCreate && (
-              <div className="px-3 py-3 text-xs text-slate-400 text-center">No options</div>
+              <div className="px-3 py-3 text-xs text-slate-500 text-center">No options</div>
             )}
           </div>
         </div>
@@ -234,7 +241,7 @@ const US_STATES = [
 function InfoRow({ label, children, className = '' }) {
   return (
     <div className={className}>
-      <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">{label}</div>
+      <div className={`${LABEL} mb-1`}>{label}</div>
       {children}
     </div>
   );
@@ -266,19 +273,19 @@ function InlineTextarea({ value, onSave, placeholder, rows = 3 }) {
         onChange={e => setDraft(e.target.value)}
         onBlur={commit}
         onKeyDown={e => { if (e.key === 'Escape') { setDraft(value ?? ''); setEditing(false); } }}
-        className="w-full rounded border border-amber-300 px-2 py-1.5 text-sm resize-y focus:outline-none focus:ring-1 focus:ring-amber-400"
+        className="w-full rounded-lg border border-orange-300 px-2 py-1.5 text-sm resize-y focus:outline-none focus:ring-1 focus:ring-orange-500"
       />
     );
   }
 
   return (
     <button type="button" onClick={() => setEditing(true)} title="Click to edit"
-      className="block w-full text-left rounded px-1 -mx-1 py-0.5 hover:bg-amber-50 transition-colors">
+      className="block w-full text-left rounded-lg px-1 -mx-1 py-0.5 hover:bg-orange-50 transition-colors">
       {busy
-        ? <span className="text-sm text-amber-500">Saving…</span>
+        ? <span className="text-sm text-slate-500">Saving…</span>
         : value
           ? <span className="text-sm text-slate-600 leading-relaxed whitespace-pre-line">{value}</span>
-          : <span className="text-sm text-slate-300">{placeholder}</span>}
+          : <span className="text-sm text-slate-400">{placeholder}</span>}
     </button>
   );
 }
@@ -310,18 +317,18 @@ function ChipPicker({
         ))}
         {list.length === 0 && !open && (
           <button type="button" onClick={() => setOpen(true)}
-            className="text-sm text-slate-300 hover:text-amber-600 transition-colors">{emptyLabel}</button>
+            className="text-sm text-slate-400 hover:text-orange-600 transition-colors">{emptyLabel}</button>
         )}
         {(list.length > 0 || open) && (
           <button type="button" onClick={() => setOpen(o => !o)}
-            className="text-xs text-amber-600 hover:text-amber-500 transition-colors">
+            className="text-xs text-orange-600 hover:text-orange-700 transition-colors">
             {open ? 'Done' : 'Edit'}
           </button>
         )}
-        {busy && <span className="text-xs text-amber-500">Saving…</span>}
+        {busy && <span className="text-xs text-slate-500">Saving…</span>}
       </div>
       {open && (
-        <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50/40 p-2.5">
+        <div className="mt-2 rounded-lg border border-orange-200 bg-orange-50/40 p-2.5">
           <MultiSelect options={options} selected={list} onChange={toggle} />
         </div>
       )}
@@ -348,11 +355,11 @@ function ChoiceChips({ value, options, onSave }) {
         return (
           <button key={val} type="button" onClick={() => pick(val)}
             className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition-colors ${
-              active ? 'bg-slate-800 text-white border-slate-800' : 'border-slate-200 text-slate-500 hover:border-slate-400'
+              active ? 'bg-orange-50 text-orange-700 border-orange-400' : 'border-slate-200 text-slate-500 hover:border-slate-400'
             }`}>{lbl}</button>
         );
       })}
-      {busy && <span className="text-xs text-amber-500">Saving…</span>}
+      {busy && <span className="text-xs text-slate-500">Saving…</span>}
     </div>
   );
 }
@@ -430,28 +437,28 @@ function TagPicker({ tagIds, onSave }) {
         ))}
         {picked.length === 0 && !open && (
           <button type="button" onClick={() => setOpen(true)}
-            className="text-sm text-slate-300 hover:text-amber-600 transition-colors">+ Add a tag</button>
+            className="text-sm text-slate-400 hover:text-orange-600 transition-colors">+ Add a tag</button>
         )}
         {(picked.length > 0 || open) && (
           <button type="button" onClick={() => setOpen(o => !o)}
-            className="text-xs text-amber-600 hover:text-amber-500 transition-colors">
+            className="text-xs text-orange-600 hover:text-orange-700 transition-colors">
             {open ? 'Done' : 'Edit'}
           </button>
         )}
-        {busy && <span className="text-xs text-amber-500">Saving…</span>}
+        {busy && <span className="text-xs text-slate-500">Saving…</span>}
       </div>
       {open && (
-        <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50/40 p-2.5">
-          <p className="text-[11px] text-slate-400 mb-2">
+        <div className="mt-2 rounded-lg border border-orange-200 bg-orange-50/40 p-2.5">
+          <p className="text-[11px] text-slate-500 mb-2">
             Make your own labels. Renaming or deleting one here changes it on every client that has it.
           </p>
           <div className="flex flex-wrap gap-1.5 mb-2.5">
-            {tags.length === 0 && <span className="text-xs text-slate-400">No tags yet — add the first one below.</span>}
+            {tags.length === 0 && <span className="text-xs text-slate-500">No tags yet — add the first one below.</span>}
             {tags.map(tag => {
               const active = ids.includes(tag.id);
               return (
                 <span key={tag.id} className={`inline-flex items-center rounded-full border text-xs font-medium transition-colors ${
-                  active ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-500 border-slate-200'
+                  active ? 'bg-orange-50 text-orange-700 border-orange-400' : 'bg-white text-slate-500 border-slate-200'
                 }`}>
                   <button type="button" onClick={() => toggle(tag.id)} className="pl-2.5 pr-1 py-1">{tag.name}</button>
                   <button type="button" title="Rename" onClick={() => renameTag(tag)}
@@ -466,7 +473,7 @@ function TagPicker({ tagIds, onSave }) {
             <input value={newTag} onChange={e => setNewTag(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); createTag(); } }}
               placeholder="New tag name…"
-              className="flex-1 rounded-lg border border-slate-200 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
+              className="flex-1 rounded-lg border border-slate-200 px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500" />
             <button type="button" onClick={createTag} disabled={busy || !newTag.trim()}
               className="px-3 py-1.5 rounded-lg text-sm font-semibold border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-50">
               Add
@@ -499,9 +506,9 @@ function LinkProjectsModal({ clientId, available, onClose, onSave }) {
 
   return (
     <div onClick={(e) => { if (e.target === e.currentTarget) onClose(); }} className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+      <div className={`${MODAL} w-full max-w-md overflow-hidden`}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-          <h2 className="text-base font-bold text-slate-900">Link Projects</h2>
+          <h2 className={H2}>Link Projects</h2>
           <button onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
           </button>
@@ -516,21 +523,21 @@ function LinkProjectsModal({ clientId, available, onClose, onSave }) {
                 {available.map(p => (
                   <label key={p.id} className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-slate-50 cursor-pointer">
                     <input type="checkbox" checked={selected.includes(p.id)} onChange={() => toggle(p.id)}
-                      className="rounded border-slate-300 text-amber-500 focus:ring-amber-500" />
+                      className="rounded border-slate-300 text-orange-500 focus:ring-orange-500" />
                     <div>
                       <div className="text-sm font-medium text-slate-900">
                         {p.projectNumber && <span className="text-xs font-mono text-slate-400 mr-1.5">PRJ-{String(p.projectNumber).padStart(4, '0')}</span>}
                         {p.name}
                       </div>
-                      {p.location && <div className="text-xs text-slate-400">{p.location}</div>}
+                      {p.location && <div className="text-xs text-slate-500">{p.location}</div>}
                     </div>
                   </label>
                 ))}
               </div>
               <div className="flex gap-2">
-                <button onClick={onClose} className="flex-1 px-4 py-2 rounded-lg text-sm font-medium border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">Cancel</button>
+                <button onClick={onClose} className={`${BTN_SECONDARY} flex-1`}>Cancel</button>
                 <button onClick={handleLink} disabled={saving || selected.length === 0}
-                  className="flex-1 px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white transition-colors disabled:opacity-60">
+                  className={`${BTN_PRIMARY} flex-1`}>
                   {saving ? 'Linking…' : `Link ${selected.length > 0 ? selected.length : ''} Project${selected.length !== 1 ? 's' : ''}`}
                 </button>
               </div>
@@ -583,19 +590,19 @@ function OverviewTab({ client, onPatch }) {
       <LookAlikeReviews clientId={client.id} />
       {/* ── One full-width client info window. Everything here edits in place:
              click it, change it, click away. Nothing to save. ── */}
-      <div className="bg-white rounded-xl border border-slate-200 p-4 md:p-6">
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 md:p-6">
         {/* Top bar: Client ID + how this screen works */}
         <div className="flex items-center justify-between mb-5">
           <span className="font-mono text-xs font-semibold text-slate-400 tracking-wide">
             {client.clientNumber ? `CLT-${String(client.clientNumber).padStart(4, '0')}` : ''}
           </span>
-          <span className="text-[11px] text-slate-300">Click any field to change it — it saves itself</span>
+          <span className="text-[11px] text-slate-500">Click any field to change it — it saves itself</span>
         </div>
 
         {/* Identity row */}
         <div className="flex items-start gap-4">
-          <div className="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center shrink-0">
-            <span className="text-xl font-bold text-amber-600">{(client.name || '?')[0].toUpperCase()}</span>
+          <div className="w-12 h-12 rounded-xl bg-orange-50 flex items-center justify-center shrink-0">
+            <span className="text-xl font-bold text-orange-600">{(client.name || '?')[0].toUpperCase()}</span>
           </div>
           <div className="min-w-0 flex-1">
             <PersonField
@@ -612,7 +619,7 @@ function OverviewTab({ client, onPatch }) {
             )}
             <div className="flex flex-wrap items-center gap-1.5 mt-2">
               {client.tier && (
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${tierColor(client.tier)}`}>
+                <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${tierColor(client.tier)}`}>
                   Tier {client.tier}
                 </span>
               )}
@@ -631,14 +638,14 @@ function OverviewTab({ client, onPatch }) {
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mt-5 pt-5 border-t border-slate-100">
           {[
             ['Open Projects',   counts.open,      'text-slate-900'],
-            ['Won',             counts.won,       'text-emerald-600'],
+            ['Won',             counts.won,       'text-green-600'],
             ['Lost',            counts.lost,      'text-red-500'],
             ['Abandoned',       counts.abandoned, 'text-amber-600'],
             ['People',          client.contacts?.length ?? client._count?.contacts ?? 0, 'text-slate-900'],
           ].map(([label, value, tone]) => (
             <div key={label} className="rounded-lg bg-slate-50 px-3 py-2.5">
-              <div className={`text-lg font-bold ${tone}`}>{value}</div>
-              <div className="text-[10px] text-slate-400 uppercase tracking-wide">{label}</div>
+              <div className={`text-lg font-bold tabular-nums ${tone}`}>{value}</div>
+              <div className={LABEL}>{label}</div>
             </div>
           ))}
         </div>
@@ -691,13 +698,13 @@ function OverviewTab({ client, onPatch }) {
               <select
                 value={client.ownerId || ''}
                 onChange={e => onPatch({ ownerId: e.target.value || null })}
-                className="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-amber-500">
+                className="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-orange-500">
                 <option value="">— Unassigned —</option>
                 {ownerOptions.map(u => <option key={u.id} value={u.id}>{u.name || u.email}</option>)}
               </select>
-              <label className="flex items-center gap-2 mt-1.5 text-[11px] text-slate-400">
+              <label className="flex items-center gap-2 mt-1.5 text-[11px] text-slate-500">
                 <input type="checkbox" checked={salesOnly} onChange={e => setSalesOnly(e.target.checked)}
-                  className="rounded border-slate-300 text-amber-500 focus:ring-amber-500" />
+                  className="rounded border-slate-300 text-orange-500 focus:ring-orange-500" />
                 Only show people set up as salespeople
                 {salespeople.length === 0 && <span>(nobody is yet, so everyone is listed)</span>}
               </label>
@@ -797,7 +804,7 @@ function OverviewTab({ client, onPatch }) {
                 onSave={v => onPatch({ projectTypes: v })}
               />
               {seenTypes.length > 0 && (
-                <p className="text-[11px] text-slate-400 mt-1.5">
+                <p className="text-[11px] text-slate-500 mt-1.5">
                   From their actual projects: {seenTypes.join(', ')}
                 </p>
               )}
@@ -812,7 +819,7 @@ function OverviewTab({ client, onPatch }) {
         </div>
 
         <div className="mt-5 pt-5 border-t border-slate-100">
-          <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">Notes</div>
+          <div className={`${LABEL} mb-1`}>Notes</div>
           <InlineTextarea
             value={client.notes || ''}
             placeholder="Click to add notes about this client…"
@@ -823,7 +830,7 @@ function OverviewTab({ client, onPatch }) {
         {/* Published sales notes that name this company (Mike 10-5). */}
         <SalesNotesPanel clientId={client.id} />
 
-        <div className="mt-5 pt-4 border-t border-slate-100 text-xs text-slate-400">
+        <div className="mt-5 pt-4 border-t border-slate-100 text-xs text-slate-500">
           Added by {client.createdBy?.name || client.createdBy?.email}
         </div>
       </div>
@@ -833,14 +840,8 @@ function OverviewTab({ client, onPatch }) {
 
       {/* ── Stats below ── */}
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-        <div className="bg-white rounded-xl border border-slate-200 px-4 py-4 text-center">
-          <div className="text-2xl font-bold text-slate-800">{client.projects?.length || 0}</div>
-          <div className="text-xs text-slate-400 mt-0.5 font-medium">Linked Projects</div>
-        </div>
-        <div className="bg-white rounded-xl border border-slate-200 px-4 py-4 text-center">
-          <div className="text-2xl font-bold text-slate-800">{client.contacts?.length || 0}</div>
-          <div className="text-xs text-slate-400 mt-0.5 font-medium">Contacts</div>
-        </div>
+        <StatTile label="Linked Projects" value={client.projects?.length || 0} />
+        <StatTile label="Contacts" value={client.contacts?.length || 0} />
       </div>
     </div>
   );
@@ -875,7 +876,7 @@ const EMPTY_PERSON = {
 // The four buckets, in the order Mike reads them, with their colours.
 const DEAL_BUCKETS = [
   { key: 'open',      short: 'O', label: 'Open',      on: 'bg-slate-100 text-slate-700 hover:bg-slate-200' },
-  { key: 'won',       short: 'W', label: 'Won',       on: 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100' },
+  { key: 'won',       short: 'W', label: 'Won',       on: 'bg-green-50 text-green-700 hover:bg-green-100' },
   { key: 'lost',      short: 'L', label: 'Lost',      on: 'bg-red-50 text-red-600 hover:bg-red-100' },
   { key: 'abandoned', short: 'A', label: 'Abandoned', on: 'bg-amber-50 text-amber-700 hover:bg-amber-100' },
 ];
@@ -890,7 +891,7 @@ const DEAL_BUCKETS = [
 function DealChips({ contact, onOpenList }) {
   const counts   = contactDealCounts(contact);
   const buckets  = contactDealProjects(contact);
-  if (!counts.total) return <span className="text-slate-300 text-xs">No jobs yet</span>;
+  if (!counts.total) return <span className="text-slate-500 text-xs">No jobs yet</span>;
 
   return (
     <span className="inline-flex gap-1">
@@ -903,7 +904,7 @@ function DealChips({ contact, onOpenList }) {
               type="button"
               disabled={!n}
               onClick={() => n && onOpenList({ contact, bucket: b, projects })}
-              className={`px-1.5 py-0.5 rounded text-[10px] font-bold transition-colors ${
+              className={`px-1.5 py-0.5 rounded-lg text-xs font-bold transition-colors ${
                 n ? `${b.on} cursor-pointer` : 'bg-slate-50 text-slate-300 cursor-default'
               }`}
             >
@@ -942,15 +943,15 @@ function DealListPopup({ contact, bucket, projects, onClose }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-slate-900/30" onClick={onClose} />
-      <div className="relative bg-white rounded-xl shadow-2xl border border-slate-200 w-full max-w-md max-h-[70vh] flex flex-col">
+      <div className="absolute inset-0 bg-black/40" onClick={onClose} />
+      <div className={`relative ${MODAL} w-full max-w-md max-h-[70vh] flex flex-col`}>
         <div className="px-5 py-4 border-b border-slate-100 flex items-start justify-between gap-3">
           <div>
-            <h3 className="font-semibold text-slate-900">{bucket.label} — {projects.length}</h3>
-            <p className="text-xs text-slate-400 mt-0.5">{contact.name} is the main contact on these.</p>
+            <h3 className={CARD_TITLE}>{bucket.label}: {projects.length}</h3>
+            <p className="text-xs text-slate-500 mt-0.5">{contact.name} is the main contact on these.</p>
           </div>
           <button type="button" onClick={onClose} aria-label="Close"
-            className="p-1 rounded text-slate-300 hover:text-slate-600 hover:bg-slate-100 transition-colors">
+            className="p-1 rounded-lg text-slate-600 hover:text-slate-600 hover:bg-slate-100 transition-colors">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
           </button>
         </div>
@@ -963,7 +964,7 @@ function DealListPopup({ contact, bucket, projects, onClose }) {
                     PRJ-{String(p.projectNumber).padStart(4, '0')}
                   </span>
                 )}
-                <Link href={`/project/${p.id}`} className="font-medium text-slate-800 hover:text-amber-600 transition-colors truncate">
+                <Link href={`/project/${p.id}`} className="font-medium text-slate-800 hover:text-orange-600 transition-colors truncate">
                   {p.name}
                 </Link>
               </div>
@@ -1018,7 +1019,7 @@ function PersonField({
         onChange={e => choose(e.target.value)}
         onBlur={() => setEditing(false)}
         onKeyDown={e => { if (e.key === 'Escape') setEditing(false); }}
-        className={`${width} border border-amber-300 rounded px-1.5 py-0.5 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-amber-400 ${className}`}
+        className={`${width} border border-orange-300 rounded-lg px-1.5 py-0.5 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-orange-500 ${className}`}
       >
         {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>
@@ -1039,7 +1040,7 @@ function PersonField({
           if (e.key === 'Enter')  { e.preventDefault(); commit(); }
           if (e.key === 'Escape') { setDraft(value ?? ''); setEditing(false); }
         }}
-        className={`${width} border border-amber-300 rounded px-1.5 py-0.5 text-sm focus:outline-none focus:ring-1 focus:ring-amber-400 ${className}`}
+        className={`${width} border border-orange-300 rounded-lg px-1.5 py-0.5 text-sm focus:outline-none focus:ring-1 focus:ring-orange-500 ${className}`}
       />
     );
   }
@@ -1050,9 +1051,9 @@ function PersonField({
       type="button"
       onClick={() => setEditing(true)}
       title="Click to edit"
-      className={`text-left rounded px-1 -mx-1 hover:bg-amber-50 transition-colors ${className} ${shown ? '' : 'text-slate-300'}`}
+      className={`text-left rounded-lg px-1 -mx-1 hover:bg-orange-50 transition-colors ${className} ${shown ? '' : 'text-slate-400'}`}
     >
-      {busy ? <span className="text-amber-500">Saving…</span> : (
+      {busy ? <span className="text-slate-500">Saving…</span> : (
         <>
           {prefixIcon && shown ? <span className="text-slate-300 mr-1">{prefixIcon}</span> : null}
           {shown || placeholder}
@@ -1142,12 +1143,12 @@ function PeopleTab({ contacts: initial, clientId, onContactsChange }) {
     }
   }
 
-  const inputCls = 'w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-amber-400';
+  const inputCls = 'w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-orange-500';
 
   return (
     <div className="space-y-4">
     <LookAlikeReviews clientId={clientId} kind="contact" title="Same person?" />
-    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+    <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
       <ConfirmArchiveModal
         open={!!archiveTarget}
         title="Archive this person?"
@@ -1161,14 +1162,14 @@ function PeopleTab({ contacts: initial, clientId, onContactsChange }) {
       {/* Header */}
       <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
         <div>
-          <h2 className="font-semibold text-slate-900">People
+          <h2 className={H2}>People
             <span className="ml-2 text-sm font-normal text-slate-400">({contacts.length})</span>
           </h2>
-          <p className="text-[11px] text-slate-400 mt-0.5">Click any field to change it. It saves when you click away.</p>
+          <p className="text-[11px] text-slate-500 mt-0.5">Click any field to change it. It saves when you click away.</p>
         </div>
         {addForm === null && (
           <button onClick={() => { setAddForm({ ...EMPTY_PERSON }); setFormErr(''); }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 text-white hover:bg-blue-700 transition-colors">
+            className={BTN_COMPACT_PRIMARY}>
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
             Add Person
           </button>
@@ -1190,17 +1191,17 @@ function PeopleTab({ contacts: initial, clientId, onContactsChange }) {
         return hasAny ? (
           <div className="px-5 py-3 bg-slate-50/50 border-b border-slate-100 flex gap-2 flex-wrap">
             {counts.overdue > 0 && (
-              <span className="text-xs font-semibold px-2 py-1 rounded-full bg-red-100 text-red-700">
+              <span className="text-xs font-semibold px-2 py-1 rounded-full bg-red-50 text-red-700">
                 {counts.overdue} overdue
               </span>
             )}
             {counts.due_soon > 0 && (
-              <span className="text-xs font-semibold px-2 py-1 rounded-full bg-amber-100 text-amber-700">
+              <span className="text-xs font-semibold px-2 py-1 rounded-full bg-amber-50 text-amber-700">
                 {counts.due_soon} due soon
               </span>
             )}
             {counts.current > 0 && (
-              <span className="text-xs font-semibold px-2 py-1 rounded-full bg-green-100 text-green-700">
+              <span className="text-xs font-semibold px-2 py-1 rounded-full bg-green-50 text-green-700">
                 {counts.current} current
               </span>
             )}
@@ -1246,7 +1247,7 @@ function PeopleTab({ contacts: initial, clientId, onContactsChange }) {
               <div className="flex items-center gap-2 shrink-0">
                 <DealChips contact={c} onOpenList={setDealList} />
                 <button onClick={() => setArchiveTarget({ id: c.id, name: c.name })} disabled={deletingId === c.id}
-                  className="p-1 rounded text-slate-300 hover:text-amber-600 hover:bg-amber-50 md:opacity-0 md:group-hover:opacity-100 transition-all" title="Archive this person">
+                  className="p-1 rounded-lg text-slate-600 hover:text-orange-600 hover:bg-orange-50 md:opacity-0 md:group-hover:opacity-100 transition-all" title="Archive this person">
                   {deletingId === c.id ? <Spinner className="w-3.5 h-3.5" /> : (
                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" /></svg>
                   )}
@@ -1264,7 +1265,7 @@ function PeopleTab({ contacts: initial, clientId, onContactsChange }) {
                 placeholder="Add an email"
                 width="min-w-[14rem]"
                 prefixIcon="✉"
-                className="text-amber-600 hover:text-amber-500"
+                className="text-orange-600 hover:text-orange-700"
               />
               <PersonField
                 value={c.workPhone || c.phone}
@@ -1291,24 +1292,24 @@ function PeopleTab({ contacts: initial, clientId, onContactsChange }) {
                 placeholder="Add LinkedIn"
                 width="min-w-[16rem]"
                 display={c.linkedInUrl ? 'in LinkedIn' : undefined}
-                className="text-amber-600 hover:text-amber-500"
+                className="text-orange-600 hover:text-orange-700"
               />
               {c.linkedInUrl && (
                 <a href={c.linkedInUrl} target="_blank" rel="noopener noreferrer"
-                  className="text-slate-300 hover:text-amber-600" title="Open their LinkedIn in a new tab">↗</a>
+                  className="text-slate-600 hover:text-orange-600" title="Open their LinkedIn in a new tab">↗</a>
               )}
               {WORK_HISTORY_READY && (
                 <button type="button" onClick={() => setHistoryFor(h => (h === c.id ? null : c.id))}
-                  className="text-slate-400 hover:text-amber-600" title="Where they have worked — paste from LinkedIn or type it in">
+                  className="text-slate-400 hover:text-orange-600" title="Where they have worked — paste from LinkedIn or type it in">
                   {historyFor === c.id ? '▾' : '▸'} Work history
                 </button>
               )}
               <button type="button" onClick={() => setPersonalFor(p => (p === c.id ? null : c.id))}
-                className="text-slate-400 hover:text-amber-600" title="Kids, sports, hobbies, favorite coffee">
+                className="text-slate-400 hover:text-orange-600" title="Kids, sports, hobbies, favorite coffee">
                 {personalFor === c.id ? '▾' : '▸'} Notes and personal
               </button>
               <button type="button" onClick={() => setSalesNotesFor(s => (s === c.id ? null : c.id))}
-                className="text-slate-400 hover:text-amber-600" title="Published sales notes that name this person">
+                className="text-slate-400 hover:text-orange-600" title="Published sales notes that name this person">
                 {salesNotesFor === c.id ? '▾' : '▸'} Sales notes
               </button>
               {(c.lastEmailReceivedAt || c.lastEmailSentAt) && (
@@ -1353,20 +1354,20 @@ function PeopleTab({ contacts: initial, clientId, onContactsChange }) {
           </div>
           <div className="flex gap-2 mt-3">
             <button onClick={addContact} disabled={saving || !addForm.name?.trim()}
-              className="px-3 py-1.5 text-xs font-semibold bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors">
+              className={BTN_COMPACT_PRIMARY}>
               {saving ? 'Adding…' : 'Add Person'}
             </button>
             <button onClick={() => setAddForm(null)}
-              className="px-3 py-1.5 text-xs font-medium text-slate-500 rounded-lg border border-slate-200 hover:bg-white transition-colors">Cancel</button>
+              className={BTN_COMPACT}>Cancel</button>
           </div>
         </div>
       )}
 
       {contacts.length === 0 && addForm === null && (
         <div className="px-5 py-12 text-center">
-          <p className="text-slate-400 text-sm mb-3">No people yet.</p>
+          <p className="text-slate-500 text-sm mb-3">No people yet.</p>
           <button onClick={() => { setFormErr(''); setAddForm({ ...EMPTY_PERSON }); }}
-            className="text-sm font-medium text-amber-600 hover:text-amber-500 transition-colors">
+            className="text-sm font-semibold text-orange-600 hover:text-orange-700 transition-colors">
             + Add first person
           </button>
         </div>
@@ -1400,13 +1401,13 @@ function ProjectsTab({ client, available, related = [], onRefresh }) {
 
   return (
     <>
-      <div className="bg-white rounded-xl border border-slate-200">
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-          <h2 className="font-semibold text-slate-900">
+          <h2 className={H2}>
             Projects <span className="ml-2 text-sm font-normal text-slate-400">({client.projects?.length || 0})</span>
           </h2>
           <button onClick={() => setLinking(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">
+            className={BTN_COMPACT}>
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
             </svg>
@@ -1415,8 +1416,8 @@ function ProjectsTab({ client, available, related = [], onRefresh }) {
         </div>
         {!client.projects?.length ? (
           <div className="px-6 py-12 text-center">
-            <p className="text-slate-400 text-sm">No projects linked yet.</p>
-            <button onClick={() => setLinking(true)} className="mt-3 text-sm font-medium text-amber-600 hover:text-amber-500 transition-colors">
+            <p className="text-slate-500 text-sm">No projects linked yet.</p>
+            <button onClick={() => setLinking(true)} className="mt-3 text-sm font-semibold text-orange-600 hover:text-orange-700 transition-colors">
               Link a project →
             </button>
           </div>
@@ -1431,11 +1432,11 @@ function ProjectsTab({ client, available, related = [], onRefresh }) {
                         PRJ-{String(p.projectNumber).padStart(4, '0')}
                       </span>
                     )}
-                    <Link href={`/project/${p.id}`} className="font-medium text-slate-900 hover:text-amber-600 transition-colors truncate">
+                    <Link href={`/project/${p.id}`} className="font-medium text-slate-900 hover:text-orange-600 transition-colors truncate">
                       {p.name}
                     </Link>
                   </div>
-                  <div className="text-xs text-slate-400 mt-0.5">
+                  <div className="text-xs text-slate-500 mt-0.5">
                     {[[p.city, p.state].filter(Boolean).join(', '), p.serviceType, p.phase?.toUpperCase()].filter(Boolean).join(' · ')}
                   </div>
                 </div>
@@ -1444,11 +1445,11 @@ function ProjectsTab({ client, available, related = [], onRefresh }) {
                     p.status === 'COMPLETE' ? 'bg-green-50 text-green-700' : 'bg-slate-100 text-slate-500'
                   }`}>{p.status}</span>
                   <Link href={`/project/${p.id}`}
-                    className="md:opacity-0 md:group-hover:opacity-100 transition-opacity px-2.5 py-1 rounded-lg text-xs font-medium border border-slate-200 text-slate-600 hover:bg-slate-100">
+                    className="md:opacity-0 md:group-hover:opacity-100 transition-opacity px-2.5 py-1 rounded-lg text-xs font-semibold border border-slate-300 text-slate-700 hover:bg-slate-100">
                     Open
                   </Link>
                   <button onClick={() => unlinkProject(p.id, p.name)} title="Unlink"
-                    className="md:opacity-0 md:group-hover:opacity-100 transition-opacity p-1.5 rounded-lg text-slate-300 hover:text-red-400 hover:bg-red-50 transition-colors">
+                    className="md:opacity-0 md:group-hover:opacity-100 transition-opacity p-1.5 rounded-lg text-slate-600 hover:text-red-400 hover:bg-red-50 transition-colors">
                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                   </button>
                 </div>
@@ -1465,12 +1466,12 @@ function ProjectsTab({ client, available, related = [], onRefresh }) {
           purpose — folding them in above would make an engineering firm look
           like a big client. */}
       {related.length > 0 && (
-        <div className="bg-white rounded-xl border border-slate-200 mt-6">
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm mt-6">
           <div className="px-6 py-4 border-b border-slate-100">
-            <h2 className="font-semibold text-slate-900">
+            <h2 className={H2}>
               Related Projects <span className="ml-2 text-sm font-normal text-slate-400">({related.length})</span>
             </h2>
-            <p className="text-xs text-slate-400 mt-0.5">
+            <p className="text-xs text-slate-500 mt-0.5">
               Jobs they are on the team of. Somebody else is the client on these.
             </p>
           </div>
@@ -1486,15 +1487,15 @@ function ProjectsTab({ client, available, related = [], onRefresh }) {
                           PRJ-{String(p.projectNumber).padStart(4, '0')}
                         </span>
                       )}
-                      <Link href={`/project/${p.id}`} className="font-medium text-slate-900 hover:text-amber-600 transition-colors truncate">
+                      <Link href={`/project/${p.id}`} className="font-medium text-slate-900 hover:text-orange-600 transition-colors truncate">
                         {p.name}
                       </Link>
                     </div>
-                    <div className="text-xs text-slate-400 mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <div className="text-xs text-slate-500 mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1">
                       {p.client?.name && (
                         <span>
                           Client:{' '}
-                          <Link href={`/clients/${p.client.id}`} className="text-slate-500 hover:text-amber-600">
+                          <Link href={`/clients/${p.client.id}`} className="text-slate-500 hover:text-orange-600">
                             {p.client.name}
                           </Link>
                         </span>
@@ -1505,12 +1506,12 @@ function ProjectsTab({ client, available, related = [], onRefresh }) {
                   <div className="flex flex-wrap justify-end items-center gap-2 shrink-0 max-w-[45%] md:max-w-none">
                     {/* Which hat they wore here. A company can wear more than one. */}
                     {roles.map(r => (
-                      <span key={r.key} className="text-[10px] font-semibold text-slate-600 bg-slate-100 rounded-full px-2 py-0.5">
+                      <span key={r.key} className="text-xs font-semibold text-slate-600 bg-slate-100 rounded-full px-2 py-0.5">
                         {r.label}
                       </span>
                     ))}
                     <Link href={`/project/${p.id}`}
-                      className="md:opacity-0 md:group-hover:opacity-100 transition-opacity px-2.5 py-1 rounded-lg text-xs font-medium border border-slate-200 text-slate-600 hover:bg-slate-100">
+                      className="md:opacity-0 md:group-hover:opacity-100 transition-opacity px-2.5 py-1 rounded-lg text-xs font-semibold border border-slate-300 text-slate-700 hover:bg-slate-100">
                       Open
                     </Link>
                   </div>
@@ -1559,7 +1560,7 @@ function TextAnswerInput({ question, sectionKey, currentValue: initVal, canEdit,
       disabled={!canEdit || isSav}
       placeholder={question.hint || 'Type here…'}
       rows={2}
-      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-200 resize-none disabled:opacity-50"
+      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 resize-none disabled:opacity-50"
     />
   );
 }
@@ -1706,19 +1707,19 @@ function ClientStandardsTab({ clientId, initialAnswers, canEdit }) {
           {options.map(cct => (
             <button key={cct} type="button"
               onClick={() => canEdit && !isSav && onChange(value === cct ? '' : cct)}
-              className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
                 value === cct
-                  ? 'bg-amber-500 text-white border-amber-500'
-                  : 'bg-white text-slate-500 border-slate-200 hover:border-amber-400 hover:text-amber-600'
+                  ? 'bg-orange-50 text-orange-700 border-orange-400'
+                  : 'bg-white text-slate-500 border-slate-200 hover:border-orange-400 hover:text-orange-600'
               } ${!canEdit ? 'pointer-events-none opacity-60' : ''}`}>
               {cct}
             </button>
           ))}
           {value && canEdit && (
             <button type="button" onClick={() => onChange('')}
-              className="px-2 py-1.5 text-xs text-slate-400 hover:text-slate-600">✕ Clear</button>
+              className="px-2 py-1.5 text-xs text-slate-500 hover:text-slate-600">✕ Clear</button>
           )}
-          {isSav && <span className="text-[10px] text-slate-400 italic self-center ml-1">Saving…</span>}
+          {isSav && <span className="text-xs text-slate-500 italic self-center ml-1">Saving…</span>}
         </div>
       );
     }
@@ -1726,20 +1727,20 @@ function ClientStandardsTab({ clientId, initialAnswers, canEdit }) {
     return (
       <div className="space-y-6">
         <div className="grid grid-cols-2 gap-4">
-          <div className="bg-white rounded-xl border border-slate-200 p-4">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
             <div className="flex items-center gap-2 mb-1">
-              <span className="w-2.5 h-2.5 rounded-full bg-amber-400 shrink-0" />
+              <span className="w-2.5 h-2.5 rounded-full bg-orange-500 shrink-0" />
               <span className="text-sm font-bold text-slate-800">All Interior</span>
-              <span className="text-[10px] text-slate-400 ml-auto">Default for all interior areas</span>
+              <span className="text-xs text-slate-500 ml-auto">Default for all interior areas</span>
             </div>
             <CCTChips questionKey="cct_all_interior" value={interiorCCT}
               onChange={v => saveCCT('cct_all_interior', v)} />
           </div>
-          <div className="bg-white rounded-xl border border-slate-200 p-4">
+          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
             <div className="flex items-center gap-2 mb-1">
               <span className="w-2.5 h-2.5 rounded-full bg-blue-400 shrink-0" />
               <span className="text-sm font-bold text-slate-800">Exterior</span>
-              <span className="text-[10px] text-slate-400 ml-auto">All exterior areas</span>
+              <span className="text-xs text-slate-500 ml-auto">All exterior areas</span>
             </div>
             <CCTChips questionKey="cct_exterior" value={exteriorCCT}
               onChange={v => saveCCT('cct_exterior', v)} options={CCT_EXTERIOR_OPTIONS} />
@@ -1747,7 +1748,7 @@ function ClientStandardsTab({ clientId, initialAnswers, canEdit }) {
         </div>
 
         <div>
-          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">
+          <div className={`${LABEL} mb-3`}>
             Area overrides — set only if different from interior default
           </div>
           <div className="grid grid-cols-1 gap-2">
@@ -1757,34 +1758,34 @@ function ClientStandardsTab({ clientId, initialAnswers, canEdit }) {
               const isSav    = !!saving[`${area.key}::${activeProjectType}::`];
               const areaSpecific = answers[`${area.key}::${activeProjectType}::`]?.answer_value;
               return (
-                <div key={area.key} className={`bg-white rounded-lg border px-4 py-3 ${override ? 'border-amber-200' : 'border-slate-100'}`}>
+                <div key={area.key} className={`bg-white rounded-xl border shadow-sm px-4 py-3 ${override ? 'border-orange-200' : 'border-slate-100'}`}>
                   <div className="flex items-center gap-3">
                     <span className="text-xs font-semibold text-slate-700 w-44 shrink-0">{area.label}</span>
                     <div className="flex flex-wrap gap-1.5 flex-1">
                       {CCT_OPTIONS.map(cct => (
                         <button key={cct} type="button"
                           onClick={() => canEdit && !isSav && saveCCT(area.key, areaSpecific === cct ? '' : cct)}
-                          className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
+                          className={`px-2.5 py-1 rounded-lg text-xs font-semibold border transition-colors ${
                             current === cct && override
-                              ? 'bg-amber-500 text-white border-amber-500'
+                              ? 'bg-orange-50 text-orange-700 border-orange-400'
                               : current === cct && !override
                               ? 'bg-slate-100 text-slate-600 border-slate-200'
-                              : 'bg-white text-slate-400 border-slate-100 hover:border-amber-300 hover:text-amber-600'
+                              : 'bg-white text-slate-400 border-slate-100 hover:border-orange-300 hover:text-orange-600'
                           } ${!canEdit ? 'pointer-events-none' : ''}`}>
                           {cct}
                         </button>
                       ))}
                       {!override && interiorCCT && (
-                        <span className="text-[10px] text-slate-400 self-center ml-1">↑ inherited</span>
+                        <span className="text-xs text-slate-500 self-center ml-1">↑ inherited</span>
                       )}
                       {override && canEdit && (
                         <button type="button" onClick={() => saveCCT(area.key, '')}
-                          className="text-[10px] text-slate-400 hover:text-slate-600 self-center ml-1">
+                          className="text-xs text-slate-500 hover:text-slate-600 self-center ml-1">
                           Clear override
                         </button>
                       )}
                     </div>
-                    {isSav && <span className="text-[10px] text-slate-400 italic shrink-0">Saving…</span>}
+                    {isSav && <span className="text-xs text-slate-500 italic shrink-0">Saving…</span>}
                   </div>
                 </div>
               );
@@ -1821,7 +1822,7 @@ function ClientStandardsTab({ clientId, initialAnswers, canEdit }) {
     }
 
     return (
-      <div className={`bg-white rounded-xl border transition-colors ${
+      <div className={`bg-white rounded-xl border shadow-sm transition-colors ${
         currentValue != null ? 'border-slate-200' : 'border-dashed border-slate-200'
       }`}>
         {/* Card header */}
@@ -1831,24 +1832,24 @@ function ClientStandardsTab({ clientId, initialAnswers, canEdit }) {
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-sm font-semibold text-slate-800">{question.label}</span>
                 {question.tags?.map(tag => (
-                  <span key={tag} className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${TAG_COLORS[tag] || 'bg-slate-50 text-slate-400 border-slate-200'}`}>
+                  <span key={tag} className={`text-xs font-bold px-1.5 py-0.5 rounded-lg border ${TAG_COLORS[tag] || 'bg-slate-50 text-slate-400 border-slate-200'}`}>
                     {tag}
                   </span>
                 ))}
               </div>
               {question.hint && (
-                <p className="text-[11px] text-slate-400 mt-0.5 leading-snug">{question.hint}</p>
+                <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">{question.hint}</p>
               )}
             </div>
             <div className="shrink-0 flex items-center gap-2">
-              {isSav && <span className="text-[10px] text-slate-400 italic">Saving…</span>}
+              {isSav && <span className="text-xs text-slate-500 italic">Saving…</span>}
               {!isSav && inherited && activeProjectType && (
-                <span className="text-[10px] text-slate-400 bg-slate-50 border border-slate-200 px-1.5 py-0.5 rounded">
+                <span className="text-xs text-slate-500 bg-slate-50 border border-slate-200 px-1.5 py-0.5 rounded-lg">
                   ↑ Global
                 </span>
               )}
               {!isSav && overridden && (
-                <span className="text-[10px] text-amber-600 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded">
+                <span className="text-xs text-amber-600 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded-lg">
                   Override
                 </span>
               )}
@@ -1865,9 +1866,9 @@ function ClientStandardsTab({ clientId, initialAnswers, canEdit }) {
                 return (
                   <button key={opt.value} type="button"
                     onClick={() => handleChipClick(opt.value)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
                       isSelected
-                        ? 'bg-amber-600 text-white border-amber-600'
+                        ? 'bg-orange-50 text-orange-700 border-orange-400'
                         : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'
                     } ${!canEdit ? 'pointer-events-none' : ''}`}>
                     {opt.label}
@@ -1876,7 +1877,7 @@ function ClientStandardsTab({ clientId, initialAnswers, canEdit }) {
               })}
               {overridden && canEdit && (
                 <button type="button" onClick={() => clearOverride(question, sectionKey)}
-                  className="px-2.5 py-1 text-[10px] text-slate-400 hover:text-slate-600 border border-dashed border-slate-200 rounded-full transition-colors">
+                  className="px-2.5 py-1 text-xs text-slate-500 hover:text-slate-600 border border-dashed border-slate-300 rounded-lg transition-colors">
                   Clear override
                 </button>
               )}
@@ -1890,7 +1891,7 @@ function ClientStandardsTab({ clientId, initialAnswers, canEdit }) {
                 onClick={() => handleToggle(currentValue !== 'true')}
                 disabled={!canEdit || isSav}
                 className={`relative inline-flex h-5 w-9 shrink-0 rounded-full transition-colors disabled:opacity-50 ${
-                  currentValue === 'true' ? 'bg-amber-500' : 'bg-slate-200'
+                  currentValue === 'true' ? 'bg-orange-500' : 'bg-slate-200'
                 }`}>
                 <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform mt-0.5 ${
                   currentValue === 'true' ? 'translate-x-[18px]' : 'translate-x-0.5'
@@ -1915,9 +1916,9 @@ function ClientStandardsTab({ clientId, initialAnswers, canEdit }) {
                           : [...selected, opt.value];
                         saveAnswer(question, next.length > 0 ? JSON.stringify(next) : null, sectionKey);
                       }}
-                      className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-colors ${
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
                         isSelected
-                          ? 'bg-amber-600 text-white border-amber-600'
+                          ? 'bg-orange-50 text-orange-700 border-orange-400'
                           : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'
                       } ${!canEdit ? 'pointer-events-none' : ''}`}>
                       {opt.label}
@@ -1926,7 +1927,7 @@ function ClientStandardsTab({ clientId, initialAnswers, canEdit }) {
                 })}
                 {overridden && canEdit && (
                   <button type="button" onClick={() => clearOverride(question, sectionKey)}
-                    className="px-2.5 py-1 text-[10px] text-slate-400 hover:text-slate-600 border border-dashed border-slate-200 rounded-full transition-colors">
+                    className="px-2.5 py-1 text-xs text-slate-500 hover:text-slate-600 border border-dashed border-slate-300 rounded-lg transition-colors">
                     Clear override
                   </button>
                 )}
@@ -1955,7 +1956,7 @@ function ClientStandardsTab({ clientId, initialAnswers, canEdit }) {
       <div className="py-16 text-center text-slate-400">
         <div className="text-3xl mb-3">🔒</div>
         <p className="text-sm font-medium text-slate-500">Standards access required</p>
-        <p className="text-xs mt-1 text-slate-400">Ask an ILC admin to grant you the Client Standards Editor permission.</p>
+        <p className="text-xs mt-1 text-slate-500">Ask an ILC admin to grant you the Client Standards Editor permission.</p>
       </div>
     );
   }
@@ -1972,15 +1973,15 @@ function ClientStandardsTab({ clientId, initialAnswers, canEdit }) {
         {/* Share link */}
         {canEdit && <ShareStandardsButton clientId={clientId} />}
         {/* Overall progress */}
-        <div className="mb-4 p-3 rounded-xl bg-white border border-slate-200">
+        <div className="mb-4 p-3 rounded-xl bg-white border border-slate-200 shadow-sm">
           <div className="flex items-center justify-between mb-1.5">
-            <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Global</span>
+            <span className={LABEL}>Global</span>
             <span className="text-xs font-bold text-slate-700">{pct}%</span>
           </div>
           <div className="w-full h-1.5 rounded-full bg-slate-100 overflow-hidden">
-            <div className="h-full rounded-full bg-amber-400 transition-all duration-300" style={{ width: `${pct}%` }} />
+            <div className="h-full rounded-full bg-orange-500 transition-all duration-300" style={{ width: `${pct}%` }} />
           </div>
-          <p className="text-[10px] text-slate-400 mt-1.5">{answeredGlobal} of {totalQuestions} questions answered</p>
+          <p className="text-xs text-slate-500 mt-1.5">{answeredGlobal} of {totalQuestions} questions answered</p>
         </div>
 
         <nav className="space-y-0.5">
@@ -1991,15 +1992,15 @@ function ClientStandardsTab({ clientId, initialAnswers, canEdit }) {
             const isStub    = !sec.isCCT && total === 0;
             return (
               <button key={sec.key} onClick={() => setActiveSection(sec.key)}
-                className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-left text-xs font-medium transition-colors ${
+                className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-left text-xs font-semibold transition-colors ${
                   isActive ? `${c.bg} ${c.text} border ${c.border}` : 'text-slate-600 hover:bg-slate-100'
                 } ${isStub ? 'opacity-50' : ''}`}>
                 <span className="text-sm shrink-0">{sec.icon}</span>
                 <span className="flex-1 leading-snug">{sec.label}</span>
                 {isStub ? (
-                  <span className="text-[9px] text-slate-400 shrink-0">soon</span>
+                  <span className="text-xs text-slate-500 shrink-0">soon</span>
                 ) : sec.isCCT ? null : (
-                  <span className={`shrink-0 text-[10px] font-bold tabular-nums ${answered === total && total > 0 ? 'text-green-600' : 'text-slate-400'}`}>
+                  <span className={`shrink-0 text-xs font-bold tabular-nums ${answered === total && total > 0 ? 'text-green-600' : 'text-slate-400'}`}>
                     {answered}/{total}
                   </span>
                 )}
@@ -2033,7 +2034,7 @@ function ClientStandardsTab({ clientId, initialAnswers, canEdit }) {
             onClick={() => setActiveProjectType('')}
             className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
               activeProjectType === ''
-                ? 'bg-slate-800 text-white border-slate-800'
+                ? 'bg-orange-50 text-orange-700 border-orange-400'
                 : 'bg-white text-slate-500 border-slate-200 hover:border-slate-400'
             }`}>
             Global
@@ -2043,7 +2044,7 @@ function ClientStandardsTab({ clientId, initialAnswers, canEdit }) {
               onClick={() => setActiveProjectType(pt.value)}
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
                 activeProjectType === pt.value
-                  ? 'bg-slate-800 text-white border-slate-800'
+                  ? 'bg-orange-50 text-orange-700 border-orange-400'
                   : 'bg-white text-slate-500 border-slate-200 hover:border-slate-400'
               }`}>
               {pt.label}
@@ -2078,19 +2079,18 @@ function ClientStandardsTab({ clientId, initialAnswers, canEdit }) {
         {!section?.isCCT && section?.questions?.length === 0 && (
           section?.subsections?.length > 0 ? (
             <div className="space-y-2">
-              <p className="text-xs text-slate-400 mb-4">Questions coming in a future update — planned subsections:</p>
+              <p className="text-xs text-slate-500 mb-4">Questions coming in a future update — planned subsections:</p>
               {section.subsections.map(sub => (
-                <div key={sub} className="flex items-center gap-3 px-4 py-3 rounded-xl border border-dashed border-slate-200 text-sm text-slate-500">
+                <div key={sub} className="flex items-center gap-3 px-4 py-3 rounded-lg border border-slate-200 bg-slate-50 text-sm text-slate-500">
                   <span className="w-1.5 h-1.5 rounded-full bg-slate-300 shrink-0" />
                   {sub}
                 </div>
               ))}
             </div>
           ) : (
-            <div className="py-16 text-center text-slate-400 border-2 border-dashed border-slate-200 rounded-xl">
-              <div className="text-3xl mb-2">🚧</div>
-              <p className="text-sm font-medium text-slate-500">Questions coming soon</p>
-              <p className="text-xs mt-1">This section is in the next build iteration.</p>
+            <div className={`${CARD} py-10`}>
+              <WidgetEmpty>Questions coming soon</WidgetEmpty>
+              <p className="text-xs text-slate-500 text-center">This section is in the next build iteration.</p>
             </div>
           )
         )}
@@ -2109,15 +2109,6 @@ function ClientStandardsTab({ clientId, initialAnswers, canEdit }) {
 }
 
 // ── Project Data Tab ──────────────────────────────────────────────────────────
-function StatCard({ label, value, small }) {
-  return (
-    <div className="bg-white rounded-xl border border-slate-200 px-4 py-4 text-center">
-      <div className={`font-bold text-slate-800 ${small ? 'text-xl' : 'text-2xl'}`}>{value}</div>
-      <div className="text-xs text-slate-400 mt-0.5 font-medium">{label}</div>
-    </div>
-  );
-}
-
 function ProjectDataTab({ clientId }) {
   const [rows, setRows] = useState(null);
 
@@ -2130,17 +2121,14 @@ function ProjectDataTab({ clientId }) {
 
   if (rows === null) {
     return (
-      <div className="flex items-center justify-center h-48 text-sm text-slate-400">
-        <Spinner className="w-5 h-5 mr-2" /> Crunching project data…
-      </div>
+      <WidgetLoading className="h-48 flex items-center justify-center">Loading project data...</WidgetLoading>
     );
   }
   if (rows.length === 0) {
     return (
-      <div className="py-16 text-center text-slate-400 border-2 border-dashed border-slate-200 rounded-xl">
-        <div className="text-3xl mb-2">📊</div>
-        <p className="text-sm font-medium text-slate-500">No project data yet</p>
-        <p className="text-xs mt-1">Link projects with budgets to this client to see averages here.</p>
+      <div className={`${CARD} py-10`}>
+        <WidgetEmpty>No project data yet</WidgetEmpty>
+        <p className="text-xs text-slate-500 text-center">Link projects with budgets to this client to see averages here.</p>
       </div>
     );
   }
@@ -2167,50 +2155,50 @@ function ProjectDataTab({ clientId }) {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <StatCard label="Projects"    value={rows.length} />
-        <StatCard label="Total units" value={totalUnits.toLocaleString()} />
-        <StatCard label="Avg $/unit"  value={money(totalUnits ? grandTotal / totalUnits : 0)} />
-        <StatCard label="Avg $/SF"    value={totalSf ? '$' + (grandTotal / totalSf).toFixed(2) : '—'} />
+        <StatTile label="Projects"    value={rows.length} />
+        <StatTile label="Total units" value={totalUnits.toLocaleString()} />
+        <StatTile label="Avg $/unit"  value={money(totalUnits ? grandTotal / totalUnits : 0)} />
+        <StatTile label="Avg $/SF"    value={totalSf ? '$' + (grandTotal / totalSf).toFixed(2) : '—'} />
       </div>
 
-      <div className="bg-white rounded-xl border border-slate-200 overflow-x-auto">
-        <div className="px-5 py-3 border-b border-slate-100"><h3 className="text-sm font-semibold text-slate-800">By building type</h3></div>
+      <div className={`${CARD} overflow-x-auto`}>
+        <div className="px-5 py-3 border-b border-slate-100"><h3 className={CARD_TITLE}>By building type</h3></div>
         <table className="w-full text-sm">
           <thead>
-            <tr className="bg-slate-50 text-[10px] font-bold text-slate-500 uppercase tracking-wider">
-              <th className="px-5 py-2.5 text-left">Building type</th>
-              <th className="px-4 py-2.5 text-right">Projects</th>
-              <th className="px-4 py-2.5 text-right">Units</th>
-              <th className="px-4 py-2.5 text-right">Avg $/unit</th>
-              <th className="px-4 py-2.5 text-right">Avg $/SF</th>
+            <tr className="bg-slate-50">
+              <Th className="px-5">Building type</Th>
+              <Th align="right">Projects</Th>
+              <Th align="right">Units</Th>
+              <Th align="right">Avg $/unit</Th>
+              <Th align="right">Avg $/SF</Th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-50">
             {typeRows.map(tr => (
               <tr key={tr.type}>
-                <td className="px-5 py-2.5 font-medium text-slate-800">{buildingTypeLabel(tr.type)}</td>
-                <td className="px-4 py-2.5 text-right text-slate-600">{tr.count}</td>
-                <td className="px-4 py-2.5 text-right text-slate-600">{tr.units.toLocaleString()}</td>
-                <td className="px-4 py-2.5 text-right font-semibold text-slate-800">{money(tr.perUnit)}</td>
-                <td className="px-4 py-2.5 text-right text-slate-600">{tr.perSf ? '$' + tr.perSf.toFixed(2) : '—'}</td>
+                <td className={`${TD} px-5 font-medium text-slate-800`}>{buildingTypeLabel(tr.type)}</td>
+                <td className={`${TD} text-right tabular-nums`}>{tr.count}</td>
+                <td className={`${TD} text-right tabular-nums`}>{tr.units.toLocaleString()}</td>
+                <td className={`${TD} text-right font-semibold text-slate-800 tabular-nums`}>{money(tr.perUnit)}</td>
+                <td className={`${TD} text-right tabular-nums`}>{tr.perSf ? '$' + tr.perSf.toFixed(2) : '—'}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
 
-      <div className="bg-white rounded-xl border border-slate-200 p-5">
-        <h3 className="text-sm font-semibold text-slate-800 mb-3">Average per unit</h3>
+      <div className={`${CARD} p-5`}>
+        <h3 className={`${CARD_TITLE} mb-3`}>Average per unit</h3>
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-          <StatCard label="Ceiling fans / unit"      value={perUnitAvg('numFans').toFixed(2)} small />
-          <StatCard label="Accent downlights / unit" value={perUnitAvg('numAccent').toFixed(2)} small />
-          <StatCard label="Vanities / unit"          value={perUnitAvg('numVanities').toFixed(2)} small />
-          <StatCard label="Bathrooms / unit"         value={perUnitAvg('numBathrooms').toFixed(2)} small />
-          <StatCard label="Balconies / unit"         value={perUnitAvg('numBalconies').toFixed(2)} small />
+          <StatTile inset label="Ceiling fans / unit"      value={perUnitAvg('numFans').toFixed(2)} />
+          <StatTile inset label="Accent downlights / unit" value={perUnitAvg('numAccent').toFixed(2)} />
+          <StatTile inset label="Vanities / unit"          value={perUnitAvg('numVanities').toFixed(2)} />
+          <StatTile inset label="Bathrooms / unit"         value={perUnitAvg('numBathrooms').toFixed(2)} />
+          <StatTile inset label="Balconies / unit"         value={perUnitAvg('numBalconies').toFixed(2)} />
         </div>
       </div>
 
-      <p className="text-[11px] text-slate-400">
+      <p className="text-[11px] text-slate-500">
         Weighted by unit count across {rows.length} linked project{rows.length !== 1 ? 's' : ''} with budget data.
       </p>
     </div>
@@ -2318,7 +2306,7 @@ export default function ClientDetailClient({ client: initial, availableProjects,
                 <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${tierColor(client.tier)}`}>Tier {client.tier}</span>
               )}
               <a href={`/api/clients/${client.id}/export`}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
+                className={BTN_COMPACT}
                 title="Export Standards + Playbook to Excel">
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 10.5v6m0 0l-2.25-2.25M12 16.5l2.25-2.25M3 12a9 9 0 1018 0 9 9 0 00-18 0z" /></svg>
                 Export Excel
@@ -2330,21 +2318,21 @@ export default function ClientDetailClient({ client: initial, availableProjects,
           <div className="flex gap-0 overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0">
             {TABS.map(t => (
               <button key={t.id} onClick={() => setActiveTab(t.id)}
-                className={`shrink-0 whitespace-nowrap px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                className={`shrink-0 whitespace-nowrap px-4 py-3 text-sm font-semibold border-b-2 transition-colors ${
                   activeTab === t.id
-                    ? 'border-amber-500 text-amber-600'
-                    : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+                    ? TAB_ACTIVE
+                    : TAB_INACTIVE
                 }`}>
                 {t.label}
-                {t.id === 'people'    && client.contacts?.length > 0      && <span className="ml-1.5 text-[10px] font-bold text-slate-400">{client.contacts.length}</span>}
+                {t.id === 'people'    && client.contacts?.length > 0      && <span className="ml-1.5 text-xs font-bold text-slate-500">{client.contacts.length}</span>}
                 {t.id === 'projects'  && (client.projects?.length > 0 || relatedProjects.length > 0) && (
-                  <span className="ml-1.5 text-[10px] font-bold text-slate-400">
+                  <span className="ml-1.5 text-xs font-bold text-slate-500">
                     {client.projects?.length || 0}
                     {relatedProjects.length > 0 && <span className="text-slate-300"> +{relatedProjects.length}</span>}
                   </span>
                 )}
-                {t.id === 'playbook'  && !canEditPlaybook                 && <span className="ml-1.5 text-[10px] text-slate-300">🔒</span>}
-                {t.id === 'standards' && !canEditStandards                && <span className="ml-1.5 text-[10px] text-slate-300">🔒</span>}
+                {t.id === 'playbook'  && !canEditPlaybook                 && <span className="ml-1.5 text-xs text-slate-400">🔒</span>}
+                {t.id === 'standards' && !canEditStandards                && <span className="ml-1.5 text-xs text-slate-400">🔒</span>}
               </button>
             ))}
           </div>

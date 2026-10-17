@@ -1,6 +1,7 @@
 export const dynamic = 'force-dynamic';
 
 import { redirect } from 'next/navigation';
+import { H1 } from '@/components/ui/tokens';
 import { getSession, isSuperAdmin, isSalesAdmin } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import AutomationNav from '@/components/salesAutomation/AutomationNav';
@@ -22,7 +23,7 @@ export default async function SalesAutomationTriggersPage() {
       <AutomationNav />
       <div className="max-w-5xl mx-auto">
       <div className="mb-5">
-        <h1 className="text-xl font-bold text-slate-900">If-Then Rules</h1>
+        <h1 className={H1}>If-Then Rules</h1>
         <p className="text-slate-500 text-sm mt-1 max-w-3xl">
           Build your own automations: <strong>When</strong> something happens (a note action, email, or calendar event),
           <strong> If</strong> it matches your conditions, <strong>Then</strong> the bot does something — drafts an email,

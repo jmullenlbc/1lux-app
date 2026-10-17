@@ -1,5 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
+import { CARD, BTN_PRIMARY, BTN_SECONDARY, BTN_DANGER, BTN_COMPACT, BTN_COMPACT_PRIMARY, LABEL, INPUT } from '@/components/ui/tokens';
+import { WidgetLoading } from '@/components/ui/WidgetFrame';
 
 /**
  * The review queue — Step 17 of the Governed AI Layer.
@@ -35,9 +37,9 @@ const VERDICT_STYLE = {
 };
 
 function fmtWhen(iso) {
-  if (!iso) return '—';
+  if (!iso) return 'n/a';
   const d = new Date(iso);
-  return isNaN(d) ? '—' : d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+  return isNaN(d) ? 'n/a' : d.toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 }
 
 export default function ReviewQueue() {
@@ -69,7 +71,7 @@ export default function ReviewQueue() {
       {/* The store is a stand-in until the AgentRun table lands. An empty queue
           means two very different things depending on which, so say which. */}
       {data?.health && !data.health.durable && (
-        <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3">
+        <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
           <p className="text-sm font-semibold text-amber-900">
             {data.health.sink === 'memory' ? 'Verdicts are not being saved' : 'Running on the local stand-in'}
           </p>
@@ -87,30 +89,30 @@ export default function ReviewQueue() {
             onClick={() => { setStatus(t.key); setOpenId(null); }}
             className={`text-xs font-semibold px-3 py-1.5 rounded-lg border transition-colors ${
               status === t.key
-                ? 'bg-slate-900 text-white border-slate-900'
-                : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                ? 'bg-orange-50 border-orange-400 text-orange-700'
+                : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
             }`}
           >
             {t.label}
             {t.key === 'AWAITING_REVIEW' && data?.counts?.awaitingReview > 0 && (
-              <span className="ml-1.5 opacity-70">{data.counts.awaitingReview}</span>
+              <span className="ml-1.5 opacity-70 tabular-nums">{data.counts.awaitingReview}</span>
             )}
           </button>
         ))}
-        <button onClick={load} className="ml-auto text-xs font-semibold text-slate-500 hover:text-slate-700">
+        <button onClick={load} className={`${BTN_COMPACT} ml-auto`}>
           Refresh
         </button>
       </div>
 
-      {loading && <p className="text-sm text-slate-400">Loading…</p>}
+      {loading && <WidgetLoading />}
       {loadError && (
-        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
           Could not load the queue: {loadError}
         </div>
       )}
 
       {!loading && !loadError && runs.length === 0 && (
-        <div className="rounded-xl border border-slate-200 bg-white px-6 py-10 text-center">
+        <div className={`${CARD} px-6 py-10 text-center`}>
           <p className="text-sm font-semibold text-slate-700">Nothing here</p>
           <p className="text-xs text-slate-500 mt-1">
             {status === 'AWAITING_REVIEW'
@@ -166,13 +168,13 @@ function RunCard({ run, tier, open, onToggle, onReviewed }) {
   const canSign = run.status === 'AWAITING_REVIEW' && !run.verdict;
 
   return (
-    <li className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+    <li className={`${CARD} overflow-hidden`}>
       <button onClick={onToggle} className="w-full text-left px-4 py-3 hover:bg-slate-50 transition-colors">
         <div className="flex items-center gap-2 flex-wrap">
           <span className="text-sm font-mono font-semibold text-slate-800">{run.taskType}</span>
 
           {tier && (
-            <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border ${TIER_STYLE[tier.tier]}`}
+            <span className={`text-[11px] font-bold uppercase px-2 py-0.5 rounded-full border ${TIER_STYLE[tier.tier]}`}
                   title={tier.reason}>
               Tier {tier.tier} · {tier.label}
               {tier.demoted && ' ↓'}
@@ -180,24 +182,24 @@ function RunCard({ run, tier, open, onToggle, onReviewed }) {
           )}
 
           {checksFailed && (
-            <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border bg-red-50 text-red-600 border-red-200">
+            <span className="text-[11px] font-bold uppercase px-2 py-0.5 rounded-full border bg-red-50 text-red-600 border-red-200">
               Auto-check failed
             </span>
           )}
           {run.autoCheckPass === null && (
-            <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border bg-slate-50 text-slate-400 border-slate-200"
-                  title="No deterministic check could run for this task type — that is not the same as passing.">
+            <span className="text-[11px] font-bold uppercase px-2 py-0.5 rounded-full border bg-slate-50 text-slate-500 border-slate-200"
+                  title="No deterministic check could run for this task type, that is not the same as passing.">
               Unchecked
             </span>
           )}
 
           {run.verdict && (
-            <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full border ${VERDICT_STYLE[run.verdict]}`}>
+            <span className={`text-[11px] font-bold uppercase px-2 py-0.5 rounded-full border ${VERDICT_STYLE[run.verdict]}`}>
               {run.verdict}
             </span>
           )}
 
-          <span className="ml-auto text-xs text-slate-400">{fmtWhen(run.createdAt)}</span>
+          <span className="ml-auto text-xs text-slate-500 tabular-nums">{fmtWhen(run.createdAt)}</span>
         </div>
         <div className="mt-1 flex items-center gap-3 text-xs text-slate-500">
           {run.feature && <span>{run.feature}</span>}
@@ -211,9 +213,9 @@ function RunCard({ run, tier, open, onToggle, onReviewed }) {
         <div className="border-t border-slate-100 px-4 py-4 space-y-4 bg-slate-50/50">
           {/* Input — a hash and a descriptor, never the document itself. */}
           <Section title="Input">
-            <p className="text-xs font-mono text-slate-500 break-all">{run.inputSummary || '—'}</p>
-            <p className="text-[11px] text-slate-400 mt-1">
-              The source document is deliberately not stored here — only a fingerprint of it.
+            <p className="text-xs font-mono text-slate-500 break-all">{run.inputSummary || 'n/a'}</p>
+            <p className="text-xs text-slate-500 mt-1">
+              The source document is deliberately not stored here, only a fingerprint of it.
             </p>
           </Section>
 
@@ -223,14 +225,14 @@ function RunCard({ run, tier, open, onToggle, onReviewed }) {
                 {run.autoChecks.map((c, i) => (
                   <li key={i} className="text-xs flex items-start gap-2">
                     <span className={`font-bold shrink-0 ${
-                      c.status === 'PASS' ? 'text-green-600' : c.status === 'FAIL' ? 'text-red-600' : 'text-slate-400'
+                      c.status === 'PASS' ? 'text-green-600' : c.status === 'FAIL' ? 'text-red-600' : 'text-slate-500'
                     }`}>{c.status}</span>
-                    <span className="text-slate-600"><span className="font-mono">{c.key}</span> — {c.detail}</span>
+                    <span className="text-slate-600"><span className="font-mono">{c.key}</span>: {c.detail}</span>
                   </li>
                 ))}
               </ul>
             ) : (
-              <p className="text-xs text-slate-400">No deterministic check is defined for this task type.</p>
+              <p className="text-xs text-slate-500">No deterministic check is defined for this task type.</p>
             )}
           </Section>
 
@@ -266,22 +268,22 @@ function RunCard({ run, tier, open, onToggle, onReviewed }) {
                     value={correction}
                     onChange={e => setCorrection(e.target.value)}
                     rows={3}
-                    placeholder="e.g. Type B2 qty was read as 16, actual is 6 — the schedule wraps that row."
-                    className="w-full text-xs border border-amber-200 rounded-lg px-2.5 py-2 focus:outline-none focus:ring-1 focus:ring-amber-400"
+                    placeholder="e.g. Type B2 qty was read as 16, actual is 6, the schedule wraps that row."
+                    className={`${INPUT} text-xs`}
                   />
                   <p className="text-[11px] text-amber-700">
-                    This is the only field here that compounds — it is what teaches the next version
+                    This is the only field here that compounds: it is what teaches the next version
                     of the prompt.
                   </p>
                   <div className="flex gap-2">
                     <button
                       disabled={saving || !correction.trim()}
                       onClick={() => submit('corrected', correction)}
-                      className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-amber-600 text-white disabled:opacity-40"
+                      className={BTN_COMPACT_PRIMARY}
                     >
                       {saving ? 'Saving…' : 'Save correction'}
                     </button>
-                    <button onClick={() => setVerdict(null)} className="text-xs font-semibold px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600">
+                    <button onClick={() => setVerdict(null)} className={BTN_COMPACT}>
                       Cancel
                     </button>
                   </div>
@@ -289,15 +291,15 @@ function RunCard({ run, tier, open, onToggle, onReviewed }) {
               ) : (
                 <div className="flex gap-2 flex-wrap">
                   <button disabled={saving} onClick={() => submit('accepted')}
-                    className="text-xs font-semibold px-4 py-2 rounded-lg bg-green-600 text-white hover:bg-green-700 disabled:opacity-40">
+                    className={BTN_PRIMARY}>
                     Accepted
                   </button>
                   <button disabled={saving} onClick={() => setVerdict('corrected')}
-                    className="text-xs font-semibold px-4 py-2 rounded-lg bg-amber-500 text-white hover:bg-amber-600 disabled:opacity-40">
+                    className={BTN_SECONDARY}>
                     Corrected…
                   </button>
                   <button disabled={saving} onClick={() => submit('rejected')}
-                    className="text-xs font-semibold px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 disabled:opacity-40">
+                    className={BTN_DANGER}>
                     Rejected
                   </button>
                 </div>
@@ -321,7 +323,7 @@ function RunCard({ run, tier, open, onToggle, onReviewed }) {
 function Section({ title, children }) {
   return (
     <div>
-      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">{title}</div>
+      <div className={`${LABEL} mb-1.5`}>{title}</div>
       {children}
     </div>
   );

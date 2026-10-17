@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import { CARD, TH, TD } from '@/components/ui/tokens';
 
 const WATCHES = {
   EXPECT_REPLY:  'Any email back from them',
@@ -40,39 +41,39 @@ export default function ReminderTimelineEditor({ initialTypes, canEdit }) {
     return <p className="text-sm text-slate-500">No waiting steps are set up yet.</p>;
   }
 
-  const cell = 'w-20 bg-white border border-slate-300 rounded px-2 py-1 text-sm text-right text-slate-900 outline-none focus:border-orange-500 disabled:bg-slate-100 disabled:text-slate-500';
+  const cell = 'w-20 bg-white border border-slate-300 rounded-lg px-2 py-1 text-sm text-right text-slate-900 tabular-nums outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent disabled:bg-slate-100 disabled:text-slate-500';
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-slate-200 bg-white">
+    <div className={`${CARD} overflow-x-auto`}>
       <table className="w-full text-sm">
-        <thead className="bg-slate-50 text-slate-600 text-xs uppercase tracking-wide">
+        <thead className="bg-slate-50">
           <tr>
-            <th className="text-left px-4 py-2.5">Next step</th>
-            <th className="text-left px-4 py-2.5">Counts as done when</th>
-            {RUNGS.map(([, label]) => <th key={label} className="text-right px-4 py-2.5 whitespace-nowrap">{label}</th>)}
-            <th className="px-2" />
+            <th className={TH}>Next step</th>
+            <th className={TH}>Counts as done when</th>
+            {RUNGS.map(([, label]) => <th key={label} className={`${TH} text-right whitespace-nowrap`}>{label}</th>)}
+            <th className={TH} />
           </tr>
         </thead>
         <tbody>
           {types.map(t => (
             <tr key={t.key} className="border-t border-slate-100">
-              <td className="px-4 py-2.5 font-medium text-slate-900 whitespace-nowrap">
+              <td className={`${TD} font-medium text-slate-900 whitespace-nowrap`}>
                 {t.label}
-                {!t.isActive && <span className="ml-2 text-[11px] text-slate-400">(turned off)</span>}
+                {!t.isActive && <span className="ml-2 text-[11px] text-slate-500">(turned off)</span>}
               </td>
-              <td className="px-4 py-2.5 text-slate-500 text-xs">{WATCHES[t.executor] || ''}</td>
+              <td className={`${TD} text-slate-500 text-xs`}>{WATCHES[t.executor] || ''}</td>
               {RUNGS.map(([field]) => (
-                <td key={field} className="px-4 py-2.5 text-right whitespace-nowrap">
+                <td key={field} className={`${TD} text-right whitespace-nowrap tabular-nums`}>
                   <input type="number" min="1" max="3650" step="1" disabled={!canEdit}
                     defaultValue={t[field] ?? ''} className={cell}
                     onBlur={e => save(t.key, field, e.target.value.trim())} />
-                  <span className="ml-1 text-xs text-slate-400">days</span>
+                  <span className="ml-1 text-xs text-slate-500">days</span>
                 </td>
               ))}
-              <td className="px-2 text-xs whitespace-nowrap">
-                {status[t.key] === 'saving' && <span className="text-slate-400">Saving…</span>}
-                {status[t.key] === 'saved' && <span className="text-emerald-600">Saved</span>}
-                {status[t.key] && !['saving', 'saved'].includes(status[t.key]) && <span className="text-rose-600">{status[t.key]}</span>}
+              <td className={`${TD} text-xs whitespace-nowrap`}>
+                {status[t.key] === 'saving' && <span className="text-slate-500">Saving…</span>}
+                {status[t.key] === 'saved' && <span className="text-green-600">Saved</span>}
+                {status[t.key] && !['saving', 'saved'].includes(status[t.key]) && <span className="text-red-600">{status[t.key]}</span>}
               </td>
             </tr>
           ))}

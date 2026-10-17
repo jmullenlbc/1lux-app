@@ -31,7 +31,7 @@ export default function ReadingSteps({ steps, startedAt }) {
           working" during the long gaps while a step is running. */}
       <div className="h-1 rounded-full bg-slate-100 overflow-hidden">
         <div
-          className="h-full rounded-full bg-amber-400 transition-[width] duration-700 ease-out ilc-shimmer"
+          className="h-full rounded-full bg-orange-400 transition-[width] duration-700 ease-out ilc-shimmer"
           style={{ width: `${Math.max(4, pct)}%` }}
         />
       </div>
@@ -79,8 +79,8 @@ function Mark({ state }) {
   if (state === 'active') {
     return (
       <span className="relative flex w-3 h-3 shrink-0 items-center justify-center">
-        <span className="absolute w-3 h-3 rounded-full bg-amber-400 opacity-60 animate-ping" />
-        <span className="relative w-1.5 h-1.5 rounded-full bg-amber-500" />
+        <span className="absolute w-3 h-3 rounded-full bg-orange-400 opacity-60 animate-ping" />
+        <span className="relative w-1.5 h-1.5 rounded-full bg-orange-500" />
       </span>
     );
   }
@@ -97,7 +97,7 @@ function Dots() {
       {[0, 1, 2].map(i => (
         <span
           key={i}
-          className="w-0.5 h-0.5 rounded-full bg-amber-400 ilc-dot"
+          className="w-0.5 h-0.5 rounded-full bg-orange-400 ilc-dot"
           style={{ animationDelay: `${i * 0.16}s` }}
         />
       ))}

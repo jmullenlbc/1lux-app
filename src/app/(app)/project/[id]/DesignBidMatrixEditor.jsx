@@ -134,7 +134,7 @@ function ChangeSummaryBadge({ changeSummary }) {
           </div>
           {summary.added?.length > 0 && (
             <div className="mb-2">
-              <p className="text-[11px] font-semibold text-green-700 uppercase tracking-wider mb-1">Added</p>
+              <p className="text-[11px] font-semibold text-green-700 uppercase tracking-wide mb-1">Added</p>
               {summary.added.map((item, i) => (
                 <div key={i} className="text-xs text-slate-600 py-0.5">
                   <span className="font-medium text-green-700">{item.type || '—'}</span>
@@ -146,7 +146,7 @@ function ChangeSummaryBadge({ changeSummary }) {
           )}
           {summary.removed?.length > 0 && (
             <div>
-              <p className="text-[11px] font-semibold text-red-700 uppercase tracking-wider mb-1">Removed</p>
+              <p className="text-[11px] font-semibold text-red-700 uppercase tracking-wide mb-1">Removed</p>
               {summary.removed.map((item, i) => (
                 <div key={i} className="text-xs text-slate-600 py-0.5">
                   <span className="font-medium text-red-700">{item.type || '—'}</span>
@@ -224,7 +224,7 @@ export default function DesignBidMatrixEditor({ projectId }) {
 
   if (matrices.length === 0) {
     return (
-      <div className="bg-white border-2 border-dashed border-slate-200 rounded-2xl p-16 text-center">
+      <div className="bg-white border-2 border-dashed border-slate-200 rounded-xl p-16 text-center">
         <div className="w-12 h-12 rounded-xl bg-purple-50 flex items-center justify-center mx-auto mb-3">
           <svg className="w-6 h-6 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 10.5L12 3m0 0l7.5 7.5M12 3v18" />
@@ -248,7 +248,7 @@ export default function DesignBidMatrixEditor({ projectId }) {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-2 flex-wrap">
           <select
-            className="text-xs border border-slate-200 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-200"
+            className="text-xs border border-slate-200 rounded-lg px-2.5 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500"
             value={selectedIdx}
             onChange={e => setSelectedIdx(Number(e.target.value))}
           >
@@ -263,7 +263,7 @@ export default function DesignBidMatrixEditor({ projectId }) {
           {matrix.changeSummary && <ChangeSummaryBadge changeSummary={matrix.changeSummary} />}
 
           {isReadOnly && (
-            <span className="px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-500">Historical — read-only</span>
+            <span className="px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-500">Historical, read-only</span>
           )}
         </div>
 
@@ -306,7 +306,7 @@ export default function DesignBidMatrixEditor({ projectId }) {
       </div>
 
       {/* ── Table ──────────────────────────────────────────────────────────── */}
-      <div className="bg-white rounded-2xl border border-slate-200 overflow-x-auto shadow-sm">
+      <div className="bg-white rounded-xl border border-slate-200 overflow-x-auto shadow-sm">
         <table className="min-w-full text-left border-collapse">
           <thead>
             <tr className="bg-slate-50 border-b border-slate-200">
@@ -323,7 +323,7 @@ export default function DesignBidMatrixEditor({ projectId }) {
                 { label: 'Pricing Date',cls: 'w-28'  },
                 { label: 'Notes',       cls: 'w-40'  },
               ].map(h => (
-                <th key={h.label} className={`${h.cls} px-2 py-2.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wider whitespace-nowrap`}>
+                <th key={h.label} className={`${h.cls} px-2 py-2.5 text-[11px] font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap`}>
                   {h.label}
                 </th>
               ))}
@@ -334,7 +334,7 @@ export default function DesignBidMatrixEditor({ projectId }) {
             {visibleItems.length === 0 && (
               <tr>
                 <td colSpan={12} className="py-16 text-center text-sm text-slate-400">
-                  {isReadOnly ? 'No items in this version' : 'No items — push a fixture schedule to populate'}
+                  {isReadOnly ? 'No items in this version' : 'No items, push a fixture schedule to populate'}
                 </td>
               </tr>
             )}

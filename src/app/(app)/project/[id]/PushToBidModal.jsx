@@ -29,19 +29,19 @@ export default function PushToBidModal({ projectId, itemCount, nextVersion = nul
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-xl w-full max-w-md">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
           <div>
             <div className="flex items-center gap-2">
               <h2 className="font-semibold text-slate-800">Push to Design Bid Matrix</h2>
               {nextVersion && (
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-800 text-white">
+                <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-800 text-white">
                   v{nextVersion}
                 </span>
               )}
             </div>
-            <p className="text-xs text-slate-400 mt-0.5">Adds new types, removes deleted types, preserves all pricing you've entered</p>
+            <p className="text-xs text-slate-500 mt-0.5">Adds new types, removes deleted types, preserves all pricing you've entered</p>
           </div>
           <button className="text-slate-400 hover:text-slate-600" onClick={onClose}>
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -52,7 +52,7 @@ export default function PushToBidModal({ projectId, itemCount, nextVersion = nul
 
         <div className="px-6 py-5 space-y-5">
           {/* Summary */}
-          <div className="bg-slate-50 rounded-xl p-4 space-y-2">
+          <div className="bg-slate-50 rounded-lg border border-slate-200 p-3 space-y-2">
             <div className="flex items-center gap-2 text-sm">
               <svg className="w-4 h-4 text-green-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -80,8 +80,8 @@ export default function PushToBidModal({ projectId, itemCount, nextVersion = nul
             </label>
             <input
               type="text"
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-200 focus:border-purple-400"
-              placeholder="e.g. CD Package, 100% DD, GMP Estimate…"
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+              placeholder="e.g. CD Package, 100% DD, GMP Budget"
               value={tag}
               onChange={e => setTag(e.target.value)}
               disabled={pushing}
@@ -95,14 +95,14 @@ export default function PushToBidModal({ projectId, itemCount, nextVersion = nul
           {/* Actions */}
           <div className="flex justify-end gap-3 pt-1">
             <button
-              className="text-sm px-4 py-2 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
+              className="px-4 py-2 text-sm font-semibold rounded-lg border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 transition-colors"
               onClick={onClose}
               disabled={pushing}
             >
               Cancel
             </button>
             <button
-              className="text-sm px-5 py-2 rounded-lg bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50 transition-colors flex items-center gap-2"
+              className="px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 text-white hover:bg-orange-600 disabled:opacity-50 transition-colors flex items-center gap-2"
               onClick={doPush}
               disabled={pushing}
             >

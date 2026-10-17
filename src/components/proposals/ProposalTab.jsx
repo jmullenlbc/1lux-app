@@ -16,7 +16,7 @@ const MERGE_TOKENS = [
 const STATUS_META = {
   DRAFT:    { label: 'Draft',    color: 'bg-amber-100 text-amber-700 border-amber-200' },
   SENT:     { label: 'Sent',     color: 'bg-blue-100 text-blue-700 border-blue-200' },
-  ACCEPTED: { label: 'Accepted', color: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
+  ACCEPTED: { label: 'Accepted', color: 'bg-green-100 text-green-700 border-green-200' },
   DECLINED: { label: 'Declined', color: 'bg-red-100 text-red-700 border-red-200' },
 };
 // Expired retired 2026-09-18 (Maram 9-17) — read-only for rows that already have it.
@@ -107,7 +107,7 @@ function RichToolbar({ editorRef, onInsertToken }) {
               onMouseDown={e => { e.preventDefault(); onInsertToken(t.token); }}
               className="w-full text-left px-3 py-2 text-xs hover:bg-slate-50 flex items-center justify-between gap-4 first:rounded-t-xl last:rounded-b-xl">
               <span className="text-slate-700">{t.label}</span>
-              <span className="text-[10px] font-mono text-violet-400">{t.token}</span>
+              <span className="text-[11px] font-mono text-violet-400">{t.token}</span>
             </button>
           ))}
         </div>
@@ -157,7 +157,7 @@ function SendModal({ proposal, onClose, onSent }) {
             <p className="text-xs text-slate-500 mb-3">
               This marks the proposal as <strong>Sent</strong> and logs a record with the current document snapshot.
             </p>
-            <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">
+            <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1">
               PDF Preview
             </label>
             <a href={pdfUrl} target="_blank" rel="noreferrer"
@@ -169,7 +169,7 @@ function SendModal({ proposal, onClose, onSent }) {
             </a>
           </div>
           <div>
-            <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">
+            <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1">
               Recipients (comma separated)
             </label>
             <input value={recipients} onChange={e => setRecipients(e.target.value)}
@@ -177,7 +177,7 @@ function SendModal({ proposal, onClose, onSent }) {
               className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-400" />
           </div>
           <div>
-            <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1">
+            <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1">
               Note (optional)
             </label>
             <textarea value={note} onChange={e => setNote(e.target.value)}
@@ -188,7 +188,7 @@ function SendModal({ proposal, onClose, onSent }) {
           <div className="flex gap-3 pt-1">
             <button onClick={onClose} className="flex-1 px-4 py-2 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50">Cancel</button>
             <button onClick={send} disabled={sending}
-              className="flex-1 px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 disabled:opacity-50">
+              className="flex-1 px-4 py-2 rounded-lg bg-orange-500 text-white text-sm font-semibold hover:bg-orange-600 disabled:opacity-50">
               {sending ? 'Sending…' : 'Mark as Sent'}
             </button>
           </div>
@@ -218,8 +218,8 @@ function itemCost(it, rates) {
 }
 
 function SortIcon({ active, dir }) {
-  if (!active) return <span className="ml-0.5 text-slate-300 text-[9px]">⇅</span>;
-  return <span className="ml-0.5 text-orange-500 text-[9px]">{dir === 'asc' ? '▲' : '▼'}</span>;
+  if (!active) return <span className="ml-0.5 text-slate-300 text-[11px]">⇅</span>;
+  return <span className="ml-0.5 text-orange-500 text-[11px]">{dir === 'asc' ? '▲' : '▼'}</span>;
 }
 
 function CalculatorTab({ proposal, lineItems, onLineItemsChange, rates }) {
@@ -339,7 +339,7 @@ function CalculatorTab({ proposal, lineItems, onLineItemsChange, rates }) {
 
   const inputCls = 'w-full text-xs bg-transparent border-0 focus:outline-none focus:ring-1 focus:ring-orange-300 rounded px-1 py-0.5';
   const numCls   = 'w-14 text-xs text-right bg-transparent border-0 focus:outline-none focus:ring-1 focus:ring-orange-300 rounded px-1 py-0.5';
-  const thCls    = 'px-2 py-2.5 text-[10px] font-semibold text-slate-400 uppercase tracking-wide cursor-pointer select-none hover:text-slate-600 hover:bg-slate-100 transition-colors';
+  const thCls    = 'px-2 py-2.5 text-[11px] font-semibold text-slate-400 uppercase tracking-wide cursor-pointer select-none hover:text-slate-600 hover:bg-slate-100 transition-colors';
 
   return (
     <div className="space-y-4">
@@ -351,19 +351,19 @@ function CalculatorTab({ proposal, lineItems, onLineItemsChange, rates }) {
           const cost = hrs * (rates[role] || 0);
           return (
             <div key={role} className="bg-white border border-slate-200 rounded-xl px-3 py-2.5">
-              <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">{label}</div>
-              <div className="text-sm font-bold text-slate-800 mt-0.5">{hrs % 1 === 0 ? hrs : hrs.toFixed(1)} <span className="text-[10px] font-normal text-slate-400">hrs</span></div>
+              <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">{label}</div>
+              <div className="text-sm font-bold text-slate-800 mt-0.5">{hrs % 1 === 0 ? hrs : hrs.toFixed(1)} <span className="text-[11px] font-normal text-slate-400">hrs</span></div>
               <div className="text-[11px] text-slate-500 font-mono">{fmtMoney(cost)}</div>
             </div>
           );
         })}
         <div className="bg-white border border-slate-200 rounded-xl px-3 py-2.5">
-          <div className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Labor</div>
+          <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">Labor</div>
           <div className="text-sm font-bold text-slate-800 mt-0.5 font-mono">{fmtMoney(totals.labor)}</div>
           <div className="text-[11px] text-slate-500">before adder</div>
         </div>
         <div className="bg-orange-50 border border-orange-200 rounded-xl px-3 py-2.5">
-          <div className="text-[10px] font-semibold text-orange-600 uppercase tracking-wide">Total Fee</div>
+          <div className="text-[11px] font-semibold text-orange-600 uppercase tracking-wide">Total Fee</div>
           <div className="text-sm font-bold text-slate-900 mt-0.5 font-mono">{fmtMoney(totals.withAdd)}</div>
           <div className="text-[11px] text-orange-500">+{proposal.adderPct}% adder</div>
         </div>
@@ -396,8 +396,8 @@ function CalculatorTab({ proposal, lineItems, onLineItemsChange, rates }) {
               if (row.type === 'subtotal') {
                 return (
                   <tr key={`sub-${ri}`} className="bg-slate-50 border-t border-slate-200">
-                    <td className="px-3 py-1.5 text-[10px] font-bold text-slate-500 uppercase tracking-wide" colSpan={2}>
-                      {row.area || '(no area)'} — subtotal
+                    <td className="px-3 py-1.5 text-[11px] font-bold text-slate-500 uppercase tracking-wide" colSpan={2}>
+                      {row.area || '(no area)'}, subtotal
                     </td>
                     {Object.keys(ROLE_LABELS).map(role => (
                       <td key={role} className="px-2 py-1.5 text-right text-[11px] font-semibold text-slate-600">
@@ -544,7 +544,7 @@ function MilestonesTab({ proposal, onUpdate }) {
           </svg>
           Add milestone
         </button>
-        <span className={`text-xs font-semibold ${total === 100 ? 'text-emerald-600' : 'text-amber-600'}`}>
+        <span className={`text-xs font-semibold ${total === 100 ? 'text-green-600' : 'text-amber-600'}`}>
           {total}% {total !== 100 && '(must total 100)'}
         </span>
       </div>
@@ -603,7 +603,7 @@ function EmptyState({ projectId, onCreated }) {
 
   return (
     <div className="flex flex-col items-center justify-center py-16 text-center">
-      <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mb-4 text-3xl">📄</div>
+      <div className="w-16 h-16 rounded-xl bg-slate-100 flex items-center justify-center mb-4 text-3xl">📄</div>
       <h3 className="font-semibold text-slate-700 mb-1">No proposal yet</h3>
       <p className="text-sm text-slate-400 max-w-sm mb-6">Create a proposal to calculate a design fee and generate a client document.</p>
       <div className="flex flex-col gap-3 w-72">
@@ -625,7 +625,7 @@ function EmptyState({ projectId, onCreated }) {
         {filteredTemplates.length > 0 && (
           <select value={form.templateId} onChange={e => set('templateId', e.target.value)}
             className="text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-400">
-            <option value="">Blank — no template</option>
+            <option value="">Blank, no template</option>
             {filteredTemplates.map(t => (
               <option key={t.id} value={t.id}>{t.name}{t.isDefault ? ' ★' : ''}</option>
             ))}
@@ -802,7 +802,7 @@ export default function ProposalTab({ projectId }) {
   return (
     <div className="max-w-5xl mx-auto px-4 py-6 space-y-4">
       {/* Proposal header */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
+      <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
@@ -829,22 +829,22 @@ export default function ProposalTab({ projectId }) {
         {/* Meta fields row */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4">
           <div>
-            <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Client Name</label>
+            <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-1">Client Name</label>
             <input defaultValue={proposal.clientName || ''} onBlur={e => saveField('clientName', e.target.value)}
               className="w-full text-sm border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-orange-400" />
           </div>
           <div>
-            <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Location</label>
+            <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-1">Location</label>
             <input defaultValue={proposal.location || ''} onBlur={e => saveField('location', e.target.value)}
               className="w-full text-sm border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-orange-400" />
           </div>
           <div>
-            <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Effective Date</label>
+            <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-1">Effective Date</label>
             <input type="date" defaultValue={fmtDate(proposal.effectiveDate)} onBlur={e => saveField('effectiveDate', e.target.value)}
               className="w-full text-sm border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-orange-400" />
           </div>
           <div>
-            <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wider mb-1">Adder %</label>
+            <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wide mb-1">Adder %</label>
             <input type="number" min="0" max="100" step="0.5"
               defaultValue={proposal.adderPct} onBlur={e => saveField('adderPct', parseFloat(e.target.value) || 0)}
               className="w-full text-sm border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:ring-2 focus:ring-orange-400" />
@@ -875,7 +875,7 @@ export default function ProposalTab({ projectId }) {
       </div>
 
       {/* Tabs */}
-      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+      <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
         <div className="flex items-center justify-between border-b border-slate-100 px-4">
           <div className="flex gap-1">
             {TABS.map(t => (
@@ -899,13 +899,13 @@ export default function ProposalTab({ projectId }) {
               </a>
               {canSend && (
                 <button onClick={() => setShowSend(true)}
-                  className="text-xs px-3 py-1.5 rounded-lg bg-blue-600 text-white font-semibold hover:bg-blue-700 transition-colors">
+                  className="text-xs px-3 py-1.5 rounded-lg bg-orange-500 text-white font-semibold hover:bg-orange-600 transition-colors">
                   Send
                 </button>
               )}
               {canAccept && (
                 <button onClick={handleAccept}
-                  className="text-xs px-3 py-1.5 rounded-lg bg-emerald-600 text-white font-semibold hover:bg-emerald-700 transition-colors">
+                  className="text-xs px-3 py-1.5 rounded-lg bg-green-600 text-white font-semibold hover:bg-green-700 transition-colors">
                   Accept
                 </button>
               )}
@@ -934,7 +934,7 @@ export default function ProposalTab({ projectId }) {
                 <div className="flex justify-end mt-3">
                   <button onClick={saveDoc} disabled={savingDoc}
                     className={`px-5 py-2 rounded-xl text-sm font-bold transition-colors disabled:opacity-50 ${
-                      docSavedOk ? 'bg-emerald-500 text-white' : 'bg-orange-500 text-white hover:bg-orange-600'
+                      docSavedOk ? 'bg-green-500 text-white' : 'bg-orange-500 text-white hover:bg-orange-600'
                     }`}>
                     {savingDoc ? 'Saving…' : docSavedOk ? 'Saved ✓' : 'Save Document'}
                   </button>

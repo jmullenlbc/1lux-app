@@ -31,8 +31,8 @@ export default function ImportPage() {
   const [parseError, setParseError] = useState('');
   const [projects, setProjects]   = useState([]);  // parsed preview data
   const [selected, setSelected]   = useState({});  // { index: bool }
-  const [editNames, setEditNames] = useState({});   // { index: string } — editable project name
-  const [editLocs, setEditLocs]   = useState({});   // { index: string } — editable location
+  const [editNames, setEditNames] = useState({});   // { index: string }, editable project name
+  const [editLocs, setEditLocs]   = useState({});   // { index: string }, editable location
   const [importResult, setImportResult] = useState(null);
 
   // ── File upload / drag-drop ──────────────────────────────────────────────
@@ -122,7 +122,7 @@ export default function ImportPage() {
 
       {/* Header */}
       <div className="mb-8">
-        <div className="flex items-center gap-2 text-sm text-slate-400 mb-2">
+        <div className="flex items-center gap-2 text-sm text-slate-500 mb-2">
           <Link href="/dashboard" className="hover:text-slate-600 transition-colors">Projects</Link>
           <span>/</span>
           <span className="text-slate-600">Import from Excel</span>
@@ -141,8 +141,8 @@ export default function ImportPage() {
             onDragLeave={() => setDragging(false)}
             onDrop={onDrop}
             onClick={() => fileInputRef.current?.click()}
-            className={`border-2 border-dashed rounded-2xl p-12 text-center cursor-pointer transition-colors ${
-              dragging ? 'border-amber-400 bg-amber-50' : 'border-slate-200 hover:border-amber-300 hover:bg-amber-50/30'
+            className={`border-2 border-dashed rounded-xl p-12 text-center cursor-pointer transition-colors ${
+              dragging ? 'border-orange-400 bg-orange-50' : 'border-slate-200 hover:border-orange-300 hover:bg-orange-50/30'
             } ${stage === 'parsing' ? 'pointer-events-none opacity-60' : ''}`}
           >
             <input
@@ -155,7 +155,7 @@ export default function ImportPage() {
             />
             {stage === 'parsing' ? (
               <div className="flex flex-col items-center gap-3">
-                <svg className="w-10 h-10 text-amber-500 animate-spin" viewBox="0 0 24 24" fill="none">
+                <svg className="w-10 h-10 text-orange-500 animate-spin" viewBox="0 0 24 24" fill="none">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
                 </svg>
@@ -170,7 +170,7 @@ export default function ImportPage() {
                 </div>
                 <div>
                   <p className="font-semibold text-slate-700">Drop Excel files here, or click to browse</p>
-                  <p className="text-sm text-slate-400 mt-1">Accepts .xlsx files — upload as many as you want at once</p>
+                  <p className="text-sm text-slate-500 mt-1">Accepts .xlsx files, upload as many as you want at once</p>
                 </div>
               </div>
             )}
@@ -200,7 +200,7 @@ export default function ImportPage() {
           <div className="flex items-center justify-between mb-4">
             <div>
               <span className="font-semibold text-slate-800">{projects.length} file{projects.length !== 1 ? 's' : ''} parsed</span>
-              <span className="text-slate-400 text-sm ml-2">· {selectedCount} selected for import</span>
+              <span className="text-slate-500 text-sm ml-2">· {selectedCount} selected for import</span>
             </div>
             <div className="flex gap-2">
               <button
@@ -225,7 +225,7 @@ export default function ImportPage() {
                 key={i}
                 className={`bg-white rounded-xl border transition-colors ${
                   !p.ok ? 'border-red-200 bg-red-50' :
-                  selected[i] ? 'border-amber-300' : 'border-slate-200 opacity-60'
+                  selected[i] ? 'border-orange-400' : 'border-slate-200 opacity-60'
                 }`}
               >
                 {/* Card header */}
@@ -235,7 +235,7 @@ export default function ImportPage() {
                       type="checkbox"
                       checked={!!selected[i]}
                       onChange={e => setSelected(s => ({ ...s, [i]: e.target.checked }))}
-                      className="mt-1 w-4 h-4 accent-amber-500 cursor-pointer shrink-0"
+                      className="mt-1 w-4 h-4 accent-orange-500 cursor-pointer shrink-0"
                     />
                   )}
                   <div className="flex-1 min-w-0">
@@ -246,7 +246,7 @@ export default function ImportPage() {
                             type="text"
                             value={editNames[i] || ''}
                             onChange={e => setEditNames(n => ({ ...n, [i]: e.target.value }))}
-                            className="text-base font-semibold text-slate-900 border-0 border-b border-transparent hover:border-slate-300 focus:border-amber-400 focus:outline-none bg-transparent flex-1 min-w-0 py-0"
+                            className="text-base font-semibold text-slate-900 border-0 border-b border-transparent hover:border-slate-300 focus:border-orange-500 focus:outline-none bg-transparent flex-1 min-w-0 py-0"
                             placeholder="Project name"
                           />
                           <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 shrink-0">
@@ -267,7 +267,7 @@ export default function ImportPage() {
                           value={editLocs[i] || ''}
                           onChange={e => setEditLocs(l => ({ ...l, [i]: e.target.value }))}
                           placeholder="City, State (optional)"
-                          className="text-sm text-slate-500 border-0 border-b border-transparent hover:border-slate-300 focus:border-amber-400 focus:outline-none bg-transparent py-0 flex-1"
+                          className="text-sm text-slate-500 border-0 border-b border-transparent hover:border-slate-300 focus:border-orange-500 focus:outline-none bg-transparent py-0 flex-1"
                         />
                         <span className="text-xs text-slate-300">· {p.filename}</span>
                       </div>
@@ -346,7 +346,7 @@ export default function ImportPage() {
       {/* ── IMPORTING STAGE ──────────────────────────────────────────────── */}
       {stage === 'importing' && (
         <div className="text-center py-16">
-          <svg className="w-10 h-10 text-amber-500 animate-spin mx-auto mb-4" viewBox="0 0 24 24" fill="none">
+          <svg className="w-10 h-10 text-orange-500 animate-spin mx-auto mb-4" viewBox="0 0 24 24" fill="none">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
           </svg>
@@ -372,7 +372,7 @@ export default function ImportPage() {
                 <span className="font-medium text-slate-800">{p.name}</span>
                 <Link
                   href={`/project/${p.id}`}
-                  className="text-sm text-amber-600 hover:text-amber-700 font-medium"
+                  className="text-sm text-orange-600 hover:text-orange-700 font-semibold"
                 >
                   Open →
                 </Link>
@@ -380,7 +380,7 @@ export default function ImportPage() {
             ))}
             {importResult.failed?.map((p, i) => (
               <div key={i} className="flex items-center justify-between bg-red-50 border border-red-200 rounded-lg px-4 py-2.5">
-                <span className="font-medium text-red-700">{p.name} — {p.error}</span>
+                <span className="font-medium text-red-700">{p.name}, {p.error}</span>
               </div>
             ))}
           </div>
@@ -410,7 +410,7 @@ export default function ImportPage() {
 function Metric({ label, value }) {
   return (
     <div>
-      <div className="text-xs text-slate-400">{label}</div>
+      <div className="text-xs text-slate-500">{label}</div>
       <div className="text-sm font-semibold text-slate-800 tabular-nums">{value}</div>
     </div>
   );
@@ -420,7 +420,7 @@ function Answer({ q, a }) {
   if (!a) return null;
   return (
     <div className="flex gap-1 text-xs py-0.5">
-      <span className="text-slate-400 w-28 shrink-0">{q}</span>
+      <span className="text-slate-500 w-28 shrink-0">{q}</span>
       <span className="text-slate-600 truncate" title={a}>{a}</span>
     </div>
   );

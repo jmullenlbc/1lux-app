@@ -34,7 +34,7 @@ export const SIGNAL_TYPE_META = {
   // A rezoning read from a council agenda (Mike 10-9).
   COUNCIL:         { label: 'Council item',    color: 'bg-violet-100 text-violet-700' },
   // A closed land sale to a company (Mike 10-9), earlier than any filing.
-  LAND:            { label: 'Land sale',       color: 'bg-emerald-100 text-emerald-800' },
+  LAND:            { label: 'Land sale',       color: 'bg-green-100 text-green-800' },
 };
 
 /** Where a signal of each kind lives, for links between them. */
@@ -61,7 +61,7 @@ function NotRelevantPicker({ onSave, onCancel }) {
   }
   return (
     <div className="flex flex-col gap-1.5 items-end" onClick={e => e.stopPropagation()}>
-      <select value={reasonCode} onChange={e => setReasonCode(e.target.value)} autoFocus className="text-xs border border-slate-200 rounded-lg px-2 py-1 bg-white text-slate-700">
+      <select value={reasonCode} onChange={e => setReasonCode(e.target.value)} autoFocus className="text-xs border border-slate-300 rounded-lg px-2 py-1 bg-white text-slate-700">
         <option value="">Why not relevant?</option>
         {REASONS.map(r => <option key={r.code} value={r.code}>{r.label}</option>)}
       </select>
@@ -73,7 +73,7 @@ function NotRelevantPicker({ onSave, onCancel }) {
           onKeyDown={e => { if (e.key === 'Enter') save(); }}
           placeholder="One sentence on why"
           maxLength={300}
-          className="text-xs border border-slate-200 rounded-lg px-2 py-1 bg-white text-slate-700 w-56"
+          className="text-xs border border-slate-300 rounded-lg px-2 py-1 bg-white text-slate-700 w-56"
         />
       )}
       <div className="flex gap-1.5">
@@ -94,7 +94,7 @@ const TAG_STYLES  = {
 };
 
 function Field({ label, children }) {
-  return <div className="min-w-0"><dt className="text-slate-400">{label}</dt><dd className="text-slate-700 truncate">{children}</dd></div>;
+  return <div className="min-w-0"><dt className="text-slate-500">{label}</dt><dd className="text-slate-700 truncate">{children}</dd></div>;
 }
 
 function money(n) {
@@ -260,7 +260,7 @@ export default function SignalCard({ signal, onUpdate, onTagClick, onAddToCrm, o
                   </span>
                 </>
               ) : signal.ownerLookupAt ? (
-                <span className="text-slate-400 italic">Nothing on the web about this address yet</span>
+                <span className="text-slate-500">Nothing on the web about this address yet</span>
               ) : null}
               <button
                 onClick={findOwner}
@@ -275,7 +275,7 @@ export default function SignalCard({ signal, onUpdate, onTagClick, onAddToCrm, o
 
           {/* Meta row */}
           <div className="flex flex-wrap items-center gap-3 mt-2">
-            <span className="text-xs text-slate-400">
+            <span className="text-xs text-slate-500">
               {isPermit ? signal.source?.name : `${signal.source?.name} · ${when}`}
             </span>
 
@@ -306,7 +306,7 @@ export default function SignalCard({ signal, onUpdate, onTagClick, onAddToCrm, o
               </span>
             )}
             {signal.matchStatus === 'REJECTED' && (
-              <span className="text-xs text-slate-300 italic">No match</span>
+              <span className="text-xs text-slate-500">No match</span>
             )}
             {/* Project match is a separate claim from the client match, so each
                 is confirmed or rejected on its own. */}
@@ -336,7 +336,7 @@ export default function SignalCard({ signal, onUpdate, onTagClick, onAddToCrm, o
               </span>
             )}
             {developers.length > 0 && !signal.linkedClient && signal.matchStatus !== 'REJECTED' && chips.length === 0 && (
-              <span className="text-xs text-slate-400 italic">{developers.join(', ')}</span>
+              <span className="text-xs text-slate-500">{developers.join(', ')}</span>
             )}
           </div>
 
@@ -372,14 +372,14 @@ export default function SignalCard({ signal, onUpdate, onTagClick, onAddToCrm, o
                 <select
                   value={signal.assignedToId || ''}
                   onChange={e => onUpdate(signal.id, { assignedToId: e.target.value || null })}
-                  className="text-xs border border-slate-200 rounded-lg px-2 py-1 bg-white text-slate-600 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                  className="text-xs border border-slate-300 rounded-lg px-2 py-1 bg-white text-slate-600 focus:outline-none focus:ring-2 focus:ring-orange-500"
                 >
                   <option value="">Assign to…</option>
                   {salesUsers.map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
                 </select>
               )}
               {signal.assignedTo && signal.assignedAt && (
-                <span className="text-[11px] text-slate-400">
+                <span className="text-[11px] text-slate-500">
                   since {new Date(signal.assignedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
                 </span>
               )}
@@ -434,7 +434,7 @@ export default function SignalCard({ signal, onUpdate, onTagClick, onAddToCrm, o
             <button
               onClick={() => onNotRelevant ? setPicking(true) : onUpdate(signal.id, { reviewStatus: 'DISMISSED' })}
               title="Hide this one and tell the system why, so it learns"
-              className="text-xs px-2.5 py-1 rounded-lg border border-slate-200 text-slate-400 hover:bg-slate-50 whitespace-nowrap"
+              className="text-xs px-2.5 py-1 rounded-lg border border-slate-300 text-slate-700 font-semibold hover:bg-slate-50 whitespace-nowrap"
             >
               Not relevant
             </button>
@@ -443,7 +443,7 @@ export default function SignalCard({ signal, onUpdate, onTagClick, onAddToCrm, o
         {isDismissed && (
           <button
             onClick={() => onUpdate(signal.id, { reviewStatus: 'UNREVIEWED' })}
-            className="text-xs px-2.5 py-1 rounded-lg border border-slate-200 text-slate-400 hover:bg-slate-50 shrink-0"
+            className="text-xs px-2.5 py-1 rounded-lg border border-slate-300 text-slate-700 font-semibold hover:bg-slate-50 shrink-0"
           >
             Restore
           </button>

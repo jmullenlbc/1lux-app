@@ -8,13 +8,18 @@ import { DEPARTMENTS, DEPARTMENT_LABEL } from '@/lib/departments';
 import { canAssignRole, canManageAccount } from '@/lib/roles';
 import { effectiveRole } from '@/lib/permissions';
 import { describeAccessEvent } from '@/lib/accessEvents';
+import { CARD, MODAL, BTN_PRIMARY, BTN_SECONDARY, BTN_COMPACT, BTN_COMPACT_PRIMARY, H1, H2, INPUT, HELPER, TH, TAB_ACTIVE, TAB_INACTIVE } from '@/components/ui/tokens';
+import { FilterToolbar, FilterPanel, SearchBox, countFilters } from '@/components/ui/FilterPanel';
+import SortHeader, { sortRows } from '@/components/ui/SortHeader';
+import { WidgetLoading, WidgetError } from '@/components/ui/WidgetFrame';
+import { useUrlView } from '@/lib/useUrlView';
 
 // Tailwind needs the full class strings written out here to keep them.
 const DEPARTMENT_COLORS = {
   SALES_MARKETING:    'bg-pink-50 text-pink-700 border-pink-300',
   OPERATIONS:         'bg-slate-100 text-slate-700 border-slate-300',
   PRECONSTRUCTION:    'bg-blue-50 text-blue-700 border-blue-300',
-  CONSTRUCTION:       'bg-amber-50 text-amber-700 border-amber-300',
+  CONSTRUCTION:       'bg-amber-50 text-amber-700 border-amber-200',
   DESIGN:            'bg-violet-50 text-violet-700 border-violet-300',
   FINANCE:            'bg-green-50 text-green-700 border-green-300',
 };
@@ -29,17 +34,17 @@ function DepartmentPicker({ value, onChange }) {
     <div>
       <label className="block text-xs font-semibold text-slate-600 mb-2">
         Departments
-        <span className="text-slate-400 font-normal ml-1">— select all that apply</span>
+        <span className="text-slate-500 font-normal ml-1">(select all that apply)</span>
       </label>
       <div className="flex flex-wrap gap-2">
         {DEPARTMENTS.map(d => {
           const active = value.includes(d.key);
           return (
             <button key={d.key} type="button" onClick={() => toggle(d.key)} aria-pressed={active}
-              className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-all ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
                 active
                   ? `${DEPARTMENT_COLORS[d.key]} ring-2 ring-offset-1 ring-current`
-                  : 'bg-white text-slate-400 border-slate-200 hover:border-slate-400 hover:text-slate-600'
+                  : 'bg-white text-slate-500 border-slate-300 hover:border-slate-400 hover:text-slate-700'
               }`}>
               {active && <span className="mr-1">✓</span>}{d.label}
             </button>
@@ -51,12 +56,12 @@ function DepartmentPicker({ value, onChange }) {
 }
 
 const ROLE_OPTIONS = [
-  { value: 'SUPER_ADMIN',   label: 'Super Admin',   desc: 'Full access — ILC Studios team only'        },
+  { value: 'SUPER_ADMIN',   label: 'Super Admin',   desc: 'Full access, ILC Studios team only'        },
   { value: 'COMPANY_ADMIN', label: 'Company Admin',  desc: 'Can manage users and see all projects'      },
   { value: 'SALES_ADMIN',   label: 'Sales Admin',    desc: 'Runs the sales team: applies Market Intel rules, sales automation, everyone\'s My Desk' },
   { value: 'SALES',         label: 'Sales',          desc: 'Salesperson: CRM, Market Intel, My Desk' },
-  { value: 'USER',          label: 'User',           desc: 'Standard access — create and edit projects' },
-  { value: 'CLIENT_VIEWER', label: 'Client Viewer',  desc: 'Outside contractor — sees only their own jobs, never buy price' },
+  { value: 'USER',          label: 'User',           desc: 'Standard access, create and edit projects' },
+  { value: 'CLIENT_VIEWER', label: 'Client Viewer',  desc: 'Outside contractor, sees only their own jobs, never buy price' },
 ];
 
 const ROLE_BADGE = {
@@ -73,6 +78,33 @@ const ROLE_BADGE = {
 function getRoleBadge(role) {
   return ROLE_BADGE[role] || { label: role, variant: 'user' };
 }
+
+// The status word the table shows for one person (also a filter choice).
+function userStatus(u) {
+  if (u.isActive === false) return 'Inactive';
+  if (u.mustChangePassword) return 'Temp Password';
+  return u.hasPassword ? 'Active' : 'No Password';
+}
+
+// Users list filters (address keys) and sort getters.
+const USER_FILTER_FIELDS = [
+  { key: 'q',          label: 'Search',     kind: 'text' },
+  { key: 'role',       label: 'Role',       kind: 'pick' },
+  { key: 'department', label: 'Department', kind: 'pick' },
+  { key: 'status',     label: 'Status',     kind: 'pick' },
+];
+const USER_FILTER_CHOICES = {
+  role:       [...new Set(Object.values(ROLE_BADGE).map(b => b.label))],
+  department: DEPARTMENTS.map(d => [d.key, d.label]),
+  status:     ['Active', 'Temp Password', 'No Password', 'Inactive'],
+};
+const USER_SORT_GETTERS = {
+  name:     u => u.name || u.email,
+  role:     u => getRoleBadge(u.role).label,
+  status:   u => userStatus(u),
+  projects: u => u.projectCount ?? 0,
+  joined:   u => (u.createdAt ? new Date(u.createdAt).getTime() : null),
+};
 
 // ── Create User Form ──────────────────────────────────────────────────────────
 
@@ -118,21 +150,21 @@ function CreateUserForm({ currentUserRole, onCreated }) {
 
   return (
     <div className="max-w-lg">
-      <div className="bg-white rounded-xl border border-slate-200 p-6">
-        <h2 className="font-semibold text-slate-900 mb-5">Create New User</h2>
+      <div className={`${CARD} p-6`}>
+        <h2 className={`${H2} mb-5`}>Create New User</h2>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1">Full Name</label>
               <input type="text" value={form.name} onChange={e => set('name', e.target.value)}
                 placeholder="Jane Smith"
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                className={INPUT} />
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1">Email <span className="text-red-500">*</span></label>
               <input type="email" value={form.email} onChange={e => set('email', e.target.value)}
                 placeholder="jane@company.com" required
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                className={INPUT} />
             </div>
           </div>
 
@@ -140,7 +172,7 @@ function CreateUserForm({ currentUserRole, onCreated }) {
             <label className="block text-xs font-semibold text-slate-600 mb-1">Temporary Password <span className="text-red-500">*</span></label>
             <input type="text" value={form.password} onChange={e => set('password', e.target.value)}
               placeholder="Min 8 characters" required
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-amber-500" />
+              className={`${INPUT} font-mono`} />
           </div>
 
           <div>
@@ -148,10 +180,10 @@ function CreateUserForm({ currentUserRole, onCreated }) {
             <div className="space-y-2">
               {availableRoles.map(r => (
                 <label key={r.value} className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-                  form.role === r.value ? 'border-amber-400 bg-amber-50' : 'border-slate-200 hover:border-slate-300'
+                  form.role === r.value ? 'border-orange-400 bg-orange-50' : 'border-slate-200 hover:border-slate-300'
                 }`}>
                   <input type="radio" name="role" value={r.value} checked={form.role === r.value}
-                    onChange={() => set('role', r.value)} className="mt-0.5 accent-amber-500" />
+                    onChange={() => set('role', r.value)} className="mt-0.5 accent-orange-500" />
                   <div>
                     <div className="text-sm font-semibold text-slate-800">{r.label}</div>
                     <div className="text-xs text-slate-500">{r.desc}</div>
@@ -165,9 +197,9 @@ function CreateUserForm({ currentUserRole, onCreated }) {
 
           <label className="flex items-center gap-3 p-3 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
             <input type="checkbox" checked={form.mustChangePassword} onChange={e => set('mustChangePassword', e.target.checked)}
-              className="accent-amber-500" />
+              className="accent-orange-500" />
             <div>
-              <div className="text-sm font-medium text-slate-800">Require password change on first login</div>
+              <div className="text-sm font-semibold text-slate-800">Require password change on first login</div>
               <div className="text-xs text-slate-500">User will be prompted to set their own password immediately after logging in</div>
             </div>
           </label>
@@ -177,7 +209,7 @@ function CreateUserForm({ currentUserRole, onCreated }) {
           )}
 
           <button type="submit" disabled={saving}
-            className="w-full px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white transition-colors disabled:opacity-60">
+            className={`${BTN_PRIMARY} w-full`}>
             {saving ? 'Creating…' : 'Create User'}
           </button>
         </form>
@@ -208,17 +240,17 @@ function AccessHistory({ userId, refreshKey }) {
     <div className="mt-6 border-t border-slate-100 pt-4">
       <h4 className="text-xs font-semibold text-slate-600 mb-2">Access history</h4>
       {failed ? (
-        <p className="text-xs text-red-500">Couldn&apos;t load the history.</p>
+        <p className="text-xs text-red-600">Couldn&apos;t load the history.</p>
       ) : events === null ? (
-        <p className="text-xs text-slate-400">Loading…</p>
+        <WidgetLoading />
       ) : events.length === 0 ? (
-        <p className="text-xs text-slate-400">No changes recorded yet. The history started on September 15, 2026.</p>
+        <p className={HELPER}>No changes recorded yet. The history started on September 15, 2026.</p>
       ) : (
         <ul className="space-y-1.5 max-h-48 overflow-y-auto">
           {events.map(ev => (
             <li key={ev.id} className="flex items-baseline justify-between gap-3 text-xs">
               <span className="text-slate-700">{describeAccessEvent(ev)}</span>
-              <span className="text-slate-400 shrink-0">
+              <span className="text-slate-500 shrink-0 tabular-nums">
                 {ev.changedBy?.name || ev.changedBy?.email || 'Unknown'}
                 {' · '}
                 {new Date(ev.changedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
@@ -291,28 +323,28 @@ function ClientViewerJobs({ userId, projects, onSaved }) {
     <div>
       <label className="block text-xs font-semibold text-slate-600 mb-1">
         Jobs this person can open
-        {ids && <span className="text-slate-400 font-normal"> — {ids.length} selected</span>}
+        {ids && <span className="text-slate-500 font-normal tabular-nums">, {ids.length} selected</span>}
       </label>
-      <p className="text-xs text-slate-400 mb-2">
+      <p className={`${HELPER} mb-2`}>
         A Client Viewer sees nothing until a job is ticked here. Buy price is never shown to them on any of them.
       </p>
 
       {ids === null ? (
-        <p className="text-xs text-slate-400">Loading…</p>
+        <WidgetLoading />
       ) : (
         <>
           <input
             type="text" value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Search jobs…"
-            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm mb-2 focus:outline-none focus:ring-2 focus:ring-amber-500" />
+            className={`${INPUT} mb-2`} />
 
           <div className="max-h-48 overflow-y-auto rounded-lg border border-slate-200 divide-y divide-slate-100">
-            {shown.length === 0 && <p className="text-xs text-slate-400 px-3 py-3">No jobs match.</p>}
+            {shown.length === 0 && <p className={`${HELPER} px-3 py-3`}>No jobs match.</p>}
             {shown.map(p => (
               <label key={p.id} className="flex items-center gap-2.5 px-3 py-2 cursor-pointer hover:bg-slate-50">
-                <input type="checkbox" checked={ids.includes(p.id)} onChange={() => toggle(p.id)} className="accent-amber-500" />
+                <input type="checkbox" checked={ids.includes(p.id)} onChange={() => toggle(p.id)} className="accent-orange-500" />
                 <span className="text-sm text-slate-700 truncate">
-                  {p.projectNumber ? <span className="text-slate-400 mr-1.5">#{p.projectNumber}</span> : null}
+                  {p.projectNumber ? <span className="text-slate-500 mr-1.5 tabular-nums">#{p.projectNumber}</span> : null}
                   {p.name}
                 </span>
               </label>
@@ -321,7 +353,7 @@ function ClientViewerJobs({ userId, projects, onSaved }) {
 
           <div className="flex items-center gap-3 mt-2">
             <button type="button" onClick={save} disabled={saving}
-              className="px-3 py-1.5 rounded-lg bg-slate-800 text-white text-xs font-semibold hover:bg-slate-700 disabled:opacity-50">
+              className={BTN_COMPACT_PRIMARY}>
               {saving ? 'Saving…' : 'Save job list'}
             </button>
             {message && <span className="text-xs text-slate-500">{message}</span>}
@@ -391,15 +423,15 @@ function EditUserModal({ user, currentUserRole, projects, onSaved, onClose }) {
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl border border-slate-200 shadow-xl w-full max-w-3xl flex flex-col max-h-[90vh]">
+      <div className={`${MODAL} w-full max-w-3xl flex flex-col max-h-[90vh]`}>
 
         {/* Header — fixed */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
           <div>
-            <h3 className="font-semibold text-slate-900">Edit User</h3>
+            <h3 className={H2}>Edit User</h3>
             <p className="text-xs text-slate-500 mt-0.5">{user.email}</p>
           </div>
-          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-400">
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-100 text-slate-600">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
           </button>
         </div>
@@ -414,7 +446,7 @@ function EditUserModal({ user, currentUserRole, projects, onSaved, onClose }) {
                 <div>
                   <label className="block text-xs font-semibold text-slate-600 mb-1">Full Name</label>
                   <input type="text" value={form.name} onChange={e => set('name', e.target.value)}
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                    className={INPUT} />
                 </div>
 
                 <div>
@@ -422,13 +454,13 @@ function EditUserModal({ user, currentUserRole, projects, onSaved, onClose }) {
                   <div className="space-y-1.5">
                     {availableRoles.map(r => (
                       <label key={r.value} className={`flex items-start gap-3 p-2.5 rounded-lg border cursor-pointer transition-colors ${
-                        form.role === r.value ? 'border-amber-400 bg-amber-50' : 'border-slate-200 hover:border-slate-300'
+                        form.role === r.value ? 'border-orange-400 bg-orange-50' : 'border-slate-200 hover:border-slate-300'
                       }`}>
                         <input type="radio" name="edit-role" value={r.value} checked={form.role === r.value}
-                          onChange={() => set('role', r.value)} className="mt-0.5 accent-amber-500" />
+                          onChange={() => set('role', r.value)} className="mt-0.5 accent-orange-500" />
                         <div>
                           <div className="text-sm font-semibold text-slate-800">{r.label}</div>
-                          <div className="text-xs text-slate-400">{r.desc}</div>
+                          <div className="text-xs text-slate-500">{r.desc}</div>
                         </div>
                       </label>
                     ))}
@@ -451,13 +483,13 @@ function EditUserModal({ user, currentUserRole, projects, onSaved, onClose }) {
                 {/* Reset Password */}
                 <div>
                   <label className="block text-xs font-semibold text-slate-600 mb-1">
-                    Reset Password <span className="text-slate-400 font-normal">(leave blank to keep current)</span>
+                    Reset Password <span className="text-slate-500 font-normal">(leave blank to keep current)</span>
                   </label>
                   <input type="text" value={form.newPassword} onChange={e => set('newPassword', e.target.value)}
                     placeholder="New temporary password"
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-amber-500" />
+                    className={`${INPUT} font-mono`} />
                   <label className="flex items-center gap-2 cursor-pointer mt-2">
-                    <input type="checkbox" checked={form.mustChangePassword} onChange={e => set('mustChangePassword', e.target.checked)} className="accent-amber-500" />
+                    <input type="checkbox" checked={form.mustChangePassword} onChange={e => set('mustChangePassword', e.target.checked)} className="accent-orange-500" />
                     <span className="text-xs text-slate-600">Require password change on next login</span>
                   </label>
                 </div>
@@ -467,24 +499,24 @@ function EditUserModal({ user, currentUserRole, projects, onSaved, onClose }) {
                   <label className="block text-xs font-semibold text-slate-600 mb-2">Extra Permissions</label>
                   <div className="space-y-1.5">
                     <label className="flex items-start gap-3 p-2.5 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50 transition-colors">
-                      <input type="checkbox" checked={form.permKnowledgeBase} onChange={e => set('permKnowledgeBase', e.target.checked)} className="accent-amber-500 mt-0.5" />
+                      <input type="checkbox" checked={form.permKnowledgeBase} onChange={e => set('permKnowledgeBase', e.target.checked)} className="accent-orange-500 mt-0.5" />
                       <div>
-                        <div className="text-sm font-medium text-slate-800">Knowledge Base Editor</div>
-                        <div className="text-xs text-slate-400">Can add, edit, and delete design standards</div>
+                        <div className="text-sm font-semibold text-slate-800">Knowledge Base Editor</div>
+                        <div className="text-xs text-slate-500">Can add, edit, and delete design standards</div>
                       </div>
                     </label>
                     <label className="flex items-start gap-3 p-2.5 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50 transition-colors">
-                      <input type="checkbox" checked={form.permClientStandards} onChange={e => set('permClientStandards', e.target.checked)} className="accent-amber-500 mt-0.5" />
+                      <input type="checkbox" checked={form.permClientStandards} onChange={e => set('permClientStandards', e.target.checked)} className="accent-orange-500 mt-0.5" />
                       <div>
-                        <div className="text-sm font-medium text-slate-800">Client Standards Editor</div>
-                        <div className="text-xs text-slate-400">Can view and fill out national lighting standards</div>
+                        <div className="text-sm font-semibold text-slate-800">Client Standards Editor</div>
+                        <div className="text-xs text-slate-500">Can view and fill out national lighting standards</div>
                       </div>
                     </label>
                     <label className="flex items-start gap-3 p-2.5 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50 transition-colors">
-                      <input type="checkbox" checked={form.permSalesAdmin} onChange={e => set('permSalesAdmin', e.target.checked)} className="accent-amber-500 mt-0.5" />
+                      <input type="checkbox" checked={form.permSalesAdmin} onChange={e => set('permSalesAdmin', e.target.checked)} className="accent-orange-500 mt-0.5" />
                       <div>
-                        <div className="text-sm font-medium text-slate-800">Sales Admin</div>
-                        <div className="text-xs text-slate-400">Can manage Sales Automation action types, templates &amp; bot reminders</div>
+                        <div className="text-sm font-semibold text-slate-800">Sales Admin</div>
+                        <div className="text-xs text-slate-500">Can manage Sales Automation action types, templates &amp; bot reminders</div>
                       </div>
                     </label>
                   </div>
@@ -495,13 +527,13 @@ function EditUserModal({ user, currentUserRole, projects, onSaved, onClose }) {
                   form.isActive ? 'border-slate-200 hover:border-slate-300' : 'border-red-200 bg-red-50'
                 }`} onClick={() => set('isActive', !form.isActive)}>
                   <input type="checkbox" checked={form.isActive} onChange={e => set('isActive', e.target.checked)}
-                    className="accent-amber-500 mt-0.5" onClick={e => e.stopPropagation()} />
+                    className="accent-orange-500 mt-0.5" onClick={e => e.stopPropagation()} />
                   <div>
-                    <div className={`text-sm font-medium ${form.isActive ? 'text-slate-800' : 'text-red-700'}`}>
+                    <div className={`text-sm font-semibold ${form.isActive ? 'text-slate-800' : 'text-red-700'}`}>
                       {form.isActive ? 'Account is active' : 'Account is inactive'}
                     </div>
-                    <div className="text-xs text-slate-400">
-                      {form.isActive ? 'User can sign in normally' : 'User cannot sign in — data is preserved'}
+                    <div className="text-xs text-slate-500">
+                      {form.isActive ? 'User can sign in normally' : 'User cannot sign in, data is preserved'}
                     </div>
                   </div>
                 </div>
@@ -518,11 +550,11 @@ function EditUserModal({ user, currentUserRole, projects, onSaved, onClose }) {
           {/* Footer buttons — always visible */}
           <div className="flex gap-3 px-6 py-4 border-t border-slate-100 shrink-0">
             <button type="button" onClick={onClose}
-              className="flex-1 py-2 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-slate-50 transition-colors">
+              className={`${BTN_SECONDARY} flex-1`}>
               Close
             </button>
             <button type="submit" disabled={saving}
-              className="flex-1 px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white transition-colors disabled:opacity-60">
+              className={`${BTN_PRIMARY} flex-1`}>
               {saving ? 'Saving…' : 'Save Changes'}
             </button>
           </div>
@@ -560,12 +592,12 @@ function AlertFeedbackReport() {
     return () => { alive = false; };
   }, []);
 
-  if (error)  return <p className="text-sm text-red-500">{error}</p>;
-  if (!data)  return <p className="text-sm text-slate-400">Loading…</p>;
+  if (error)  return <WidgetError>{error}</WidgetError>;
+  if (!data)  return <WidgetLoading />;
 
   if (data.summary.length === 0) {
     return (
-      <div className="bg-white rounded-xl border border-slate-200 px-6 py-8">
+      <div className={`${CARD} px-6 py-8`}>
         <p className="text-sm text-slate-500">
           Nobody has rated a notification yet. Every notification in the bell carries
           <span className="font-medium"> Useful</span> and <span className="font-medium">Don&apos;t need</span> buttons;
@@ -576,7 +608,7 @@ function AlertFeedbackReport() {
   }
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+    <div className={`${CARD} overflow-hidden`}>
       <div className="px-6 py-4 border-b border-slate-100">
         <p className="text-sm text-slate-600">
           {data.totalClicks} {data.totalClicks === 1 ? 'rating' : 'ratings'} so far.
@@ -587,24 +619,24 @@ function AlertFeedbackReport() {
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-slate-100">
-            <th className="text-left  px-6 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Notification</th>
-            <th className="text-right px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Useful</th>
-            <th className="text-right px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Don&apos;t need</th>
-            <th className="text-right px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Turned off</th>
+            <th className={`${TH} px-6 py-3`}>Notification</th>
+            <th className={`${TH} text-right px-4 py-3`}>Useful</th>
+            <th className={`${TH} text-right px-4 py-3`}>Don&apos;t need</th>
+            <th className={`${TH} text-right px-4 py-3`}>Turned off</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-50">
           {data.summary.map(row => (
             <tr key={row.alertType} className="hover:bg-slate-50 align-top">
               <td className="px-6 py-4">
-                <div className="font-medium text-slate-800">{row.label}</div>
-                <div className="text-xs text-slate-400 mt-0.5">{row.verdict}</div>
+                <div className="font-semibold text-slate-800">{row.label}</div>
+                <div className="text-xs text-slate-500 mt-0.5">{row.verdict}</div>
               </td>
-              <td className="px-4 py-4 text-right text-slate-600">{row.useful}</td>
-              <td className={`px-4 py-4 text-right font-medium ${row.noisePct >= 60 ? 'text-red-600' : 'text-slate-600'}`}>
+              <td className="px-4 py-4 text-right text-slate-700 tabular-nums">{row.useful}</td>
+              <td className={`px-4 py-4 text-right font-semibold tabular-nums ${row.noisePct >= 60 ? 'text-red-600' : 'text-slate-600'}`}>
                 {row.notUseful}
               </td>
-              <td className="px-4 py-4 text-right text-slate-600">{row.mutedBy}</td>
+              <td className="px-4 py-4 text-right text-slate-700 tabular-nums">{row.mutedBy}</td>
             </tr>
           ))}
         </tbody>
@@ -618,8 +650,21 @@ export default function AdminClient({ users: initialUsers, projects, currentUser
   const params = useSearchParams();
   const [tab, setTabState] = useState('users');
   const [users,         setUsers]        = useState(initialUsers);
-  const [userSearch,    setUserSearch]   = useState('');
+  const [filtersOpen,   setFiltersOpen]  = useState(false);
   const [editUser,      setEditUser]     = useState(null);
+
+  // Users list filters and sort live in the address (useUrlView). `q` is the search box.
+  const { filters, setFilter, clearFilters, sort, toggleSort } = useUrlView({ fields: USER_FILTER_FIELDS });
+  const userSearch = filters.q || '';
+  const userFilterCount = countFilters(filters, USER_FILTER_FIELDS.filter(f => f.key !== 'q'));
+  const shownUsers = sortRows(users.filter(u => {
+    const q = userSearch.toLowerCase();
+    if (q && !(u.name?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q))) return false;
+    if (filters.role && getRoleBadge(u.role).label !== filters.role) return false;
+    if (filters.department && !(u.departments || []).includes(filters.department)) return false;
+    if (filters.status && userStatus(u) !== filters.status) return false;
+    return true;
+  }), sort, USER_SORT_GETTERS);
   const [created,       setCreated]      = useState(null);
   const [offConfirm,    setOffConfirm]   = useState(null);
   const [toggling,      setToggling]     = useState(null);
@@ -632,7 +677,8 @@ export default function AdminClient({ users: initialUsers, projects, currentUser
 
   function setTab(newTab) {
     setTabState(newTab);
-    const newParams = new URLSearchParams(params);
+    // Read the live address so filters written by useUrlView (replaceState) survive a tab switch.
+    const newParams = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : params);
     newParams.set('tab', newTab);
     router.replace(`?${newParams.toString()}`);
   }
@@ -678,7 +724,7 @@ export default function AdminClient({ users: initialUsers, projects, currentUser
   return (
     <div className="max-w-6xl mx-auto px-6 py-8">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-slate-900">Admin Panel</h1>
+        <h1 className={H1}>Admin Panel</h1>
         <p className="text-slate-500 text-sm mt-1">Manage users and view all projects.</p>
       </div>
 
@@ -689,10 +735,10 @@ export default function AdminClient({ users: initialUsers, projects, currentUser
       <div className="flex gap-1 border-b border-slate-200 mb-6">
         {TABS.map(t => (
           <button key={t.id} onClick={() => { setTab(t.id); setCreated(null); }}
-            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
+            className={`px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors ${
               tab === t.id
-                ? 'border-amber-500 text-amber-600'
-                : 'border-transparent text-slate-500 hover:text-slate-700'
+                ? TAB_ACTIVE
+                : TAB_INACTIVE
             }`}>
             {t.label}
           </button>
@@ -703,7 +749,7 @@ export default function AdminClient({ users: initialUsers, projects, currentUser
       {tab === 'users' && (
         <>
           {created && (
-            <div className="mb-4 bg-green-50 border border-green-200 rounded-xl px-5 py-3 flex items-center gap-3">
+            <div className="mb-4 bg-green-50 border border-green-200 rounded-lg px-5 py-3 flex items-center gap-3">
               <svg className="w-5 h-5 text-green-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
@@ -715,45 +761,47 @@ export default function AdminClient({ users: initialUsers, projects, currentUser
           )}
 
           {toggleError && (
-            <div className="mb-4 bg-red-50 border border-red-200 rounded-xl px-5 py-3 flex items-center justify-between gap-3">
+            <div className="mb-4 bg-red-50 border border-red-200 rounded-lg px-5 py-3 flex items-center justify-between gap-3">
               <p className="text-sm text-red-700">{toggleError}</p>
               <button onClick={() => setToggleError('')} className="text-red-400 hover:text-red-600 text-lg leading-none">&times;</button>
             </div>
           )}
 
-          <div className="mb-4 flex items-center gap-2">
-            <input
-              type="text"
-              placeholder="Search by name or email…"
-              value={userSearch}
-              onChange={e => setUserSearch(e.target.value)}
-              className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 w-72"
+          <div className="mb-4">
+            <FilterToolbar
+              count={userFilterCount + (userSearch.trim() ? 1 : 0)}
+              open={filtersOpen}
+              onToggle={() => setFiltersOpen(o => !o)}
+              onClear={clearFilters}
+              shown={shownUsers.length}
+              total={users.length}
+              noun="users"
+              right={<SearchBox value={userSearch} onChange={v => setFilter('q', v)} placeholder="Search by name or email..." className="w-72" />}
             />
-            {userSearch && (
-              <button onClick={() => setUserSearch('')} className="px-3 py-2 text-sm text-slate-400 hover:text-slate-600">
-                Clear
-              </button>
-            )}
+            <FilterPanel
+              open={filtersOpen}
+              fields={USER_FILTER_FIELDS.filter(f => f.key !== 'q')}
+              filters={filters}
+              choices={USER_FILTER_CHOICES}
+              onChange={setFilter}
+            />
           </div>
 
-          <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+          <div className={`${CARD} overflow-hidden`}>
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-100">
-                  <th className="text-left px-6 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">User</th>
-                  <th className="text-left px-6 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Role</th>
-                  <th className="text-left px-6 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Departments</th>
-                  <th className="text-left px-6 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Status</th>
-                  <th className="text-left px-6 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Projects</th>
-                  <th className="text-left px-6 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Joined</th>
+                  <SortHeader label="User" field="name" sort={sort} onSort={toggleSort} className="px-6 py-3" />
+                  <SortHeader label="Role" field="role" sort={sort} onSort={toggleSort} className="px-6 py-3" />
+                  <th className={`${TH} px-6 py-3`}>Departments</th>
+                  <SortHeader label="Status" field="status" sort={sort} onSort={toggleSort} className="px-6 py-3" />
+                  <SortHeader label="Projects" field="projects" sort={sort} onSort={toggleSort} className="px-6 py-3" />
+                  <SortHeader label="Joined" field="joined" sort={sort} onSort={toggleSort} className="px-6 py-3" />
                   <th className="px-6 py-3 w-32"></th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
-                {users.filter(u => {
-                  const q = userSearch.toLowerCase();
-                  return !q || u.name?.toLowerCase().includes(q) || u.email?.toLowerCase().includes(q);
-                }).map(u => {
+                {shownUsers.map(u => {
                   const badge = getRoleBadge(u.role);
                   const isMe  = u.id === currentUser.id;
                   return (
@@ -765,10 +813,10 @@ export default function AdminClient({ users: initialUsers, projects, currentUser
                           </div>
                           <div>
                             <div className="font-medium text-slate-900">
-                              {u.name || <span className="text-slate-400 italic">No name set</span>}
-                              {isMe && <span className="ml-2 text-[10px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded font-medium">You</span>}
+                              {u.name || <span className="text-slate-500 italic">No name set</span>}
+                              {isMe && <span className="ml-2 text-[11px] bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded font-semibold">You</span>}
                             </div>
-                            <div className="text-xs text-slate-400">{u.email}</div>
+                            <div className="text-xs text-slate-500">{u.email}</div>
                           </div>
                         </div>
                       </td>
@@ -779,14 +827,14 @@ export default function AdminClient({ users: initialUsers, projects, currentUser
                         {(u.departments || []).length > 0 ? (
                           <div className="flex flex-wrap gap-1">
                             {u.departments.map(key => (
-                              <span key={key} className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border ${DEPARTMENT_COLORS[key] || 'bg-slate-100 text-slate-600 border-slate-300'}`}>
+                              <span key={key} className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${DEPARTMENT_COLORS[key] || 'bg-slate-100 text-slate-600 border-slate-300'}`}>
                                 {DEPARTMENT_LABEL[key] || key}
                               </span>
                             ))}
                           </div>
                         ) : u.role === 'CLIENT_VIEWER'
-                          ? <span className="text-xs text-slate-300">—</span>
-                          : <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full border bg-amber-50 text-amber-700 border-amber-300">No department</span>}
+                          ? <span className="text-xs text-slate-500">n/a</span>
+                          : <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full border bg-amber-50 text-amber-700 border-amber-200">No department</span>}
                       </td>
                       <td className="px-6 py-4">
                         {u.isActive === false
@@ -798,41 +846,41 @@ export default function AdminClient({ users: initialUsers, projects, currentUser
                               : <Badge variant="pending">No Password</Badge>
                         }
                       </td>
-                      <td className="px-6 py-4 text-slate-600">{u.projectCount ?? '—'}</td>
-                      <td className="px-6 py-4 text-slate-500 text-xs">
+                      <td className="px-6 py-4 text-slate-700 tabular-nums">{u.projectCount ?? 0}</td>
+                      <td className="px-6 py-4 text-slate-500 text-xs tabular-nums">
                         {new Date(u.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           {!isMe && (
                             <button onClick={() => setEditUser(u)}
-                              className="text-xs text-slate-400 hover:text-amber-600 font-medium transition-colors">
+                              className={BTN_COMPACT}>
                               Edit
                             </button>
                           )}
                           {canManageUser(currentUser, u) && (
                             offConfirm === u.id ? (
                               <span className="flex items-center gap-1.5">
-                                <span className="text-xs text-red-500">Sign them out?</span>
+                                <span className="text-xs text-red-600">Sign them out?</span>
                                 <button onClick={() => handleToggleActive(u)}
                                   className="text-xs text-red-600 font-semibold hover:text-red-700 transition-colors">
                                   Yes
                                 </button>
                                 <button onClick={() => setOffConfirm(null)}
-                                  className="text-xs text-slate-400 hover:text-slate-600 transition-colors">
+                                  className="text-xs font-semibold text-slate-500 hover:text-slate-700 transition-colors">
                                   No
                                 </button>
                               </span>
                             ) : u.isActive === false ? (
                               <button onClick={() => handleToggleActive(u)} disabled={toggling === u.id}
-                                className="text-xs text-slate-400 hover:text-green-600 font-medium transition-colors disabled:opacity-40">
+                                className="text-xs font-semibold text-slate-500 hover:text-green-600 transition-colors disabled:opacity-40">
                                 {toggling === u.id ? '…' : 'Turn on'}
                               </button>
                             ) : (
                               <button
                                 onClick={() => { setOffConfirm(u.id); setToggleError(''); }}
                                 disabled={toggling === u.id}
-                                className="text-xs text-slate-300 hover:text-red-500 font-medium transition-colors disabled:opacity-40">
+                                className="text-xs font-semibold text-slate-500 hover:text-red-600 transition-colors disabled:opacity-40">
                                 {toggling === u.id ? '…' : 'Turn off'}
                               </button>
                             )
@@ -861,26 +909,26 @@ export default function AdminClient({ users: initialUsers, projects, currentUser
 
       {/* Projects tab */}
       {tab === 'projects' && (
-        <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+        <div className={`${CARD} overflow-hidden`}>
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-100">
-                <th className="text-left px-6 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Project</th>
-                <th className="text-left px-6 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Owner</th>
-                <th className="text-left px-6 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Status</th>
-                <th className="text-left px-6 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">Updated</th>
+                <th className={`${TH} px-6 py-3`}>Project</th>
+                <th className={`${TH} px-6 py-3`}>Owner</th>
+                <th className={`${TH} px-6 py-3`}>Status</th>
+                <th className={`${TH} px-6 py-3`}>Updated</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
               {projects.map(p => (
                 <tr key={p.id} className="hover:bg-slate-50">
                   <td className="px-6 py-4">
-                    <Link href={`/project/${p.id}`} className="font-medium text-blue-600 hover:underline">
+                    <Link href={`/project/${p.id}`} className="font-semibold text-orange-600 hover:underline">
                       {p.name}
                     </Link>
-                    {p.location && <div className="text-xs text-slate-400 mt-0.5">{p.location}</div>}
+                    {p.location && <div className="text-xs text-slate-500 mt-0.5">{p.location}</div>}
                   </td>
-                  <td className="px-6 py-4 text-slate-600">
+                  <td className="px-6 py-4 text-slate-700">
                     {p.createdBy?.name || p.createdBy?.email}
                   </td>
                   <td className="px-6 py-4">
@@ -888,7 +936,7 @@ export default function AdminClient({ users: initialUsers, projects, currentUser
                       {p.status.charAt(0) + p.status.slice(1).toLowerCase().replace('_', ' ')}
                     </Badge>
                   </td>
-                  <td className="px-6 py-4 text-slate-500 text-xs">
+                  <td className="px-6 py-4 text-slate-500 text-xs tabular-nums">
                     {new Date(p.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                   </td>
                 </tr>

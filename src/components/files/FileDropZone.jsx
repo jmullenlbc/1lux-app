@@ -64,7 +64,7 @@ function TagsModal({ fileName, tab, onConfirm, onCancel }) {
                 <div className="flex flex-wrap gap-1.5">
                   {group.tags.map(tag => (
                     <button key={tag} type="button" onClick={() => toggle(tag)}
-                      className={`px-3 py-1 rounded-full text-xs font-semibold border transition-colors ${selected.includes(tag) ? 'bg-amber-500 border-amber-500 text-white' : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'}`}>
+                      className={`px-3 py-1 rounded-full text-xs font-semibold border transition-colors ${selected.includes(tag) ? 'bg-orange-500 border-orange-500 text-white' : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'}`}>
                       {tag}
                     </button>
                   ))}
@@ -79,7 +79,7 @@ function TagsModal({ fileName, tab, onConfirm, onCancel }) {
               <div className="flex flex-wrap gap-1.5">
                 {flatTags.map(tag => (
                   <button key={tag} type="button" onClick={() => toggle(tag)}
-                    className={`px-3 py-1 rounded-full text-xs font-semibold border transition-colors ${selected.includes(tag) ? 'bg-amber-500 border-amber-500 text-white' : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'}`}>
+                    className={`px-3 py-1 rounded-full text-xs font-semibold border transition-colors ${selected.includes(tag) ? 'bg-orange-500 border-orange-500 text-white' : 'bg-white border-slate-200 text-slate-600 hover:border-slate-300'}`}>
                     {tag}
                   </button>
                 ))}
@@ -118,7 +118,7 @@ function FileRow({ file, projectId, selected, onToggle, onView }) {
         type="checkbox"
         checked={selected}
         onChange={onToggle}
-        className="w-3.5 h-3.5 rounded border-slate-300 text-amber-500 focus:ring-amber-400 cursor-pointer shrink-0"
+        className="w-3.5 h-3.5 rounded border-slate-300 text-amber-500 focus:ring-orange-500 cursor-pointer shrink-0"
       />
       <div className="shrink-0">
         {isExcel ? (
@@ -136,30 +136,30 @@ function FileRow({ file, projectId, selected, onToggle, onView }) {
       <div className="flex-1 min-w-0">
         <button
           onClick={() => isPdf && onView?.(file)}
-          className={`text-sm font-medium text-slate-700 transition-colors truncate block text-left w-full ${isPdf ? 'hover:text-amber-600 cursor-pointer' : 'cursor-default'}`}>
+          className={`text-sm font-medium text-slate-700 transition-colors truncate block text-left w-full ${isPdf ? 'hover:text-orange-600 cursor-pointer' : 'cursor-default'}`}>
           {file.originalName}
         </button>
         <div className="flex items-center flex-wrap gap-1.5 mt-0.5">
           {tags.map(tag => (
-            <span key={tag} className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-slate-100 text-slate-500">{tag}</span>
+            <span key={tag} className="text-[11px] font-medium px-1.5 py-0.5 rounded bg-slate-100 text-slate-500">{tag}</span>
           ))}
-          <span className="text-[10px] text-slate-400">{formatBytes(file.size)}</span>
-          <span className="text-[10px] text-slate-400">
+          <span className="text-[11px] text-slate-400">{formatBytes(file.size)}</span>
+          <span className="text-[11px] text-slate-400">
             {new Date(file.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' })}
           </span>
           {file.uploadedBy && (
-            <span className="text-[10px] text-slate-400">{file.uploadedBy.name || file.uploadedBy.email}</span>
+            <span className="text-[11px] text-slate-400">{file.uploadedBy.name || file.uploadedBy.email}</span>
           )}
           {file.textContent
-            ? <span className="text-[10px] text-green-500 font-medium">● AI can read</span>
-            : isPdf && <span className="text-[10px] text-slate-300 font-medium" title="No text could be extracted — may be a scanned image PDF">● AI can't read</span>
+            ? <span className="text-[11px] text-green-500 font-medium">● AI can read</span>
+            : isPdf && <span className="text-[11px] text-slate-300 font-medium" title="No text could be extracted, may be a scanned image PDF">● AI can't read</span>
           }
         </div>
       </div>
       {isPdf && (
         <button
           onClick={() => onView?.(file)}
-          className="shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold transition-colors opacity-0 group-hover:opacity-100"
+          className="shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold transition-colors opacity-0 group-hover:opacity-100"
           title="Open PDF"
         >
           <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -183,7 +183,7 @@ export default function FileDropZone({ projectId, tab, initialFiles = [], onFile
   const [activeTag,    setActiveTag]    = useState(null);
   const [aiFilter,     setAiFilter]     = useState(null); // null | 'readable' | 'unreadable'
   const [viewingFile,  setViewingFile]  = useState(null);
-  const [uploadErrors, setUploadErrors] = useState([]); // [{ id, msg }] — shown until dismissed
+  const [uploadErrors, setUploadErrors] = useState([]); // [{ id, msg }], shown until dismissed
   const inputRef = useRef(null);
 
   const acceptsSpreadsheet = tab === 'takeoffs' || tab === 'contracts';
@@ -342,7 +342,7 @@ export default function FileDropZone({ projectId, tab, initialFiles = [], onFile
         onClick={() => inputRef.current?.click()}
         className={[
           'border-2 border-dashed rounded-xl px-6 py-8 text-center cursor-pointer transition-colors',
-          dragging ? 'border-amber-400 bg-amber-50' : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50',
+          dragging ? 'border-orange-400 bg-amber-50' : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50',
         ].join(' ')}
       >
         <input ref={inputRef} type="file" multiple accept={accept} className="hidden"
@@ -408,7 +408,7 @@ export default function FileDropZone({ projectId, tab, initialFiles = [], onFile
             <button
               key={tag}
               onClick={() => setActiveTag(prev => prev === tag ? null : tag)}
-              className={`px-3 py-1 rounded-full text-xs font-semibold border transition-colors ${activeTag === tag ? 'bg-amber-500 border-amber-500 text-white' : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'}`}
+              className={`px-3 py-1 rounded-full text-xs font-semibold border transition-colors ${activeTag === tag ? 'bg-orange-500 border-orange-500 text-white' : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'}`}
             >
               {tag}
               <span className={`ml-1 ${activeTag === tag ? 'text-amber-100' : 'text-slate-400'}`}>
@@ -422,17 +422,17 @@ export default function FileDropZone({ projectId, tab, initialFiles = [], onFile
       {/* AI readability filter */}
       {files.length > 0 && (readableCount > 0 || unreadableCount > 0) && (
         <div className="flex items-center gap-2 mt-2">
-          <span className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Ask AI:</span>
+          <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Ask AI:</span>
           <button
             onClick={() => setAiFilter(prev => prev === 'readable' ? null : 'readable')}
-            className={`px-2.5 py-0.5 rounded-full text-[10px] font-semibold border transition-colors ${aiFilter === 'readable' ? 'bg-green-500 border-green-500 text-white' : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'}`}
+            className={`px-2.5 py-0.5 rounded-full text-[11px] font-semibold border transition-colors ${aiFilter === 'readable' ? 'bg-green-500 border-green-500 text-white' : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'}`}
           >
             ● Can read · {readableCount}
           </button>
           {unreadableCount > 0 && (
             <button
               onClick={() => setAiFilter(prev => prev === 'unreadable' ? null : 'unreadable')}
-              className={`px-2.5 py-0.5 rounded-full text-[10px] font-semibold border transition-colors ${aiFilter === 'unreadable' ? 'bg-slate-500 border-slate-500 text-white' : 'bg-white border-slate-200 text-slate-400 hover:border-slate-300'}`}
+              className={`px-2.5 py-0.5 rounded-full text-[11px] font-semibold border transition-colors ${aiFilter === 'unreadable' ? 'bg-slate-500 border-slate-500 text-white' : 'bg-white border-slate-200 text-slate-400 hover:border-slate-300'}`}
             >
               ● Can't read · {unreadableCount}
             </button>
@@ -449,7 +449,7 @@ export default function FileDropZone({ projectId, tab, initialFiles = [], onFile
               checked={allVisibleSelected}
               ref={el => el && (el.indeterminate = someVisibleSelected && !allVisibleSelected)}
               onChange={toggleAll}
-              className="w-3.5 h-3.5 rounded border-slate-300 text-amber-500 focus:ring-amber-400 cursor-pointer"
+              className="w-3.5 h-3.5 rounded border-slate-300 text-amber-500 focus:ring-orange-500 cursor-pointer"
             />
             {someSelected ? (
               <div className="flex items-center gap-3 flex-1">
@@ -464,7 +464,7 @@ export default function FileDropZone({ projectId, tab, initialFiles = [], onFile
                 </button>
                 <button
                   disabled
-                  title="Edit tags — coming soon"
+                  title="Edit tags, coming soon"
                   className="flex items-center gap-1 px-2.5 py-1 rounded-lg border border-slate-200 text-slate-400 text-xs font-semibold cursor-not-allowed"
                 >
                   <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -485,7 +485,7 @@ export default function FileDropZone({ projectId, tab, initialFiles = [], onFile
                     : `${files.length} file${files.length !== 1 ? 's' : ''}`}
                 </span>
                 {files.length > 0 && (
-                  <span className="text-[10px] text-slate-300">
+                  <span className="text-[11px] text-slate-300">
                     <span className="text-green-500 font-medium">{readableCount}</span> readable by AI
                     {unreadableCount > 0 && <span> · <span className="text-slate-400 font-medium">{unreadableCount}</span> not</span>}
                   </span>

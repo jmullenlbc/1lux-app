@@ -12,10 +12,10 @@ const CONTRACT_TAGS = [
   { value: 'Supply',            label: 'Supply Draft',      sub: 'Draft / unsigned supply PO',    color: 'bg-sky-100 text-sky-700 border-sky-200',      dot: 'bg-sky-400',    aiReview: true  },
   { value: 'Design - Executed', label: 'Design Contract',   sub: 'Executed design agreement',     color: 'bg-purple-100 text-purple-700 border-purple-200', dot: 'bg-purple-500', aiReview: false },
   { value: 'Design',            label: 'Design Draft',      sub: 'Draft design agreement',        color: 'bg-violet-100 text-violet-700 border-violet-200', dot: 'bg-violet-400', aiReview: false },
-  { value: 'Amendment',         label: 'Amendment',         sub: 'Contract amendment or addendum', color: 'bg-amber-100 text-amber-700 border-amber-200', dot: 'bg-amber-500',  aiReview: false },
+  { value: 'Amendment',         label: 'Amendment',         sub: 'Contract amendment or addendum', color: 'bg-amber-100 text-amber-700 border-amber-200', dot: 'bg-orange-500',  aiReview: false },
   { value: 'COI',               label: 'Certificate of Insurance', sub: 'COI from vendor or GC', color: 'bg-green-100 text-green-700 border-green-200', dot: 'bg-green-500',  aiReview: false },
   { value: 'SOV',               label: 'Schedule of Values', sub: 'SOV for billing',            color: 'bg-teal-100 text-teal-700 border-teal-200',    dot: 'bg-teal-500',   aiReview: false },
-  { value: 'Proposal',          label: 'Proposal',          sub: 'Bid or proposal document',      color: 'bg-rose-100 text-rose-700 border-rose-200',   dot: 'bg-rose-400',   aiReview: false },
+  { value: 'Proposal',          label: 'Proposal',          sub: 'Bid or proposal document',      color: 'bg-red-100 text-red-700 border-red-200',   dot: 'bg-red-400',   aiReview: false },
 ];
 
 function tagMeta(tagValue) {
@@ -31,7 +31,7 @@ function isSupplyTag(tag) {
 // ─── Risk badge ───────────────────────────────────────────────────────────────
 const RISK_META = {
   'Low':       { bg: 'bg-green-100',  text: 'text-green-700',  dot: 'bg-green-500'  },
-  'Medium':    { bg: 'bg-amber-100',  text: 'text-amber-700',  dot: 'bg-amber-500'  },
+  'Medium':    { bg: 'bg-amber-100',  text: 'text-amber-700',  dot: 'bg-orange-500'  },
   'High':      { bg: 'bg-orange-100', text: 'text-orange-700', dot: 'bg-orange-500' },
   'Very High': { bg: 'bg-red-100',    text: 'text-red-700',    dot: 'bg-red-500'    },
 };
@@ -50,7 +50,7 @@ const ACTION_COLORS = {
 function RiskBadge({ score }) {
   const m = RISK_META[score] || RISK_META['High'];
   return (
-    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${m.bg} ${m.text}`}>
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold ${m.bg} ${m.text}`}>
       <span className={`w-1.5 h-1.5 rounded-full ${m.dot}`} />
       {score}
     </span>
@@ -117,7 +117,7 @@ function TagModal({ fileName, onConfirm, onCancel, allowedTags = null }) {
               className={[
                 'w-full flex items-start gap-3 px-3 py-2.5 rounded-xl border text-left transition-all',
                 selected === tag.value
-                  ? 'border-amber-400 bg-amber-50 ring-1 ring-amber-300'
+                  ? 'border-orange-400 bg-amber-50 ring-1 ring-orange-500'
                   : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50',
               ].join(' ')}
             >
@@ -126,7 +126,7 @@ function TagModal({ fileName, onConfirm, onCancel, allowedTags = null }) {
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-semibold text-slate-800">{tag.label}</span>
                   {tag.aiReview && (
-                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 border border-amber-200">
+                    <span className="text-[11px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 border border-amber-200">
                       ⚡ AI Review
                     </span>
                   )}
@@ -209,7 +209,7 @@ function AnalysisPanel({ analysis, fileName }) {
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-xs font-semibold text-slate-700">{summary.counterparty_name || '—'}</span>
             {summary.contract_tier && (
-              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-200 text-slate-600">
+              <span className="text-[11px] font-bold px-1.5 py-0.5 rounded bg-slate-200 text-slate-600">
                 {summary.contract_tier?.split(' - ')[0]}
               </span>
             )}
@@ -233,7 +233,7 @@ function AnalysisPanel({ analysis, fileName }) {
             className={[
               'px-4 py-2 text-xs font-semibold border-b-2 transition-colors whitespace-nowrap',
               tab === t.id
-                ? 'border-amber-500 text-amber-600'
+                ? 'border-orange-500 text-orange-600'
                 : 'border-transparent text-slate-500 hover:text-slate-700',
             ].join(' ')}
           >
@@ -252,10 +252,10 @@ function AnalysisPanel({ analysis, fileName }) {
                 return (
                   <div key={f.id} className={`rounded-xl border p-3 ${m.bg} ${m.border}`}>
                     <div className="flex items-start gap-2 mb-1.5">
-                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded shrink-0 mt-0.5 ${m.badge}`}>{f.severity}</span>
+                      <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded shrink-0 mt-0.5 ${m.badge}`}>{f.severity}</span>
                       <span className={`text-xs font-semibold flex-1 ${m.text}`}>{f.title}</span>
                       {f.suggested_action && (
-                        <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded shrink-0 ${ACTION_COLORS[f.suggested_action] || 'bg-slate-100 text-slate-500'}`}>
+                        <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded shrink-0 ${ACTION_COLORS[f.suggested_action] || 'bg-slate-100 text-slate-500'}`}>
                           {f.suggested_action}
                         </span>
                       )}
@@ -277,7 +277,7 @@ function AnalysisPanel({ analysis, fileName }) {
                 <div key={i} className="border border-slate-200 rounded-lg p-3 bg-white">
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-xs font-semibold text-slate-800">{c.clause}</span>
-                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                    <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded ${
                       c.importance === 'Critical' ? 'bg-red-100 text-red-700' :
                       c.importance === 'Important' ? 'bg-amber-100 text-amber-700' :
                       'bg-slate-100 text-slate-500'
@@ -379,7 +379,7 @@ function ContractFileRow({ file, projectId, onDelete, analysisOverride, onView =
       const data = await res.json();
       if (!res.ok) {
         setAnalyzeErr(data.error === 'job_timeout'
-          ? 'Analysis timed out — the document may be too large. Try a smaller PDF or a specific exhibit.'
+          ? 'Analysis timed out, the document may be too large. Try a smaller PDF or a specific exhibit.'
           : (data.message || data.error || 'Analysis failed'));
       } else {
         setAnalysis(data.analysis);
@@ -387,7 +387,7 @@ function ContractFileRow({ file, projectId, onDelete, analysisOverride, onView =
       }
     } catch (e) {
       if (e.name === 'AbortError') {
-        setAnalyzeErr('Analysis timed out — the document may be too large. Try a smaller PDF or a specific exhibit.');
+        setAnalyzeErr('Analysis timed out, the document may be too large. Try a smaller PDF or a specific exhibit.');
       } else {
         setAnalyzeErr('Network error: ' + e.message);
       }
@@ -417,13 +417,13 @@ function ContractFileRow({ file, projectId, onDelete, analysisOverride, onView =
         <div className="flex-1 min-w-0">
           {onView ? (
             <button onClick={onView}
-              className="text-sm font-medium text-slate-800 hover:text-amber-600 transition-colors truncate block text-left w-full">
+              className="text-sm font-medium text-slate-800 hover:text-orange-600 transition-colors truncate block text-left w-full">
               {file.originalName}
-              <span className="ml-1.5 text-[10px] text-slate-400">· click to view</span>
+              <span className="ml-1.5 text-[11px] text-slate-400">· click to view</span>
             </button>
           ) : (
             <a href={url} target="_blank" rel="noopener noreferrer"
-              className="text-sm font-medium text-slate-800 hover:text-amber-600 transition-colors truncate block">
+              className="text-sm font-medium text-slate-800 hover:text-orange-600 transition-colors truncate block">
               {file.originalName}
             </a>
           )}
@@ -432,26 +432,26 @@ function ContractFileRow({ file, projectId, onDelete, analysisOverride, onView =
             {tags.filter(t => !t.startsWith('COI_EXPIRY:')).map(tag => {
               const m = tagMeta(tag);
               return (
-                <span key={tag} className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${m.color}`}>
+                <span key={tag} className={`text-[11px] font-semibold px-1.5 py-0.5 rounded border ${m.color}`}>
                   {m.label}
                 </span>
               );
             })}
             {/* COI expiry badge */}
             {coiMeta && (
-              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${coiMeta.color}`}>
+              <span className={`text-[11px] font-semibold px-1.5 py-0.5 rounded border ${coiMeta.color}`}>
                 ⏱ {coiMeta.label}
               </span>
             )}
             {/* Risk score if reviewed */}
             {risk && <RiskBadge score={risk} />}
-            <span className="text-[10px] text-slate-400">{formatBytes(file.size)}</span>
-            <span className="text-[10px] text-slate-400">
+            <span className="text-[11px] text-slate-400">{formatBytes(file.size)}</span>
+            <span className="text-[11px] text-slate-400">
               {new Date(file.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' })}
             </span>
             {file.textContent
-              ? <span className="text-[10px] text-green-500 font-medium">● readable</span>
-              : isPdf && <span className="text-[10px] text-slate-300 font-medium" title="Scanned PDF — AI can't read">● not readable</span>
+              ? <span className="text-[11px] text-green-500 font-medium">● readable</span>
+              : isPdf && <span className="text-[11px] text-slate-300 font-medium" title="Scanned PDF, AI can't read">● not readable</span>
             }
           </div>
         </div>
@@ -465,18 +465,18 @@ function ContractFileRow({ file, projectId, onDelete, analysisOverride, onView =
                 onClick={() => setExpanded(v => !v)}
                 className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors border ${
                   expanded
-                    ? 'bg-amber-500 text-white border-amber-500'
+                    ? 'bg-orange-500 text-white border-orange-500'
                     : 'bg-amber-50 text-amber-700 border-amber-200 hover:bg-amber-100'
                 }`}
               >
-                <span className="text-[10px]">⚡</span>
+                <span className="text-[11px]">⚡</span>
                 {expanded ? 'Hide Review' : 'View Review'}
               </button>
             ) : (
               <button
                 onClick={runAnalysis}
                 disabled={analyzing}
-                className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-amber-50 text-slate-600 hover:text-amber-700 border border-slate-200 hover:border-amber-200 transition-colors disabled:opacity-60"
+                className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 hover:bg-amber-50 text-slate-600 hover:text-orange-700 border border-slate-200 hover:border-amber-200 transition-colors disabled:opacity-60"
               >
                 {analyzing ? (
                   <>
@@ -493,14 +493,14 @@ function ContractFileRow({ file, projectId, onDelete, analysisOverride, onView =
             )
           )}
           {hasSupply && !file.textContent && (
-            <span className="text-[10px] text-slate-400 italic">Scanned PDF</span>
+            <span className="text-[11px] text-slate-400 italic">Scanned PDF</span>
           )}
 
           {/* Download */}
           <a
             href={url}
             download={file.originalName}
-            className="p-1 rounded-lg text-slate-300 hover:text-blue-500 hover:bg-blue-50 transition-colors"
+            className="p-1 rounded-lg text-slate-300 hover:text-orange-600 hover:bg-orange-50 transition-colors"
             title="Download"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -511,7 +511,7 @@ function ContractFileRow({ file, projectId, onDelete, analysisOverride, onView =
           {/* Archive */}
           <button
             onClick={() => onDelete(file.id)}
-            className="p-1 rounded-lg text-slate-300 hover:text-amber-600 hover:bg-amber-50 transition-colors"
+            className="p-1 rounded-lg text-slate-300 hover:text-orange-600 hover:bg-amber-50 transition-colors"
             title="Archive file"
           >
             <ArchiveBoxIcon className="w-4 h-4" />
@@ -547,7 +547,7 @@ function DropZone({ onFiles, dragging, setDragging, inputRef }) {
       onClick={() => inputRef.current?.click()}
       className={[
         'border-2 border-dashed rounded-xl px-6 py-10 text-center cursor-pointer transition-all',
-        dragging ? 'border-amber-400 bg-amber-50 scale-[1.01]' : 'border-slate-200 hover:border-amber-300 hover:bg-slate-50',
+        dragging ? 'border-orange-400 bg-amber-50 scale-[1.01]' : 'border-slate-200 hover:border-amber-300 hover:bg-slate-50',
       ].join(' ')}
     >
       <input ref={inputRef} type="file" multiple accept=".pdf,.xlsx,.xls,.csv" className="hidden"
@@ -601,21 +601,21 @@ function SimpleFileRow({ file, projectId, onDelete, onView }) {
       {/* Name + meta */}
       <div className="flex-1 min-w-0">
         {isPdf && onView ? (
-          <button onClick={onView} className="text-sm font-medium text-slate-800 hover:text-amber-600 transition-colors text-left truncate block w-full">
+          <button onClick={onView} className="text-sm font-semibold text-slate-800 hover:text-orange-600 transition-colors text-left truncate block w-full">
             {file.originalName}
           </button>
         ) : (
-          <a href={url} target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-slate-800 hover:text-amber-600 transition-colors truncate block">
+          <a href={url} target="_blank" rel="noopener noreferrer" className="text-sm font-semibold text-slate-800 hover:text-orange-600 transition-colors truncate block">
             {file.originalName}
           </a>
         )}
         <div className="flex items-center gap-2 mt-0.5">
           {tags.map(t => {
             const m = tagMeta(t);
-            return <span key={t} className={`text-[10px] font-semibold px-1.5 py-0.5 rounded border ${m.color}`}>{m.label}</span>;
+            return <span key={t} className={`text-[11px] font-semibold px-1.5 py-0.5 rounded border ${m.color}`}>{m.label}</span>;
           })}
-          <span className="text-[10px] text-slate-400">{formatBytes(file.size)}</span>
-          <span className="text-[10px] text-slate-400">
+          <span className="text-[11px] text-slate-400">{formatBytes(file.size)}</span>
+          <span className="text-[11px] text-slate-400">
             {new Date(file.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' })}
           </span>
         </div>
@@ -633,13 +633,13 @@ function SimpleFileRow({ file, projectId, onDelete, onView }) {
           </button>
         )}
         {/* Download */}
-        <a href={url} download={file.originalName} className="p-1.5 rounded-lg text-slate-300 hover:text-blue-500 hover:bg-blue-50 transition-colors" title="Download">
+        <a href={url} download={file.originalName} className="p-1.5 rounded-lg text-slate-300 hover:text-orange-600 hover:bg-orange-50 transition-colors" title="Download">
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
           </svg>
         </a>
         {/* Archive */}
-        <button onClick={() => onDelete(file.id)} className="p-1.5 rounded-lg text-slate-300 hover:text-amber-600 hover:bg-amber-50 transition-colors" title="Archive">
+        <button onClick={() => onDelete(file.id)} className="p-1.5 rounded-lg text-slate-300 hover:text-orange-600 hover:bg-amber-50 transition-colors" title="Archive">
           <ArchiveBoxIcon className="w-4 h-4" />
         </button>
       </div>
@@ -652,7 +652,7 @@ export default function ContractsPanel({ projectId, initialFiles = [], onFileAdd
   const [dragging,    setDragging]    = useState(false);
   const [pendingFile, setPendingFile] = useState(null); // { file: File }
   const [uploading,   setUploading]   = useState([]);   // [{ id, name }]
-  const [uploadErrors, setUploadErrors] = useState([]);  // [{ id, msg }] — shown until dismissed
+  const [uploadErrors, setUploadErrors] = useState([]);  // [{ id, msg }], shown until dismissed
   const [newAnalyses, setNewAnalyses] = useState({});   // fileId → analysis
   const [activeTag,   setActiveTag]   = useState(null);
   const [viewingFile, setViewingFile] = useState(null); // PDF viewer
@@ -857,8 +857,8 @@ export default function ContractsPanel({ projectId, initialFiles = [], onFileAdd
           return (
             <div className="flex items-center gap-2 px-5 py-3 border-b border-slate-100">
               <span className={`w-2 h-2 rounded-full ${color} shrink-0`} />
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider flex-1">{label}</p>
-              <span className="text-[10px] text-slate-400">{count} file{count !== 1 ? 's' : ''}</span>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide flex-1">{label}</p>
+              <span className="text-[11px] text-slate-400">{count} file{count !== 1 ? 's' : ''}</span>
             </div>
           );
         }
@@ -921,7 +921,7 @@ export default function ContractsPanel({ projectId, initialFiles = [], onFileAdd
             </div>
 
             {noFiles && (
-              <p className="text-center text-xs text-slate-400 py-2">Drop files above to get started — tag them as Contract, COI, or SOV.</p>
+              <p className="text-center text-xs text-slate-400 py-2">Drop files above to get started, tag them as Contract, COI, or SOV.</p>
             )}
           </div>
         );
@@ -938,7 +938,7 @@ export default function ContractsPanel({ projectId, initialFiles = [], onFileAdd
                 {presentTags.length > 0 && (
                   <div className="flex flex-wrap items-center gap-1 ml-auto">
                     <button onClick={() => setActiveTag(null)}
-                      className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border transition-colors ${!activeTag ? 'bg-slate-700 border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'}`}>
+                      className={`px-2 py-0.5 rounded-full text-[11px] font-semibold border transition-colors ${!activeTag ? 'bg-slate-700 border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'}`}>
                       All
                     </button>
                     {presentTags.map(tag => {
@@ -946,7 +946,7 @@ export default function ContractsPanel({ projectId, initialFiles = [], onFileAdd
                       const count = files.filter(f => parseTags(f.tags).includes(tag)).length;
                       return (
                         <button key={tag} onClick={() => setActiveTag(prev => prev === tag ? null : tag)}
-                          className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border transition-colors ${activeTag === tag ? 'bg-amber-500 border-amber-500 text-white' : `bg-white ${m.color} hover:opacity-80`}`}>
+                          className={`px-2 py-0.5 rounded-full text-[11px] font-semibold border transition-colors ${activeTag === tag ? 'bg-orange-500 border-orange-500 text-white' : `bg-white ${m.color} hover:opacity-80`}`}>
                           {m.label} {count}
                         </button>
                       );

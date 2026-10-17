@@ -1,8 +1,14 @@
 'use client';
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import TemplatesClient from './templates/TemplatesClient';
 import SectionTabs, { PROPOSAL_TABS } from '@/components/ui/SectionTabs';
+import { FilterToolbar, FilterPanel, countFilters } from '@/components/ui/FilterPanel';
+import SortHeader, { sortRows } from '@/components/ui/SortHeader';
+import StatTile from '@/components/ui/StatTile';
+import { WidgetLoading } from '@/components/ui/WidgetFrame';
+import { useUrlView } from '@/lib/useUrlView';
+import { CARD, MODAL, BTN_PRIMARY, BTN_SECONDARY, BTN_COMPACT, INPUT, LABEL, H1, TD } from '@/components/ui/tokens';
 import {
   STATUS_LABELS, TIME_WINDOWS, DEFAULT_TIME_WINDOW, withinWindow, distinctClients, proposalClientName,
 } from '@/lib/proposals/listFilters';
@@ -20,10 +26,10 @@ const PROPOSAL_TYPES = [
 // Labels come from src/lib/proposals/listFilters.js: Accepted reads "Won" and
 // Declined reads "Lost" on this screen (Mike 10-5). Keys are unchanged.
 const STATUS_META = {
-  DRAFT:    { label: STATUS_LABELS.DRAFT,    color: 'bg-amber-100 text-amber-700 border-amber-200' },
-  SENT:     { label: STATUS_LABELS.SENT,     color: 'bg-blue-100 text-blue-700 border-blue-200' },
-  ACCEPTED: { label: STATUS_LABELS.ACCEPTED, color: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
-  DECLINED: { label: STATUS_LABELS.DECLINED, color: 'bg-red-100 text-red-700 border-red-200' },
+  DRAFT:    { label: STATUS_LABELS.DRAFT,    color: 'bg-amber-50 text-amber-700 border-amber-200' },
+  SENT:     { label: STATUS_LABELS.SENT,     color: 'bg-slate-50 text-slate-700 border-slate-200' },
+  ACCEPTED: { label: STATUS_LABELS.ACCEPTED, color: 'bg-green-50 text-green-700 border-green-200' },
+  DECLINED: { label: STATUS_LABELS.DECLINED, color: 'bg-red-50 text-red-700 border-red-200' },
 };
 // Expired left the picker and the filter chips 2026-09-18 (Maram 9-17). A row
 // that was already Expired keeps its badge; it just cannot be chosen any more.
@@ -53,7 +59,7 @@ function fmtMoney(v) {
 function StatusBadge({ status }) {
   const m = STATUS_META[status] || LEGACY_STATUS_META[status] || STATUS_META.DRAFT;
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold border ${m.color}`}>
+    <span className={`inline-flex items-center px-2 py-0.5 rounded-lg text-xs font-semibold border ${m.color}`}>
       {m.label}
     </span>
   );
@@ -62,7 +68,7 @@ function StatusBadge({ status }) {
 function TypeBadge({ type }) {
   const labels = { FULL_DESIGN: 'Full Design', DESIGN_ASSIST: 'Design Assist', PEER_REVIEW: 'Peer Review', SCOPE_LETTER: 'Scope Letter' };
   return (
-    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-slate-100 text-slate-600 border border-slate-200">
+    <span className="inline-flex items-center px-2 py-0.5 rounded-lg text-xs font-semibold bg-slate-100 text-slate-600 border border-slate-200">
       {labels[type] || type}
     </span>
   );
@@ -101,10 +107,10 @@ function NewClientModal({ onClose, onCreated }) {
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden">
+      <div className={`${MODAL} w-full max-w-sm overflow-hidden`}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
           <h2 className="text-base font-bold text-slate-900">New Client</h2>
-          <button onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100">
+          <button onClick={onClose} className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-100">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -113,25 +119,25 @@ function NewClientModal({ onClose, onCreated }) {
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
           {err && <div className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{err}</div>}
           <div>
-            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Client Name *</label>
+            <label className={`block ${LABEL} mb-1`}>Client Name *</label>
             <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
               autoFocus placeholder="e.g., Greystar"
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-400" />
+              className={INPUT} />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Organization Type</label>
+            <label className={`block ${LABEL} mb-1`}>Organization Type</label>
             <select value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))}
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white">
+              className={INPUT}>
               {CLIENT_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
             </select>
           </div>
           <div className="flex gap-2 pt-1">
             <button type="button" onClick={onClose}
-              className="flex-1 px-4 py-2 rounded-lg text-sm font-medium border border-slate-200 text-slate-600 hover:bg-slate-50">
+              className={`flex-1 ${BTN_SECONDARY}`}>
               Cancel
             </button>
             <button type="submit" disabled={saving}
-              className="flex-1 px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white disabled:opacity-60">
+              className={`flex-1 ${BTN_PRIMARY}`}>
               {saving ? 'Creating…' : 'Create Client'}
             </button>
           </div>
@@ -208,8 +214,8 @@ function AddProjectModal({ onClose, onCreated }) {
     }
   }
 
-  const inputCls = 'w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-400 bg-white';
-  const labelCls = 'block text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-1';
+  const inputCls = INPUT;
+  const labelCls = `block ${LABEL} mb-1`;
 
   return (
     <>
@@ -217,10 +223,10 @@ function AddProjectModal({ onClose, onCreated }) {
         <NewClientModal onClose={() => setShowNewClient(false)} onCreated={handleClientCreated} />
       )}
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+        <div className={`${MODAL} w-full max-w-md`}>
           <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
             <h2 className="text-base font-bold text-slate-900">Add New Project</h2>
-            <button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-xl leading-none">×</button>
+            <button onClick={onClose} className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-100 text-xl leading-none">×</button>
           </div>
           <form onSubmit={submit} className="px-6 py-5 space-y-4">
             <div>
@@ -232,12 +238,12 @@ function AddProjectModal({ onClose, onCreated }) {
               <label className={labelCls}>Client</label>
               <div className="flex gap-2">
                 <select value={form.clientId} onChange={e => set('clientId', e.target.value)}
-                  className="flex-1 text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-400 text-slate-700 bg-white">
+                  className={`flex-1 ${INPUT}`}>
                   <option value="">No client assigned</option>
                   {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                 </select>
                 <button type="button" onClick={() => setShowNewClient(true)}
-                  className="px-3 py-2 rounded-lg border border-slate-200 text-xs text-slate-500 hover:bg-slate-50 transition-colors whitespace-nowrap">
+                  className={`${BTN_COMPACT} whitespace-nowrap`}>
                   + New
                 </button>
               </div>
@@ -252,10 +258,10 @@ function AddProjectModal({ onClose, onCreated }) {
               <div className="grid grid-cols-2 gap-2">
                 {PROPOSAL_TYPES.map(t => (
                   <button key={t.value} type="button" onClick={() => set('type', t.value)}
-                    className={`px-3 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                    className={`px-3 py-2 rounded-lg text-sm font-semibold border transition-colors ${
                       form.type === t.value
-                        ? 'bg-orange-500 text-white border-orange-500'
-                        : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                        ? 'bg-orange-50 border-orange-400 text-orange-700'
+                        : 'bg-white text-slate-600 border-slate-300 hover:bg-slate-50'
                     }`}>
                     {t.label}
                   </button>
@@ -278,18 +284,18 @@ function AddProjectModal({ onClose, onCreated }) {
               <input type="number" min="0" max="100" step="0.5"
                 value={form.adderPct} onChange={e => set('adderPct', e.target.value)}
                 className={inputCls} />
-              <p className="text-[11px] text-slate-400 mt-1">
+              <p className="text-xs text-slate-500 mt-1">
                 Markup added on top of labor cost. 10% on $100K labor = $110K fee.
               </p>
             </div>
             {err && <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{err}</p>}
             <div className="flex gap-3 pt-2">
               <button type="button" onClick={onClose}
-                className="flex-1 px-4 py-2 rounded-xl border border-slate-200 text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-colors">
+                className={`flex-1 ${BTN_SECONDARY}`}>
                 Cancel
               </button>
               <button type="submit" disabled={saving}
-                className="flex-1 px-4 py-2 rounded-xl bg-orange-500 text-white text-sm font-bold hover:bg-orange-600 transition-colors disabled:opacity-50">
+                className={`flex-1 ${BTN_PRIMARY}`}>
                 {saving ? 'Creating…' : 'Create Project'}
               </button>
             </div>
@@ -300,18 +306,32 @@ function AddProjectModal({ onClose, onCreated }) {
   );
 }
 
-// ── Proposals List ────────────────────────────────────────────────────────────
+/// ── Proposals List ────────────────────────────────────────────────────────────
+
+// Filters and sort live in the address (useUrlView). Time defaults to the last
+// 60 days (Mike 10-5) when the address carries nothing.
+const FILTER_FIELDS = [
+  { key: 'status', label: 'Status',      kind: 'pick' },
+  { key: 'type',   label: 'Type',        kind: 'pick' },
+  { key: 'time',   label: 'Time window', kind: 'pick' },
+  { key: 'client', label: 'Client',      kind: 'pick' },
+];
+const SORT_KEYS = ['title', 'client', 'type', 'status', 'fee', 'updated'];
+const VIEW_FIELDS = [...FILTER_FIELDS, ...SORT_KEYS.map(k => ({ key: k, kind: 'sort' }))];
+const SORT_DEFAULT = { key: '', dir: 'asc' };
 
 function ProposalsList() {
   const [proposals, setProposals] = useState([]);
   const [loading,   setLoading]   = useState(true);
   const [err,       setErr]       = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [typeFilter,   setTypeFilter]   = useState('all');
+  const { filters, setFilter, clearFilters, sort, toggleSort } = useUrlView({ fields: VIEW_FIELDS, sortDefault: SORT_DEFAULT });
+  const [open,    setOpen]    = useState(false);
+  const statusFilter = filters.status || 'all';
+  const typeFilter   = filters.type   || 'all';
   // Mike 10-5: the list opens on the last 60 days (sent date, else created
   // date) and can be narrowed to one client. Both are client-side, like the rest.
-  const [timeFilter,   setTimeFilter]   = useState(DEFAULT_TIME_WINDOW);
-  const [clientFilter, setClientFilter] = useState('');
+  const timeFilter   = filters.time   || DEFAULT_TIME_WINDOW;
+  const clientFilter = filters.client || '';
   const [showAdd,      setShowAdd]      = useState(false);
 
   const load = useCallback(async () => {
@@ -349,23 +369,29 @@ function ProposalsList() {
     return acc;
   }, {});
 
-  const activeChips = [
-    timeFilter !== 'all' && { key: 'time', label: window.label, clear: () => setTimeFilter('all') },
-    clientFilter && { key: 'client', label: clientFilter, clear: () => setClientFilter('') },
-    statusFilter !== 'all' && { key: 'status', label: STATUS_META[statusFilter]?.label || statusFilter, clear: () => setStatusFilter('all') },
-    typeFilter !== 'all' && { key: 'type', label: PROPOSAL_TYPES.find(t => t.value === typeFilter)?.label || typeFilter, clear: () => setTypeFilter('all') },
-  ].filter(Boolean);
+  const activeFee = p => (p.overrideActive && p.overrideFee != null) ? p.overrideFee : p.calculatedFee;
 
-  function clearFilters() {
-    setTimeFilter('all'); setClientFilter(''); setStatusFilter('all'); setTypeFilter('all');
-  }
+  const sorted = useMemo(() => sortRows(filtered, sort, {
+    title:   p => p.title || '',
+    client:  p => proposalClientName(p) || '',
+    type:    p => p.type || '',
+    status:  p => (STATUS_META[p.status] || LEGACY_STATUS_META[p.status])?.label || p.status || '',
+    fee:     p => activeFee(p) ?? null,
+    updated: p => p.updatedAt ? new Date(p.updatedAt).getTime() : null,
+  }), [filtered, sort]);
+
+  const choices = {
+    status: Object.entries(STATUS_META).map(([v, m]) => [v, m.label]),
+    type:   PROPOSAL_TYPES.map(t => [t.value, t.label]),
+    time:   TIME_WINDOWS.map(w => [w.key, w.label]),
+    client: clients,
+  };
+  const filterCount = countFilters(filters, FILTER_FIELDS);
 
   function handleCreated(proposal) {
     setShowAdd(false);
     setProposals(prev => [proposal, ...prev]);
   }
-
-  const activeFee = p => (p.overrideActive && p.overrideFee != null) ? p.overrideFee : p.calculatedFee;
 
   return (
     <div>
@@ -373,7 +399,7 @@ function ProposalsList() {
         <p className="text-xs text-slate-500">Design fee proposals and project contracts</p>
         <button
           onClick={() => setShowAdd(true)}
-          className="flex items-center gap-1.5 px-4 py-1.5 rounded-lg bg-orange-500 text-white text-sm font-bold hover:bg-orange-600 transition-colors"
+          className={BTN_PRIMARY}
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
@@ -386,138 +412,95 @@ function ProposalsList() {
 
       {/* Summary row */}
       {!loading && proposals.length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-5">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
           {Object.entries(STATUS_META).map(([status, meta]) => (
-            <button
+            <StatTile
               key={status}
-              onClick={() => setStatusFilter(s => s === status ? 'all' : status)}
-              className={`rounded-xl border p-3 text-left transition-colors ${
-                statusFilter === status ? 'border-slate-400 bg-white shadow-sm' : 'border-slate-200 bg-white hover:border-slate-300'
-              }`}
-            >
-              <div className="text-2xl font-bold text-slate-900">{statusCounts[status] || 0}</div>
-              <div className={`text-xs font-semibold mt-0.5 ${meta.color.split(' ').filter(c => c.startsWith('text-')).join(' ')}`}>
-                {meta.label}
-              </div>
-            </button>
+              label={meta.label}
+              value={statusCounts[status] || 0}
+              onClick={() => setFilter('status', statusFilter === status ? '' : status)}
+              className={statusFilter === status ? 'border-orange-400 bg-orange-50' : ''}
+            />
           ))}
         </div>
       )}
 
       {/* Filters */}
-      <div className="flex items-center gap-2 mb-4 flex-wrap">
-        <div className="flex gap-1 bg-slate-100 rounded-xl p-1">
-          {[['all', 'All'], ...Object.entries(STATUS_META).map(([v, m]) => [v, m.label])].map(([v, label]) => (
-            <button key={v} onClick={() => setStatusFilter(v)}
-              className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${
-                statusFilter === v ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-              }`}>
-              {label}
-            </button>
-          ))}
-        </div>
-        <div className="flex gap-1 bg-slate-100 rounded-xl p-1">
-          <button onClick={() => setTypeFilter('all')}
-            className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${typeFilter === 'all' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
-            All Types
-          </button>
-          {PROPOSAL_TYPES.map(t => (
-            <button key={t.value} onClick={() => setTypeFilter(v => v === t.value ? 'all' : t.value)}
-              className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${typeFilter === t.value ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
-              {t.label}
-            </button>
-          ))}
-        </div>
-        <select value={timeFilter} onChange={e => setTimeFilter(e.target.value)}
-          aria-label="Time window"
-          className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white text-slate-600 focus:outline-none focus:ring-2 focus:ring-orange-400">
-          {TIME_WINDOWS.map(w => <option key={w.key} value={w.key}>{w.label}</option>)}
-        </select>
-        <select value={clientFilter} onChange={e => setClientFilter(e.target.value)}
-          aria-label="Client"
-          className="text-xs border border-slate-200 rounded-lg px-2 py-1.5 bg-white text-slate-600 focus:outline-none focus:ring-2 focus:ring-orange-400">
-          <option value="">All clients</option>
-          {clients.map(c => <option key={c} value={c}>{c}</option>)}
-        </select>
+      <div className="mb-4">
+        <FilterToolbar
+          count={filterCount}
+          open={open}
+          onToggle={() => setOpen(o => !o)}
+          onClear={clearFilters}
+          shown={filtered.length}
+          total={proposals.length}
+          noun="proposals"
+        >
+          {filterCount === 0 && <span className="text-xs text-slate-500">{window.label}</span>}
+        </FilterToolbar>
+        <FilterPanel open={open} fields={FILTER_FIELDS} filters={{ ...filters, time: timeFilter }} choices={choices} onChange={setFilter} />
       </div>
-
-      {/* What is narrowing the list right now */}
-      {activeChips.length > 0 && (
-        <div className="flex items-center gap-2 mb-4 flex-wrap text-xs">
-          <span className="text-slate-400">Showing:</span>
-          {activeChips.map(c => (
-            <button key={c.key} type="button" onClick={c.clear} title="Remove this filter"
-              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 border border-slate-200 hover:bg-slate-200">
-              {c.label} <span className="text-slate-400">x</span>
-            </button>
-          ))}
-          <button type="button" onClick={clearFilters} className="text-slate-500 hover:text-slate-800 underline">Clear</button>
-        </div>
-      )}
 
       {/* Table */}
       {loading ? (
-        <div className="flex items-center justify-center py-20">
-          <div className="w-5 h-5 border-2 border-slate-200 border-t-orange-500 rounded-full animate-spin" />
-        </div>
+        <WidgetLoading />
       ) : filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-center">
-          <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mb-4 text-3xl">📄</div>
           <h3 className="font-semibold text-slate-700 mb-1">
             {proposals.length === 0 ? 'No proposals yet' : 'No proposals match your filters'}
           </h3>
-          <p className="text-sm text-slate-400 max-w-sm mb-5">
+          <p className="text-sm text-slate-500 max-w-sm mb-5">
             {proposals.length === 0 ? 'Click "Add Project" to create your first proposal.' : 'Try adjusting the filters above, or pick All time.'}
           </p>
           {proposals.length > 0 && (
-            <button onClick={clearFilters}
-              className="px-4 py-2 rounded-xl border border-slate-200 text-slate-600 text-sm font-semibold hover:bg-slate-50 transition-colors">
+            <button onClick={() => { clearFilters(); setFilter('time', 'all'); }}
+              className={BTN_SECONDARY}>
               Clear filters
             </button>
           )}
           {proposals.length === 0 && (
             <button onClick={() => setShowAdd(true)}
-              className="px-4 py-2 rounded-xl bg-orange-500 text-white text-sm font-bold hover:bg-orange-600 transition-colors">
+              className={BTN_PRIMARY}>
               Add Project
             </button>
           )}
         </div>
       ) : (
-        <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+        <div className={`${CARD} overflow-hidden`}>
           <table className="w-full">
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50">
-                <th className="text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wide px-4 py-3">Project / Proposal</th>
-                <th className="text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wide px-4 py-3">Client</th>
-                <th className="text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wide px-4 py-3">Type</th>
-                <th className="text-left text-[11px] font-semibold text-slate-400 uppercase tracking-wide px-4 py-3">Status</th>
-                <th className="text-right text-[11px] font-semibold text-slate-400 uppercase tracking-wide px-4 py-3">Fee</th>
-                <th className="text-right text-[11px] font-semibold text-slate-400 uppercase tracking-wide px-4 py-3">Updated</th>
+                <SortHeader field="title" label="Project / Proposal" sort={sort} onSort={toggleSort} />
+                <SortHeader field="client" label="Client" sort={sort} onSort={toggleSort} />
+                <SortHeader field="type" label="Type" sort={sort} onSort={toggleSort} />
+                <SortHeader field="status" label="Status" sort={sort} onSort={toggleSort} />
+                <SortHeader field="fee" label="Fee" sort={sort} onSort={toggleSort} align="right" />
+                <SortHeader field="updated" label="Updated" sort={sort} onSort={toggleSort} align="right" />
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-50">
-              {filtered.map(p => (
+            <tbody className="divide-y divide-slate-100">
+              {sorted.map(p => (
                 <tr key={p.id}
                   className="hover:bg-slate-50 transition-colors cursor-pointer"
-                  onClick={() => window.location.href = `/project/${p.projectId}?tab=proposal`}>
-                  <td className="px-4 py-3">
-                    <div className="font-semibold text-sm text-slate-800">{p.title}</div>
+                  onClick={() => globalThis.location.href = `/project/${p.projectId}?tab=proposal`}>
+                  <td className={TD}>
+                    <div className="font-semibold text-slate-800">{p.title}</div>
                     {p.project?.name && p.project.name !== p.title && (
-                      <div className="text-[11px] text-slate-400 mt-0.5">{p.project.name}</div>
+                      <div className="text-xs text-slate-500 mt-0.5">{p.project.name}</div>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-sm text-slate-600">{proposalClientName(p) || 'none'}</td>
-                  <td className="px-4 py-3"><TypeBadge type={p.type} /></td>
-                  <td className="px-4 py-3"><StatusBadge status={p.status} /></td>
-                  <td className="px-4 py-3 text-right">
-                    <span className={`text-sm font-semibold ${activeFee(p) > 0 ? 'text-slate-800' : 'text-slate-300'}`}>
+                  <td className={TD}>{proposalClientName(p) || 'none'}</td>
+                  <td className={TD}><TypeBadge type={p.type} /></td>
+                  <td className={TD}><StatusBadge status={p.status} /></td>
+                  <td className={`${TD} text-right tabular-nums`}>
+                    <span className={`font-semibold ${activeFee(p) > 0 ? 'text-slate-800' : 'text-slate-400'}`}>
                       {fmtMoney(activeFee(p))}
                     </span>
                     {p.overrideActive && (
-                      <span className="text-[10px] text-violet-500 ml-1" title="Override active">★</span>
+                      <span className="text-xs text-violet-500 ml-1" title="Override active">★</span>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-right text-[11px] text-slate-400">{fmtDate(p.updatedAt)}</td>
+                  <td className={`${TD} text-right text-xs text-slate-500 tabular-nums`}>{fmtDate(p.updatedAt)}</td>
                 </tr>
               ))}
             </tbody>
@@ -543,7 +526,7 @@ export default function ProposalsClient() {
       <div className="max-w-6xl mx-auto">
       {tab === 'proposals' && (
         <div className="flex items-center justify-between mb-4">
-          <h1 className="text-xl font-bold text-slate-900">Proposals</h1>
+          <h1 className={H1}>Proposals</h1>
         </div>
       )}
 

@@ -27,7 +27,7 @@ function Field({ label, children }) {
   );
 }
 
-const inputCls = 'w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent bg-white';
+const inputCls = 'w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent bg-white';
 
 export default function ShipmentDrawer({ projectId, shipment, onClose, onSaved }) {
   const isEdit = !!shipment;
@@ -230,7 +230,7 @@ export default function ShipmentDrawer({ projectId, shipment, onClose, onSaved }
 
         {/* Footer */}
         <div className="border-t border-slate-100 px-5 py-4 flex justify-end gap-2 bg-white">
-          <button onClick={onClose} className="px-4 py-2 rounded-lg border border-slate-200 text-slate-600 text-sm font-medium hover:bg-slate-50">
+          <button onClick={onClose} className="px-4 py-2 rounded-lg border border-slate-200 text-slate-600 text-sm font-semibold hover:bg-slate-50">
             {isEdit ? 'Done' : 'Cancel'}
           </button>
           <button onClick={save} disabled={saving} className="px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white disabled:opacity-60">

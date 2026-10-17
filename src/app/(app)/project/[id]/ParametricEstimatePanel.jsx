@@ -1,6 +1,8 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { formatCurrency } from '@/lib/calculations';
+import { WidgetLoading, WidgetError } from '@/components/ui/WidgetFrame';
+import { BTN_COMPACT, TH } from '@/components/ui/tokens';
 
 const TIER_ORDER  = ['LOW_COST', 'STANDARD', 'UPGRADE'];
 const TIER_LABELS = { LOW_COST: 'Low Cost', STANDARD: 'Standard', UPGRADE: 'Upgrade' };
@@ -12,7 +14,7 @@ const TIER_COLORS = {
 
 function TierPill({ tier }) {
   return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold ${TIER_COLORS[tier] || TIER_COLORS.STANDARD}`}>
+    <span className={`inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold ${TIER_COLORS[tier] || TIER_COLORS.STANDARD}`}>
       {TIER_LABELS[tier] || tier}
     </span>
   );
@@ -20,7 +22,7 @@ function TierPill({ tier }) {
 
 function CostCell({ value }) {
   if (value == null) return <span className="text-slate-300 text-xs italic">—</span>;
-  return <span>{formatCurrency(value, false)}</span>;
+  return <span className="tabular-nums">{formatCurrency(value, false)}</span>;
 }
 
 function TierSelect({ code, current, available, onChange }) {
@@ -30,7 +32,7 @@ function TierSelect({ code, current, available, onChange }) {
   if (tiers.length <= 1) return <TierPill tier={current} />;
   return (
     <select value={current} onChange={e => onChange(code, e.target.value)}
-      className="text-[11px] border border-slate-200 rounded px-1.5 py-0.5 bg-white text-slate-600 focus:outline-none focus:ring-1 focus:ring-amber-400 cursor-pointer">
+      className="text-[11px] border border-slate-200 rounded px-1.5 py-0.5 bg-white text-slate-600 focus:outline-none focus:ring-2 focus:ring-orange-500 cursor-pointer">
       {tiers.map(t => (
         <option key={t} value={t}>{TIER_LABELS[t] || t}</option>
       ))}
@@ -43,7 +45,7 @@ function SpecCell({ spec }) {
   return (
     <div className="min-w-0">
       <p className="text-xs text-slate-700 font-medium leading-tight truncate">{spec.description}</p>
-      <p className="text-[11px] text-slate-400 truncate">{spec.manufacturer} · {spec.base_catalog}</p>
+      <p className="text-[11px] text-slate-500 truncate">{spec.manufacturer} · {spec.base_catalog}</p>
     </div>
   );
 }
@@ -52,8 +54,8 @@ function SummaryRow({ label, value, className = '', bold = false }) {
   return (
     <div className={`flex items-center justify-between py-1.5 text-sm ${className}`}>
       <span className={bold ? 'font-semibold text-slate-800' : 'text-slate-500'}>{label}</span>
-      <span className={bold ? 'font-bold text-slate-900 text-base' : 'text-slate-700'}>
-        {value != null ? formatCurrency(value) : '—'}
+      <span className={`${bold ? 'font-bold text-slate-900 text-base' : 'text-slate-700'} tabular-nums`}>
+        {value != null ? formatCurrency(value) : '-'}
       </span>
     </div>
   );
@@ -108,21 +110,13 @@ export default function ParametricEstimatePanel({ projectId }) {
   // ── Empty state ────────────────────────────────────────────────────────────
   if (loading && !data) {
     return (
-      <div className="flex items-center justify-center py-20">
-        <div className="w-6 h-6 border-2 border-amber-400 border-t-transparent rounded-full animate-spin mr-3" />
-        <span className="text-sm text-slate-400">Loading budget...</span>
-      </div>
+      <WidgetLoading className="py-20">Loading budget...</WidgetLoading>
     );
   }
 
   if (error) {
     return (
-      <div className="flex items-center gap-3 py-10 text-sm text-red-500">
-        <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
-        </svg>
-        {error}
-      </div>
+      <WidgetError className="py-10">{error}</WidgetError>
     );
   }
 
@@ -131,16 +125,16 @@ export default function ParametricEstimatePanel({ projectId }) {
   if (!confirmedCount) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center">
-        <div className="w-16 h-16 rounded-2xl bg-amber-50 flex items-center justify-center mb-4">
+        <div className="w-16 h-16 rounded-xl bg-amber-50 flex items-center justify-center mb-4">
           <svg className="w-8 h-8 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M9.53 16.122a3 3 0 00-5.78 1.128 2.25 2.25 0 01-2.4 2.245 4.5 4.5 0 008.4-2.245c0-.399-.078-.78-.22-1.128zm0 0a15.998 15.998 0 003.388-1.62m-5.043-.025a15.994 15.994 0 011.622-3.395m3.42 3.42a15.995 15.995 0 004.764-4.648l3.876-5.814a1.151 1.151 0 00-1.597-1.597L14.146 6.32a15.996 15.996 0 00-4.649 4.763m3.42 3.42a6.776 6.776 0 00-3.42-3.42" />
           </svg>
         </div>
         <h3 className="font-semibold text-slate-700 mb-1">No confirmed fixtures yet</h3>
-        <p className="text-sm text-slate-400 max-w-sm">
+        <p className="text-sm text-slate-500 max-w-sm">
           {totalCount > 0
-            ? `${totalCount} fixture${totalCount !== 1 ? 's' : ''} placed but none confirmed. Open a drawing and confirm fixtures to generate an estimate.`
-            : 'Mark up a drawing and confirm fixtures to generate a bottom-up estimate from your ILC spec library.'}
+            ? `${totalCount} fixture${totalCount !== 1 ? 's' : ''} placed but none confirmed. Open a drawing and confirm fixtures to generate a budget.`
+            : 'Mark up a drawing and confirm fixtures to generate a bottom-up budget from your ILC spec library.'}
         </p>
       </div>
     );
@@ -166,7 +160,7 @@ export default function ParametricEstimatePanel({ projectId }) {
       <tbody>
         <tr>
           <td colSpan={7} className="px-4 pt-4 pb-1">
-            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">{label}</span>
+            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">{label}</span>
           </td>
         </tr>
         {items.map(li => (
@@ -194,7 +188,7 @@ export default function ParametricEstimatePanel({ projectId }) {
               {li.hasCost ? (
                 <span className="text-sm text-slate-700">{formatCurrency(li.unitCost)}</span>
               ) : (
-                <span className="text-xs text-orange-400 font-medium">No cost</span>
+                <span className="text-xs text-amber-600 font-medium">No cost</span>
               )}
             </td>
             {/* Line total */}
@@ -218,7 +212,7 @@ export default function ParametricEstimatePanel({ projectId }) {
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-semibold text-slate-800">Parametric Budget</h2>
-          <p className="text-sm text-slate-400 mt-0.5">
+          <p className="text-sm text-slate-500 mt-0.5">
             {confirmedCount} confirmed fixture{confirmedCount !== 1 ? 's' : ''} · bottom-up from ILC spec library
           </p>
         </div>
@@ -232,10 +226,10 @@ export default function ParametricEstimatePanel({ projectId }) {
             </span>
           )}
           {loading && (
-            <div className="w-4 h-4 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
+            <div className="w-4 h-4 border-2 border-orange-400 border-t-transparent rounded-full animate-spin" />
           )}
           <button onClick={() => fetchEstimate(tierPrefs)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 hover:bg-slate-50 text-xs text-slate-600 font-medium transition-colors">
+            className={BTN_COMPACT}>
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99" />
             </svg>
@@ -245,17 +239,17 @@ export default function ParametricEstimatePanel({ projectId }) {
       </div>
 
       {/* ── Line items table ── */}
-      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+      <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
         <table className="w-full">
           <thead>
             <tr className="border-b border-slate-200 bg-slate-50">
-              <th className="px-4 py-3 text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wider w-12">Type</th>
-              <th className="px-3 py-3 text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Family</th>
-              <th className="px-3 py-3 text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Spec</th>
-              <th className="px-3 py-3 text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Tier</th>
-              <th className="px-3 py-3 text-center text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Qty</th>
-              <th className="px-3 py-3 text-right text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Unit Cost</th>
-              <th className="px-4 py-3 text-right text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Total</th>
+              <th className={`${TH} text-left w-12`}>Type</th>
+              <th className={`${TH} text-left`}>Family</th>
+              <th className={`${TH} text-left`}>Spec</th>
+              <th className={`${TH} text-left`}>Tier</th>
+              <th className={`${TH} text-center`}>Qty</th>
+              <th className={`${TH} text-right`}>Unit Cost</th>
+              <th className={`${TH} text-right`}>Total</th>
             </tr>
           </thead>
           {renderGroup('Interior / Unit', unitItems)}
@@ -268,8 +262,8 @@ export default function ParametricEstimatePanel({ projectId }) {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
 
         {/* Totals card */}
-        <div className="bg-white border border-slate-200 rounded-2xl px-5 py-4 shadow-sm">
-          <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-3">Cost Summary</p>
+        <div className="bg-white border border-slate-200 rounded-xl px-5 py-4 shadow-sm">
+          <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-3">Cost Summary</p>
           <div className="divide-y divide-slate-100">
             <SummaryRow label="Fixture product subtotal" value={subtotal} />
             <SummaryRow label={`Freight (${Math.round((freightRate || 0) * 100)}%)`} value={freight} />
@@ -291,8 +285,8 @@ export default function ParametricEstimatePanel({ projectId }) {
         </div>
 
         {/* Apply to wizard */}
-        <div className="bg-white border border-slate-200 rounded-2xl px-5 py-4 shadow-sm">
-          <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-3">Sync to Wizard</p>
+        <div className="bg-white border border-slate-200 rounded-xl px-5 py-4 shadow-sm">
+          <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-3">Sync to Wizard</p>
           {Object.keys(wizardCounts || {}).length > 0 ? (
             <>
               <p className="text-xs text-slate-500 mb-3 leading-relaxed">
@@ -320,10 +314,10 @@ export default function ParametricEstimatePanel({ projectId }) {
             </>
           ) : (
             <div className="text-center py-4">
-              <p className="text-sm text-slate-400 leading-relaxed">
+              <p className="text-sm text-slate-500 leading-relaxed">
                 No fixture types map directly to wizard fields yet.
               </p>
-              <p className="text-xs text-slate-300 mt-1">
+              <p className="text-xs text-slate-500 mt-1">
                 Fans (F) and vanities (V) will appear here once confirmed.
               </p>
             </div>

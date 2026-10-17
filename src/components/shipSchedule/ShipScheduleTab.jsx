@@ -27,7 +27,7 @@ const STATUS_COLORS = {
   PARTIALLY_RELEASED:  'bg-orange-50 text-orange-700',
   RELEASED:            'bg-teal-50   text-teal-700',
   DELIVERED:           'bg-green-50  text-green-700',
-  UNDER_REVIEW:        'bg-yellow-50 text-yellow-700',
+  UNDER_REVIEW:        'bg-amber-50 text-amber-700',
   REMOVED:             'bg-slate-50  text-slate-400',
 };
 
@@ -67,7 +67,7 @@ function ReleaseModal({ item, projectId, onReleased, onClose }) {
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
           <div>
             <h2 className="font-semibold text-slate-800">Release from Warehouse</h2>
-            <p className="text-xs text-slate-400 mt-0.5">{item.fixtureType} — {item.description}</p>
+            <p className="text-xs text-slate-400 mt-0.5">{item.fixtureType}, {item.description}</p>
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -77,24 +77,24 @@ function ReleaseModal({ item, projectId, onReleased, onClose }) {
         </div>
         <div className="px-6 py-5 space-y-4">
           <div className="grid grid-cols-2 gap-3 text-xs text-slate-500 bg-slate-50 rounded-xl p-3">
-            <div><p className="font-semibold text-slate-400 uppercase tracking-wide text-[10px]">Ordered</p><p className="text-base font-bold text-slate-800">{item.qty}</p></div>
-            <div><p className="font-semibold text-slate-400 uppercase tracking-wide text-[10px]">Released so far</p><p className={`text-base font-bold ${totalReleased >= item.qty ? 'text-green-700' : 'text-slate-800'}`}>{totalReleased}</p></div>
+            <div><p className="font-semibold text-slate-500 uppercase tracking-wide text-[11px]">Ordered</p><p className="text-base font-bold text-slate-800">{item.qty}</p></div>
+            <div><p className="font-semibold text-slate-500 uppercase tracking-wide text-[11px]">Released so far</p><p className={`text-base font-bold ${totalReleased >= item.qty ? 'text-green-700' : 'text-slate-800'}`}>{totalReleased}</p></div>
           </div>
           <div>
             <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Qty to Release *</label>
             <input autoFocus type="number" min="1" value={qty} onChange={e => setQty(e.target.value)}
               placeholder={`Max ${item.qty - totalReleased} remaining`}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500" />
           </div>
           <div>
             <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Notes (optional)</label>
             <input type="text" value={notes} onChange={e => setNotes(e.target.value)} placeholder="e.g. Building A, Floors 1-3"
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500" />
           </div>
           {err && <p className="text-xs text-red-600">{err}</p>}
           {history.length > 0 && (
             <div className="border-t border-slate-100 pt-3">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-2">Release history</p>
+              <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-2">Release history</p>
               <div className="space-y-1 max-h-28 overflow-y-auto">
                 {history.map(r => (
                   <div key={r.id} className="flex items-center gap-2 text-[11px] text-slate-500">
@@ -111,7 +111,7 @@ function ReleaseModal({ item, projectId, onReleased, onClose }) {
           <div className="flex gap-2 pt-1">
             <button onClick={onClose} className="flex-1 px-4 py-2 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-slate-50">Cancel</button>
             <button onClick={release} disabled={saving}
-              className="flex-1 px-4 py-2 rounded-lg bg-amber-500 text-white text-sm font-semibold hover:bg-amber-400 disabled:opacity-60 transition-colors">
+              className="flex-1 px-4 py-2 rounded-lg bg-orange-500 text-white text-sm font-semibold hover:bg-amber-400 disabled:opacity-60 transition-colors">
               {saving ? 'Releasing…' : 'Release'}
             </button>
           </div>
@@ -151,7 +151,7 @@ function LogDeliveryModal({ projectId, lineItemId, item, onLogged, onClose }) {
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
           <div>
             <h3 className="font-semibold text-slate-900">Log Delivery to Warehouse</h3>
-            {item && <p className="text-xs text-slate-400 mt-0.5 font-mono">{item.fixtureType} — {item.description}</p>}
+            {item && <p className="text-xs text-slate-400 mt-0.5 font-mono">{item.fixtureType}, {item.description}</p>}
           </div>
           <button onClick={onClose} className="w-7 h-7 rounded-lg hover:bg-slate-100 flex items-center justify-center text-slate-400">✕</button>
         </div>
@@ -160,34 +160,34 @@ function LogDeliveryModal({ projectId, lineItemId, item, onLogged, onClose }) {
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1">Delivery Date *</label>
               <input type="date" value={form.deliveryDate} onChange={e => set('deliveryDate', e.target.value)} required
-                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500" />
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1">Qty Received *</label>
               <input type="number" min="1" value={form.qtyReceived} onChange={e => set('qtyReceived', e.target.value)} required
                 placeholder="0"
-                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500" />
             </div>
           </div>
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1">Carrier</label>
             <input value={form.carrier} onChange={e => set('carrier', e.target.value)} placeholder="AAA Cooper, FedEx, UPS…"
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500" />
           </div>
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1">Tracking #</label>
             <input value={form.trackingNumber} onChange={e => set('trackingNumber', e.target.value)} placeholder="Optional"
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-amber-400" />
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-orange-500" />
           </div>
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1">Notes</label>
             <input value={form.notes} onChange={e => set('notes', e.target.value)} placeholder="Condition, partial delivery note, etc."
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500" />
           </div>
           {error && <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>}
           <div className="flex gap-3 pt-1">
             <button type="button" onClick={onClose} className="flex-1 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50">Cancel</button>
-            <button type="submit" disabled={saving} className="flex-1 py-2 bg-blue-600 text-white font-semibold rounded-lg text-sm hover:bg-blue-700 disabled:opacity-60">
+            <button type="submit" disabled={saving} className="flex-1 py-2 bg-orange-500 text-white font-semibold rounded-lg text-sm hover:bg-orange-600 disabled:opacity-60">
               {saving ? 'Logging…' : 'Log Delivery'}
             </button>
           </div>
@@ -219,17 +219,17 @@ function PushBanner({ projectId, onPushed }) {
       <div className="flex-1 min-w-0">
         {result ? (
           <p className="text-green-700 font-medium">
-            ✓ Pushed — {result.added} added, {result.updated} updated, {result.removed} removed from <em>{result.batchLabel}</em>
+            ✓ Pushed, {result.added} added, {result.updated} updated, {result.removed} removed from <em>{result.batchLabel}</em>
           </p>
         ) : err ? (
           <p className="text-red-600">{err}</p>
         ) : (
-          <p className="text-slate-600">Populate from the latest budget — adds new types, updates changed, greys out removed.</p>
+          <p className="text-slate-600">Populate from the latest budget, adds new types, updates changed, greys out removed.</p>
         )}
       </div>
       {!result && (
         <button onClick={push} disabled={pushing}
-          className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 text-white text-xs font-semibold hover:bg-slate-700 disabled:opacity-50 transition-colors">
+          className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-500 text-white text-xs font-semibold hover:bg-orange-600 disabled:opacity-50 transition-colors">
           {pushing ? (
             <><svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
@@ -325,19 +325,19 @@ function EmailShipModal({ projectId, onClose }) {
                 <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">To *</label>
                 <input value={to} onChange={e => setTo(e.target.value)}
                   placeholder="contractor@firm.com, pm@firm.com"
-                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500" />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Message (optional)</label>
                 <textarea value={msg} onChange={e => setMsg(e.target.value)} rows={3}
                   placeholder="Optional note to include in the email…"
-                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400 resize-none" />
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 resize-none" />
               </div>
               {err && <p className="text-xs text-red-600">{err}</p>}
               <div className="flex gap-2 pt-1">
                 <button onClick={onClose} className="flex-1 px-4 py-2 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-slate-50">Cancel</button>
                 <button onClick={send} disabled={sending}
-                  className="flex-1 px-4 py-2 rounded-lg bg-slate-800 text-white text-sm font-semibold hover:bg-slate-700 disabled:opacity-60 transition-colors">
+                  className="flex-1 px-4 py-2 rounded-lg bg-orange-500 text-white text-sm font-semibold hover:bg-orange-600 disabled:opacity-60 transition-colors">
                   {sending ? 'Sending…' : 'Send Ship Schedule'}
                 </button>
               </div>
@@ -617,7 +617,7 @@ export default function ShipScheduleTab({ projectId }) {
                   defaultValue={item[col.key] ? item[col.key].split('T')[0] : ''}
                   disabled={isRemoved}
                   onBlur={e => patchItem(item.id, { esdDate: e.target.value || null })}
-                  className="text-xs border-b border-transparent hover:border-slate-200 focus:border-blue-400 bg-transparent outline-none w-24"
+                  className="text-xs border-b border-transparent hover:border-slate-200 focus:border-orange-500 bg-transparent outline-none w-24"
                 />
               </td>
             );
@@ -644,10 +644,10 @@ export default function ShipScheduleTab({ projectId }) {
               {/* Deliveries to warehouse */}
               <div>
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Deliveries to Warehouse</span>
+                  <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Deliveries to Warehouse</span>
                   <button
                     onClick={() => setLogDeliveryFor(item.id)}
-                    className="text-[10px] font-semibold text-blue-600 hover:text-blue-700 border border-dashed border-blue-300 px-2 py-0.5 rounded"
+                    className="text-[11px] font-semibold text-blue-600 hover:text-orange-600 border border-dashed border-blue-300 px-2 py-0.5 rounded"
                   >
                     + Log Delivery
                   </button>
@@ -683,7 +683,7 @@ export default function ShipScheduleTab({ projectId }) {
 
               {/* Releases to site */}
               <div>
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-2">Releases to Site</span>
+                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wide block mb-2">Releases to Site</span>
                 {(item.releases || []).length === 0 ? (
                   <p className="text-slate-400 italic text-[11px]">No releases yet</p>
                 ) : (
@@ -793,14 +793,14 @@ export default function ShipScheduleTab({ projectId }) {
             </button>
           )}
           <button onClick={() => setShowPush(v => !v)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${showPush ? 'bg-slate-800 text-white border-slate-800' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${showPush ? 'bg-orange-50 text-orange-700 border-orange-400' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 10.5L12 3m0 0l7.5 7.5M12 3v18" />
             </svg>
             Push from Budget
           </button>
           <button onClick={addRow}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-500 text-white text-xs font-semibold hover:bg-amber-400 transition-colors">
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-500 text-white text-xs font-semibold hover:bg-amber-400 transition-colors">
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
             </svg>
@@ -814,7 +814,7 @@ export default function ShipScheduleTab({ projectId }) {
 
       {/* Pending warehouse release approvals banner */}
       {pendingReleases.length > 0 && (
-        <div className="border border-amber-400 bg-amber-50 rounded-xl px-4 py-3 space-y-2">
+        <div className="border border-orange-400 bg-amber-50 rounded-xl px-4 py-3 space-y-2">
           <div className="flex items-center gap-2 mb-1">
             <svg className="w-4 h-4 text-amber-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
@@ -832,7 +832,7 @@ export default function ShipScheduleTab({ projectId }) {
               <button
                 onClick={() => approveRelease(rel.id, rel.qty)}
                 disabled={approvingId === rel.id}
-                className="px-3 py-1 rounded-lg bg-green-600 text-white font-semibold hover:bg-green-700 disabled:opacity-50 transition-colors"
+                className="px-3 py-1 rounded-lg bg-orange-500 text-white font-semibold hover:bg-orange-600 disabled:opacity-50 transition-colors"
               >
                 ✓ Approve
               </button>
@@ -869,7 +869,7 @@ export default function ShipScheduleTab({ projectId }) {
           Loading ship schedule…
         </div>
       ) : items.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 text-center bg-white rounded-2xl border border-dashed border-slate-200">
+        <div className="flex flex-col items-center justify-center py-20 text-center bg-white rounded-xl border border-dashed border-slate-200">
           <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center mb-3">
             <svg className="w-6 h-6 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 00-3.213-9.193 2.056 2.056 0 00-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 00-10.026 0 1.106 1.106 0 00-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" />
@@ -883,13 +883,13 @@ export default function ShipScheduleTab({ projectId }) {
               Push from Budget
             </button>
             <button onClick={addRow}
-              className="px-4 py-2 rounded-lg bg-amber-500 text-white text-xs font-semibold hover:bg-amber-400">
+              className="px-4 py-2 rounded-lg bg-orange-500 text-white text-xs font-semibold hover:bg-amber-400">
               + Add Row
             </button>
           </div>
         </div>
       ) : (
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-x-auto">
+        <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-x-auto">
           <table className="w-full text-xs border-collapse">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200">
@@ -899,11 +899,11 @@ export default function ShipScheduleTab({ projectId }) {
                   return (
                     <th key={col.key}
                       onClick={() => toggleSort(col.key)}
-                      className={`${col.w} px-2 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wider whitespace-nowrap cursor-pointer select-none transition-colors ${isActive ? 'text-blue-600 bg-blue-50/60' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100/60'}`}
+                      className={`${col.w} px-2 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide whitespace-nowrap cursor-pointer select-none transition-colors ${isActive ? 'text-blue-600 bg-blue-50/60' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-100/60'}`}
                     >
                       <span className="flex items-center gap-1">
                         {col.label}
-                        <span className={`text-[10px] ${isActive ? 'text-blue-500' : 'text-slate-300'}`}>
+                        <span className={`text-[11px] ${isActive ? 'text-blue-500' : 'text-slate-300'}`}>
                           {isActive ? (sortDir === 'asc' ? '↑' : '↓') : '⇅'}
                         </span>
                       </span>
@@ -918,7 +918,7 @@ export default function ShipScheduleTab({ projectId }) {
                 <>
                   <tr>
                     <td colSpan={COLS.length + 1} className="px-4 py-2 border-t border-dashed border-slate-200 bg-slate-50/50">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Removed from bid ({removedItems.length})</span>
+                      <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Removed from bid ({removedItems.length})</span>
                     </td>
                   </tr>
                   {removedItems.map(item => renderRow(item, true))}
@@ -926,9 +926,9 @@ export default function ShipScheduleTab({ projectId }) {
               )}
             </tbody>
           </table>
-          <div className="px-4 py-2 border-t border-slate-100 text-[10px] text-slate-400 flex items-center gap-3">
+          <div className="px-4 py-2 border-t border-slate-100 text-[11px] text-slate-400 flex items-center gap-3">
             <span>Click any cell to edit · Hover any row for the Release button</span>
-            <button onClick={addRow} className="ml-auto text-amber-600 hover:text-amber-700 font-semibold transition-colors">
+            <button onClick={addRow} className="ml-auto text-orange-600 hover:text-orange-700 font-semibold transition-colors">
               + Add row
             </button>
           </div>

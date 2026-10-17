@@ -54,12 +54,12 @@ export default function ExitSignsSection({ responses, projectData, allSections, 
 
       {/* Scope summary */}
       <div className="bg-slate-50 rounded-xl border border-slate-200 p-4">
-        <div className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Estimated Scope</div>
+        <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Scope</div>
         <div className="grid grid-cols-3 gap-4 text-center">
           {[
             { label: 'Gross SF',          value: grossSf > 0 ? grossSf.toLocaleString() : '—' },
-            { label: 'Est. Exit Signs',   value: signCount || '—' },
-            { label: 'Est. Cost',         value: signTotal > 0 ? formatCurrency(signTotal) : '—' },
+            { label: 'Exit Signs',        value: signCount || '—' },
+            { label: 'Budget',           value: signTotal > 0 ? formatCurrency(signTotal) : '—' },
           ].map(item => (
             <div key={item.label} className="bg-white rounded-lg border border-slate-100 p-3">
               <div className="text-xl font-bold text-slate-900">{item.value}</div>
@@ -81,19 +81,19 @@ export default function ExitSignsSection({ responses, projectData, allSections, 
           {
             value: 'thermoplastic',
             label: 'Thermoplastic',
-            sub:   `~$${SIGN_RATES.thermoplastic} ea — code-compliant, bulkier housing; use throughout`,
+            sub:   `~$${SIGN_RATES.thermoplastic} ea, code-compliant, bulkier housing; use throughout`,
             cost:  signCount * SIGN_RATES.thermoplastic,
           },
           {
             value: 'mixed',
-            label: 'Mixed — Edge-lit FOH + Thermoplastic BOH/Garage',
-            sub:   `~$${SIGN_RATES.mixed} ea blended avg — design-forward in lobbies/corridors, code-min in BOH`,
+            label: 'Mixed, Edge-lit FOH + Thermoplastic BOH/Garage',
+            sub:   `~$${SIGN_RATES.mixed} ea blended avg, design-forward in lobbies/corridors, code-min in BOH`,
             cost:  signCount * SIGN_RATES.mixed,
           },
           {
             value: 'edgelit',
             label: 'Edge-lit everywhere',
-            sub:   `~$${SIGN_RATES.edgelit} ea — cleanest appearance throughout; highest cost`,
+            sub:   `~$${SIGN_RATES.edgelit} ea, cleanest appearance throughout; highest cost`,
             cost:  signCount * SIGN_RATES.edgelit,
           },
         ]}

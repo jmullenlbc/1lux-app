@@ -4,7 +4,7 @@ import { requireAuth } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import CodeSearchClient from './CodeSearchClient';
 
-export const metadata = { title: 'Code Search — ILC Studios' };
+export const metadata = { title: 'Code Search: ILC Studios' };
 
 export default async function CodeSearchPage() {
   const { user, error } = await requireAuth();

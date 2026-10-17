@@ -71,23 +71,23 @@ export default function TemplateTextarea({ value, onChange, rows = 5, placeholde
           {filtered.map((t, i) => (
             <button key={t.token} type="button"
               onMouseDown={e => { e.preventDefault(); insertToken(t.token, menu.start); }}
-              className={`w-full text-left px-3 py-1.5 ${i === active ? 'bg-amber-50' : ''} hover:bg-amber-50`}>
-              <span className="font-mono text-xs text-amber-700">{`{{${t.token}}}`}</span>
+              className={`w-full text-left px-3 py-1.5 ${i === active ? 'bg-orange-50' : ''} hover:bg-orange-50`}>
+              <span className="font-mono text-xs text-orange-700">{`{{${t.token}}}`}</span>
               <span className="block text-[11px] text-slate-500">{t.label} · e.g. {t.sample}</span>
             </button>
           ))}
         </div>
       )}
       <div className="mt-1.5 flex flex-wrap items-center gap-1">
-        <span className="text-[11px] text-slate-400">Insert:</span>
+        <span className="text-[11px] text-slate-500">Insert:</span>
         {tokens.map(t => (
           <button key={t.token} type="button" title={t.label}
             onClick={() => insertToken(t.token)}
-            className="text-[11px] font-mono px-1.5 py-0.5 rounded bg-slate-100 text-slate-600 hover:bg-amber-50 hover:text-amber-700 border border-slate-200">
+            className="text-[11px] font-mono px-1.5 py-0.5 rounded-lg bg-slate-100 text-slate-600 hover:bg-orange-50 hover:text-orange-700 border border-slate-200">
             {`{{${t.token}}}`}
           </button>
         ))}
-        <span className="text-[11px] text-slate-400">— or type <span className="font-mono">{'{'}</span></span>
+        <span className="text-[11px] text-slate-500">— or type <span className="font-mono">{'{'}</span></span>
       </div>
     </div>
   );

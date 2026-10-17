@@ -22,6 +22,7 @@ import {
 import { PROJECT_TEAM_ROLES } from '@/lib/projectTeam';
 import { PROJECT_TYPES, projectTypeLabel, serviceTypeOptions, serviceTypeLabel, BUILDING_TYPES, buildingTypeLabel } from '@/lib/utils';
 import { useBuyoutDays } from '@/lib/useBuyoutDays';
+import { LABEL, INPUT } from '@/components/ui/tokens';
 
 const PROJECT_TYPE_OPTIONS = [{ value: '', label: '— Select —' }, ...PROJECT_TYPES];
 // Mike 9-19: the subtype is the fixed building-type list the app already has (Garden, Wrap, Podium …).
@@ -71,7 +72,7 @@ function Field({ label, displayValue, rawValue, onSave, select, options = [], ty
 
   return (
     <div className="py-2 flex items-baseline gap-3">
-      <p className="w-40 shrink-0 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">{label}</p>
+      <p className={`w-40 shrink-0 ${LABEL}`}>{label}</p>
       <div className="flex-1 min-w-0">
         {readOnly ? (
           <p className={`text-sm font-semibold ${shown ? (accent || 'text-slate-800') : 'text-slate-300'}`}>{shown ?? '—'}</p>
@@ -82,7 +83,7 @@ function Field({ label, displayValue, rawValue, onSave, select, options = [], ty
               value={value}
               onChange={e => { setValue(e.target.value); commit(e.target.value); }}
               onBlur={() => setEditing(false)}
-              className="w-full px-2 py-1 text-sm border border-amber-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400"
+              className={`${INPUT} px-2 py-1`}
             >
               {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
@@ -97,18 +98,18 @@ function Field({ label, displayValue, rawValue, onSave, select, options = [], ty
                 if (e.key === 'Enter') commit(value);
                 if (e.key === 'Escape') { setValue(rawValue ?? ''); setEditing(false); }
               }}
-              className="w-full px-2 py-1 text-sm border border-amber-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400"
+              className={`${INPUT} px-2 py-1`}
             />
           )
         ) : (
           <button
             type="button"
             onClick={() => setEditing(true)}
-            className={`text-left w-full text-sm font-semibold rounded px-1 -mx-1 hover:bg-amber-50 transition-colors ${
+            className={`text-left w-full text-sm font-semibold rounded px-1 -mx-1 hover:bg-orange-50 transition-colors ${
               shown ? (accent || 'text-slate-800') : 'text-slate-300'
             }`}
           >
-            {saving ? <span className="text-amber-500">Saving…</span> : (shown ?? '—')}
+            {saving ? <span className="text-slate-500">Saving...</span> : (shown ?? '—')}
           </button>
         )}
       </div>
@@ -169,33 +170,33 @@ function LeadPersonField({ project, onError }) {
 
   return (
     <div className="py-2 flex items-baseline gap-3">
-      <p className="w-40 shrink-0 text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Lead Person</p>
+      <p className={`w-40 shrink-0 ${LABEL}`}>Lead Person</p>
       <div className="flex-1 min-w-0">
         {!open ? (
           <button type="button" onClick={() => setOpen(true)}
-            className={`text-left w-full text-sm font-semibold rounded px-1 -mx-1 hover:bg-amber-50 transition-colors ${lead ? 'text-slate-800' : 'text-slate-300'}`}>
+            className={`text-left w-full text-sm font-semibold rounded px-1 -mx-1 hover:bg-orange-50 transition-colors ${lead ? 'text-slate-800' : 'text-slate-300'}`}>
             {links === null ? <span className="text-slate-300">…</span> : lead ? (
               <>{contactName(lead)}{lead.title && <span className="font-normal text-slate-400"> · {lead.title}</span>}</>
             ) : '— none yet —'}
           </button>
         ) : (
-          <div className="border border-amber-300 rounded-lg p-2">
+          <div className="border border-orange-400 rounded-lg p-2">
             <input autoFocus value={q} onChange={e => setQ(e.target.value)} placeholder="Search people…"
               onKeyDown={e => { if (e.key === 'Escape') { setOpen(false); setQ(''); } }}
-              className="w-full px-2 py-1 text-sm border border-slate-200 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-400" />
+              className={`${INPUT} px-2 py-1`} />
             <div className="mt-1 max-h-40 overflow-y-auto">
               {others.length > 0 && !q.trim() && (
-                <p className="px-2 pt-1 text-[10px] uppercase tracking-wider text-slate-300">Already on this project</p>
+                <p className={`px-2 pt-1 ${LABEL}`}>Already on this project</p>
               )}
               {!q.trim() && others.map(l => (
                 <button key={l.contact.id} type="button" disabled={busy} onClick={() => makeLead(l.contact.id)}
-                  className="block w-full text-left px-2 py-1 text-sm rounded hover:bg-amber-50 text-slate-700">
+                  className="block w-full text-left px-2 py-1 text-sm rounded hover:bg-orange-50 text-slate-700">
                   {contactName(l.contact)}{l.contact.title && <span className="text-slate-400"> · {l.contact.title}</span>}
                 </button>
               ))}
               {found.filter(c => !links?.some(l => l.contact.id === c.id)).map(c => (
                 <button key={c.id} type="button" disabled={busy} onClick={() => makeLead(c.id)}
-                  className="block w-full text-left px-2 py-1 text-sm rounded hover:bg-amber-50 text-slate-700">
+                  className="block w-full text-left px-2 py-1 text-sm rounded hover:bg-orange-50 text-slate-700">
                   {contactName(c)}
                   {(c.title || c.client?.name || c.company) && <span className="text-slate-400"> · {[c.title, c.client?.name || c.company].filter(Boolean).join(', ')}</span>}
                 </button>
@@ -205,8 +206,8 @@ function LeadPersonField({ project, onError }) {
               )}
             </div>
             <div className="mt-1 flex items-center justify-between">
-              <Link href="/crm/contacts" className="text-[11px] text-amber-600 hover:text-amber-700 font-semibold">+ Add a new person</Link>
-              <button type="button" onClick={() => { setOpen(false); setQ(''); }} className="text-[11px] text-slate-400 hover:text-slate-600">Cancel</button>
+              <Link href="/crm/contacts" className="text-[11px] text-orange-600 hover:text-orange-700 font-semibold">+ Add a new person</Link>
+              <button type="button" onClick={() => { setOpen(false); setQ(''); }} className="text-[11px] text-slate-500 hover:text-slate-700">Cancel</button>
             </div>
           </div>
         )}
@@ -217,7 +218,7 @@ function LeadPersonField({ project, onError }) {
 
 function Rule({ label }) {
   return (
-    <p className="mt-4 mb-1 pt-3 border-t border-slate-100 text-[10px] font-bold text-slate-300 uppercase tracking-wider">
+    <p className={`mt-4 mb-1 pt-3 border-t border-slate-100 ${LABEL}`}>
       {label}
     </p>
   );
@@ -319,7 +320,7 @@ export default function PipelineSidePanel({ project, onClose, onUpdate }) {
                 </span>
               )}
               <h2 className="text-lg font-bold text-slate-900 truncate">{project.name}</h2>
-              <p className="text-xs text-slate-400 truncate">
+              <p className="text-xs text-slate-500 truncate">
                 {[project.client?.name, [project.city, project.state].filter(Boolean).join(', ')].filter(Boolean).join(' · ') || 'No client yet'}
               </p>
             </div>
@@ -327,7 +328,7 @@ export default function PipelineSidePanel({ project, onClose, onUpdate }) {
               type="button"
               onClick={onClose}
               aria-label="Close"
-              className="shrink-0 p-1.5 rounded-lg text-slate-300 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+              className="shrink-0 p-1.5 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -338,12 +339,12 @@ export default function PipelineSidePanel({ project, onClose, onUpdate }) {
           <div className="mt-3 flex items-center gap-2">
             <Link
               href={`/project/${project.id}`}
-              className="text-xs font-semibold text-amber-600 hover:text-amber-700"
+              className="text-xs font-semibold text-orange-600 hover:text-orange-700"
             >
               Open full project →
             </Link>
             {outOfSync && (
-              <span className="text-[10px] font-semibold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full" title="Procurement and Design stages differ">
+              <span className="text-[11px] font-semibold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full" title="Procurement and Design stages differ">
                 ⚠ stages differ
               </span>
             )}
@@ -423,7 +424,7 @@ export default function PipelineSidePanel({ project, onClose, onUpdate }) {
             </>
           )}
 
-          <p className="mt-5 mb-2 text-[10px] text-slate-400 leading-relaxed">
+          <p className="mt-5 mb-2 text-[11px] text-slate-500 leading-relaxed">
             Everything here saves as soon as you leave the field. The board behind
             this panel updates with it.
           </p>

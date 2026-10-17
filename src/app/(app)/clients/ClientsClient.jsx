@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
@@ -10,6 +10,30 @@ import {
 import { clientDealCounts, parseList } from '@/lib/crmClient';
 import MultiSelect from '@/components/ui/MultiSelect';
 import ConfirmArchiveModal from '@/components/salesAutomation/ConfirmArchiveModal';
+import StatTile from '@/components/ui/StatTile';
+import { FilterToolbar, FilterPanel, SearchBox, countFilters } from '@/components/ui/FilterPanel';
+import { SortSelect, sortRows } from '@/components/ui/SortHeader';
+import { useUrlView } from '@/lib/useUrlView';
+import { CARD_PADDED, MODAL, BTN_PRIMARY, BTN_SECONDARY, H1, LABEL, INPUT, HELPER, NUM } from '@/components/ui/tokens';
+
+const FILTER_FIELDS = [
+  { key: 'tag', label: 'Tag', kind: 'pick' },
+];
+const VIEW_FIELDS = [...FILTER_FIELDS, { key: 'q', kind: 'text' }];
+const SORT_FIELDS = [
+  { key: 'name',     label: 'Name' },
+  { key: 'city',     label: 'City' },
+  { key: 'open',     label: 'Open projects' },
+  { key: 'projects', label: 'Projects' },
+  { key: 'people',   label: 'People' },
+];
+const SORT_GETTERS = {
+  name:     c => c.name,
+  city:     c => c.city,
+  open:     c => clientDealCounts(c.projects).open,
+  projects: c => c._count?.projects || 0,
+  people:   c => c._count?.contacts || 0,
+};
 
 function ClientTypeTag({ type }) {
   if (!type) return null;
@@ -47,7 +71,7 @@ function clientTypeKeys(client) {
 function ClientModal({ client, onClose, onSave }) {
   const [form, setForm] = useState({
     name:         client?.name         || '',
-    // Client Type is a multi-select now — a builder can be a developer AND a
+    // Client Type is a multi-select now, a builder can be a developer AND a
     // self-performing GC. `type` is still derived from the first tick server-side.
     orgTypes:     parseList(client?.orgTypes),
     locationType: client?.locationType || 'standalone',
@@ -86,7 +110,7 @@ function ClientModal({ client, onClose, onSave }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden">
+      <div className={`${MODAL} w-full max-w-lg overflow-hidden`}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
           <h2 className="text-base font-bold text-slate-900">{client ? 'Edit Client' : 'New Client'}</h2>
           <button onClick={onClose} className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors">
@@ -100,14 +124,14 @@ function ClientModal({ client, onClose, onSave }) {
           {err && <div className="text-sm text-red-600 bg-red-50 rounded-lg px-3 py-2">{err}</div>}
 
           <div>
-            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">
+            <label className={`block ${LABEL} mb-1`}>
               Client Name <span className="text-red-400">*</span>
             </label>
             <input
               value={form.name}
               onChange={e => set('name', e.target.value)}
-              placeholder="Greystar, Ryan Companies, HKS Architects…"
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
+              placeholder="Greystar, Ryan Companies, HKS Architects..."
+              className={INPUT}
               autoFocus
             />
           </div>
@@ -122,45 +146,45 @@ function ClientModal({ client, onClose, onSave }) {
 
           <div className="grid grid-cols-3 gap-3">
             <div className="col-span-2">
-              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">City</label>
+              <label className={`block ${LABEL} mb-1`}>City</label>
               <input
                 value={form.city}
                 onChange={e => set('city', e.target.value)}
                 placeholder="e.g., Denver"
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                className={INPUT}
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">State</label>
+              <label className={`block ${LABEL} mb-1`}>State</label>
               <input
                 value={form.state}
                 onChange={e => set('state', e.target.value)}
                 placeholder="CO"
                 maxLength={2}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 uppercase focus:outline-none focus:ring-2 focus:ring-amber-500"
+                className={`${INPUT} uppercase`}
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Location Type</label>
+            <label className={`block ${LABEL} mb-1`}>Location Type</label>
             <select
               value={form.locationType}
               onChange={e => set('locationType', e.target.value)}
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white"
+              className={INPUT}
             >
               {LOCATION_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
             </select>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1">Notes</label>
+            <label className={`block ${LABEL} mb-1`}>Notes</label>
             <textarea
               value={form.notes}
               onChange={e => set('notes', e.target.value)}
               rows={2}
-              placeholder="Internal notes about this client…"
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500 resize-none"
+              placeholder="Internal notes about this client..."
+              className={`${INPUT} resize-none`}
             />
           </div>
 
@@ -168,16 +192,16 @@ function ClientModal({ client, onClose, onSave }) {
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-2 rounded-lg text-sm font-medium border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
+              className={`${BTN_SECONDARY} flex-1`}
             >
               Cancel
             </button>
             <button
               type="submit"
               disabled={saving}
-              className="flex-1 px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white transition-colors disabled:opacity-60"
+              className={`${BTN_PRIMARY} flex-1`}
             >
-              {saving ? 'Saving…' : client ? 'Save Changes' : 'Create Client'}
+              {saving ? 'Saving...' : client ? 'Save Changes' : 'Create Client'}
             </button>
           </div>
         </form>
@@ -191,13 +215,17 @@ function ClientModal({ client, onClose, onSave }) {
 export default function ClientsClient({ clients: initial, user }) {
   const router = useRouter();
   const [clients, setClients] = useState(initial);
-  const [search,  setSearch]  = useState('');
   const [modal,   setModal]   = useState(null); // null | 'new' | clientObject
   const [deletingId, setDeletingId] = useState(null);      // the one being archived
   const [archiveTarget, setArchiveTarget] = useState(null); // { id, name } waiting on "Archive it"
-  const [tagFilter,  setTagFilter]  = useState('');   // '' = every client
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  // Filters, search and sort live in the address so a reload keeps them.
+  const { filters, setFilter, clearFilters, sort, setSort } = useUrlView({ fields: VIEW_FIELDS, sortDefault: { key: '', dir: 'asc' } });
+  const search    = filters.q || '';
+  const tagFilter = filters.tag || '';   // '' = every client
+  const filterCount = countFilters(filters, FILTER_FIELDS);
 
-  // Every tag actually in use, for the filter row.
+  // Every tag actually in use, for the filter panel.
   const tagsInUse = [];
   for (const c of clients) {
     for (const link of c.tagLinks || []) {
@@ -251,20 +279,21 @@ export default function ClientsClient({ clients: initial, user }) {
       parseList(c.orgTypes).some(t => String(t).toLowerCase().includes(q)) ||
       (c.notes        || '').toLowerCase().includes(q);
   });
+  const shown = sortRows(filtered, sort, SORT_GETTERS);
 
   return (
     <div className="max-w-6xl mx-auto px-6 py-8">
       {/* Header */}
       <div className="flex items-start justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Clients</h1>
+          <h1 className={H1}>Clients</h1>
           <p className="text-slate-500 text-sm mt-1">
-            Developers, GCs, Architects, ECs — everyone you work with
+            Developers, GCs, Architects, ECs, everyone you work with
           </p>
         </div>
         <button
           onClick={() => setModal('new')}
-          className="flex items-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white transition-colors"
+          className={BTN_PRIMARY}
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
@@ -281,62 +310,41 @@ export default function ClientsClient({ clients: initial, user }) {
           { label: 'People',        value: clients.reduce((s, c) => s + (c._count?.contacts || 0), 0) },
           { label: 'Open Projects',    value: clients.reduce((s, c) => s + clientDealCounts(c.projects).open, 0) },
         ].map(s => (
-          <div key={s.label} className="bg-white rounded-xl border border-slate-200 p-5">
-            <div className="text-2xl font-bold text-slate-900">{s.value}</div>
-            <div className="text-sm font-medium text-slate-700 mt-0.5">{s.label}</div>
-          </div>
+          <StatTile key={s.label} label={s.label} value={s.value} />
         ))}
       </div>
 
-      {/* Search */}
-      <div className="flex gap-3 mb-4">
-        <input
-          type="text"
-          placeholder="Search by name, type, city…"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 w-72"
+      {/* Filter, search and sort. Tag filter only shows once at least one client is tagged. */}
+      <div className="mb-4">
+        <FilterToolbar
+          count={filterCount}
+          open={filtersOpen}
+          onToggle={() => setFiltersOpen(o => !o)}
+          onClear={clearFilters}
+          shown={shown.length}
+          total={clients.length}
+          noun="clients"
+          right={
+            <>
+              <SortSelect fields={SORT_FIELDS} sort={sort} onChange={setSort} />
+              <SearchBox value={search} onChange={v => setFilter('q', v)} placeholder="Search by name, type, city..." />
+            </>
+          }
         />
-        {search && (
-          <button onClick={() => setSearch('')} className="px-3 py-2 text-sm text-slate-400 hover:text-slate-600">
-            Clear
-          </button>
-        )}
+        <FilterPanel
+          open={filtersOpen}
+          fields={tagsInUse.length > 0 ? FILTER_FIELDS : []}
+          filters={filters}
+          choices={{ tag: tagsInUse.map(t => [t.id, t.name]) }}
+          onChange={setFilter}
+        />
       </div>
 
-      {/* Tag filter — only shown once at least one client is tagged */}
-      {tagsInUse.length > 0 && (
-        <div className="flex flex-wrap items-center gap-1.5 mb-4">
-          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wide mr-1">Tags</span>
-          <button
-            onClick={() => setTagFilter('')}
-            aria-pressed={!tagFilter}
-            className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
-              !tagFilter ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-400'
-            }`}
-          >
-            All
-          </button>
-          {tagsInUse.map(tag => (
-            <button
-              key={tag.id}
-              onClick={() => setTagFilter(tagFilter === tag.id ? '' : tag.id)}
-              aria-pressed={tagFilter === tag.id}
-              className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
-                tagFilter === tag.id ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-400'
-              }`}
-            >
-              {tag.name}
-            </button>
-          ))}
-        </div>
-      )}
-
       {/* Clients grid / empty state */}
-      {filtered.length === 0 ? (
-        <div className="bg-white rounded-xl border border-slate-200 p-16 text-center">
-          <div className="w-14 h-14 rounded-full bg-amber-50 flex items-center justify-center mx-auto mb-4">
-            <svg className="w-7 h-7 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+      {shown.length === 0 ? (
+        <div className={`${CARD_PADDED} p-16 text-center`}>
+          <div className="w-14 h-14 rounded-full bg-orange-50 flex items-center justify-center mx-auto mb-4">
+            <svg className="w-7 h-7 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round"
                 d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
             </svg>
@@ -344,13 +352,13 @@ export default function ClientsClient({ clients: initial, user }) {
           <h3 className="text-slate-700 font-semibold mb-2">
             {clients.length === 0 ? 'No clients yet' : 'No clients match your search'}
           </h3>
-          <p className="text-slate-400 text-sm mb-6">
+          <p className="text-slate-500 text-sm mb-6">
             {clients.length === 0 ? 'Add your first client to start linking projects.' : 'Try a different search term.'}
           </p>
           {clients.length === 0 && (
             <button
               onClick={() => setModal('new')}
-              className="px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white transition-colors"
+              className={BTN_PRIMARY}
             >
               Add First Client
             </button>
@@ -358,18 +366,18 @@ export default function ClientsClient({ clients: initial, user }) {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {filtered.map(client => (
-            <div key={client.id} className="bg-white rounded-xl border border-slate-200 p-5 hover:border-slate-300 transition-colors group">
+          {shown.map(client => (
+            <div key={client.id} className={`${CARD_PADDED} hover:border-slate-300 transition-colors group`}>
               <div className="flex items-start justify-between mb-3">
                 <div className="flex-1 min-w-0">
                   <Link
                     href={`/clients/${client.id}`}
-                    className="font-semibold text-slate-900 hover:text-amber-600 transition-colors leading-snug block truncate"
+                    className="font-semibold text-slate-900 hover:text-orange-600 transition-colors leading-snug block truncate"
                   >
                     {client.name}
                   </Link>
                   {(client.city || client.state || (client.locationType && client.locationType !== 'none')) && (
-                    <div className="text-xs text-slate-400 mt-0.5">
+                    <div className={`${HELPER} mt-0.5`}>
                       {[
                         [client.city, client.state].filter(Boolean).join(', '),
                         client.locationType && client.locationType !== 'none'
@@ -382,7 +390,7 @@ export default function ClientsClient({ clients: initial, user }) {
                   <button
                     onClick={() => setModal(client)}
                     title="Edit"
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-amber-500 hover:bg-amber-50 transition-colors"
+                    className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors"
                   >
                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" />
@@ -395,7 +403,7 @@ export default function ClientsClient({ clients: initial, user }) {
                     className={`p-1.5 rounded-lg transition-colors ${
                       deletingId === client.id
                         ? 'text-slate-300 cursor-not-allowed opacity-50'
-                        : 'text-slate-400 hover:text-amber-600 hover:bg-amber-50'
+                        : 'text-slate-600 hover:bg-slate-100'
                     }`}
                   >
                     {deletingId === client.id ? (
@@ -438,13 +446,13 @@ export default function ClientsClient({ clients: initial, user }) {
                   <div className="grid grid-cols-4 gap-1 text-center">
                     {[
                       ['Open',      counts.open,      'text-slate-900'],
-                      ['Won',       counts.won,       'text-emerald-600'],
-                      ['Lost',      counts.lost,      'text-red-500'],
+                      ['Won',       counts.won,       'text-green-600'],
+                      ['Lost',      counts.lost,      'text-red-600'],
                       ['Abandoned', counts.abandoned, 'text-amber-600'],
                     ].map(([label, value, tone]) => (
                       <div key={label} className="rounded-lg bg-slate-50 py-1.5">
-                        <div className={`text-sm font-bold ${tone}`}>{value}</div>
-                        <div className="text-[10px] text-slate-400 uppercase tracking-wide">{label}</div>
+                        <div className={`text-sm font-bold tabular-nums ${tone}`}>{value}</div>
+                        <div className={LABEL}>{label}</div>
                       </div>
                     ))}
                   </div>
@@ -452,18 +460,18 @@ export default function ClientsClient({ clients: initial, user }) {
               })()}
 
               {client.notes && (
-                <p className="text-xs text-slate-400 mt-2 line-clamp-2">{client.notes}</p>
+                <p className={`${HELPER} mt-2 line-clamp-2`}>{client.notes}</p>
               )}
 
               <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
-                <span className="text-xs text-slate-400">
+                <span className={`${HELPER} ${NUM}`}>
                   {client._count?.projects || 0} {client._count?.projects === 1 ? 'project' : 'projects'}
                   {' · '}
                   {client._count?.contacts || 0} {client._count?.contacts === 1 ? 'person' : 'people'}
                 </span>
                 <Link
                   href={`/clients/${client.id}`}
-                  className="text-xs font-medium text-amber-600 hover:text-amber-500 transition-colors"
+                  className="text-xs font-semibold text-orange-600 hover:text-orange-700 transition-colors"
                 >
                   View →
                 </Link>
@@ -474,7 +482,7 @@ export default function ClientsClient({ clients: initial, user }) {
       )}
 
       <div className="mt-8 text-center">
-        <Link href="/archive" className="text-xs text-slate-400 hover:text-slate-600 transition-colors">
+        <Link href="/archive" className="text-xs text-slate-500 hover:text-slate-700 transition-colors">
           Archived companies, projects, people and notes →
         </Link>
       </div>

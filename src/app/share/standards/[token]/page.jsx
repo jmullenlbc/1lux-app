@@ -5,6 +5,7 @@ import { PLAYBOOK_CONTENT } from '@/lib/playbookContent';
 import PlaybookContent from '@/components/PlaybookContent';
 import StandardsShareTracker from './StandardsShareTracker';
 import PrintButton from './PrintButton';
+import { CARD, H2 } from '@/components/ui/tokens';
 
 // Client-facing "how we work together" sections, in display order.
 const WORK_SECTIONS = [
@@ -61,9 +62,9 @@ export default async function StandardsSharePage({ params }) {
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Branded top bar */}
-      <div className="bg-navy-950 px-6 py-3 flex items-center justify-between print:hidden" style={{ backgroundColor: '#0f172a' }}>
+      <div className="bg-navy-950 px-6 py-3 flex items-center justify-between print:hidden">
         <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-lg bg-amber-500 flex items-center justify-center shrink-0">
+          <div className="w-7 h-7 rounded-lg bg-orange-500 flex items-center justify-center shrink-0">
             <svg viewBox="0 0 24 24" className="w-4 h-4 text-white" fill="currentColor">
               <path d="M9 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H9v1zm3-19C8.14 2 5 5.14 5 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.86-3.14-7-7-7z"/>
             </svg>
@@ -77,27 +78,27 @@ export default async function StandardsSharePage({ params }) {
         <StandardsShareTracker token={params.token} />
 
         {/* Hero */}
-        <div className="rounded-2xl p-6 mb-6 text-white" style={{ backgroundColor: '#0f172a' }}>
-          <div className="text-xs font-medium mb-1" style={{ color: '#94a3b8' }}>
-            ILC Studios — Lighting Standards
+        <div className="rounded-xl p-5 mb-6 text-white bg-navy-950 shadow-sm">
+          <div className="text-xs font-medium mb-1 text-slate-400">
+            ILC Studios: Lighting Standards
           </div>
           <div className="text-3xl font-bold mb-1">{client.name}</div>
-          <p className="text-xs mt-2" style={{ color: '#94a3b8' }}>
+          <p className="text-xs mt-2 text-slate-400">
             Standard lighting selections &amp; preferences · updated {today}
           </p>
         </div>
 
         {!answeredAnything && (
-          <div className="bg-white rounded-xl border border-slate-200 p-8 text-center text-slate-400">
+          <div className={`${CARD} p-8 text-center text-slate-500`}>
             <div className="text-3xl mb-2">💡</div>
             <p className="text-sm font-medium text-slate-500">Standards are being prepared.</p>
-            <p className="text-xs mt-1">Check back soon — this page updates live as selections are made.</p>
+            <p className="text-xs mt-1">Check back soon, this page updates live as selections are made.</p>
           </div>
         )}
 
         {/* Color Temperature */}
         {hasCCT && (
-          <div className="bg-white rounded-xl border border-slate-200 p-5 mb-6">
+          <div className={`${CARD} p-5 mb-6`}>
             <h3 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
               <span>🌡️</span> Color Temperature
             </h3>
@@ -126,7 +127,7 @@ export default async function StandardsSharePage({ params }) {
 
         {/* Q&A sections */}
         {sectionCards.map(card => (
-          <div key={card.key} className="bg-white rounded-xl border border-slate-200 p-5 mb-6">
+          <div key={card.key} className={`${CARD} p-5 mb-6`}>
             <h3 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
               <span>{card.icon}</span> {card.label}
             </h3>
@@ -136,7 +137,7 @@ export default async function StandardsSharePage({ params }) {
                   <span className="text-slate-500 sm:w-56 shrink-0">{row.label}</span>
                   <span className="font-medium text-slate-900 sm:text-right">
                     {row.value}
-                    {row.note && <span className="block text-xs text-slate-400 font-normal">{row.note}</span>}
+                    {row.note && <span className="block text-xs text-slate-500 font-normal">{row.note}</span>}
                   </span>
                 </div>
               ))}
@@ -146,11 +147,11 @@ export default async function StandardsSharePage({ params }) {
 
         {/* How We Work Together */}
         <div className="mt-8 mb-2">
-          <h2 className="text-lg font-bold text-slate-900 mb-1">How We Work Together</h2>
-          <p className="text-xs text-slate-400 mb-4">Our standard process for working with {client.name}.</p>
+          <h2 className={`${H2} mb-1`}>How We Work Together</h2>
+          <p className="text-xs text-slate-500 mb-4">Our standard process for working with {client.name}.</p>
         </div>
         {WORK_SECTIONS.filter(s => PLAYBOOK_CONTENT[s.id]?.items?.length).map(s => (
-          <div key={s.id} className="bg-white rounded-xl border border-slate-200 p-5 mb-6">
+          <div key={s.id} className={`${CARD} p-5 mb-6`}>
             <h3 className="font-semibold text-slate-900 mb-3 flex items-center gap-2">
               <span>{s.icon}</span> {s.label}
             </h3>
@@ -160,12 +161,12 @@ export default async function StandardsSharePage({ params }) {
 
         {/* Footer */}
         <div className="mt-8 text-center">
-          <p className="text-xs text-slate-400 mb-3">
+          <p className="text-xs text-slate-500 mb-3">
             Prepared by ILC Studios. These are standard preferences and may be tailored per project.
           </p>
           <p className="text-sm text-slate-500">
             Questions? Contact{' '}
-            <a href="mailto:design@ilcstudios.com" className="text-amber-600 hover:underline">design@ilcstudios.com</a>
+            <a href="mailto:design@ilcstudios.com" className="text-orange-600 hover:underline">design@ilcstudios.com</a>
           </p>
         </div>
       </div>

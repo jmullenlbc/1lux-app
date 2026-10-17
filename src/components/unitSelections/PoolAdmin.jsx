@@ -110,9 +110,9 @@ export default function PoolAdmin({ canEdit = false }) {
           <button
             key={t.key}
             onClick={() => { setCategory(t.key); setEditing(null); }}
-            className={`px-4 py-2 rounded-2xl text-sm font-medium transition ${
+            className={`px-4 py-2 rounded-lg text-sm font-semibold transition ${
               category === t.key
-                ? 'bg-amber-500 text-white shadow-sm'
+                ? 'bg-orange-500 text-white shadow-sm'
                 : 'bg-white text-slate-600 border border-slate-200 hover:border-slate-300'
             }`}
           >
@@ -128,14 +128,14 @@ export default function PoolAdmin({ canEdit = false }) {
             type="checkbox"
             checked={showRetired}
             onChange={e => setShowRetired(e.target.checked)}
-            className="rounded border-slate-300 text-amber-500 focus:ring-amber-500"
+            className="rounded border-slate-300 text-amber-500 focus:ring-orange-500"
           />
           Show retired fixtures
         </label>
         {canEdit && (
           <button
             onClick={() => setEditing(blankOption(category))}
-            className="px-4 py-2 rounded-2xl bg-slate-800 text-white text-sm font-medium hover:bg-slate-700"
+            className="px-4 py-2 rounded-lg bg-orange-500 text-white text-sm font-semibold hover:bg-orange-600"
           >
             Add a fixture
           </button>
@@ -143,7 +143,7 @@ export default function PoolAdmin({ canEdit = false }) {
       </div>
 
       {error && (
-        <div className="mb-4 px-4 py-3 rounded-2xl bg-red-50 border border-red-200 text-sm text-red-700">
+        <div className="mb-4 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
           {error}
         </div>
       )}
@@ -165,7 +165,7 @@ export default function PoolAdmin({ canEdit = false }) {
 
           {showRetired && retired.length > 0 && (
             <>
-              <h3 className="mt-10 mb-3 text-sm font-semibold text-slate-400 uppercase tracking-wide">
+              <h3 className="mt-10 mb-3 text-sm font-semibold text-slate-500 uppercase tracking-wide">
                 Retired &mdash; not offered on new surveys
               </h3>
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -204,7 +204,7 @@ function OptionCard({ option, canEdit, retiredLook, onEdit, onRetire, onRestore 
   const high = prices.length ? Math.max(...prices) : null;
 
   return (
-    <div className={`rounded-2xl border bg-white overflow-hidden ${retiredLook ? 'border-slate-200 opacity-60' : 'border-slate-200'}`}>
+    <div className={`rounded-xl border bg-white shadow-sm overflow-hidden ${retiredLook ? 'border-slate-200 opacity-60' : 'border-slate-200'}`}>
       <div className="h-36 bg-slate-50 flex items-center justify-center">
         {option.imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -242,17 +242,17 @@ function OptionCard({ option, canEdit, retiredLook, onEdit, onRetire, onRestore 
         <p className="text-xs text-slate-400 mt-3">
           {liveFinishes.length
             ? liveFinishes.map(f => finishLabel(f.finishKey)).join(', ')
-            : 'No finishes on record — this one can never be offered.'}
+            : 'No finishes on record, this one can never be offered.'}
         </p>
 
         {canEdit && (
           <div className="flex gap-2 mt-4">
-            <button onClick={onEdit} className="text-xs font-medium text-slate-600 hover:text-slate-900">Edit</button>
+            <button onClick={onEdit} className="text-xs font-semibold text-slate-600 hover:text-slate-900">Edit</button>
             <span className="text-slate-200">|</span>
             {retiredLook ? (
-              <button onClick={onRestore} className="text-xs font-medium text-amber-600 hover:text-amber-700">Bring back</button>
+              <button onClick={onRestore} className="text-xs font-semibold text-orange-600 hover:text-orange-700">Bring back</button>
             ) : (
-              <button onClick={onRetire} className="text-xs font-medium text-slate-400 hover:text-slate-600">Retire</button>
+              <button onClick={onRetire} className="text-xs font-semibold text-slate-400 hover:text-slate-600">Retire</button>
             )}
           </div>
         )}
@@ -368,7 +368,7 @@ function OptionEditor({ option, onClose, onSaved }) {
 
         <div className="px-6 py-5 space-y-5">
           {error && (
-            <div className="px-4 py-3 rounded-2xl bg-red-50 border border-red-200 text-sm text-red-700">{error}</div>
+            <div className="px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">{error}</div>
           )}
 
           <Field label="What it is called">
@@ -441,7 +441,7 @@ function OptionEditor({ option, onClose, onSaved }) {
                 type="checkbox"
                 checked={!!form.wetRated}
                 onChange={e => set('wetRated', e.target.checked)}
-                className="rounded border-slate-300 text-amber-500 focus:ring-amber-500"
+                className="rounded border-slate-300 text-amber-500 focus:ring-orange-500"
               />
               Wet rated
             </label>
@@ -450,12 +450,12 @@ function OptionEditor({ option, onClose, onSaved }) {
                 type="checkbox"
                 checked={!!form.dampRated}
                 onChange={e => set('dampRated', e.target.checked)}
-                className="rounded border-slate-300 text-amber-500 focus:ring-amber-500"
+                className="rounded border-slate-300 text-amber-500 focus:ring-orange-500"
               />
               Damp rated
             </label>
             <div className="text-xs text-slate-400 self-center">
-              A balcony needs wet. A bathroom needs damp — and a wet fixture is fine there too.
+              A balcony needs wet. A bathroom needs damp, and a wet fixture is fine there too.
             </div>
           </div>
 
@@ -463,7 +463,7 @@ function OptionEditor({ option, onClose, onSaved }) {
             <div className="flex items-center gap-4">
               {form.imageUrl && (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={form.imageUrl} alt="" className="h-20 w-20 object-contain rounded-2xl bg-slate-50" />
+                <img src={form.imageUrl} alt="" className="h-20 w-20 object-contain rounded-lg bg-slate-50" />
               )}
               <div>
                 <input
@@ -494,7 +494,7 @@ function OptionEditor({ option, onClose, onSaved }) {
                   ...f,
                   finishes: [...f.finishes, { finishKey: '', catalogNumber: '', manufacturer: '', dnPrice: '', cnPrice: '', leadTimeWks: '', isDefault: false, isActive: true }],
                 }))}
-                className="text-xs font-medium text-amber-600 hover:text-amber-700"
+                className="text-xs font-medium text-orange-600 hover:text-orange-700"
               >
                 Add a finish
               </button>
@@ -506,7 +506,7 @@ function OptionEditor({ option, onClose, onSaved }) {
 
             <div className="space-y-3">
               {form.finishes.map((f, i) => (
-                <div key={i} className="rounded-2xl border border-slate-200 p-3">
+                <div key={i} className="rounded-xl border border-slate-200 p-3">
                   <div className="grid sm:grid-cols-3 gap-3">
                     <select value={f.finishKey} onChange={e => setFinish(i, 'finishKey', e.target.value)} className={inputCls}>
                       <option value="">Pick a finish</option>
@@ -559,7 +559,7 @@ function OptionEditor({ option, onClose, onSaved }) {
                           ...fm,
                           finishes: fm.finishes.map((x, j) => ({ ...x, isDefault: j === i })),
                         }))}
-                        className="text-amber-500 focus:ring-amber-500"
+                        className="text-amber-500 focus:ring-orange-500"
                       />
                       Show this one first
                     </label>
@@ -577,13 +577,13 @@ function OptionEditor({ option, onClose, onSaved }) {
         </div>
 
         <div className="px-6 py-4 border-t border-slate-200 flex justify-end gap-3">
-          <button onClick={onClose} className="px-4 py-2 rounded-2xl text-sm font-medium text-slate-600 hover:bg-slate-50">
+          <button onClick={onClose} className="px-4 py-2 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-50">
             Cancel
           </button>
           <button
             onClick={save}
             disabled={saving || uploading || !form.name.trim()}
-            className="px-5 py-2 rounded-2xl bg-amber-500 text-white text-sm font-medium hover:bg-amber-600 disabled:opacity-50"
+            className="px-5 py-2 rounded-lg bg-orange-500 text-white text-sm font-semibold hover:bg-orange-600 disabled:opacity-50"
           >
             {saving ? 'Saving…' : isNew ? 'Add it' : 'Save'}
           </button>
@@ -594,8 +594,8 @@ function OptionEditor({ option, onClose, onSaved }) {
 }
 
 const inputCls =
-  'w-full px-3 py-2 rounded-2xl border border-slate-200 text-sm text-slate-900 placeholder:text-slate-300 ' +
-  'focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent';
+  'w-full px-3 py-2 rounded-lg border border-slate-200 text-sm text-slate-900 placeholder:text-slate-300 ' +
+  'focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent';
 
 function Field({ label, hint, children }) {
   return (

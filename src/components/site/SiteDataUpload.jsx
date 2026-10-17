@@ -57,7 +57,7 @@ function CheckList({ review }) {
           <span className="font-semibold">{passed.length} automatic check{passed.length !== 1 ? 's' : ''} passed.</span>
           {' '}The lot, the parking and the unit count all agree with each other.
           {skipped.length > 0 && (
-            <span className="text-green-700/70"> {skipped.length} check{skipped.length !== 1 ? 's' : ''} couldn&apos;t run — the drawing didn&apos;t state enough to compare.</span>
+            <span className="text-green-700/70"> {skipped.length} check{skipped.length !== 1 ? 's' : ''} couldn&apos;t run, the drawing didn&apos;t state enough to compare.</span>
           )}
         </span>
       </div>
@@ -83,7 +83,7 @@ function CheckList({ review }) {
         ))}
       </ul>
       <p className="mt-2.5 text-[11px] text-red-600/80 border-t border-red-200 pt-2">
-        These are arithmetic, not opinions — something the drawing says contradicts something else it says.
+        These are arithmetic, not opinions, something the drawing says contradicts something else it says.
         Fix the numbers below before applying, or untick the ones you don&apos;t trust.
       </p>
     </div>
@@ -98,7 +98,7 @@ function FieldRow({ row, checked, value, onToggle, onChange }) {
         type="checkbox"
         checked={checked}
         onChange={e => onToggle(e.target.checked)}
-        className="mt-1 w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 shrink-0"
+        className="mt-1 w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-orange-500 shrink-0"
         aria-label={`Apply ${row.label}`}
       />
       <div className="min-w-0 flex-1">
@@ -106,7 +106,7 @@ function FieldRow({ row, checked, value, onToggle, onChange }) {
           <span className="text-sm font-medium text-slate-700">{row.label}</span>
           {row.critical && (
             <span
-              className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200"
+              className="text-[11px] font-bold uppercase px-1.5 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200"
               title="Blank, the budget engine reads this as zero and prices this section at $0."
             >
               Prices at $0 if blank
@@ -128,7 +128,7 @@ function FieldRow({ row, checked, value, onToggle, onChange }) {
             value={value ?? ''}
             disabled={!checked}
             onChange={e => onChange(e.target.value === '' ? null : e.target.value)}
-            className="w-56 bg-white border border-slate-300 rounded-lg px-2 py-1 text-sm outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-200 disabled:bg-slate-50 disabled:text-slate-400"
+            className="w-56 bg-white border border-slate-300 rounded-lg px-2 py-1 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500 disabled:bg-slate-50 disabled:text-slate-400"
             aria-label="Breezeway style"
           >
             <option value="">Not set</option>
@@ -142,7 +142,7 @@ function FieldRow({ row, checked, value, onToggle, onChange }) {
             value={value ?? ''}
             disabled={!checked}
             onChange={e => onChange(e.target.value === '' ? null : e.target.value)}
-            className="w-56 bg-white border border-slate-300 rounded-lg px-2 py-1 text-sm outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-200 disabled:bg-slate-50 disabled:text-slate-400"
+            className="w-56 bg-white border border-slate-300 rounded-lg px-2 py-1 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500 disabled:bg-slate-50 disabled:text-slate-400"
             aria-label="Building type"
           >
             <option value="">— not set —</option>
@@ -154,10 +154,10 @@ function FieldRow({ row, checked, value, onToggle, onChange }) {
             value={value ?? ''}
             disabled={!checked}
             onChange={e => onChange(e.target.value === '' ? null : Number(e.target.value))}
-            className="w-32 text-right bg-white border border-slate-300 rounded-lg px-2 py-1 text-sm font-mono tabular-nums outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-200 disabled:bg-slate-50 disabled:text-slate-400"
+            className="w-32 text-right bg-white border border-slate-300 rounded-lg px-2 py-1 text-sm font-mono tabular-nums outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500 disabled:bg-slate-50 disabled:text-slate-400"
           />
         )}
-        <div className="text-[10px] text-slate-400 mt-0.5 uppercase tracking-wide">
+        <div className="text-[11px] text-slate-500 mt-0.5 uppercase tracking-wide">
           {row.unit === 'sf' ? 'sq ft' : row.unit === 'style' ? 'breezeway style' : row.unit === 'type' ? 'building type' : row.unit === 'ft' ? 'feet' : 'count'}
           {row.sheet ? ` · sheet ${row.sheet}` : ''}
         </div>
@@ -182,8 +182,8 @@ function ReadOnlyEvidence({ site }) {
 
   return (
     <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
-      <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-2">
-        Also read — not written to the project
+      <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-2">
+        Also read, not written to the project
       </div>
       <dl className="grid grid-cols-2 gap-x-6 gap-y-1.5">
         {bits.map(([label, v]) => (
@@ -194,7 +194,7 @@ function ReadOnlyEvidence({ site }) {
         ))}
       </dl>
       <p className="text-[11px] text-slate-500 mt-2.5 border-t border-slate-200 pt-2 leading-snug">
-        The unit count is used to check this reading against the unit matrix — it is never written over it.
+        The unit count is used to check this reading against the unit matrix, it is never written over it.
         Change unit counts in the unit matrix, not here.
       </p>
     </div>
@@ -272,7 +272,7 @@ export default function SiteDataUpload({ projectId, onCommitted }) {
       if (!r.ok) throw new Error(d.message || d.error || 'Extraction failed');
 
       if (!d.proposal?.length) {
-        setErrMsg('Nothing readable was found on that sheet. Site data usually sits in a "SITE DATA" or "PROJECT DATA" block — try the sheet that has one.');
+        setErrMsg('Nothing readable was found on that sheet. Site data usually sits in a "SITE DATA" or "PROJECT DATA" block, try the sheet that has one.');
         setState('error');
         return;
       }
@@ -338,13 +338,13 @@ export default function SiteDataUpload({ projectId, onCommitted }) {
 
   return (
     <div className="mb-6">
-      <div className="text-[10px] font-bold text-amber-600 uppercase tracking-wider mb-2">Site Data</div>
+      <div className="text-[11px] font-bold text-amber-600 uppercase tracking-wide mb-2">Site Data</div>
 
       {state !== 'reviewing' && (
         <div
           onDragOver={e => e.preventDefault()}
           onDrop={e => { e.preventDefault(); handleFiles(e.dataTransfer.files); }}
-          className="rounded-2xl border-2 border-dashed border-slate-200 bg-white px-6 py-7 text-center"
+          className="rounded-xl border-2 border-dashed border-slate-200 bg-white px-6 py-7 text-center"
         >
           <p className="text-sm font-medium text-slate-700">
             {busy
@@ -352,7 +352,7 @@ export default function SiteDataUpload({ projectId, onCommitted }) {
               : 'Drop a site or concept plan PDF'}
           </p>
           <p className="text-xs text-slate-400 mt-1 max-w-lg mx-auto leading-snug">
-            Reads the SITE DATA block — lot size, parking, building count and amenity area — and fills the Project Info
+            Reads the SITE DATA block, lot size, parking, building count and amenity area, and fills the Project Info
             fields that price at $0 when they are left blank. Numbers are never counted off the drawing;
             only what is written on it is reported.
           </p>
@@ -363,7 +363,7 @@ export default function SiteDataUpload({ projectId, onCommitted }) {
             <>
               <button
                 onClick={() => inputRef.current?.click()}
-                className="mt-3 px-4 py-1.5 rounded-lg bg-slate-800 text-white text-xs font-semibold hover:bg-slate-700"
+                className="mt-3 px-4 py-1.5 rounded-lg bg-orange-500 text-white text-xs font-semibold hover:bg-orange-600"
               >
                 Choose PDF
               </button>
@@ -383,14 +383,14 @@ export default function SiteDataUpload({ projectId, onCommitted }) {
       )}
 
       {state === 'reviewing' || state === 'saving' ? (
-        <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden">
+        <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
           <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between gap-3">
             <div className="min-w-0">
               <div className="text-sm font-semibold text-slate-800 truncate">{parsed?.fileName}</div>
               <div className="text-[11px] text-slate-400">
                 {parsed?.site?.foundSiteDataBlock
                   ? 'Read from a site data block on the sheet'
-                  : 'Read from callouts on the sheet — no single data block found'}
+                  : 'Read from callouts on the sheet, no single data block found'}
                 {parsed?.review?.tier && <> · {parsed.review.tier}</>}
               </div>
             </div>
@@ -415,11 +415,11 @@ export default function SiteDataUpload({ projectId, onCommitted }) {
                 <p className="text-xs text-slate-700 leading-snug px-1">
                   <span className="font-semibold text-slate-800">Named on this sheet:</span>{' '}
                   {found.join(' · ')}
-                  <span className="text-slate-500"> — each gets its own line under Exterior &amp; Site.</span>
+                  <span className="text-slate-500">, each gets its own line under Exterior &amp; Site.</span>
                 </p>
               ) : (
                 <p className="text-[11px] text-slate-500 leading-snug px-1">
-                  No {SITE_FEATURE_KINDS_SENTENCE} is named on this sheet — none will be priced unless typed in.
+                  No {SITE_FEATURE_KINDS_SENTENCE} is named on this sheet, none will be priced unless typed in.
                 </p>
               );
             })()}
@@ -455,7 +455,7 @@ export default function SiteDataUpload({ projectId, onCommitted }) {
             <button
               onClick={apply}
               disabled={state === 'saving' || tickedCount === 0}
-              className="px-4 py-1.5 rounded-lg bg-blue-600 text-white text-xs font-semibold hover:bg-blue-500 disabled:bg-slate-300"
+              className="px-4 py-1.5 rounded-lg bg-orange-500 text-white text-xs font-semibold hover:bg-orange-500 disabled:bg-slate-300"
             >
               {state === 'saving' ? 'Applying…' : 'Apply to Project'}
             </button>

@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import Button from '@/components/ui/Button';
+import { WidgetLoading, WidgetEmpty } from '@/components/ui/WidgetFrame';
 import Chart from '@/components/dashboards/Chart';
 import CalibrationTable from '@/components/dashboards/CalibrationTable';
 import VerificationCard from '@/components/dashboards/VerificationCard';
@@ -187,16 +188,16 @@ export default function DashboardView({ section, sectionLabel, tabs = null }) {
   }
 
   // ── Render ───────────────────────────────────────────────────────────────────
-  if (loading) return <div className="p-6">{tabs}<div className="p-2 text-sm text-slate-400">Loading…</div></div>;
+  if (loading) return <div className="p-6">{tabs}<WidgetLoading /></div>;
 
   return (
     <div className="p-6">
       {tabs}
       <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
         <div>
-          <p className="text-[10px] font-bold text-orange-500 uppercase tracking-wider">{sectionLabel}</p>
+          <p className="text-[11px] font-bold text-orange-500 uppercase tracking-wide">{sectionLabel}</p>
           <h1 className="text-xl font-bold text-slate-900">{dash?.name || `${sectionLabel} Dashboard`}
-            {dash && <span className={`ml-2 text-[10px] font-semibold px-2 py-0.5 rounded-full ${dash.ownerUserId ? 'bg-blue-50 text-blue-700' : 'bg-slate-100 text-slate-500'}`}>{dash.ownerUserId ? 'Your view' : 'Default'}</span>}
+            {dash && <span className={`ml-2 text-[11px] font-semibold px-2 py-0.5 rounded-full ${dash.ownerUserId ? 'bg-blue-50 text-blue-700' : 'bg-slate-100 text-slate-500'}`}>{dash.ownerUserId ? 'Your view' : 'Default'}</span>}
           </h1>
         </div>
         <div className="flex items-center gap-2">
@@ -217,7 +218,7 @@ export default function DashboardView({ section, sectionLabel, tabs = null }) {
 
       {dash && Object.keys(facets).length > 0 && (
         <div className="flex items-center gap-2 flex-wrap mb-4">
-          <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mr-1">Filter</span>
+          <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mr-1">Filter</span>
           {dimensions.filter(d => d.type === 'dimension' && (facets[d.key] || []).length > 0).map(d => (
             <select key={d.key} value={filterValue(d.key)} onChange={e => setFilter(d.key, e.target.value)}
               className={`text-xs rounded-lg border px-2 py-1.5 ${filterValue(d.key) ? 'border-orange-400 bg-orange-50 text-orange-700 font-semibold' : 'border-slate-200 text-slate-600'}`}>
@@ -226,17 +227,17 @@ export default function DashboardView({ section, sectionLabel, tabs = null }) {
             </select>
           ))}
           {filters.length > 0 && (
-            <Button size="sm" variant="ghost" onClick={() => setFilters([])} className="text-xs text-slate-400 hover:text-slate-700 underline px-1.5 py-0.5">Clear all</Button>
+            <Button size="sm" variant="ghost" onClick={() => setFilters([])} className="text-xs text-slate-500 hover:text-slate-700 underline px-1.5 py-0.5">Clear all</Button>
           )}
         </div>
       )}
 
       {!dash ? (
-        <div className="bg-white border border-slate-200 rounded-2xl p-10 text-center">
+        <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-10 text-center">
           <p className="text-sm text-slate-500 mb-3">No dashboard for {sectionLabel} yet.</p>
           {meta.isAdmin
             ? <Button size="md" variant="amber" onClick={createDefault} className="px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600">Create the default</Button>
-            : <p className="text-xs text-slate-400">Ask an admin to set up the {sectionLabel} default.</p>}
+            : <p className="text-xs text-slate-500">Ask an admin to set up the {sectionLabel} default.</p>}
         </div>
       ) : (
         <div className="grid grid-cols-2 gap-4">
@@ -248,7 +249,7 @@ export default function DashboardView({ section, sectionLabel, tabs = null }) {
                 onDragStart={() => { dragId.current = w.id; }}
                 onDragOver={e => e.preventDefault()}
                 onDrop={() => { const f = dragId.current; dragId.current = null; if (f) reorder(f, w.id); }}
-                className={`bg-white border border-slate-200 rounded-2xl shadow-sm ${w.width === 'FULL' ? 'col-span-2' : ''}`}>
+                className={`bg-white border border-slate-200 rounded-xl shadow-sm ${w.width === 'FULL' ? 'col-span-2' : ''}`}>
                 <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
                   <span className="text-xs font-bold text-slate-700 cursor-grab">⠿ {w.name}</span>
                   <div className="flex items-center gap-1">
@@ -271,7 +272,7 @@ export default function DashboardView({ section, sectionLabel, tabs = null }) {
               </div>
             );
           })}
-          {dash.widgets.length === 0 && <div className="col-span-2 text-center text-sm text-slate-400 py-10">No widgets yet — click <b>+ Widget</b>.</div>}
+          {dash.widgets.length === 0 && <div className="col-span-2"><WidgetEmpty>No widgets yet: click <b>+ Widget</b>.</WidgetEmpty></div>}
         </div>
       )}
 
@@ -283,7 +284,7 @@ export default function DashboardView({ section, sectionLabel, tabs = null }) {
 
 // ── helpers ─────────────────────────────────────────────────────────────────
 // The tiny buttons on a widget card's title bar (same look as before, one component).
-const CARD_BTN = 'text-[10px] text-slate-400 hover:text-slate-700 px-1.5 py-0.5 rounded rounded-lg font-normal';
+const CARD_BTN = 'text-[11px] text-slate-500 hover:text-slate-700 px-1.5 py-0.5 rounded-lg font-normal';
 // What each built-in Sales card (dataSpec.tpl) is for, shown in the editor.
 const TPL_DESCRIPTION = {
   'procurement-open-80':               'Open jobs, next 12 months, 80 percent and up, by expected order month.',
@@ -339,10 +340,10 @@ function WidgetEditor({ section, measures, dimensions, init, onSave, onClose }) 
         <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-5" onClick={e => e.stopPropagation()}>
           <h3 className="text-sm font-bold text-slate-800 mb-1">Edit widget</h3>
           <p className="text-xs text-slate-500 mb-4">{spec.kind === 'verification'
-            ? <>Prebuilt card — <b>Things Needing a Look</b>. It works out its own list every time it loads, so there is no field to pick; you can retitle or resize it.</>
+            ? <>Prebuilt card, <b>Things Needing a Look</b>. It works out its own list every time it loads, so there is no field to pick; you can retitle or resize it.</>
             : spec.kind === 'desk'
             ? <>Prebuilt card: <b>My Desk</b>. It shows each person their own reminders and emails to review, so there is no field to pick; you can retitle or resize it.</>
-            : <>Prebuilt pricing-calibration widget — <b>{report?.label || spec.report}</b>. It reads the engine&apos;s model-vs-actual samples, so there is no field to pick; you can retitle or resize it.</>}</p>
+            : <>Prebuilt pricing-calibration widget, <b>{report?.label || spec.report}</b>. It reads the engine&apos;s model-vs-actual samples, so there is no field to pick; you can retitle or resize it.</>}</p>
           <div className="space-y-3">
             <Field label="Title"><input value={spec.name} onChange={e => set('name', e.target.value)} className="inp" /></Field>
             <Field label="Width"><select value={spec.width} onChange={e => set('width', e.target.value)} className="inp"><option value="HALF">Half</option><option value="FULL">Full</option></select></Field>
@@ -352,7 +353,7 @@ function WidgetEditor({ section, measures, dimensions, init, onSave, onClose }) 
             <Button size="sm" variant="secondary" onClick={onClose} className="text-xs font-semibold text-slate-500 shadow-none">Cancel</Button>
             <Button size="sm" variant="amber" disabled={saving} onClick={save} className="px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600">{saving ? 'Saving…' : 'Save'}</Button>
           </div>
-          <style jsx>{`.inp{ width:100%; border:1px solid #e2e8f0; border-radius:8px; padding:7px 9px; font-size:13px; outline:none; } .inp:focus{ border-color:#f59e0b; }`}</style>
+          <style jsx>{`.inp{ width:100%; border:1px solid #cbd5e1; border-radius:8px; padding:7px 9px; font-size:13px; outline:none; } .inp:focus{ border-color:#f97316; }`}</style>
         </div>
       </div>
     );
@@ -386,7 +387,7 @@ function WidgetEditor({ section, measures, dimensions, init, onSave, onClose }) 
           )}
 
           {spec.filters?.length > 0 && (
-            <p className="text-xs text-gray-500">Only counts projects where {spec.filters.map(f => `${(measures.concat(dimensions).find(m => m.key === f.field)?.label) || f.field} ${f.op === 'gte' ? '≥' : f.op === 'lte' ? '≤' : 'is'} ${Array.isArray(f.value) ? f.value.join(' or ') : f.value}`).join(', ')}. These stay when you save.</p>
+            <p className="text-xs text-slate-500">Only counts projects where {spec.filters.map(f => `${(measures.concat(dimensions).find(m => m.key === f.field)?.label) || f.field} ${f.op === 'gte' ? '≥' : f.op === 'lte' ? '≤' : 'is'} ${Array.isArray(f.value) ? f.value.join(' or ') : f.value}`).join(', ')}. These stay when you save.</p>
           )}
           <Field label="Group by">
             <select value={spec.groupBy} onChange={e => set('groupBy', e.target.value)} className="inp"><option value="">Single total</option>{dimensions.map(d => <option key={d.key} value={d.key}>{d.label}</option>)}</select>
@@ -395,7 +396,7 @@ function WidgetEditor({ section, measures, dimensions, init, onSave, onClose }) 
             <Field label="Time bucket"><select value={spec.timeBucket} onChange={e => set('timeBucket', e.target.value)} className="inp"><option value="week">Week</option><option value="month">Month</option><option value="quarter">Quarter</option><option value="year">Annual</option><option value="ytd">Year to Date</option><option value="next6">Next 6 Months</option><option value="next12">Next 12 Months</option><option value="custom">Custom Range</option></select></Field>
           )}
           {dim?.type === 'date' && (
-            <label className="flex items-center gap-2 text-sm text-gray-700"><input type="checkbox" checked={!!spec.cumulative} onChange={e => set('cumulative', e.target.checked)} /> Running total (each bar adds up everything before it)</label>
+            <label className="flex items-center gap-2 text-sm text-slate-700"><input type="checkbox" checked={!!spec.cumulative} onChange={e => set('cumulative', e.target.checked)} /> Running total (each bar adds up everything before it)</label>
           )}
           {dim?.type === 'date' && spec.timeBucket === 'custom' && (
             <div className="flex gap-3">
@@ -416,12 +417,12 @@ function WidgetEditor({ section, measures, dimensions, init, onSave, onClose }) 
           <Button size="sm" variant="amber" disabled={!valid || saving} onClick={save} className="px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600">{saving ? 'Saving…' : 'Save'}</Button>
         </div>
       </div>
-      <style jsx>{`.inp{ width:100%; border:1px solid #e2e8f0; border-radius:8px; padding:7px 9px; font-size:13px; outline:none; } .inp:focus{ border-color:#f59e0b; }`}</style>
+      <style jsx>{`.inp{ width:100%; border:1px solid #cbd5e1; border-radius:8px; padding:7px 9px; font-size:13px; outline:none; } .inp:focus{ border-color:#f97316; }`}</style>
     </div>
   );
 }
 function Field({ label, children, className = '' }) {
-  return <label className={`block ${className}`}><span className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">{label}</span>{children}</label>;
+  return <label className={`block ${className}`}><span className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1">{label}</span>{children}</label>;
 }
 
 function ShareModal({ users, onShare, onClose }) {
@@ -431,10 +432,10 @@ function ShareModal({ users, onShare, onClose }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/30 p-4" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-5" onClick={e => e.stopPropagation()}>
         <h3 className="text-sm font-bold text-slate-800 mb-3">Share dashboard</h3>
-        <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search people…" className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm mb-2 outline-none focus:border-amber-400" />
+        <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search people…" className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm mb-2 outline-none focus:border-orange-500" />
         <div className="max-h-60 overflow-y-auto">
           {filtered.map(u => <button key={u.id} onClick={() => onShare(u.id)} className="w-full text-left px-3 py-2 rounded-lg hover:bg-slate-50 text-sm text-slate-700">{u.name || u.email}</button>)}
-          {!filtered.length && <p className="text-xs text-slate-400 px-3 py-2">No people found.</p>}
+          {!filtered.length && <p className="text-xs text-slate-500 px-3 py-2">No people found.</p>}
         </div>
         <div className="flex justify-end mt-3"><Button size="sm" variant="secondary" onClick={onClose} className="text-xs font-semibold text-slate-500 shadow-none">Close</Button></div>
       </div>

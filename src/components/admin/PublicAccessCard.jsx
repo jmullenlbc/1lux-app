@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { CARD_PADDED, CARD_TITLE, HELPER, INPUT, BTN_PRIMARY, BTN_SECONDARY } from '@/components/ui/tokens';
 
 /**
  * Admin control for the password on the public /conceptual_budget tool
@@ -46,11 +47,11 @@ export default function PublicAccessCard() {
   const changed = current !== null && draft.trim() !== current;
 
   return (
-    <div className="mb-6 bg-white rounded-xl border border-slate-200 shadow-sm p-5">
+    <div className={`mb-6 ${CARD_PADDED}`}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-sm font-bold text-slate-900">Public budget tool password</h2>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <h2 className={CARD_TITLE}>Public budget tool password</h2>
+          <p className={`${HELPER} mt-0.5`}>
             Visitors to the public conceptual budget page must type this before they can start.
             {current === '' && <span className="ml-1 font-semibold text-amber-700">No password set: the tool is open to everyone.</span>}
           </p>
@@ -64,7 +65,7 @@ export default function PublicAccessCard() {
             disabled={current === null || busy}
             onChange={e => setDraft(e.target.value)}
             placeholder="Leave empty to open the tool to everyone"
-            className="w-full px-3 py-2 pr-16 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-400 disabled:bg-slate-50"
+            className={`${INPUT} pr-16`}
           />
           <button type="button" onClick={() => setShow(s => !s)}
             className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-500 hover:text-slate-800">
@@ -72,12 +73,12 @@ export default function PublicAccessCard() {
           </button>
         </div>
         <button type="button" onClick={() => save(draft)} disabled={!changed || busy}
-          className="px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white transition-colors disabled:opacity-50">
+          className={BTN_PRIMARY}>
           {busy ? 'Saving…' : 'Save password'}
         </button>
         {current && (
           <button type="button" onClick={() => save('')} disabled={busy}
-            className="px-4 py-2 text-sm font-semibold rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50 shadow-sm transition-colors disabled:opacity-50">
+            className={BTN_SECONDARY}>
             Remove password
           </button>
         )}

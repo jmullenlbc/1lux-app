@@ -18,11 +18,11 @@ async function patch(url, body) {
 
 function Btn({ children, onClick, tone = 'plain', disabled }) {
   const cls = tone === 'go'
-    ? 'bg-emerald-600 text-white hover:bg-emerald-700'
-    : 'border border-slate-200 text-slate-600 bg-white hover:bg-slate-50';
+    ? 'bg-green-600 text-white hover:bg-green-700'
+    : 'border border-slate-300 text-slate-700 bg-white hover:bg-slate-50';
   return (
     <button type="button" onClick={onClick} disabled={disabled}
-      className={`min-h-[40px] px-3 rounded-lg text-sm font-medium disabled:opacity-40 ${cls}`}>{children}</button>
+      className={`min-h-[40px] px-3 rounded-lg text-sm font-semibold disabled:opacity-40 ${cls}`}>{children}</button>
   );
 }
 
@@ -50,19 +50,19 @@ export function IntroductionRow({ r, onDone }) {
 
   return (
     <li className="rounded-xl border border-sky-200 bg-white p-3">
-      <div className="text-sm font-medium text-slate-800">{person}</div>
+      <div className="text-sm font-semibold text-slate-800">{person}</div>
       <dl className="grid grid-cols-[auto,1fr] gap-x-3 gap-y-1 text-sm my-2">
-        <dt className="text-slate-400">Company</dt>
+        <dt className="text-slate-500">Company</dt>
         <dd className="text-slate-700 min-w-0 break-words">
           {r.client ? <Link href={`/clients/${r.client.id}`} className="hover:underline">{r.client.name}</Link> : 'Not sure'}
           {r.client ? <span className="text-slate-400"> (same email domain)</span> : null}
         </dd>
-        <dt className="text-slate-400">Introduced by</dt>
+        <dt className="text-slate-500">Introduced by</dt>
         <dd className="text-slate-700 min-w-0 break-words">{by || 'Someone on the email'}</dd>
-        <dt className="text-slate-400">Where</dt>
+        <dt className="text-slate-500">Where</dt>
         <dd className="text-slate-700 min-w-0 break-words">{source}</dd>
       </dl>
-      {err && <p className="text-sm text-rose-600">{err}</p>}
+      {err && <p className="text-sm text-red-600">{err}</p>}
       <div className="flex flex-wrap gap-2">
         <Btn tone="go" disabled={busy} onClick={() => act('confirm')}>Add to CRM</Btn>
         <Btn disabled={busy} onClick={() => act('dismiss')}>Not an intro</Btn>
@@ -87,14 +87,14 @@ export default function IntroductionsCard({ title = 'Someone new was introduced'
 
   if (!rows?.length) return null;
   return (
-    <section className="rounded-2xl border border-sky-200 bg-sky-50/40 p-4">
+    <section className="rounded-xl border border-sky-200 bg-sky-50/40 p-4 shadow-sm">
       <h2 className="text-base font-semibold text-slate-800 mb-1">{title}</h2>
       <p className="text-xs text-slate-500 mb-3">On an email or an invite with someone we know, from a company we work with. Add them or say it was not an intro.</p>
-      {note && <p className="text-sm text-emerald-700 mb-2">{note}</p>}
+      {note && <p className="text-sm text-green-700 mb-2">{note}</p>}
       <ul className="space-y-2">
         {rows.slice(0, limit).map(r => <IntroductionRow key={r.id} r={r} onDone={async m => { setNote(m); await load(); }} />)}
       </ul>
-      {rows.length > limit && <p className="text-xs text-slate-400 mt-2">{rows.length - limit} more after these.</p>}
+      {rows.length > limit && <p className="text-xs text-slate-500 mt-2">{rows.length - limit} more after these.</p>}
     </section>
   );
 }

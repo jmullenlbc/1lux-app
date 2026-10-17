@@ -2,6 +2,8 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { CARD, H1, HELPER } from '@/components/ui/tokens';
+import { WidgetLoading } from '@/components/ui/WidgetFrame';
 
 export default function PortalProjectsPage() {
   const router = useRouter();
@@ -29,7 +31,7 @@ export default function PortalProjectsPage() {
       .catch(() => setLoading(false));
   }, [router]);
 
-  if (loading) return <div className="text-center py-20 text-slate-400">Loading…</div>;
+  if (loading) return <div className="py-14"><WidgetLoading /></div>;
   if (!data)   return null;
 
   // If only one project, redirect immediately
@@ -41,27 +43,27 @@ export default function PortalProjectsPage() {
   return (
     <div className="max-w-2xl mx-auto px-4 py-8">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-800">My Projects</h1>
-        <p className="text-sm text-slate-400 mt-1">Welcome back, {data.user.name}</p>
+        <h1 className={H1}>My Projects</h1>
+        <p className={`${HELPER} mt-1`}>Welcome back, {data.user.name}</p>
       </div>
 
       {showWelcome && (
-        <div className="mb-6 bg-blue-50 border border-blue-200 rounded-xl p-4">
+        <div className="mb-6 bg-orange-50 border border-orange-200 rounded-xl p-4 shadow-sm">
           <div className="flex items-start gap-3">
-            <svg className="w-5 h-5 text-blue-600 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <svg className="w-5 h-5 text-orange-600 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
             <div className="flex-1">
-              <h3 className="font-semibold text-blue-900 mb-1">Welcome to your ILC project portal</h3>
-              <p className="text-sm text-blue-800 mb-3">Here you'll find budgets, specifications, and updates for your lighting projects. Browse your projects below to view details and download documents.</p>
-              <button onClick={() => setShowWelcome(false)} className="text-xs text-blue-600 hover:text-blue-700 font-medium">Dismiss</button>
+              <h3 className="font-semibold text-slate-900 mb-1">Welcome to your ILC project portal</h3>
+              <p className="text-sm text-slate-700 mb-3">Here you'll find budgets, specifications, and updates for your lighting projects. Browse your projects below to view details and download documents.</p>
+              <button onClick={() => setShowWelcome(false)} className="text-xs text-orange-600 hover:text-orange-700 font-semibold">Dismiss</button>
             </div>
           </div>
         </div>
       )}
 
       {data.projects.length === 0 ? (
-        <div className="text-center py-16 text-slate-400">
+        <div className="text-center py-16 text-slate-500">
           <p className="text-sm">No active projects. Contact your ILC project manager.</p>
         </div>
       ) : (
@@ -70,11 +72,11 @@ export default function PortalProjectsPage() {
             <Link
               key={p.projectId}
               href={`/portal/projects/${p.projectId}`}
-              className="bg-white border border-slate-200 rounded-2xl p-5 text-left hover:border-amber-300 hover:shadow-sm transition-all group"
+              className={`${CARD} p-5 text-left hover:border-orange-300 transition-all group`}
             >
               <div className="flex items-start justify-between mb-3">
-                <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center">
-                  <svg className="w-5 h-5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                <div className="w-10 h-10 rounded-lg bg-orange-50 flex items-center justify-center">
+                  <svg className="w-5 h-5 text-orange-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3.75h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008z" />
                   </svg>
                 </div>
@@ -82,8 +84,8 @@ export default function PortalProjectsPage() {
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                 </svg>
               </div>
-              <h3 className="font-semibold text-slate-800 group-hover:text-amber-700 transition-colors">{p.projectName}</h3>
-              <p className="text-xs text-slate-400 mt-1">{p.role}</p>
+              <h3 className="font-semibold text-slate-800 group-hover:text-orange-700 transition-colors">{p.projectName}</h3>
+              <p className={`${HELPER} mt-1`}>{p.role}</p>
             </Link>
           ))}
         </div>

@@ -1,6 +1,9 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import StatTile from '@/components/ui/StatTile';
+import WidgetFrame, { WidgetEmpty, WidgetLoading, WidgetError } from '@/components/ui/WidgetFrame';
+import { CARD, TH, TD, TAB_ACTIVE, TAB_INACTIVE } from '@/components/ui/tokens';
 
 const WINDOWS = [7, 30, 90];
 
@@ -13,21 +16,6 @@ function bytes(n) {
 
 const num = n => (n ?? 0).toLocaleString();
 const pct = n => `${((n || 0) * 100).toFixed(1)}%`;
-
-function Card({ label, value, sub, tone = 'slate' }) {
-  const tones = {
-    slate: 'text-slate-900',
-    red:   'text-red-600',
-    amber: 'text-amber-600',
-  };
-  return (
-    <div className="rounded-lg border border-slate-200 bg-white px-4 py-3">
-      <div className="text-xs font-medium uppercase tracking-wide text-slate-400">{label}</div>
-      <div className={`mt-1 text-2xl font-bold ${tones[tone] || tones.slate}`}>{value}</div>
-      {sub && <div className="mt-0.5 text-xs text-slate-500">{sub}</div>}
-    </div>
-  );
-}
 
 /**
  * A dependency-free sparkline.
@@ -52,14 +40,14 @@ function Spark({ series, valueKey = 'count', color = '#0f766e' }) {
 }
 
 function Table({ columns, rows, empty }) {
-  if (!rows?.length) return <div className="px-4 py-6 text-sm text-slate-400">{empty}</div>;
+  if (!rows?.length) return <WidgetEmpty>{empty}</WidgetEmpty>;
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-slate-200 text-left text-xs uppercase tracking-wide text-slate-400">
+          <tr className="border-b border-slate-200">
             {columns.map(c => (
-              <th key={c.key} className={`px-4 py-2 font-medium ${c.align === 'right' ? 'text-right' : ''}`}>{c.label}</th>
+              <th key={c.key} className={`${TH} px-4 ${c.align === 'right' ? 'text-right' : ''}`}>{c.label}</th>
             ))}
           </tr>
         </thead>
@@ -67,7 +55,7 @@ function Table({ columns, rows, empty }) {
           {rows.map((r, i) => (
             <tr key={i} className="border-b border-slate-100 last:border-0">
               {columns.map(c => (
-                <td key={c.key} className={`px-4 py-2 ${c.align === 'right' ? 'text-right tabular-nums' : ''} ${c.className || ''}`}>
+                <td key={c.key} className={`${TD} px-4 ${c.align === 'right' ? 'text-right tabular-nums' : ''} ${c.className || ''}`}>
                   {c.render ? c.render(r) : r[c.key]}
                 </td>
               ))}
@@ -83,10 +71,10 @@ function Section({ title, note, children }) {
   return (
     <section className="mt-8">
       <div className="mb-2 flex items-baseline gap-3">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-700">{title}</h2>
-        {note && <span className="text-xs text-slate-400">{note}</span>}
+        <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
+        {note && <span className="text-xs text-slate-500">{note}</span>}
       </div>
-      <div className="rounded-lg border border-slate-200 bg-white">{children}</div>
+      <div className={CARD}>{children}</div>
     </section>
   );
 }
@@ -112,8 +100,8 @@ export default function UsageDashboard() {
     return () => { cancelled = true; };
   }, [days]);
 
-  if (loading && !data) return <div className="px-6 py-12 text-sm text-slate-400">Loading metrics…</div>;
-  if (err) return <div className="px-6 py-12 text-sm text-red-600">Could not load metrics: {err}</div>;
+  if (loading && !data) return <WidgetLoading className="px-6 py-12">Loading metrics...</WidgetLoading>;
+  if (err) return <WidgetError className="px-6 py-12">Could not load metrics: {err}</WidgetError>;
   if (!data) return null;
 
   const { users, uploads, errors, ai, history } = data;
@@ -125,38 +113,33 @@ export default function UsageDashboard() {
           <button
             key={d}
             onClick={() => setDays(d)}
-            className={`rounded px-3 py-1 text-sm font-medium transition ${
-              days === d ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-100'
-            }`}
+            className={`px-3 py-2 text-sm font-semibold border-b-2 transition-colors ${days === d ? TAB_ACTIVE : TAB_INACTIVE}`}
           >
             {d}d
           </button>
         ))}
-        {loading && <span className="ml-2 text-xs text-slate-400">refreshing…</span>}
+        {loading && <span className="ml-2 text-xs text-slate-500">refreshing...</span>}
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
-        <Card label="Active users"  value={num(users.activeCount)} sub={`of ${num(users.registered)} registered`} />
-        <Card label="Uploads"       value={num(uploads.projectFiles)} sub={bytes(uploads.bytes)} />
-        <Card label="Open bugs"     value={num(errors.bugsOpen)} sub={`${num(errors.bugsReported)} reported`}
-              tone={errors.bugsOpen ? 'amber' : 'slate'} />
-        <Card label="AI errors"     value={num(errors.agentErrors)} sub={`${pct(errors.agentErrorRate)} of ${num(ai.runs)} runs`}
-              tone={errors.agentErrors ? 'red' : 'slate'} />
+        <StatTile label="Active users" value={num(users.activeCount)} sub={`of ${num(users.registered)} registered`} />
+        <StatTile label="Uploads" value={num(uploads.projectFiles)} sub={bytes(uploads.bytes)} />
+        <StatTile label="Open bugs" value={num(errors.bugsOpen)} sub={`${num(errors.bugsReported)} reported`}
+              tone={errors.bugsOpen ? 'warning' : 'default'} />
+        <StatTile label="AI errors" value={num(errors.agentErrors)} sub={`${pct(errors.agentErrorRate)} of ${num(ai.runs)} runs`}
+              tone={errors.agentErrors ? 'danger' : 'default'} />
       </div>
 
       <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-3">
-        <div className="rounded-lg border border-slate-200 bg-white px-4 py-3">
-          <div className="text-xs font-medium uppercase tracking-wide text-slate-400">Activity</div>
+        <WidgetFrame title="Activity" bodyClassName="px-4 py-3">
           <Spark series={users.daily} />
-        </div>
-        <div className="rounded-lg border border-slate-200 bg-white px-4 py-3">
-          <div className="text-xs font-medium uppercase tracking-wide text-slate-400">Uploads</div>
+        </WidgetFrame>
+        <WidgetFrame title="Uploads" bodyClassName="px-4 py-3">
           <Spark series={uploads.daily} color="#1d4ed8" />
-        </div>
-        <div className="rounded-lg border border-slate-200 bg-white px-4 py-3">
-          <div className="text-xs font-medium uppercase tracking-wide text-slate-400">AI runs</div>
+        </WidgetFrame>
+        <WidgetFrame title="AI runs" bodyClassName="px-4 py-3">
           <Spark series={ai.daily} color="#7c3aed" />
-        </div>
+        </WidgetFrame>
       </div>
 
       <Section title="Users" note={`${users.perUser.length} active in the last ${days} days`}>
@@ -168,7 +151,7 @@ export default function UsageDashboard() {
             { key: 'email',   label: 'Email',   className: 'text-slate-500' },
             { key: 'actions', label: 'Actions', align: 'right', render: r => num(r.actions) },
             { key: 'lastSeen', label: 'Last seen', align: 'right',
-              render: r => (r.lastSeen ? new Date(r.lastSeen).toLocaleString() : '—') },
+              render: r => (r.lastSeen ? new Date(r.lastSeen).toLocaleString() : 'never') },
           ]}
         />
       </Section>
@@ -215,7 +198,7 @@ export default function UsageDashboard() {
         />
       </Section>
 
-      <Section title="Recent AI errors" note="message only — never parameters or output">
+      <Section title="Recent AI errors" note="message only, never parameters or output">
         <Table
           empty="No model errors in this window."
           rows={errors.recentAgentErrors}
@@ -238,7 +221,7 @@ export default function UsageDashboard() {
         />
       </Section>
 
-      <Section title="History" note="from the nightly rollup — gaps mean the job did not run, not zero activity">
+      <Section title="History" note="from the nightly rollup: gaps mean the job did not run, not zero activity">
         <Table
           empty="No snapshots recorded yet. The nightly rollup writes the first one after it runs."
           rows={[...(history || [])].reverse()}

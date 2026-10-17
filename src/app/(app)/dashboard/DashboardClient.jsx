@@ -5,6 +5,21 @@ import { useRouter } from 'next/navigation';
 import ConfirmArchiveModal from '@/components/salesAutomation/ConfirmArchiveModal';
 import { formatCurrency } from '@/lib/calculations';
 import { buildingTypeLabel, phaseLabel, serviceTypeLabel, PROJECT_PHASES, ALL_SERVICE_TYPES } from '@/lib/utils';
+import { useUrlView } from '@/lib/useUrlView';
+import { FilterToolbar, FilterPanel, countFilters, SearchBox } from '@/components/ui/FilterPanel';
+import SortHeader, { Th as PlainTh } from '@/components/ui/SortHeader';
+import { WidgetEmpty } from '@/components/ui/WidgetFrame';
+import { CARD, BTN_PRIMARY, BTN_SECONDARY, H1, HELPER, TD } from '@/components/ui/tokens';
+
+const FILTER_FIELDS = [
+  { key: 'q',       label: 'Search',      kind: 'text' },
+  { key: 'phase',   label: 'Phase',       kind: 'pick' },
+  { key: 'service', label: 'Service',     kind: 'pick' },
+  { key: 'mine',    label: 'My Projects', kind: 'yesno' },
+  { key: 'flagged', label: 'Flagged',     kind: 'yesno' },
+];
+const PANEL_FIELDS = FILTER_FIELDS.filter(f => f.key !== 'q');
+const SORT_DEFAULT = { key: 'updatedAt', dir: 'desc' };
 
 const PHASE_COLORS = {
   sd:           'bg-slate-100 text-slate-500',
@@ -43,33 +58,17 @@ function relativeTime(date) {
   return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' });
 }
 
-function SortIcon({ col, sortCol, sortDir }) {
-  const active = sortCol === col;
-  return (
-    <span className="inline-flex flex-col ml-1 opacity-40 group-hover:opacity-70">
-      <svg className={`w-2.5 h-2.5 -mb-0.5 ${active && sortDir === 'asc' ? 'opacity-100 text-amber-500' : ''}`} viewBox="0 0 10 6" fill="currentColor">
-        <path d="M5 0L10 6H0z" />
-      </svg>
-      <svg className={`w-2.5 h-2.5 ${active && sortDir === 'desc' ? 'opacity-100 text-amber-500' : ''}`} viewBox="0 0 10 6" fill="currentColor">
-        <path d="M5 6L0 0h10z" />
-      </svg>
-    </span>
-  );
-}
-
-const CHIP_BASE = 'px-3 py-1 rounded-full text-xs font-semibold border transition-colors cursor-pointer whitespace-nowrap';
-const CHIP_ON   = 'bg-amber-500 border-amber-500 text-white';
-const CHIP_OFF  = 'bg-white border-slate-200 text-slate-600 hover:border-slate-300';
-
 export default function DashboardClient({ projects = [], user }) {
   const router = useRouter();
-  const [search,      setSearch]      = useState('');
-  const [phaseFilter, setPhaseFilter] = useState('all');
-  const [svcFilter,   setSvcFilter]   = useState('all');
-  const [myProjects,  setMyProjects]  = useState(false);
-  const [flagged,     setFlagged]     = useState(false);
-  const [sortCol,     setSortCol]     = useState('updatedAt');
-  const [sortDir,     setSortDir]     = useState('desc');
+  const { filters, setFilter, clearFilters, sort, toggleSort } = useUrlView({ fields: FILTER_FIELDS, sortDefault: SORT_DEFAULT });
+  const [filterOpen,  setFilterOpen]  = useState(false);
+  const search      = filters.q || '';
+  const phaseFilter = filters.phase || 'all';
+  const svcFilter   = filters.service || 'all';
+  const myProjects  = filters.mine === 'yes';
+  const flagged     = filters.flagged === 'yes';
+  const sortCol     = sort.key;
+  const sortDir     = sort.dir;
   const [actionRow,   setActionRow]   = useState(null);
   const [archiveTarget, setArchiveTarget] = useState(null); // { id, name } waiting on "Archive it"
 
@@ -117,11 +116,6 @@ export default function DashboardClient({ projects = [], user }) {
     }
   }
 
-  function toggleSort(col) {
-    if (sortCol === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
-    else { setSortCol(col); setSortDir('asc'); }
-  }
-
   const filtered = projects.filter(p => {
     if (phaseFilter !== 'all' && p.phase !== phaseFilter) return false;
     if (svcFilter   !== 'all' && p.serviceType !== svcFilter) return false;
@@ -152,18 +146,11 @@ export default function DashboardClient({ projects = [], user }) {
   });
 
   const flaggedCount = projects.filter(p => p.flagged).length;
-
-  function Th({ col, children, className = '' }) {
-    return (
-      <th
-        onClick={() => toggleSort(col)}
-        className={`px-3 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide cursor-pointer select-none group hover:text-slate-700 ${className}`}
-      >
-        {children}
-        <SortIcon col={col} sortCol={sortCol} sortDir={sortDir} />
-      </th>
-    );
-  }
+  const filterCount  = countFilters(filters, PANEL_FIELDS);
+  const choices = {
+    phase:   PROJECT_PHASES.map(p => [p.value, p.label]),
+    service: ALL_SERVICE_TYPES.map(t => [t.value, t.label]),
+  };
 
   return (
     <div className="max-w-screen-xl mx-auto px-6 py-8">
@@ -171,18 +158,17 @@ export default function DashboardClient({ projects = [], user }) {
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Projects</h1>
-          <p className="text-slate-500 text-sm mt-0.5">
+          <h1 className={H1}>Projects</h1>
+          <p className={`${HELPER} tabular-nums mt-0.5`}>
             {projects.length} total{filtered.length !== projects.length ? ` · ${filtered.length} shown` : ''}
+            {flaggedCount > 0 ? ` · ${flaggedCount} flagged` : ''}
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={() => router.push('/clients')}
-            className="px-3 py-2 rounded-lg text-sm font-medium border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors">
+          <button onClick={() => router.push('/clients')} className={BTN_SECONDARY}>
             Clients
           </button>
-          <button onClick={() => router.push('/project/new')}
-            className="px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white transition-colors flex items-center gap-1.5">
+          <button onClick={() => router.push('/project/new')} className={BTN_PRIMARY}>
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
             </svg>
@@ -191,70 +177,43 @@ export default function DashboardClient({ projects = [], user }) {
         </div>
       </div>
 
-      {/* Search + toggles */}
-      <div className="flex flex-wrap items-center gap-2 mb-3">
-        <div className="relative">
-          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 105 11a6 6 0 0012 0z" />
-          </svg>
-          <input
-            type="text"
-            placeholder="Search projects, clients, locations…"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="pl-9 pr-8 py-1.5 rounded-lg border border-slate-200 text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 w-72 bg-white"
-          />
-          {search && (
-            <button onClick={() => setSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
+      {/* Filters */}
+      <div className="mb-5">
+        <FilterToolbar
+          count={filterCount}
+          open={filterOpen}
+          onToggle={() => setFilterOpen(o => !o)}
+          onClear={() => { clearFilters(); }}
+          shown={filtered.length}
+          total={projects.length}
+          noun="projects"
+          right={(
+            <SearchBox
+              value={search}
+              onChange={v => setFilter('q', v)}
+              placeholder="Search projects, clients, locations..."
+              className="w-72"
+            />
           )}
-        </div>
-        <button onClick={() => setMyProjects(v => !v)} className={`${CHIP_BASE} ${myProjects ? CHIP_ON : CHIP_OFF}`}>
-          My Projects
-        </button>
-        {flaggedCount > 0 && (
-          <button onClick={() => setFlagged(v => !v)}
-            className={`${CHIP_BASE} ${flagged ? 'bg-red-500 border-red-500 text-white' : 'bg-white border-slate-200 text-red-500 hover:border-red-300'}`}>
-            🚩 Flagged ({flaggedCount})
-          </button>
-        )}
-      </div>
-
-      {/* Phase chips */}
-      <div className="flex flex-wrap gap-1.5 mb-2">
-        <button onClick={() => setPhaseFilter('all')} className={`${CHIP_BASE} ${phaseFilter === 'all' ? CHIP_ON : CHIP_OFF}`}>All Phases</button>
-        {PROJECT_PHASES.map(p => (
-          <button key={p.value} onClick={() => setPhaseFilter(phaseFilter === p.value ? 'all' : p.value)}
-            className={`${CHIP_BASE} ${phaseFilter === p.value ? CHIP_ON : CHIP_OFF}`}>
-            {p.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Service type chips */}
-      <div className="flex flex-wrap gap-1.5 mb-5">
-        <button onClick={() => setSvcFilter('all')} className={`${CHIP_BASE} ${svcFilter === 'all' ? CHIP_ON : CHIP_OFF}`}>All Types</button>
-        {ALL_SERVICE_TYPES.map(t => (
-          <button key={t.value} onClick={() => setSvcFilter(svcFilter === t.value ? 'all' : t.value)}
-            className={`${CHIP_BASE} ${svcFilter === t.value ? CHIP_ON : CHIP_OFF}`}>
-            {t.label}
-          </button>
-        ))}
+        />
+        <FilterPanel
+          open={filterOpen}
+          fields={PANEL_FIELDS}
+          filters={filters}
+          choices={choices}
+          onChange={setFilter}
+        />
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+      <div className={`${CARD} overflow-hidden`}>
         {sorted.length === 0 ? (
-          <div className="py-16 text-center">
-            <p className="text-slate-400 text-sm">
+          <div className="py-10 text-center">
+            <WidgetEmpty>
               {projects.length === 0 ? 'No projects yet.' : 'No projects match your filters.'}
-            </p>
+            </WidgetEmpty>
             {projects.length === 0 && (
-              <button onClick={() => router.push('/project/new')}
-                className="mt-4 px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white transition-colors">
+              <button onClick={() => router.push('/project/new')} className={`${BTN_PRIMARY} mt-2`}>
                 New Project
               </button>
             )}
@@ -264,14 +223,14 @@ export default function DashboardClient({ projects = [], user }) {
             <thead className="border-b border-slate-100 bg-slate-50">
               <tr>
                 <th className="w-4 px-4" />
-                <Th col="name"        className="min-w-[180px]">Project</Th>
-                <Th col="client"      className="min-w-[130px]">Client</Th>
-                <Th col="location"    className="hidden md:table-cell">Location</Th>
-                <Th col="serviceType" className="hidden lg:table-cell">Service</Th>
-                <th className="px-3 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide hidden lg:table-cell">Building</th>
-                <Th col="phase"       className="">Phase</Th>
-                <Th col="budget"      className="text-right">Budget</Th>
-                <Th col="updatedAt"   className="hidden xl:table-cell whitespace-nowrap">Updated</Th>
+                <SortHeader label="Project"  field="name"        sort={sort} onSort={toggleSort} className="min-w-[180px]" />
+                <SortHeader label="Client"   field="client"      sort={sort} onSort={toggleSort} className="min-w-[130px]" />
+                <SortHeader label="Location" field="location"    sort={sort} onSort={toggleSort} className="hidden md:table-cell" />
+                <SortHeader label="Service"  field="serviceType" sort={sort} onSort={toggleSort} className="hidden lg:table-cell" />
+                <PlainTh className="hidden lg:table-cell">Building</PlainTh>
+                <SortHeader label="Phase"    field="phase"       sort={sort} onSort={toggleSort} />
+                <SortHeader label="Budget"   field="budget"      sort={sort} onSort={toggleSort} align="right" />
+                <SortHeader label="Updated"  field="updatedAt"   sort={sort} onSort={toggleSort} className="hidden xl:table-cell whitespace-nowrap" />
                 <th className="px-3" />
               </tr>
             </thead>
@@ -284,24 +243,24 @@ export default function DashboardClient({ projects = [], user }) {
                 return (
                   <tr key={project.id} className="hover:bg-slate-50 transition-colors group">
                     {/* Flag dot */}
-                    <td className="px-4 py-2.5">
+                    <td className="px-4 py-2">
                       {project.flagged
                         ? <svg className="w-3.5 h-3.5 text-red-400" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M3 6a3 3 0 013-3h10a1 1 0 01.8 1.6L14.25 7l2.55 2.4A1 1 0 0116 11H6a1 1 0 00-1 1v3a1 1 0 11-2 0V6z" clipRule="evenodd" /></svg>
-                        : <div className="w-1.5 h-1.5 rounded-full bg-slate-200 group-hover:bg-amber-400 transition-colors" />
+                        : <div className="w-1.5 h-1.5 rounded-full bg-slate-200 group-hover:bg-orange-400 transition-colors" />
                       }
                     </td>
 
                     {/* Project name */}
-                    <td className="px-3 py-2.5">
+                    <td className="px-3 py-2 text-sm text-slate-700">
                       <Link href={`/project/${project.id}`}
-                        className="font-medium text-slate-800 hover:text-amber-600 transition-colors line-clamp-1">
+                        className="font-medium text-slate-800 hover:text-orange-600 transition-colors line-clamp-1">
                         {project.name}{project.conceptualDraft?.budgetName ? <span className="font-normal text-slate-500">, {project.conceptualDraft.budgetName}</span> : null}
                       </Link>
                       {project.assignees?.length > 0 && (
                         <div className="flex -space-x-1 mt-1">
                           {project.assignees.slice(0, 3).map(u => (
                             <div key={u.id} title={u.name || u.email}
-                              className="w-4 h-4 rounded-full bg-amber-100 text-amber-700 text-[8px] font-bold flex items-center justify-center border border-white">
+                              className="w-4 h-4 rounded-full bg-orange-50 text-orange-700 text-[8px] font-bold flex items-center justify-center border border-white">
                               {initials(u)}
                             </div>
                           ))}
@@ -310,78 +269,78 @@ export default function DashboardClient({ projects = [], user }) {
                     </td>
 
                     {/* Client */}
-                    <td className="px-3 py-2.5">
+                    <td className="px-3 py-2 text-sm text-slate-700">
                       {project.client ? (
-                        <Link href={`/clients/${project.client.id}`} className="text-sm text-blue-600 hover:underline">
+                        <Link href={`/clients/${project.client.id}`} className="text-sm text-orange-600 hover:underline">
                           {project.client.name}
                         </Link>
                       ) : (
-                        <span className="text-slate-300">—</span>
+                        <span className="text-slate-400">—</span>
                       )}
                     </td>
 
                     {/* Location */}
-                    <td className="px-3 py-2.5 hidden md:table-cell">
+                    <td className="px-3 py-2 text-sm text-slate-700 hidden md:table-cell">
                       <span className="text-xs text-slate-500">{location}</span>
                     </td>
 
                     {/* Service type */}
-                    <td className="px-3 py-2.5 hidden lg:table-cell">
+                    <td className="px-3 py-2 text-sm text-slate-700 hidden lg:table-cell">
                       {project.serviceType
-                        ? <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${SERVICE_COLORS[project.serviceType] || SERVICE_COLORS.other}`}>
+                        ? <span className={`px-1.5 py-0.5 rounded-lg text-[11px] font-semibold ${SERVICE_COLORS[project.serviceType] || SERVICE_COLORS.other}`}>
                             {serviceTypeLabel(project.serviceType)}
                           </span>
-                        : <span className="text-slate-300">—</span>
+                        : <span className="text-slate-400">—</span>
                       }
                     </td>
 
                     {/* Building type */}
-                    <td className="px-3 py-2.5 hidden lg:table-cell">
-                      <span className="text-xs text-slate-400">{project.buildingType ? buildingTypeLabel(project.buildingType) : '—'}</span>
+                    <td className="px-3 py-2 text-sm text-slate-700 hidden lg:table-cell">
+                      <span className="text-xs text-slate-500">{project.buildingType ? buildingTypeLabel(project.buildingType) : '—'}</span>
                     </td>
 
                     {/* Phase */}
-                    <td className="px-3 py-2.5">
+                    <td className="px-3 py-2 text-sm text-slate-700">
                       {project.phase
-                        ? <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${PHASE_COLORS[project.phase] || PHASE_COLORS.sd}`}>
+                        ? <span className={`px-1.5 py-0.5 rounded-lg text-[11px] font-semibold ${PHASE_COLORS[project.phase] || PHASE_COLORS.sd}`}>
                             {phaseLabel(project.phase)}
                           </span>
-                        : <span className="text-slate-300">—</span>
+                        : <span className="text-slate-400">—</span>
                       }
                     </td>
 
                     {/* Budget */}
-                    <td className="px-3 py-2.5 text-right whitespace-nowrap">
+                    <td className="px-3 py-2 text-sm text-slate-700 text-right whitespace-nowrap tabular-nums">
                       {project.budgetType === 'peer_review'
-                        ? <span className="text-xs text-slate-400">Peer Review</span>
+                        ? <span className="text-xs text-slate-500">Peer Review</span>
                         : total > 0
                           ? <div>
                               <div className="text-sm font-semibold text-slate-800">{formatCurrency(total, true)}</div>
-                              {budget?.perSf > 0 && <div className="text-[10px] text-slate-400">${budget.perSf.toFixed(2)}/SF</div>}
+                              {budget?.perSf > 0 && <div className="text-[11px] text-slate-500 tabular-nums">${budget.perSf.toFixed(2)}/SF</div>}
                             </div>
-                          : <span className="text-slate-300">—</span>
+                          : <span className="text-slate-400">—</span>
                       }
                     </td>
 
                     {/* Updated */}
-                    <td className="px-3 py-2.5 hidden xl:table-cell whitespace-nowrap" title={new Date(project.updatedAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}>
-                      <span className="text-xs text-slate-400">
+                    <td className="px-3 py-2 text-sm text-slate-700 hidden xl:table-cell whitespace-nowrap tabular-nums" title={new Date(project.updatedAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}>
+                      <span className="text-xs text-slate-500">
                         {relativeTime(project.updatedAt)}
                       </span>
                     </td>
 
                     {/* Actions */}
-                    <td className="px-3 py-2.5">
+                    <td className="px-3 py-2 text-sm text-slate-700">
                       <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
                         <Link href={`/project/${project.id}`} title="Open"
-                          className="p-1.5 rounded text-slate-400 hover:text-amber-500 hover:bg-amber-50 transition-colors">
+                          className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors">
                           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                           </svg>
                         </Link>
                         <button onClick={() => duplicateProject(project.id)} title="Duplicate"
                           disabled={actionRow === project.id}
-                          className="p-1.5 rounded text-slate-400 hover:text-amber-500 hover:bg-amber-50 transition-colors disabled:opacity-50">
+                          className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors disabled:opacity-50">
                           {actionRow === project.id ? (
                             <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
                               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
@@ -395,7 +354,7 @@ export default function DashboardClient({ projects = [], user }) {
                         </button>
                         <button onClick={() => setArchiveTarget({ id: project.id, name: project.name })} title="Archive"
                           disabled={actionRow === project.id}
-                          className="p-1.5 rounded text-slate-400 hover:text-amber-600 hover:bg-amber-50 transition-colors disabled:opacity-50">
+                          className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors disabled:opacity-50">
                           {actionRow === project.id ? (
                             <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
                               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
@@ -418,7 +377,7 @@ export default function DashboardClient({ projects = [], user }) {
       </div>
 
       <div className="mt-8 text-center">
-        <Link href="/archive" className="text-xs text-slate-400 hover:text-slate-600 transition-colors">
+        <Link href="/archive" className="text-xs text-slate-500 hover:text-slate-700 transition-colors">
           Archived companies, projects, people and notes →
         </Link>
       </div>

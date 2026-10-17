@@ -15,7 +15,7 @@ export default function ContingencyWidget({ projectId, baseBudget, initialPct })
     try {
       const val = parseFloat(draft);
       if (isNaN(val) || val < 0 || val > 50) {
-        setError('Contingency must be 0–50%');
+        setError('Contingency must be 0 to 50%');
         setSaving(false);
         return;
       }
@@ -52,7 +52,7 @@ export default function ContingencyWidget({ projectId, baseBudget, initialPct })
             setEditing(true);
             setDraft('');
           }}
-          className="text-right text-xs text-slate-400 hover:text-slate-600 font-medium transition-colors"
+          className="text-right text-xs text-slate-500 hover:text-slate-700 font-semibold transition-colors"
         >
           + Add contingency %
         </button>
@@ -64,7 +64,7 @@ export default function ContingencyWidget({ projectId, baseBudget, initialPct })
               setEditing(true);
               setDraft(String(pct));
             }}
-            className="ml-2 text-xs text-slate-400 hover:text-slate-600 font-medium transition-colors"
+            className="ml-2 text-xs text-slate-500 hover:text-slate-700 font-semibold transition-colors"
           >
             Edit
           </button>
@@ -79,23 +79,23 @@ export default function ContingencyWidget({ projectId, baseBudget, initialPct })
             value={draft}
             onChange={e => setDraft(e.target.value)}
             autoFocus
-            className="w-16 px-2 py-1 text-sm border border-slate-200 rounded focus:outline-none focus:ring-2 focus:ring-orange-400"
+            className="w-16 rounded-lg border border-slate-300 bg-white px-2 py-1 text-sm text-slate-900 tabular-nums focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
           />
           <span className="text-xs text-slate-500">%</span>
           <button
             onClick={handleSave}
             disabled={saving}
-            className="text-xs px-3 py-1 bg-slate-800 text-white rounded disabled:opacity-40 transition-opacity"
+            className="text-xs px-3 py-1 bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg disabled:opacity-40 transition-opacity"
           >
             {saving ? 'Saving...' : 'Save'}
           </button>
           <button
             onClick={handleCancel}
-            className="text-xs text-slate-400 hover:text-slate-600"
+            className="text-xs text-slate-500 hover:text-slate-700"
           >
             Cancel
           </button>
-          {error && <span className="text-xs text-red-500">{error}</span>}
+          {error && <span className="text-xs text-red-600">{error}</span>}
         </div>
       ) : null}
     </div>

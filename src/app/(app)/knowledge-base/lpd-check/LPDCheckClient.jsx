@@ -30,9 +30,9 @@ function Dropzone({ onFile, loading }) {
       onDragLeave={() => setDrag(false)}
       onDrop={handleDrop}
       onClick={() => !loading && inputRef.current?.click()}
-      className={`border-2 border-dashed rounded-2xl p-12 flex flex-col items-center gap-4 transition-colors cursor-pointer select-none
-        ${loading ? 'border-blue-200 bg-blue-50 pointer-events-none' :
-          drag ? 'border-amber-400 bg-amber-50' :
+      className={`border-2 border-dashed rounded-xl p-12 flex flex-col items-center gap-4 transition-colors cursor-pointer select-none
+        ${loading ? 'border-orange-200 bg-orange-50 pointer-events-none' :
+          drag ? "border-orange-400 bg-orange-50" :
           'border-slate-200 hover:border-slate-400 hover:bg-slate-50'}`}
     >
       <input ref={inputRef} type="file" accept=".csv,.xlsx,.xls" className="hidden"
@@ -40,24 +40,24 @@ function Dropzone({ onFile, loading }) {
 
       {loading ? (
         <>
-          <svg className="animate-spin w-10 h-10 text-blue-400" viewBox="0 0 24 24" fill="none">
+          <svg className="animate-spin w-10 h-10 text-orange-500" viewBox="0 0 24 24" fill="none">
             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
           </svg>
-          <p className="text-sm font-medium text-blue-700">Parsing fixture schedule…</p>
+          <p className="text-sm font-medium text-slate-700">Parsing fixture schedule…</p>
         </>
       ) : (
         <>
-          <div className="w-14 h-14 rounded-2xl bg-amber-100 flex items-center justify-center">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-7 h-7 text-amber-600">
+          <div className="w-14 h-14 rounded-xl bg-orange-50 flex items-center justify-center">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-7 h-7 text-orange-600">
               <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
             </svg>
           </div>
           <div className="text-center">
             <p className="text-base font-semibold text-slate-800">Drop your fixture schedule here</p>
-            <p className="text-sm text-slate-400 mt-1">CSV, Excel (.xlsx, .xls) — any format with Type, Wattage, Qty, Location columns</p>
+            <p className="text-sm text-slate-500 mt-1">CSV, Excel (.xlsx, .xls), any format with Type, Wattage, Qty, Location columns</p>
           </div>
-          <span className="px-4 py-2 rounded-lg bg-amber-500 text-white text-sm font-semibold hover:bg-amber-400 transition-colors">
+          <span className="px-4 py-2 rounded-lg bg-orange-500 text-white text-sm font-semibold hover:bg-orange-600 transition-colors">
             Browse file
           </span>
         </>
@@ -80,7 +80,7 @@ function ColumnMapPreview({ columnMap, headers, onRemap }) {
   return (
     <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
       <div className="px-5 py-3 border-b border-slate-100 bg-slate-50">
-        <p className="text-xs font-semibold text-slate-600">Detected column mapping — correct if needed</p>
+        <p className="text-xs font-semibold text-slate-600">Detected column mapping, correct if needed</p>
       </div>
       <div className="divide-y divide-slate-100">
         {FIELDS.map(f => (
@@ -90,18 +90,18 @@ function ColumnMapPreview({ columnMap, headers, onRemap }) {
               {f.required && <span className="text-red-400 ml-0.5">*</span>}
             </span>
             <select
-              className="flex-1 text-xs font-mono bg-white border border-slate-200 rounded px-2 py-1 outline-none focus:ring-2 focus:ring-amber-400"
+              className="flex-1 text-xs font-mono bg-white border border-slate-300 rounded-lg px-2 py-1 outline-none focus:ring-2 focus:ring-orange-500"
               value={columnMap[f.key] || ''}
               onChange={e => onRemap(f.key, e.target.value || undefined)}
             >
-              <option value="">— not mapped —</option>
+              <option value="">Not mapped</option>
               {headers.map(h => <option key={h} value={h}>{h}</option>)}
             </select>
             {columnMap[f.key]
-              ? <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-semibold shrink-0">✓</span>
+              ? <span className="text-[11px] px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-semibold shrink-0">✓</span>
               : f.required
-                ? <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-semibold shrink-0">needed</span>
-                : <span className="text-[10px] text-slate-300 shrink-0">optional</span>}
+                ? <span className="text-[11px] px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 font-semibold shrink-0">needed</span>
+                : <span className="text-[11px] text-slate-500 shrink-0">optional</span>}
           </div>
         ))}
       </div>
@@ -138,7 +138,7 @@ function AreaRow({ area, sfOverride, onSfChange, qtyOverrides, onQtyChange }) {
     <tr className="border-t border-slate-100 hover:bg-slate-50/50">
       <td className="px-4 py-3">
         <p className="text-sm font-semibold text-slate-800">{area.label}</p>
-        {area.rawLocations && <p className="text-[10px] text-slate-400 mt-0.5 truncate max-w-[160px]" title={area.rawLocations}>{area.rawLocations}</p>}
+        {area.rawLocations && <p className="text-[11px] text-slate-500 mt-0.5 truncate max-w-[160px]" title={area.rawLocations}>{area.rawLocations}</p>}
       </td>
       <td className="px-4 py-3">
         <div className="flex flex-wrap gap-1">
@@ -146,16 +146,16 @@ function AreaRow({ area, sfOverride, onSfChange, qtyOverrides, onQtyChange }) {
             const qtyKey = `${area.slug}::${f.type}`;
             const hasQty = f.qty != null;
             return (
-              <div key={i} className="flex items-center gap-1 text-[10px]">
+              <div key={i} className="flex items-center gap-1 text-[11px]">
                 <span className="font-mono font-semibold text-slate-700 bg-slate-100 rounded px-1.5 py-0.5">{f.type}</span>
-                <span className="text-slate-400">{f.wattage != null ? `${f.wattage}W` : '?W'}</span>
+                <span className="text-slate-500">{f.wattage != null ? `${f.wattage}W` : '?W'}</span>
                 <span className="text-slate-300">×</span>
                 {hasQty ? (
                   <span className="text-slate-600 font-semibold">{f.qty}</span>
                 ) : (
                   <input
                     type="number" min="0" placeholder="qty"
-                    className="w-12 text-xs text-center border border-amber-300 rounded px-1 py-0.5 bg-amber-50 outline-none focus:ring-1 focus:ring-amber-400"
+                    className="w-12 text-xs text-center border border-slate-300 rounded-lg px-1 py-0.5 bg-white outline-none focus:ring-1 focus:ring-orange-500"
                     onChange={e => { const v = parseFloat(e.target.value); onQtyChange(qtyKey, isNaN(v) ? null : v); }}
                   />
                 )}
@@ -172,7 +172,7 @@ function AreaRow({ area, sfOverride, onSfChange, qtyOverrides, onQtyChange }) {
       <td className="px-4 py-3 text-right">
         {editSf ? (
           <input autoFocus type="number"
-            className="w-24 text-sm font-semibold text-right bg-blue-50 border border-blue-300 rounded px-2 py-0.5 outline-none"
+            className="w-24 text-sm font-semibold text-right bg-white border border-slate-300 rounded-lg px-2 py-0.5 outline-none focus:ring-2 focus:ring-orange-500"
             value={localSf}
             onChange={e => setLocalSf(e.target.value)}
             onBlur={commitSf}
@@ -180,7 +180,7 @@ function AreaRow({ area, sfOverride, onSfChange, qtyOverrides, onQtyChange }) {
           />
         ) : (
           <button onClick={() => setEditSf(true)}
-            className={`text-sm font-semibold rounded px-1.5 py-0.5 hover:bg-slate-100 transition-colors ${sf ? 'text-slate-800' : 'text-slate-300 italic'}`}
+            className={`text-sm font-semibold rounded px-1.5 py-0.5 hover:bg-slate-100 transition-colors ${sf ? 'text-slate-800' : 'text-slate-500'}`}
             title="Click to enter area (sq ft)"
           >
             {sf ? Number(sf).toLocaleString() : 'enter SF'}
@@ -188,21 +188,21 @@ function AreaRow({ area, sfOverride, onSfChange, qtyOverrides, onQtyChange }) {
         )}
       </td>
       <td className="px-4 py-3 text-right">
-        <span className={`text-sm font-mono font-bold ${compliant === true ? 'text-green-600' : compliant === false ? 'text-red-600' : 'text-slate-400'}`}>
+        <span className={`text-sm font-mono font-bold ${compliant === true ? 'text-green-600' : compliant === false ? 'text-red-600' : 'text-slate-500'}`}>
           {fmtLpd(lpd)}
         </span>
-        {lpd != null && <span className="text-[10px] text-slate-400 ml-0.5">W/ft²</span>}
+        {lpd != null && <span className="text-[11px] text-slate-500 ml-0.5">W/ft²</span>}
       </td>
       <td className="px-4 py-3 text-right">
         {limit != null ? <span className="text-sm font-mono text-slate-500">{limit.toFixed(2)}</span>
           : <span className="text-xs text-slate-300">{area.slug === 'units' ? 'exempt' : 'N/A'}</span>}
       </td>
       <td className="px-4 py-3 text-center">
-        {compliant === true  && <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-green-100 text-green-700">PASS</span>}
-        {compliant === false && <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700">FAIL</span>}
-        {compliant === null  && totalWatts == null && <span className="text-[10px] text-slate-300">need qty</span>}
-        {compliant === null  && totalWatts != null && sf == null && <span className="text-[10px] text-slate-300">need SF</span>}
-        {compliant === null  && totalWatts != null && sf != null && limit == null && <span className="text-[10px] text-slate-300">no limit</span>}
+        {compliant === true  && <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-green-100 text-green-700">PASS</span>}
+        {compliant === false && <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-red-100 text-red-700">FAIL</span>}
+        {compliant === null  && totalWatts == null && <span className="text-[11px] text-slate-500">need qty</span>}
+        {compliant === null  && totalWatts != null && sf == null && <span className="text-[11px] text-slate-500">need SF</span>}
+        {compliant === null  && totalWatts != null && sf != null && limit == null && <span className="text-[11px] text-slate-500">no limit</span>}
       </td>
     </tr>
   );
@@ -269,15 +269,15 @@ export default function LPDCheckClient() {
       {/* Header */}
       <div>
         <div className="flex items-center gap-3 mb-2">
-          <div className="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center">
-            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-5 h-5 text-amber-600">
+          <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center">
+            <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" className="w-5 h-5 text-orange-600">
               <rect x="2" y="4" width="16" height="12" rx="1.5" />
               <path d="M6 8h8M6 12h5" strokeLinecap="round" />
             </svg>
           </div>
           <div>
-            <h1 className="text-xl font-bold text-slate-900">LPD Compliance Checker</h1>
-            <p className="text-sm text-slate-400">Upload a fixture schedule CSV or Excel — get ASHRAE 90.1-2022 compliance in seconds</p>
+            <h1 className="text-2xl font-bold text-slate-900">LPD Compliance Checker</h1>
+            <p className="text-sm text-slate-500">Upload a fixture schedule CSV or Excel, get ASHRAE 90.1-2022 compliance in seconds</p>
           </div>
         </div>
       </div>
@@ -307,19 +307,19 @@ export default function LPDCheckClient() {
       {result && (
         <>
           {/* File + column map summary */}
-          <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+          <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
             <div className="flex items-center justify-between px-5 py-3 bg-slate-50 border-b border-slate-100">
               <div className="flex items-center gap-3 text-sm">
                 <span className="font-semibold text-slate-800">{result.fileName}</span>
-                <span className="text-slate-400">·</span>
+                <span className="text-slate-500">·</span>
                 <span className="text-slate-500">{result.rowCount} fixture types parsed</span>
                 {result.areas.length > 0 && (
-                  <><span className="text-slate-400">·</span>
+                  <><span className="text-slate-500">·</span>
                   <span className="text-slate-500">{result.areas.length} location groups</span></>
                 )}
               </div>
               <button onClick={() => setShowCols(p => !p)}
-                className="text-xs text-slate-400 hover:text-slate-600 flex items-center gap-1 transition-colors">
+                className="text-xs text-slate-500 hover:text-slate-600 flex items-center gap-1 transition-colors">
                 <svg viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5">
                   <path fillRule="evenodd" d="M10 3a.75.75 0 01.55.24l3.25 3.5a.75.75 0 11-1.1 1.02L10 4.852 7.3 7.76a.75.75 0 01-1.1-1.02l3.25-3.5A.75.75 0 0110 3zm-3.76 9.24a.75.75 0 011.06-.04l2.7 2.908 2.7-2.908a.75.75 0 011.1 1.02l-3.25 3.5a.75.75 0 01-1.1 0l-3.25-3.5a.75.75 0 01.04-1.06z" clipRule="evenodd" />
                 </svg>
@@ -338,8 +338,8 @@ export default function LPDCheckClient() {
                     reparse(next);
                   }}
                 />
-                <p className="text-[10px] text-slate-400 mt-2">
-                  Column remapping updates the display — re-upload the file to re-parse with new mappings.
+                <p className="text-[11px] text-slate-500 mt-2">
+                  Column remapping updates the display, re-upload the file to re-parse with new mappings.
                 </p>
               </div>
             )}
@@ -348,8 +348,8 @@ export default function LPDCheckClient() {
             {!showCols && (
               <div className="flex flex-wrap gap-2 px-5 py-3">
                 {Object.entries(columnMap).filter(([k]) => ['type','wattage','qty','location'].includes(k)).map(([field, col]) => (
-                  <span key={field} className="text-[10px] font-medium px-2 py-1 bg-slate-100 text-slate-600 rounded-full">
-                    <span className="text-slate-400">{field} → </span>{col}
+                  <span key={field} className="text-[11px] font-medium px-2 py-1 bg-slate-100 text-slate-600 rounded-full">
+                    <span className="text-slate-500">{field} → </span>{col}
                   </span>
                 ))}
               </div>
@@ -358,11 +358,11 @@ export default function LPDCheckClient() {
 
           {/* Results table */}
           {areas.length > 0 && (
-            <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+            <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
               <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
                 <div>
                   <h2 className="text-sm font-semibold text-slate-800">ASHRAE 90.1-2022 §9.5.1 Compliance Matrix</h2>
-                  <p className="text-xs text-slate-400 mt-0.5">Click any area value to enter SF · Residential units (R-2) are exempt</p>
+                  <p className="text-xs text-slate-500 mt-0.5">Click any area value to enter SF · Residential units (R-2) are exempt</p>
                 </div>
                 <div className="flex items-center gap-2 text-xs">
                   {failCount > 0 && <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-semibold">{failCount} FAIL</span>}
@@ -373,7 +373,7 @@ export default function LPDCheckClient() {
               <div className="overflow-x-auto">
                 <table className="w-full text-left">
                   <thead>
-                    <tr className="text-[10px] font-semibold uppercase tracking-wide text-slate-400 border-b border-slate-100 bg-slate-50">
+                    <tr className="text-[11px] font-semibold uppercase tracking-wide text-slate-500 border-b border-slate-100 bg-slate-50">
                       <th className="px-4 py-2.5">Location</th>
                       <th className="px-4 py-2.5">Fixtures (Type · W × Qty)</th>
                       <th className="px-4 py-2.5 text-right">Total Watts</th>
@@ -398,9 +398,9 @@ export default function LPDCheckClient() {
                 </table>
               </div>
 
-              <div className="px-5 py-3 bg-slate-50 border-t border-slate-100 text-[10px] text-slate-400">
+              <div className="px-5 py-3 bg-slate-50 border-t border-slate-100 text-[11px] text-slate-500">
                 ASHRAE 90.1-2022 §9.5.1 limits. Exterior and residential units have no interior LPD limit.
-                Areas with amber qty inputs need manual entry — upload a schedule with a Qty column to auto-fill.
+                Areas with amber qty inputs need manual entry, upload a schedule with a Qty column to auto-fill.
               </div>
             </div>
           )}
@@ -408,7 +408,7 @@ export default function LPDCheckClient() {
           {/* Reset */}
           <div className="text-center">
             <button onClick={() => { setResult(null); setError(null); setSfOverrides({}); setQtyOverrides({}); }}
-              className="text-sm text-slate-400 hover:text-slate-600 transition-colors">
+              className="text-sm text-slate-500 hover:text-slate-600 transition-colors">
               ← Check a different file
             </button>
           </div>
@@ -417,24 +417,24 @@ export default function LPDCheckClient() {
 
       {/* How it works */}
       {!result && !loading && (
-        <div className="bg-slate-50 border border-slate-200 rounded-2xl px-6 py-5">
+        <div className="bg-slate-50 border border-slate-200 rounded-xl px-6 py-5">
           <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">How it works</p>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {[
               { step: '1', title: 'Upload your schedule', body: 'Any CSV or Excel with fixture types, wattages, quantities, and location tags.' },
-              { step: '2', title: 'Auto-detect columns', body: 'The tool maps common column names (Type, Watts, Qty, Space) — correct if needed.' },
+              { step: '2', title: 'Auto-detect columns', body: 'The tool maps common column names (Type, Watts, Qty, Space), correct if needed.' },
               { step: '3', title: 'Enter area SF', body: 'Type in square footage per space. LPD and PASS/FAIL update instantly.' },
             ].map(({ step, title, body }) => (
               <div key={step} className="flex gap-3">
-                <div className="w-7 h-7 rounded-full bg-amber-100 text-amber-700 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">{step}</div>
+                <div className="w-7 h-7 rounded-full bg-orange-50 text-orange-700 text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">{step}</div>
                 <div>
                   <p className="text-sm font-semibold text-slate-700">{title}</p>
-                  <p className="text-xs text-slate-400 mt-0.5 leading-relaxed">{body}</p>
+                  <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">{body}</p>
                 </div>
               </div>
             ))}
           </div>
-          <p className="text-[10px] text-slate-400 mt-4 border-t border-slate-200 pt-3">
+          <p className="text-[11px] text-slate-500 mt-4 border-t border-slate-200 pt-3">
             Expected columns (any order, any capitalization): <span className="font-mono">Type / Mark</span>, <span className="font-mono">Watts / Wattage</span>, <span className="font-mono">Qty / Count</span>, <span className="font-mono">Location / Space</span>, and optionally <span className="font-mono">Area SF</span>.
           </p>
         </div>

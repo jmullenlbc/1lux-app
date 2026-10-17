@@ -75,7 +75,7 @@ function RFIList({ rfis, selectedId, onSelect }) {
             <span className="flex-1 text-sm text-slate-700 truncate">{rfi.subject}</span>
 
             {/* Type */}
-            <span className="text-[10px] text-slate-400 shrink-0 hidden lg:block">{TYPE_LABELS[rfi.rfiType] ?? rfi.rfiType}</span>
+            <span className="text-[11px] text-slate-400 shrink-0 hidden lg:block">{TYPE_LABELS[rfi.rfiType] ?? rfi.rfiType}</span>
 
             {/* Received from */}
             <span className="text-[11px] text-slate-500 shrink-0 hidden xl:block w-24 truncate">{rfi.receivedFrom}</span>
@@ -86,12 +86,12 @@ function RFIList({ rfis, selectedId, onSelect }) {
             </span>
 
             {/* Status */}
-            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border shrink-0 ${STATUS_BADGE[rfi.status] ?? STATUS_BADGE.OPEN}`}>
+            <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded border shrink-0 ${STATUS_BADGE[rfi.status] ?? STATUS_BADGE.OPEN}`}>
               {rfi.status}
             </span>
 
             {/* Draft status */}
-            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border shrink-0 ${db.cls}`}>
+            <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded border shrink-0 ${db.cls}`}>
               {db.label}
             </span>
           </div>
@@ -158,12 +158,12 @@ function IntakeDrawer({ projectId, allUsers, onCreated, onClose }) {
               <label className="block text-xs font-semibold text-slate-600 mb-1">RFI # *</label>
               <input value={form.rfiNumber} onChange={e => set('rfiNumber', e.target.value)}
                 placeholder="RFI #116"
-                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-amber-400" />
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-orange-500" />
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1">Due Date</label>
               <input type="date" value={form.dateDue} onChange={e => set('dateDue', e.target.value)}
-                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500" />
             </div>
           </div>
 
@@ -171,7 +171,7 @@ function IntakeDrawer({ projectId, allUsers, onCreated, onClose }) {
             <label className="block text-xs font-semibold text-slate-600 mb-1">Subject *</label>
             <input value={form.subject} onChange={e => set('subject', e.target.value)}
               placeholder="Type G1 mounting height at garage entry"
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500" />
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -179,12 +179,12 @@ function IntakeDrawer({ projectId, allUsers, onCreated, onClose }) {
               <label className="block text-xs font-semibold text-slate-600 mb-1">Received From *</label>
               <input value={form.receivedFrom} onChange={e => set('receivedFrom', e.target.value)}
                 placeholder="Shaw Construction"
-                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400" />
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500" />
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-600 mb-1">Type</label>
               <select value={form.rfiType} onChange={e => set('rfiType', e.target.value)}
-                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400">
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500">
                 {RFI_TYPES.map(t => <option key={t} value={t}>{TYPE_LABELS[t]}</option>)}
               </select>
             </div>
@@ -193,7 +193,7 @@ function IntakeDrawer({ projectId, allUsers, onCreated, onClose }) {
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1">Assign To</label>
             <select value={form.assignedToId} onChange={e => set('assignedToId', e.target.value)}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400">
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500">
               <option value="">— Unassigned —</option>
               <PersonOptions users={allUsers} picker="rfiAssignee" />
             </select>
@@ -202,8 +202,8 @@ function IntakeDrawer({ projectId, allUsers, onCreated, onClose }) {
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1">Question Text <span className="text-slate-400 font-normal">(from inbound RFI)</span></label>
             <textarea value={form.bodyText} onChange={e => set('bodyText', e.target.value)}
-              rows={5} placeholder="Paste the full question from the GC/EC here — this feeds the AI draft engine."
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-amber-400" />
+              rows={5} placeholder="Paste the full question from the GC/EC here, this feeds the AI draft engine."
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-orange-500" />
           </div>
 
           {error && <div className="bg-red-50 border border-red-200 rounded-lg px-3 py-2 text-sm text-red-600">{error}</div>}
@@ -313,7 +313,7 @@ function RFIDetail({ rfiId, projectId, currentUserName, onClose }) {
             <p className="text-sm text-slate-500 mb-6">An active shipment is associated with this RFI. Confirm you have discussed a hold or cancellation with the rep before approving this substitution.</p>
             <div className="flex gap-3">
               <button onClick={() => setShipModal(false)} className="flex-1 py-2 text-sm border border-slate-200 rounded-lg">Cancel</button>
-              <button onClick={acknowledgeShip} className="flex-1 py-2 text-sm bg-amber-500 text-white font-semibold rounded-lg">I've confirmed — proceed</button>
+              <button onClick={acknowledgeShip} className="flex-1 py-2 text-sm bg-orange-500 text-white font-semibold rounded-lg">I've confirmed, proceed</button>
             </div>
           </div>
         </div>
@@ -325,8 +325,8 @@ function RFIDetail({ rfiId, projectId, currentUserName, onClose }) {
           <div>
             <div className="flex items-center gap-2 mb-1">
               <span className="text-sm font-mono font-bold text-slate-700">{rfi.rfiNumber}</span>
-              <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${STATUS_BADGE[rfi.status] ?? STATUS_BADGE.OPEN}`}>{rfi.status}</span>
-              {rfi.shipFlag && <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">⚠ ACTIVE SHIPMENT</span>}
+              <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded border ${STATUS_BADGE[rfi.status] ?? STATUS_BADGE.OPEN}`}>{rfi.status}</span>
+              {rfi.shipFlag && <span className="text-[11px] font-bold text-amber-600 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">⚠ ACTIVE SHIPMENT</span>}
             </div>
             <h2 className="text-base font-bold text-slate-900">{rfi.subject}</h2>
             <p className="text-xs text-slate-400 mt-0.5">{TYPE_LABELS[rfi.rfiType]} · From {rfi.receivedFrom}{rfi.dateDue ? ` · Due ${fmtDate(rfi.dateDue)}` : ''}</p>
@@ -339,15 +339,15 @@ function RFIDetail({ rfiId, projectId, currentUserName, onClose }) {
           {rfi.activities.map(act => (
             <div key={act.id} className={`rounded-xl p-4 border ${act.direction === 'INBOUND' ? 'bg-slate-50 border-slate-200' : 'bg-slate-800 border-slate-700'}`}>
               <div className="flex items-center gap-2 mb-2">
-                <span className={`text-[10px] font-bold px-2 py-0.5 rounded uppercase ${act.direction === 'INBOUND' ? 'bg-slate-200 text-slate-600' : 'bg-slate-600 text-slate-200'}`}>{act.direction}</span>
+                <span className={`text-[11px] font-bold px-2 py-0.5 rounded uppercase ${act.direction === 'INBOUND' ? 'bg-slate-200 text-slate-600' : 'bg-slate-600 text-slate-200'}`}>{act.direction}</span>
                 <span className={`text-xs font-medium ${act.direction === 'INBOUND' ? 'text-slate-600' : 'text-slate-300'}`}>{act.authoredBy}</span>
-                <span className={`text-[10px] ml-auto ${act.direction === 'INBOUND' ? 'text-slate-400' : 'text-slate-500'}`}>{fmtDate(act.sentAt)}</span>
+                <span className={`text-[11px] ml-auto ${act.direction === 'INBOUND' ? 'text-slate-400' : 'text-slate-500'}`}>{fmtDate(act.sentAt)}</span>
               </div>
               <p className={`text-sm whitespace-pre-wrap leading-relaxed ${act.direction === 'INBOUND' ? 'text-slate-700' : 'text-slate-200'}`}>{act.bodyText}</p>
               {act.attachments?.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {act.attachments.map(att => (
-                    <span key={att.id} className="text-[10px] bg-white border border-slate-200 text-slate-600 px-2 py-0.5 rounded-full">📎 {att.fileName}</span>
+                    <span key={att.id} className="text-[11px] bg-white border border-slate-200 text-slate-600 px-2 py-0.5 rounded-full">📎 {att.fileName}</span>
                   ))}
                 </div>
               )}
@@ -369,25 +369,25 @@ function RFIDetail({ rfiId, projectId, currentUserName, onClose }) {
               <>
                 <div className="w-4 h-4 border-2 border-blue-300 border-t-blue-600 rounded-full animate-spin" />
                 <span className="text-sm font-semibold text-blue-700">Drafting response…</span>
-                <span className="text-xs text-blue-500 ml-auto">Assembling fixture context + writing in ILC voice</span>
+                <span className="text-xs text-slate-500 ml-auto">Assembling fixture context + writing in ILC voice</span>
               </>
             )}
             {draftStatus === 'READY' && (
               <>
-                <span className="text-sm font-bold text-amber-700">⚡ AI Draft — Pending Your Review</span>
+                <span className="text-sm font-bold text-amber-700">⚡ AI Draft, Pending Your Review</span>
                 {rfi.draftConfidence && (
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ml-auto ${confCls}`}>{rfi.draftConfidence}</span>
+                  <span className={`text-[11px] font-bold px-2 py-0.5 rounded border ml-auto ${confCls}`}>{rfi.draftConfidence}</span>
                 )}
               </>
             )}
             {draftStatus === 'REVIEWED' && (
-              <span className="text-sm font-bold text-violet-700">Draft edited — ready to send</span>
+              <span className="text-sm font-bold text-violet-700">Draft edited, ready to send</span>
             )}
             {draftStatus === 'SENT' && (
               <span className="text-sm font-bold text-green-700">✓ Response sent {fmtDate(rfi.draftReviewedAt)} by {rfi.draftReviewedBy}</span>
             )}
             {(draftStatus === 'NONE' || !draftStatus) && (
-              <span className="text-sm text-slate-500">No draft yet — open RFI to generate</span>
+              <span className="text-sm text-slate-500">No draft yet, open RFI to generate</span>
             )}
           </div>
 
@@ -404,7 +404,7 @@ function RFIDetail({ rfiId, projectId, currentUserName, onClose }) {
             {draftStatus === 'NONE' && !rfi.draftText && (
               <p className="text-sm text-slate-400 italic">
                 {rfi.draftConfidence === 'LOW'
-                  ? 'This RFI requires your judgment — fixture type not found in schedule or scope is out-of-bounds. Write your response below.'
+                  ? 'This RFI requires your judgment, fixture type not found in schedule or scope is out-of-bounds. Write your response below.'
                   : 'Opening the RFI detail will trigger draft generation automatically.'}
               </p>
             )}
@@ -416,25 +416,25 @@ function RFIDetail({ rfiId, projectId, currentUserName, onClose }) {
                     value={editText}
                     onChange={e => setEditText(e.target.value)}
                     rows={10}
-                    className="w-full text-sm font-mono border border-blue-300 rounded-lg px-3 py-2 resize-y focus:outline-none focus:ring-2 focus:ring-blue-400 bg-blue-50"
+                    className="w-full text-sm font-mono border border-blue-300 rounded-lg px-3 py-2 resize-y focus:outline-none focus:ring-2 focus:ring-orange-500 bg-blue-50"
                   />
                 ) : (
                   <pre className="text-sm font-mono whitespace-pre-wrap text-slate-700 leading-relaxed bg-slate-50 rounded-lg px-3 py-2">
-                    {rfi.draftText || '(LOW confidence — write response manually below)'}
+                    {rfi.draftText || '(LOW confidence, write response manually below)'}
                   </pre>
                 )}
 
                 <div className="flex gap-2 mt-3 flex-wrap">
                   {editing ? (
                     <>
-                      <button onClick={() => handleApprove(editText)} disabled={sending} className="px-4 py-2 text-sm bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg disabled:opacity-60">
+                      <button onClick={() => handleApprove(editText)} disabled={sending} className="px-4 py-2 text-sm bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg disabled:opacity-60">
                         {sending ? 'Sending…' : 'Approve & Send'}
                       </button>
                       <button onClick={() => { setEditing(false); }} className="px-3 py-2 text-sm border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50">Cancel</button>
                     </>
                   ) : (
                     <>
-                      <button onClick={() => handleApprove(rfi.draftText ?? '')} disabled={sending || !rfi.draftText} className="px-4 py-2 text-sm bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg disabled:opacity-60">
+                      <button onClick={() => handleApprove(rfi.draftText ?? '')} disabled={sending || !rfi.draftText} className="px-4 py-2 text-sm bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg disabled:opacity-60">
                         {sending ? 'Sending…' : 'Approve & Send'}
                       </button>
                       <button onClick={() => { setEditing(true); setEditText(rfi.draftText ?? ''); }} className="px-3 py-2 text-sm border border-slate-200 rounded-lg text-slate-600 hover:bg-slate-50">Edit Draft</button>
@@ -463,9 +463,9 @@ function RFIDetail({ rfiId, projectId, currentUserName, onClose }) {
                   onChange={e => { setEditText(e.target.value); if (!editing) setEditing(true); }}
                   rows={6}
                   placeholder="Write your response here…"
-                  className="w-full text-sm font-mono border border-slate-200 rounded-lg px-3 py-2 resize-y focus:outline-none focus:ring-2 focus:ring-amber-400"
+                  className="w-full text-sm font-mono border border-slate-200 rounded-lg px-3 py-2 resize-y focus:outline-none focus:ring-2 focus:ring-orange-500"
                 />
-                <button onClick={() => handleApprove(editText)} disabled={sending || !editText.trim()} className="mt-2 px-4 py-2 text-sm bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg disabled:opacity-60">
+                <button onClick={() => handleApprove(editText)} disabled={sending || !editText.trim()} className="mt-2 px-4 py-2 text-sm bg-orange-500 hover:bg-orange-600 text-white font-semibold rounded-lg disabled:opacity-60">
                   {sending ? 'Sending…' : 'Send Response'}
                 </button>
               </div>
@@ -484,7 +484,7 @@ function RFIDetail({ rfiId, projectId, currentUserName, onClose }) {
       <div className="w-72 shrink-0 space-y-3">
         <div className="border border-slate-200 rounded-xl overflow-hidden">
           <div className="px-3 py-2 bg-slate-50 border-b border-slate-200">
-            <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400">Details</span>
+            <span className="text-[11px] font-mono uppercase tracking-wide text-slate-500">Details</span>
           </div>
           <div className="p-3 space-y-2 text-xs text-slate-600">
             <div className="flex justify-between"><span className="text-slate-400">Type</span><span>{TYPE_LABELS[rfi.rfiType]}</span></div>
@@ -498,16 +498,16 @@ function RFIDetail({ rfiId, projectId, currentUserName, onClose }) {
         {rfi.impactItems?.length > 0 && (
           <div className="border border-slate-200 rounded-xl overflow-hidden">
             <div className="px-3 py-2 bg-slate-50 border-b border-slate-200">
-              <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400">Impact Items ({rfi.impactItems.length})</span>
+              <span className="text-[11px] font-mono uppercase tracking-wide text-slate-500">Impact Items ({rfi.impactItems.length})</span>
             </div>
             <div className="p-3 space-y-2">
               {rfi.impactItems.map(item => (
                 <div key={item.id} className="text-xs text-slate-600 border border-slate-100 rounded-lg p-2">
                   <div className="font-medium">{item.itemNumber}. {item.fixtureTypeFrom ?? 'TBD'}{item.fixtureTypeTo ? ` → ${item.fixtureTypeTo}` : ''}</div>
-                  {item.itemDraftText && <p className="text-slate-400 mt-1 font-mono text-[10px] truncate">{item.itemDraftText}</p>}
+                  {item.itemDraftText && <p className="text-slate-400 mt-1 font-mono text-[11px] truncate">{item.itemDraftText}</p>}
                   <div className="flex items-center gap-2 mt-1">
-                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${CONF_CLS[item.itemConfidence] ?? CONF_CLS.LOW}`}>{item.itemConfidence}</span>
-                    <span className="text-[9px] text-slate-400">{item.impactStatus}</span>
+                    <span className={`text-[11px] font-bold px-1.5 py-0.5 rounded border ${CONF_CLS[item.itemConfidence] ?? CONF_CLS.LOW}`}>{item.itemConfidence}</span>
+                    <span className="text-[11px] text-slate-400">{item.impactStatus}</span>
                   </div>
                 </div>
               ))}
@@ -517,7 +517,7 @@ function RFIDetail({ rfiId, projectId, currentUserName, onClose }) {
 
         {rfi.changeOrder && (
           <div className="border border-slate-200 rounded-xl p-3 text-xs text-slate-600">
-            <div className="text-[10px] font-mono uppercase tracking-wider text-slate-400 mb-2">Change Order</div>
+            <div className="text-[11px] font-mono uppercase tracking-wide text-slate-500 mb-2">Change Order</div>
             <div className="font-bold">{rfi.changeOrder.coNumber}</div>
             <div className="text-slate-400">{rfi.changeOrder.status}</div>
           </div>
@@ -572,7 +572,7 @@ export default function RFIModule({ projectId, allUsers, currentUserName }) {
 
       {/* Detail view (inline when selected) */}
       {selectedId && (
-        <div className="bg-white border border-slate-200 rounded-2xl p-5">
+        <div className="bg-white border border-slate-200 rounded-xl p-5">
           <RFIDetail
             rfiId={selectedId}
             projectId={projectId}
@@ -586,7 +586,7 @@ export default function RFIModule({ projectId, allUsers, currentUserName }) {
       {!selectedId && (
         <>
           {/* Column headers */}
-          <div className="flex items-center gap-3 px-4 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400">
+          <div className="flex items-center gap-3 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
             <span className="w-20">RFI #</span>
             <span className="flex-1">Subject</span>
             <span className="hidden lg:block w-24">Type</span>

@@ -47,7 +47,7 @@ function ScaleSelector({ value, onChange, disabled }) {
         if (!isNaN(v)) onChange(v);
       }}
       disabled={disabled}
-      className="text-[10px] font-mono bg-zinc-700 border border-zinc-600 rounded-md px-1.5 py-1
+      className="text-[11px] font-mono bg-zinc-700 border border-zinc-600 rounded-md px-1.5 py-1
         text-zinc-200 focus:outline-none focus:border-red-500 cursor-pointer min-w-[120px]"
       title="Drawing scale">
       {SCALE_PRESET_CATEGORIES.map(cat => {
@@ -82,7 +82,7 @@ function TakeoffPanel({ fixtures }) {
   return (
     <div className="w-52 shrink-0 bg-zinc-800 border-l border-zinc-700 flex flex-col">
       <div className="px-3 py-2.5 border-b border-zinc-700">
-        <p className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wider">Takeoff</p>
+        <p className="text-[11px] font-semibold text-zinc-400 uppercase tracking-wide">Takeoff</p>
       </div>
       <div className="flex-1 overflow-y-auto">
         {entries.length === 0 ? (
@@ -139,7 +139,7 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
   const cloudDragRef       = useRef(null); // { startXFrac, startYFrac, startXPx, startYPx, wasDrag }
   const shapeDragRef       = useRef(null); // { toolId, startXFrac, startYFrac, startXPx, startYPx, wasDrag }
   const scrollContainerRef = useRef(null);
-  const panDragRef         = useRef(null); // { x, y, sl, st } — pan drag start
+  const panDragRef         = useRef(null); // { x, y, sl, st }, pan drag start
   const fixtureDragRef     = useRef(null); // { fixture, startClientX/Y, origX/YFrac, currentX/YFrac, hasMoved }
   const lastDragWasMove    = useRef(false);// lets onClick know if just a drag ended
   const hasAutoFit         = useRef(false);
@@ -315,7 +315,7 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
     };
     c.addEventListener('wheel', onWheel, { passive: false });
     return () => c.removeEventListener('wheel', onWheel);
-  }, []); // attach once — reads zoom via zoomRef
+  }, []); // attach once, reads zoom via zoomRef
 
   // ── Load placed fixtures ──
   useEffect(() => {
@@ -664,7 +664,7 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
 
   // Start dragging a fixture (called from fixture <g> onMouseDown)
   const startFixtureDrag = useCallback((e, fixture) => {
-    if (isPanMode || selectedSymbol) return; // pan mode or placing — don't drag fixtures
+    if (isPanMode || selectedSymbol) return; // pan mode or placing, don't drag fixtures
     e.stopPropagation();
     fixtureDragRef.current = {
       fixture,
@@ -1058,31 +1058,31 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
 
   // Cursor label
   const statusMsg = (() => {
-    if (calloutDraft?.phase === 'editing') return 'Type callout text — Enter to save · Esc to cancel';
+    if (calloutDraft?.phase === 'editing') return 'Type callout text, Enter to save · Esc to cancel';
     if (calloutDraft?.phase === 'leader')  return 'Click to anchor the text box';
     if (selectedSymbol?.id === 'TOOL_CALLOUT') return 'Click the point to call out (arrow tip)';
     if (cloudDraft?.mode === 'poly') {
       const n = cloudDraft.points.length;
       return n < 3
-        ? `${n} point${n !== 1 ? 's' : ''} — keep clicking to add cloud vertices`
-        : `${n} points — click start point or double-click to close cloud`;
+        ? `${n} point${n !== 1 ? 's' : ''}, keep clicking to add cloud vertices`
+        : `${n} points, click start point or double-click to close cloud`;
     }
     if (selectedSymbol?.id === 'TOOL_CLOUD') return 'Drag to draw rectangle cloud · single click for polygon cloud';
     if (polyDraft) {
       const n = polyDraft.points.length;
       return n < 3
-        ? `${n} point${n !== 1 ? 's' : ''} — keep clicking to add vertices`
-        : `${n} points — click start point or double-click to close polygon`;
+        ? `${n} point${n !== 1 ? 's' : ''}, keep clicking to add vertices`
+        : `${n} points, click start point or double-click to close polygon`;
     }
     if (selectedSymbol?.id === 'TOOL_POLY_AREA') return 'Click to place first vertex of area polygon';
     if (selectedSymbol?.id?.startsWith('TOOL_SHAPE_')) return `Drag to draw a ${selectedSymbol.label.toLowerCase()} · click to select/delete`;
     if (selectedSymbol?.id === 'TOOL_TEXT') return 'Click drawing to place a text label';
     if (selectedSymbol?.id === 'TOOL_PEN')  return 'Drag to draw freehand · double-click placed strokes to delete';
-    if (linearDraft) return `Click end point to place linear fixture — ${liveLength || '…'} so far`;
+    if (linearDraft) return `Click end point to place linear fixture, ${liveLength || '…'} so far`;
     if (selectedSymbol?.isLinear) return `Click start point of ${selectedSymbol.label}`;
-    if (selectedSymbol)           return `Click drawing to place ${selectedSymbol.label} — ${selectedSymbol.desc}`;
+    if (selectedSymbol)           return `Click drawing to place ${selectedSymbol.label}, ${selectedSymbol.desc}`;
     if (!isPanMode)               return 'Click a fixture to select · drag to reposition';
-    return 'Hand mode — drag to pan · click ↖ to switch back';
+    return 'Hand mode, drag to pan · click ↖ to switch back';
   })();
 
   return (
@@ -1099,9 +1099,9 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
 
           {/* Scale selector */}
           <div className="flex items-center gap-1.5 shrink-0">
-            <span className="text-[10px] text-zinc-500 font-medium">Scale</span>
+            <span className="text-[11px] text-zinc-500 font-medium">Scale</span>
             <ScaleSelector value={scaleRatio} onChange={saveScale} disabled={scaleSaving}/>
-            {scaleSaving && <span className="text-[9px] text-zinc-500">saving…</span>}
+            {scaleSaving && <span className="text-[11px] text-zinc-500">saving…</span>}
           </div>
 
           {selectedSymbol && (
@@ -1111,14 +1111,14 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
             </span>
           )}
           {liveLength && (
-            <span className="text-xs text-yellow-400 font-mono font-semibold shrink-0">{liveLength}</span>
+            <span className="text-xs text-amber-400 font-mono font-semibold shrink-0">{liveLength}</span>
           )}
           {saving && <span className="text-xs text-zinc-500 shrink-0">Saving…</span>}
         </div>
 
         {/* Center: color picker */}
         <div className="flex items-center gap-1.5 shrink-0">
-          <span className="text-[10px] text-zinc-500 font-medium select-none">Color</span>
+          <span className="text-[11px] text-zinc-500 font-medium select-none">Color</span>
           <div className="flex items-center gap-1">
             {MARKUP_COLORS.map(col => (
               <button key={col} title={col}
@@ -1162,7 +1162,7 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
             {TOOLSETS.map(ts => (
               <button key={ts.id}
                 onClick={() => setActiveToolset(ts.id)}
-                className={`flex-1 py-1.5 text-[9px] font-bold uppercase tracking-wide transition-colors ${
+                className={`flex-1 py-1.5 text-[11px] font-bold uppercase tracking-wide transition-colors ${
                   activeToolset === ts.id
                     ? 'bg-zinc-700 text-white border-b-2 border-red-500'
                     : 'text-zinc-500 hover:text-zinc-300'
@@ -1178,10 +1178,10 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
               <div className="flex items-center gap-2">
                 <SymbolIcon id={selectedSymbol.id} size={20} selected/>
                 <div className="min-w-0">
-                  <p className="text-[10px] text-white font-bold font-mono leading-none">{selectedSymbol.label}</p>
+                  <p className="text-[11px] text-white font-bold font-mono leading-none">{selectedSymbol.label}</p>
                   <p className="text-[8px] text-red-300 mt-0.5 leading-tight truncate">{selectedSymbol.desc}</p>
                   {selectedSymbol.isLinear && (
-                    <p className="text-[8px] text-yellow-400 mt-0.5">Two-click placement</p>
+                    <p className="text-[8px] text-amber-400 mt-0.5">Two-click placement</p>
                   )}
                 </div>
               </div>
@@ -1194,11 +1194,11 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
 
           {/* Linear draft indicator */}
           {linearDraft && (
-            <div className="mx-2 mt-1 px-2 py-1.5 rounded-lg bg-yellow-900/30 border border-yellow-600/40 shrink-0">
-              <p className="text-[9px] text-yellow-400 font-semibold">Start point set</p>
+            <div className="mx-2 mt-1 px-2 py-1.5 rounded-lg bg-amber-900/30 border border-amber-600/40 shrink-0">
+              <p className="text-[11px] text-amber-400 font-semibold">Start point set</p>
               <p className="text-[8px] text-zinc-400 mt-0.5">Click end point to complete</p>
               <button onClick={() => setLinearDraft(null)}
-                className="text-[8px] text-yellow-500 hover:text-yellow-200 mt-0.5">
+                className="text-[8px] text-amber-500 hover:text-amber-200 mt-0.5">
                 Esc to cancel ×
               </button>
             </div>
@@ -1207,7 +1207,7 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
           {/* Polygon draft indicator */}
           {polyDraft && (
             <div className="mx-2 mt-1 px-2 py-1.5 rounded-lg bg-amber-900/30 border border-amber-600/40 shrink-0">
-              <p className="text-[9px] text-amber-400 font-semibold">
+              <p className="text-[11px] text-amber-400 font-semibold">
                 {polyDraft.points.length} {polyDraft.points.length === 1 ? 'point' : 'points'}
               </p>
               <p className="text-[8px] text-zinc-400 mt-0.5">
@@ -1225,7 +1225,7 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
           {/* Cloud draft indicator */}
           {cloudDraft?.mode === 'poly' && (
             <div className="mx-2 mt-1 px-2 py-1.5 rounded-lg bg-sky-900/30 border border-sky-600/40 shrink-0">
-              <p className="text-[9px] text-sky-400 font-semibold">
+              <p className="text-[11px] text-sky-400 font-semibold">
                 Cloud: {cloudDraft.points.length} {cloudDraft.points.length === 1 ? 'point' : 'points'}
               </p>
               <p className="text-[8px] text-zinc-400 mt-0.5">
@@ -1241,7 +1241,7 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
           {/* Callout draft indicator */}
           {calloutDraft && (
             <div className="mx-2 mt-1 px-2 py-1.5 rounded-lg bg-violet-900/30 border border-violet-600/40 shrink-0">
-              <p className="text-[9px] text-violet-400 font-semibold">
+              <p className="text-[11px] text-violet-400 font-semibold">
                 Callout: {calloutDraft.phase === 'leader' ? 'click text position' : 'type text'}
               </p>
               <button onClick={() => setCalloutDraft(null)}
@@ -1761,7 +1761,7 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
                     ))}
                     <select value={calloutFontSize}
                       onChange={e => setCalloutFontSize(Number(e.target.value))}
-                      className="ml-auto text-[9px] bg-zinc-700 text-zinc-200 border border-zinc-600 rounded px-0.5 py-px">
+                      className="ml-auto text-[11px] bg-zinc-700 text-zinc-200 border border-zinc-600 rounded px-0.5 py-px">
                       {[8, 10, 12, 14, 16, 20].map(s => <option key={s} value={s}>{s}px</option>)}
                     </select>
                   </div>
@@ -1781,7 +1781,7 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
                   />
                   {/* Done button */}
                   <button onClick={finishCallout}
-                    className="w-full text-[10px] font-semibold bg-red-800 hover:bg-red-700 text-white rounded-b border border-t-0 border-zinc-600 py-1 transition-colors">
+                    className="w-full text-[11px] font-semibold bg-red-800 hover:bg-red-700 text-white rounded-b border border-t-0 border-zinc-600 py-1 transition-colors">
                     Done  (Enter)
                   </button>
                 </div>
@@ -1800,7 +1800,7 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
                     ))}
                     <select value={textFontSize}
                       onChange={e => setTextFontSize(Number(e.target.value))}
-                      className="ml-auto text-[9px] bg-zinc-700 text-zinc-200 border border-zinc-600 rounded px-0.5 py-px">
+                      className="ml-auto text-[11px] bg-zinc-700 text-zinc-200 border border-zinc-600 rounded px-0.5 py-px">
                       {[10, 12, 14, 16, 20, 24, 32].map(s => <option key={s} value={s}>{s}px</option>)}
                     </select>
                   </div>
@@ -1819,11 +1819,11 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
                   />
                   <div className="flex gap-1 border border-t-0 border-zinc-600 rounded-b overflow-hidden">
                     <button onClick={finishText}
-                      className="flex-1 text-[10px] font-semibold bg-red-800 hover:bg-red-700 text-white py-1 transition-colors">
+                      className="flex-1 text-[11px] font-semibold bg-red-800 hover:bg-red-700 text-white py-1 transition-colors">
                       Place (Enter)
                     </button>
                     <button onClick={() => setTextDraft(null)}
-                      className="px-2 text-[10px] text-zinc-400 hover:text-white bg-zinc-700 py-1 transition-colors">
+                      className="px-2 text-[11px] text-zinc-400 hover:text-white bg-zinc-700 py-1 transition-colors">
                       ✕
                     </button>
                   </div>
@@ -1839,7 +1839,7 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
                   <div className="absolute z-10 bg-zinc-800 border border-zinc-600 rounded-xl shadow-2xl p-2.5 w-40"
                     style={{ left: px + 12, top: flipY ? py - 100 : py + 12 }}
                     onClick={e => e.stopPropagation()}>
-                    <p className="text-[10px] text-zinc-400 font-medium mb-2 capitalize">{selectedShape.tool_id?.replace('TOOL_SHAPE_', '').toLowerCase()} shape</p>
+                    <p className="text-[11px] text-zinc-400 font-medium mb-2 capitalize">{selectedShape.tool_id?.replace('TOOL_SHAPE_', '').toLowerCase()} shape</p>
                     <button onClick={() => deleteShapeAnnotation(selectedShape)}
                       className="w-full py-1.5 rounded-lg bg-zinc-700 hover:bg-red-900/50 hover:text-red-300 text-zinc-300 text-xs font-medium transition-colors">
                       Remove
@@ -1868,14 +1868,14 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
                         <p className="font-mono font-bold text-white text-sm">
                           {selectedFixture.master_type_id}
                         </p>
-                        {sym && <p className="text-[10px] text-zinc-400 truncate">{sym.desc}</p>}
+                        {sym && <p className="text-[11px] text-zinc-400 truncate">{sym.desc}</p>}
                         {selectedFixture.length_inches && (
-                          <p className="text-[10px] text-yellow-400 font-mono">
+                          <p className="text-[11px] text-amber-400 font-mono">
                             {formatDimension(selectedFixture.length_inches)}
                           </p>
                         )}
                       </div>
-                      <span className={`ml-auto shrink-0 text-[9px] px-1.5 py-0.5 rounded font-medium ${
+                      <span className={`ml-auto shrink-0 text-[11px] px-1.5 py-0.5 rounded font-medium ${
                         selectedFixture.status === 'CONFIRMED'
                           ? 'bg-green-900/60 text-green-400'
                           : 'bg-red-900/40 text-red-400'
@@ -1886,7 +1886,7 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
                     <div className="flex flex-col gap-1">
                       {selectedFixture.status === 'SUGGESTED' && (
                         <button onClick={() => confirmFixture(selectedFixture)}
-                          className="w-full py-1.5 rounded-lg bg-green-700 hover:bg-green-600 text-white text-xs font-semibold transition-colors">
+                          className="w-full py-1.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold transition-colors">
                           Confirm
                         </button>
                       )}
@@ -1920,7 +1920,7 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
             </svg>
           </button>
           {/* Hand / pan */}
-          <button onClick={() => setIsPanMode(true)} title="Hand tool — click and drag to pan">
+          <button onClick={() => setIsPanMode(true)} title="Hand tool, click and drag to pan">
             <span className={`block p-1.5 rounded transition-colors text-sm leading-none ${isPanMode ? 'bg-zinc-600 text-white' : 'text-zinc-500 hover:bg-zinc-700'}`}>
               ✋
             </span>
@@ -1934,7 +1934,7 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
             </svg>
           </button>
           {/* Zoom % */}
-          <span className="text-[10px] font-mono text-zinc-400 min-w-[38px] text-center tabular-nums select-none">
+          <span className="text-[11px] font-mono text-zinc-400 min-w-[38px] text-center tabular-nums select-none">
             {Math.round(zoom * 100)}%
           </span>
           {/* Zoom in */}

@@ -1,5 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { TH, TD, CARD_PADDED, H1, H2, CARD_TITLE } from '@/components/ui/tokens';
+import { WidgetLoading } from '@/components/ui/WidgetFrame';
 import AutomationNav from '@/components/salesAutomation/AutomationNav';
 import BotRulesPanel from '@/components/salesAutomation/BotRulesPanel';
 
@@ -46,7 +48,7 @@ function CreatableSelect({ value, onChange, options, placeholder = 'Select or ty
   return (
     <div ref={ref} className="relative">
       <div
-        className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 bg-white flex items-center gap-2 cursor-pointer focus-within:ring-2 focus-within:ring-orange-400 focus-within:border-orange-400"
+        className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 bg-white flex items-center gap-2 cursor-pointer focus-within:ring-2 focus-within:ring-orange-500 focus-within:border-orange-400"
         onClick={() => setOpen(true)}
       >
         {!open && value ? (
@@ -67,7 +69,7 @@ function CreatableSelect({ value, onChange, options, placeholder = 'Select or ty
       {open && (
         <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-52 overflow-y-auto">
           {filtered.length === 0 && !isNew && (
-            <p className="px-3 py-2 text-xs text-slate-400">No options found</p>
+            <p className="px-3 py-2 text-xs text-slate-500">No options found</p>
           )}
           {filtered.map(opt => (
             <button key={opt} type="button" onClick={() => select(opt)}
@@ -197,8 +199,8 @@ function SchedulingRuleDrawer({ open, onClose, rule, onSaved }) {
       />
       <div className={`fixed top-0 right-0 bottom-0 w-[440px] bg-white border-l border-slate-200 shadow-2xl flex flex-col z-50 transition-transform duration-200 ${open ? 'translate-x-0' : 'translate-x-full'}`}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 shrink-0">
-          <h2 className="text-sm font-bold text-slate-900">{rule ? 'Edit Scheduling Rule' : 'New Scheduling Rule'}</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors">
+          <h2 className={CARD_TITLE}>{rule ? 'Edit Scheduling Rule' : 'New Scheduling Rule'}</h2>
+          <button onClick={onClose} className="text-slate-600 hover:bg-slate-100 rounded-lg p-1 transition-colors">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -210,7 +212,7 @@ function SchedulingRuleDrawer({ open, onClose, rule, onSaved }) {
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">
               Meeting Type
-              <span className="ml-1.5 text-[10px] font-normal text-slate-400">type to add new</span>
+              <span className="ml-1.5 text-[11px] font-normal text-slate-400">type to add new</span>
             </label>
             <CreatableSelect
               value={form.meetingType}
@@ -227,7 +229,7 @@ function SchedulingRuleDrawer({ open, onClose, rule, onSaved }) {
               type="text"
               value={form.dealStage}
               onChange={e => set('dealStage', e.target.value)}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-400"
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-500"
               placeholder="Leave blank for all stages"
             />
           </div>
@@ -265,7 +267,7 @@ function SchedulingRuleDrawer({ open, onClose, rule, onSaved }) {
                 type="time"
                 value={form.startTime}
                 onChange={e => set('startTime', e.target.value)}
-                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-400"
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-500"
               />
             </div>
             <div>
@@ -274,7 +276,7 @@ function SchedulingRuleDrawer({ open, onClose, rule, onSaved }) {
                 type="time"
                 value={form.endTime}
                 onChange={e => set('endTime', e.target.value)}
-                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-400"
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-500"
               />
             </div>
           </div>
@@ -289,7 +291,7 @@ function SchedulingRuleDrawer({ open, onClose, rule, onSaved }) {
                 step={15}
                 value={form.durationMins}
                 onChange={e => set('durationMins', parseInt(e.target.value) || 60)}
-                className="w-24 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-400"
+                className="w-24 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-500"
               />
               <span className="text-xs text-slate-500">minutes</span>
             </div>
@@ -306,7 +308,7 @@ function SchedulingRuleDrawer({ open, onClose, rule, onSaved }) {
                   step={5}
                   value={form.bufferBefore}
                   onChange={e => set('bufferBefore', parseInt(e.target.value) || 0)}
-                  className="w-20 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-400"
+                  className="w-20 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-500"
                 />
                 <span className="text-xs text-slate-500">min</span>
               </div>
@@ -320,7 +322,7 @@ function SchedulingRuleDrawer({ open, onClose, rule, onSaved }) {
                   step={5}
                   value={form.bufferAfter}
                   onChange={e => set('bufferAfter', parseInt(e.target.value) || 0)}
-                  className="w-20 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-400"
+                  className="w-20 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-500"
                 />
                 <span className="text-xs text-slate-500">min</span>
               </div>
@@ -348,7 +350,7 @@ function SchedulingRuleDrawer({ open, onClose, rule, onSaved }) {
                 step={5}
                 value={form.travelBuffer}
                 onChange={e => set('travelBuffer', parseInt(e.target.value) || 0)}
-                className="w-24 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-400"
+                className="w-24 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-500"
               />
               <span className="text-xs text-slate-500">minutes</span>
             </div>
@@ -361,7 +363,7 @@ function SchedulingRuleDrawer({ open, onClose, rule, onSaved }) {
               type="number"
               value={form.priority}
               onChange={e => set('priority', parseInt(e.target.value) || 0)}
-              className="w-24 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-400"
+              className="w-24 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-500"
             />
           </div>
 
@@ -377,9 +379,9 @@ function SchedulingRuleDrawer({ open, onClose, rule, onSaved }) {
           <button
             onClick={handleSave}
             disabled={saving}
-            className="px-4 py-2 rounded-lg bg-orange-600 text-white text-sm font-semibold hover:bg-orange-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+            className="px-4 py-2 rounded-lg bg-orange-500 text-white text-sm font-semibold hover:bg-orange-600 transition-colors disabled:opacity-50 flex items-center gap-2"
           >
-            {saving && <div className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />}
+            
             {saving ? 'Saving…' : 'Save'}
           </button>
         </div>
@@ -491,8 +493,8 @@ function ExclusionRuleDrawer({ open, onClose, rule, onSaved }) {
       />
       <div className={`fixed top-0 right-0 bottom-0 w-[420px] bg-white border-l border-slate-200 shadow-2xl flex flex-col z-50 transition-transform duration-200 ${open ? 'translate-x-0' : 'translate-x-full'}`}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 shrink-0">
-          <h2 className="text-sm font-bold text-slate-900">{rule ? 'Edit Exclusion Rule' : 'New Exclusion Rule'}</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors">
+          <h2 className={CARD_TITLE}>{rule ? 'Edit Exclusion Rule' : 'New Exclusion Rule'}</h2>
+          <button onClick={onClose} className="text-slate-600 hover:bg-slate-100 rounded-lg p-1 transition-colors">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -507,7 +509,7 @@ function ExclusionRuleDrawer({ open, onClose, rule, onSaved }) {
               value={form.name}
               onChange={e => set('name', e.target.value)}
               placeholder="e.g. Weekly recurring meetings"
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-400"
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-500"
             />
           </div>
 
@@ -516,7 +518,7 @@ function ExclusionRuleDrawer({ open, onClose, rule, onSaved }) {
             <select
               value={form.ruleType}
               onChange={e => set('ruleType', e.target.value)}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-400"
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-500"
             >
               {RULE_TYPES.map(rt => (
                 <option key={rt.value} value={rt.value}>{rt.label}</option>
@@ -533,7 +535,7 @@ function ExclusionRuleDrawer({ open, onClose, rule, onSaved }) {
                 value={form.keywords}
                 onChange={e => set('keywords', e.target.value)}
                 placeholder="e.g. OAC, project meeting, coordination"
-                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-400"
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-500"
               />
             </div>
           )}
@@ -547,7 +549,7 @@ function ExclusionRuleDrawer({ open, onClose, rule, onSaved }) {
                   min={2}
                   value={form.minRecipients}
                   onChange={e => set('minRecipients', parseInt(e.target.value) || 25)}
-                  className="w-24 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-400"
+                  className="w-24 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-500"
                 />
                 <span className="text-xs text-slate-500">recipients</span>
               </div>
@@ -567,7 +569,7 @@ function ExclusionRuleDrawer({ open, onClose, rule, onSaved }) {
                 value={form.senderDomain}
                 onChange={e => set('senderDomain', e.target.value)}
                 placeholder="e.g. noreply.com"
-                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-400"
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-500"
               />
             </div>
           )}
@@ -594,9 +596,9 @@ function ExclusionRuleDrawer({ open, onClose, rule, onSaved }) {
           <button
             onClick={handleSave}
             disabled={saving}
-            className="px-4 py-2 rounded-lg bg-orange-600 text-white text-sm font-semibold hover:bg-orange-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+            className="px-4 py-2 rounded-lg bg-orange-500 text-white text-sm font-semibold hover:bg-orange-600 transition-colors disabled:opacity-50 flex items-center gap-2"
           >
-            {saving && <div className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />}
+            
             {saving ? 'Saving…' : 'Save'}
           </button>
         </div>
@@ -676,8 +678,8 @@ function FollowUpRuleDrawer({ open, onClose, onSaved }) {
       />
       <div className={`fixed top-0 right-0 bottom-0 w-[440px] bg-white border-l border-slate-200 shadow-2xl flex flex-col z-50 transition-transform duration-200 ${open ? 'translate-x-0' : 'translate-x-full'}`}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 shrink-0">
-          <h2 className="text-sm font-bold text-slate-900">New Follow-Up Threshold</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors">
+          <h2 className={CARD_TITLE}>New Follow-Up Threshold</h2>
+          <button onClick={onClose} className="text-slate-600 hover:bg-slate-100 rounded-lg p-1 transition-colors">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -690,7 +692,7 @@ function FollowUpRuleDrawer({ open, onClose, onSaved }) {
             <select
               value={form.pipeline}
               onChange={e => set('pipeline', e.target.value)}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-400"
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-500"
             >
               <option value="Procurement">Procurement</option>
               <option value="Design">Design</option>
@@ -703,7 +705,7 @@ function FollowUpRuleDrawer({ open, onClose, onSaved }) {
               type="text"
               value={form.stage}
               onChange={e => set('stage', e.target.value)}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-400"
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-500"
               placeholder="e.g. PRECONSTRUCTION"
             />
           </div>
@@ -716,7 +718,7 @@ function FollowUpRuleDrawer({ open, onClose, onSaved }) {
                 min={1}
                 value={form.staleDays}
                 onChange={e => set('staleDays', parseInt(e.target.value) || 1)}
-                className="w-24 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-400"
+                className="w-24 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-500"
               />
               <span className="text-xs text-slate-500">days</span>
             </div>
@@ -744,9 +746,9 @@ function FollowUpRuleDrawer({ open, onClose, onSaved }) {
           <button
             onClick={handleSave}
             disabled={saving}
-            className="px-4 py-2 rounded-lg bg-orange-600 text-white text-sm font-semibold hover:bg-orange-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+            className="px-4 py-2 rounded-lg bg-orange-500 text-white text-sm font-semibold hover:bg-orange-600 transition-colors disabled:opacity-50 flex items-center gap-2"
           >
-            {saving && <div className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />}
+            
             {saving ? 'Saving…' : 'Save'}
           </button>
         </div>
@@ -854,8 +856,8 @@ function ClassificationRuleDrawer({ open, onClose, rule, onSaved }) {
       />
       <div className={`fixed top-0 right-0 bottom-0 w-[440px] bg-white border-l border-slate-200 shadow-2xl flex flex-col z-50 transition-transform duration-200 ${open ? 'translate-x-0' : 'translate-x-full'}`}>
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200 shrink-0">
-          <h2 className="text-sm font-bold text-slate-900">{rule ? 'Edit Classification Rule' : 'New Classification Rule'}</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors">
+          <h2 className={CARD_TITLE}>{rule ? 'Edit Classification Rule' : 'New Classification Rule'}</h2>
+          <button onClick={onClose} className="text-slate-600 hover:bg-slate-100 rounded-lg p-1 transition-colors">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -870,7 +872,7 @@ function ClassificationRuleDrawer({ open, onClose, rule, onSaved }) {
               value={form.name}
               onChange={e => set('name', e.target.value)}
               placeholder="e.g. Coffee keyword match"
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-400"
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-500"
             />
           </div>
 
@@ -879,7 +881,7 @@ function ClassificationRuleDrawer({ open, onClose, rule, onSaved }) {
             <select
               value={form.conditionType}
               onChange={e => set('conditionType', e.target.value)}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-400"
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-500"
             >
               {CLASS_CONDITION_TYPES.map(ct => (
                 <option key={ct.value} value={ct.value}>{ct.label}</option>
@@ -893,7 +895,7 @@ function ClassificationRuleDrawer({ open, onClose, rule, onSaved }) {
               <select
                 value={form.conditionValue}
                 onChange={e => set('conditionValue', e.target.value)}
-                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-400"
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-500"
               >
                 <option value="">Select…</option>
                 <option value="virtual">Virtual</option>
@@ -912,7 +914,7 @@ function ClassificationRuleDrawer({ open, onClose, rule, onSaved }) {
                   form.conditionType === 'BODY_CONTAINS'     ? 'e.g. grab coffee' :
                   'e.g. 30'
                 }
-                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-400"
+                className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-500"
               />
             )}
           </div>
@@ -922,7 +924,7 @@ function ClassificationRuleDrawer({ open, onClose, rule, onSaved }) {
             <select
               value={form.resultType}
               onChange={e => set('resultType', e.target.value)}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-400"
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-500"
             >
               {CLASS_RESULT_TYPES.map(rt => (
                 <option key={rt.value} value={rt.value}>{rt.label}</option>
@@ -937,7 +939,7 @@ function ClassificationRuleDrawer({ open, onClose, rule, onSaved }) {
               min={1}
               value={form.priority}
               onChange={e => set('priority', parseInt(e.target.value) || 50)}
-              className="w-24 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-400"
+              className="w-24 border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-500"
             />
           </div>
 
@@ -963,9 +965,9 @@ function ClassificationRuleDrawer({ open, onClose, rule, onSaved }) {
           <button
             onClick={handleSave}
             disabled={saving}
-            className="px-4 py-2 rounded-lg bg-orange-600 text-white text-sm font-semibold hover:bg-orange-700 transition-colors disabled:opacity-50 flex items-center gap-2"
+            className="px-4 py-2 rounded-lg bg-orange-500 text-white text-sm font-semibold hover:bg-orange-600 transition-colors disabled:opacity-50 flex items-center gap-2"
           >
-            {saving && <div className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />}
+            
             {saving ? 'Saving…' : 'Save'}
           </button>
         </div>
@@ -983,8 +985,8 @@ function CadenceRuleRow({ rule, onDaysBlur, onToggle, toggling }) {
 
   return (
     <tr className="hover:bg-slate-50 transition-colors">
-      <td className="py-2.5 pr-4 font-medium text-slate-800">{rule.tier || rule.name || `Tier ${rule.id?.slice(-4)}`}</td>
-      <td className="py-2.5 pr-4">
+      <td className={`${TD} font-medium text-slate-800`}>{rule.tier || rule.name || `Tier ${rule.id?.slice(-4)}`}</td>
+      <td className={TD}>
         <div className="flex items-center gap-1.5">
           <input
             type="number"
@@ -993,19 +995,19 @@ function CadenceRuleRow({ rule, onDaysBlur, onToggle, toggling }) {
             onChange={e => setDays(e.target.value)}
             onBlur={() => onDaysBlur(rule, days)}
             onKeyDown={e => e.key === 'Enter' && onDaysBlur(rule, days)}
-            className="w-16 border border-slate-200 rounded-md px-2 py-0.5 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-400"
+            className="w-16 border border-slate-300 rounded-lg px-2 py-0.5 text-sm tabular-nums text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-500"
           />
           <span className="text-xs text-slate-500">days</span>
         </div>
       </td>
-      <td className="py-2.5 pr-4">
+      <td className={TD}>
         <ToggleSwitch
           checked={!!rule.isActive}
           onChange={() => onToggle(rule)}
           disabled={toggling}
         />
       </td>
-      <td className="py-2.5"></td>
+      <td className={TD}></td>
     </tr>
   );
 }
@@ -1258,7 +1260,7 @@ export default function RulesPage() {
       <div className="max-w-5xl mx-auto">
       {/* Header */}
       <div className="mb-5">
-        <h1 className="text-xl font-bold text-slate-900">Rules</h1>
+        <h1 className={H1}>Rules</h1>
         <p className="text-xs text-slate-500 mt-0.5">Bot rules, scheduling, exclusions, classification, and relationship cadence — all in one place.</p>
       </div>
 
@@ -1271,7 +1273,7 @@ export default function RulesPage() {
 
       {/* Scheduling & Relationship section heading */}
       <div className="mb-3">
-        <h2 className="text-base font-bold text-slate-900">Scheduling &amp; Relationship</h2>
+        <h2 className={H2}>Scheduling &amp; Relationship</h2>
         <p className="text-xs text-slate-500 mt-0.5">Review window, meeting rules, exclusions, classification, and cadence.</p>
       </div>
 
@@ -1295,19 +1297,16 @@ export default function RulesPage() {
       </div>
 
       {loading ? (
-        <div className="flex items-center justify-center py-20">
-          <div className="w-5 h-5 border-2 border-slate-200 border-t-orange-500 rounded-full animate-spin" />
-        </div>
+        <WidgetLoading />
       ) : (
         <div className="space-y-5">
 
           {/* ── Section 1: Review Window ────────────────────────────────── */}
-          <div className="bg-white border border-slate-200 rounded-xl p-5">
+          <div className={CARD_PADDED}>
             <div className="flex items-center justify-between mb-1">
-              <h2 className="text-sm font-bold text-slate-900">Review Window</h2>
+              <h2 className={CARD_TITLE}>Review Window</h2>
               {savingConfig && (
-                <div className="flex items-center gap-1.5 text-[10px] text-slate-400">
-                  <div className="w-3 h-3 border-2 border-slate-200 border-t-orange-400 rounded-full animate-spin" />
+                <div className="flex items-center gap-1.5 text-[11px] text-slate-500">
                   Saving…
                 </div>
               )}
@@ -1344,7 +1343,7 @@ export default function RulesPage() {
                     onChange={e => setRwMinutes(parseInt(e.target.value) || 1)}
                     onBlur={() => rwMode === 'auto' && saveReviewWindow('auto', rwMinutes)}
                     onClick={e => e.stopPropagation()}
-                    className="w-16 border border-slate-200 rounded-md px-2 py-1 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-400"
+                    className="w-16 border border-slate-300 rounded-lg px-2 py-1 text-sm tabular-nums text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-500"
                   />
                   <span className="text-slate-500 text-xs">minutes</span>
                 </span>
@@ -1365,12 +1364,12 @@ export default function RulesPage() {
           </div>
 
           {/* ── Section 2: Scheduling Rules ─────────────────────────────── */}
-          <div className="bg-white border border-slate-200 rounded-xl p-5">
+          <div className={CARD_PADDED}>
             <div className="flex items-center justify-between mb-1">
-              <h2 className="text-sm font-bold text-slate-900">Scheduling Rules</h2>
+              <h2 className={CARD_TITLE}>Scheduling Rules</h2>
               <button
                 onClick={() => { setEditingSched(null); setShowSchedDrawer(true); }}
-                className="px-3 py-1.5 rounded-lg bg-orange-600 text-white text-xs font-semibold hover:bg-orange-700 transition-colors"
+                className="px-3 py-1.5 rounded-lg bg-orange-500 text-white text-xs font-semibold hover:bg-orange-600 transition-colors"
               >
                 + Add Rule
               </button>
@@ -1391,30 +1390,30 @@ export default function RulesPage() {
                 <table className="w-full text-xs">
                   <thead>
                     <tr className="border-b border-slate-100">
-                      <th className="text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wide pb-2 pr-3">Meeting Type</th>
-                      <th className="text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wide pb-2 pr-3">Stage</th>
-                      <th className="text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wide pb-2 pr-3">Days</th>
-                      <th className="text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wide pb-2 pr-3">Time Window</th>
-                      <th className="text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wide pb-2 pr-3">Duration</th>
-                      <th className="text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wide pb-2 pr-3">Location</th>
-                      <th className="text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wide pb-2 pr-3">Travel</th>
-                      <th className="pb-2"></th>
+                      <th className={TH}>Meeting Type</th>
+                      <th className={TH}>Stage</th>
+                      <th className={TH}>Days</th>
+                      <th className={TH}>Time Window</th>
+                      <th className={TH}>Duration</th>
+                      <th className={TH}>Location</th>
+                      <th className={TH}>Travel</th>
+                      <th className={TH}></th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
                     {schedulingRules.map(r => (
                       <tr key={r.id} className="hover:bg-slate-50 transition-colors group">
-                        <td className="py-2.5 pr-3 font-medium text-slate-800">{r.meetingType || '—'}</td>
-                        <td className="py-2.5 pr-3 text-slate-500">{r.dealStage || <span className="text-slate-300">All</span>}</td>
-                        <td className="py-2.5 pr-3 text-slate-500 font-mono text-[10px]">{r.days || 'MON-FRI'}</td>
-                        <td className="py-2.5 pr-3 text-slate-500">{r.startTime} – {r.endTime}</td>
-                        <td className="py-2.5 pr-3 text-slate-500">{r.durationMins ?? '—'} min</td>
-                        <td className="py-2.5 pr-3 text-slate-500">{r.locationType || '—'}</td>
-                        <td className="py-2.5 pr-3 text-slate-500">{r.travelBuffer ?? 0} min</td>
-                        <td className="py-2.5 text-right">
+                        <td className={`${TD} font-medium text-slate-800`}>{r.meetingType || '—'}</td>
+                        <td className={`${TD} text-slate-500`}>{r.dealStage || <span className="text-slate-300">All</span>}</td>
+                        <td className={`${TD} text-slate-500 font-mono text-[11px] tabular-nums`}>{r.days || 'MON-FRI'}</td>
+                        <td className={`${TD} text-slate-500 tabular-nums`}>{r.startTime} – {r.endTime}</td>
+                        <td className={`${TD} text-slate-500 tabular-nums`}>{r.durationMins ?? '—'} min</td>
+                        <td className={`${TD} text-slate-500`}>{r.locationType || '—'}</td>
+                        <td className={`${TD} text-slate-500 tabular-nums`}>{r.travelBuffer ?? 0} min</td>
+                        <td className={`${TD} text-right tabular-nums`}>
                           <button
                             onClick={() => { setEditingSched(r); setShowSchedDrawer(true); }}
-                            className="text-[11px] font-semibold text-slate-500 hover:text-orange-600 transition-colors opacity-0 group-hover:opacity-100 px-2 py-1 rounded hover:bg-orange-50"
+                            className="text-[11px] font-semibold text-slate-500 hover:text-orange-600 transition-colors opacity-0 group-hover:opacity-100 px-2 py-1 rounded-lg hover:bg-orange-50"
                           >
                             Edit
                           </button>
@@ -1430,17 +1429,17 @@ export default function RulesPage() {
           {/* Follow-Up Thresholds removed — these are now managed in Bot Rules above (trigger = Deal Stale). */}
 
           {/* ── Section: Relationship Cadence Defaults ────────────────── */}
-          <div className="bg-white border border-slate-200 rounded-xl p-5">
+          <div className={CARD_PADDED}>
             <div className="flex items-center justify-between mb-1">
-              <h2 className="text-sm font-bold text-slate-900">Relationship Cadence</h2>
+              <h2 className={CARD_TITLE}>Relationship Cadence</h2>
               <div className="flex items-center gap-2">
                 {cadenceRules.length === 0 && (
                   <button
                     onClick={handleSeedCadence}
                     disabled={seedingCadence}
-                    className="px-3 py-1.5 rounded-lg bg-orange-600 text-white text-xs font-semibold hover:bg-orange-700 transition-colors disabled:opacity-50 flex items-center gap-1.5"
+                    className="px-3 py-1.5 rounded-lg bg-orange-500 text-white text-xs font-semibold hover:bg-orange-600 transition-colors disabled:opacity-50 flex items-center gap-1.5"
                   >
-                    {seedingCadence && <div className="w-3 h-3 border-2 border-white/40 border-t-white rounded-full animate-spin" />}
+                    
                     Seed Defaults
                   </button>
                 )}
@@ -1468,10 +1467,10 @@ export default function RulesPage() {
                 <table className="w-full text-xs">
                   <thead>
                     <tr className="border-b border-slate-100">
-                      <th className="text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wide pb-2 pr-4">Tier</th>
-                      <th className="text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wide pb-2 pr-4">In-person every</th>
-                      <th className="text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wide pb-2 pr-4">Active</th>
-                      <th className="pb-2"></th>
+                      <th className={TH}>Tier</th>
+                      <th className={TH}>In-person every</th>
+                      <th className={TH}>Active</th>
+                      <th className={TH}></th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
@@ -1493,14 +1492,14 @@ export default function RulesPage() {
             {showAddTier && (
               <div className="mt-3 flex items-end gap-2 p-3 bg-orange-50 border border-orange-200 rounded-xl">
                 <div>
-                  <label className="block text-[10px] font-semibold text-slate-600 mb-1">Tier Label</label>
+                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">Tier Label</label>
                   <input value={newTier.label} onChange={e => setNewTier(p => ({...p, label: e.target.value}))}
-                    placeholder="e.g. Board Member" className="border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs w-36 focus:outline-none focus:ring-1 focus:ring-orange-400" />
+                    placeholder="e.g. Board Member" className="border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs w-36 focus:outline-none focus:ring-1 focus:ring-orange-500" />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-semibold text-slate-600 mb-1">Days</label>
+                  <label className="block text-[11px] font-semibold text-slate-600 mb-1">Days</label>
                   <input type="number" value={newTier.cadenceDays} onChange={e => setNewTier(p => ({...p, cadenceDays: parseInt(e.target.value)||90}))}
-                    className="border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs w-20 focus:outline-none focus:ring-1 focus:ring-orange-400" />
+                    className="border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs w-20 focus:outline-none focus:ring-1 focus:ring-orange-500" />
                 </div>
                 <button disabled={savingTier || !newTier.label.trim()} onClick={async () => {
                   setSavingTier(true);
@@ -1515,32 +1514,32 @@ export default function RulesPage() {
                     setShowAddTier(false);
                   }
                   setSavingTier(false);
-                }} className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-orange-600 text-white hover:bg-orange-700 disabled:opacity-50 transition-colors">
+                }} className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-orange-500 text-white hover:bg-orange-600 disabled:opacity-50 transition-colors">
                   {savingTier ? 'Saving…' : 'Add'}
                 </button>
-                <button onClick={() => setShowAddTier(false)} className="text-xs text-slate-400 hover:text-slate-600 px-2">Cancel</button>
+                <button onClick={() => setShowAddTier(false)} className="text-xs text-slate-500 hover:text-slate-600 px-2">Cancel</button>
               </div>
             )}
           </div>
 
           {/* ── Section 5: Activity Exclusion Rules ─────────────────────── */}
-          <div className="bg-white border border-slate-200 rounded-xl p-5">
+          <div className={CARD_PADDED}>
             <div className="flex items-center justify-between mb-1">
-              <h2 className="text-sm font-bold text-slate-900">Activity Exclusion Rules</h2>
+              <h2 className={CARD_TITLE}>Activity Exclusion Rules</h2>
               <div className="flex items-center gap-2">
                 {exclusionRules.length === 0 && (
                   <button
                     onClick={handleSeedExclusions}
                     disabled={seedingExcl}
-                    className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 text-xs font-medium hover:bg-slate-50 transition-colors disabled:opacity-50 flex items-center gap-1.5"
+                    className="px-3 py-1.5 rounded-lg border border-slate-300 text-slate-700 text-xs font-semibold hover:bg-slate-50 transition-colors disabled:opacity-50 flex items-center gap-1.5"
                   >
-                    {seedingExcl && <div className="w-3 h-3 border-2 border-slate-300 border-t-orange-400 rounded-full animate-spin" />}
+                    
                     Seed defaults
                   </button>
                 )}
                 <button
                   onClick={() => { setEditingExcl(null); setShowExclDrawer(true); }}
-                  className="px-3 py-1.5 rounded-lg bg-orange-600 text-white text-xs font-semibold hover:bg-orange-700 transition-colors"
+                  className="px-3 py-1.5 rounded-lg bg-orange-500 text-white text-xs font-semibold hover:bg-orange-600 transition-colors"
                 >
                   + Add Rule
                 </button>
@@ -1562,10 +1561,10 @@ export default function RulesPage() {
                 <table className="w-full text-xs">
                   <thead>
                     <tr className="border-b border-slate-100">
-                      <th className="text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wide pb-2 pr-4">Name</th>
-                      <th className="text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wide pb-2 pr-4">Type</th>
-                      <th className="text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wide pb-2 pr-4">Active</th>
-                      <th className="pb-2"></th>
+                      <th className={TH}>Name</th>
+                      <th className={TH}>Type</th>
+                      <th className={TH}>Active</th>
+                      <th className={TH}></th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
@@ -1573,7 +1572,7 @@ export default function RulesPage() {
                       const typeLabel = RULE_TYPES.find(rt => rt.value === r.ruleType)?.label || r.ruleType;
                       return (
                         <tr key={r.id} className="hover:bg-slate-50 transition-colors group">
-                          <td className="py-2.5 pr-4 font-medium text-slate-800">
+                          <td className={`${TD} font-medium text-slate-800`}>
                             <button
                               onClick={() => { setEditingExcl(r); setShowExclDrawer(true); }}
                               className="hover:text-orange-600 transition-colors"
@@ -1581,15 +1580,15 @@ export default function RulesPage() {
                               {r.name}
                             </button>
                           </td>
-                          <td className="py-2.5 pr-4 text-slate-500">{typeLabel}</td>
-                          <td className="py-2.5 pr-4">
+                          <td className={`${TD} text-slate-500`}>{typeLabel}</td>
+                          <td className={TD}>
                             <ToggleSwitch
                               checked={!!r.isActive}
                               onChange={() => handleToggleExcl(r)}
                               disabled={!!togglingExcl[r.id]}
                             />
                           </td>
-                          <td className="py-2.5 text-right">
+                          <td className={`${TD} text-right tabular-nums`}>
                             <button
                               onClick={() => handleDeleteExcl(r)}
                               className="text-slate-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"
@@ -1610,10 +1609,10 @@ export default function RulesPage() {
           </div>
 
           {/* ── Section 6: Activity Classification Rules ────────────────── */}
-          <div className="bg-white border border-slate-200 rounded-xl p-5">
+          <div className={CARD_PADDED}>
             <div className="flex items-center justify-between mb-1">
               <div>
-                <h3 className="text-sm font-bold text-slate-800">Activity Classification Rules</h3>
+                <h3 className={CARD_TITLE}>Activity Classification Rules</h3>
                 <p className="text-xs text-slate-500 mt-0.5">
                   Rules determine how calendar events are classified (Coffee, Lunch, Golf, etc.).
                   Checked highest-priority first — first match wins.
@@ -1622,7 +1621,7 @@ export default function RulesPage() {
               </div>
               <button
                 onClick={() => { setEditingClassRule(null); setShowClassDrawer(true); }}
-                className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-orange-600 text-white hover:bg-orange-700 transition-colors shrink-0"
+                className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-orange-500 text-white hover:bg-orange-600 transition-colors shrink-0"
               >+ Add Rule</button>
             </div>
 
@@ -1648,7 +1647,7 @@ export default function RulesPage() {
                 >
                   {seedingClass ? 'Seeding…' : '⚡ Seed default classification rules'}
                 </button>
-                <p className="text-[11px] text-slate-400 mt-1">16 default rules covering common keywords, location types, and group sizes</p>
+                <p className="text-[11px] text-slate-500 mt-1">16 default rules covering common keywords, location types, and group sizes</p>
               </div>
             )}
 
@@ -1658,30 +1657,30 @@ export default function RulesPage() {
                   <thead>
                     <tr className="border-b border-slate-100">
                       {['Priority', 'Rule Name', 'Condition', 'Result', 'Active', ''].map(h => (
-                        <th key={h} className="text-left text-[11px] font-semibold text-slate-500 uppercase tracking-wide pb-2 pr-4">{h}</th>
+                        <th key={h} className={TH}>{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
                     {classRules.map(rule => (
                       <tr key={rule.id} className="hover:bg-slate-50 transition-colors group">
-                        <td className="py-2 pr-4">
+                        <td className={TD}>
                           <span className="text-[11px] font-mono text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">{rule.priority}</span>
                         </td>
-                        <td className="py-2 pr-4 font-medium text-slate-700">{rule.name}</td>
-                        <td className="py-2 pr-4 text-slate-500">
-                          <span className="text-[10px] text-slate-400 uppercase">{rule.conditionType.replace(/_/g,' ')}</span>
+                        <td className={`${TD} font-medium text-slate-700`}>{rule.name}</td>
+                        <td className={`${TD} text-slate-500`}>
+                          <span className="text-[11px] text-slate-500 uppercase">{rule.conditionType.replace(/_/g,' ')}</span>
                           {' '}
                           <span className="font-mono text-slate-600">"{rule.conditionValue}"</span>
                         </td>
-                        <td className="py-2 pr-4">
+                        <td className={TD}>
                           <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
                             rule.resultType === 'SKIP'       ? 'bg-slate-100 text-slate-500' :
                             rule.resultType === 'GOLF'       ? 'bg-green-50 text-green-700' :
                             rule.resultType === 'MEAL'       ? 'bg-orange-50 text-orange-700' :
                             rule.resultType === 'LUNCH'      ? 'bg-orange-50 text-orange-700' :
                             rule.resultType === 'COFFEE'     ? 'bg-amber-50 text-amber-700' :
-                            rule.resultType === 'HAPPY_HOUR' ? 'bg-yellow-50 text-yellow-700' :
+                            rule.resultType === 'HAPPY_HOUR' ? 'bg-amber-50 text-amber-700' :
                             rule.resultType === 'SITE_VISIT' ? 'bg-blue-50 text-blue-700' :
                             rule.resultType === 'TRAVEL'     ? 'bg-sky-50 text-sky-700' :
                             'bg-slate-100 text-slate-600'
@@ -1692,7 +1691,7 @@ export default function RulesPage() {
                               : rule.resultType.replace(/_/g, ' ')}
                           </span>
                         </td>
-                        <td className="py-2 pr-4">
+                        <td className={TD}>
                           <ToggleSwitch
                             checked={!!rule.isActive}
                             onChange={async (val) => {
@@ -1704,15 +1703,15 @@ export default function RulesPage() {
                             }}
                           />
                         </td>
-                        <td className="py-2">
+                        <td className={TD}>
                           <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button onClick={() => { setEditingClassRule(rule); setShowClassDrawer(true); }}
-                              className="text-[11px] text-slate-400 hover:text-orange-600 transition-colors">Edit</button>
+                              className="text-[11px] text-slate-500 hover:text-orange-600 transition-colors">Edit</button>
                             <button onClick={async () => {
                               if (!confirm('Delete this rule?')) return;
                               await fetch(`/api/automation/classification-rules/${rule.id}`, { method: 'DELETE' });
                               setClassRules(prev => prev.filter(r => r.id !== rule.id));
-                            }} className="text-[11px] text-slate-400 hover:text-red-500 transition-colors">✕</button>
+                            }} className="text-[11px] text-slate-500 hover:text-red-500 transition-colors">✕</button>
                           </div>
                         </td>
                       </tr>
@@ -1724,8 +1723,8 @@ export default function RulesPage() {
           </div>
 
           {/* ── Section 7: Location & Travel ────────────────────────────── */}
-          <div className="bg-white border border-slate-200 rounded-xl p-5">
-            <h2 className="text-sm font-bold text-slate-900 mb-1">Location &amp; Travel</h2>
+          <div className={CARD_PADDED}>
+            <h2 className={`${CARD_TITLE} mb-1`}>Location &amp; Travel</h2>
             <p className="text-xs text-slate-500 mb-4">Home base and travel preferences for scheduling.</p>
 
             {/* Phase D banner */}
@@ -1747,7 +1746,7 @@ export default function RulesPage() {
                   placeholder="e.g. Chicago, IL"
                   className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 bg-slate-50 cursor-not-allowed"
                 />
-                <p className="text-[10px] text-slate-400 mt-1">Stored to your user profile. Available in Phase D.</p>
+                <p className="text-[11px] text-slate-500 mt-1">Stored to your user profile. Available in Phase D.</p>
               </div>
 
               <div className="grid grid-cols-2 gap-3">

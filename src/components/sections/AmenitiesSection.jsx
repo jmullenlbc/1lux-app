@@ -56,7 +56,7 @@ export default function AmenitiesSection({ responses, projectData, pricing, onSa
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800">
           Interior amenity area: <strong>{intSf.toLocaleString()} SF</strong> ·
           Selected rate: <strong>${selectedRate}/SF</strong> ·
-          Estimate: <strong>{formatCurrency(intSf * selectedRate)}</strong>
+          Budget: <strong>{formatCurrency(intSf * selectedRate)}</strong>
         </div>
       )}
 
@@ -86,7 +86,7 @@ export default function AmenitiesSection({ responses, projectData, pricing, onSa
 
       {/* Manual adder */}
       <div>
-        <div className="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">Manual Adder</div>
+        <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Manual Adder</div>
         <Input
           label="Interior Amenities manual adder"
           type="number"

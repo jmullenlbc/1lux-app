@@ -1,5 +1,6 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
+import { LABEL } from '@/components/ui/tokens';
 
 // Email tags as drop targets (0118). Drag an email row onto a tag to tag it.
 //
@@ -62,7 +63,7 @@ export default function EmailTagTargets({ selectedMessageId = null, onTagged, cl
   if (!tags.length) return null;
   return (
     <div className={`flex flex-wrap items-center gap-1.5 ${className}`}>
-      <span className="text-[10px] uppercase tracking-wide text-slate-400 mr-1">Drop on a tag</span>
+      <span className={`${LABEL} mr-1`}>Drop on a tag</span>
       {tags.map(tag => (
         <button
           key={tag.key}
@@ -77,7 +78,7 @@ export default function EmailTagTargets({ selectedMessageId = null, onTagged, cl
             const id = e.dataTransfer.getData(EMAIL_MESSAGE_DRAG_TYPE) || e.dataTransfer.getData('text/plain');
             if (id) apply(id, tag);
           }}
-          className={`text-[11px] font-medium px-2.5 py-1 rounded-full border transition-colors ${over === tag.key ? 'ring-2 ring-offset-1' : ''}`}
+          className={`text-[11px] font-semibold px-2.5 py-1 rounded-full border transition-colors ${over === tag.key ? 'ring-2 ring-offset-1 ring-orange-500' : ''}`}
           style={{ borderColor: tag.color || '#cbd5e1', color: tag.color || '#475569', background: over === tag.key ? `${tag.color || '#94a3b8'}22` : 'white' }}
         >
           {tag.label}

@@ -1,5 +1,23 @@
-# C
-## [Company portal for web budgets: open, copy, history, "same project?"] - October 16, 2026 (NOT YET DEPLOYED) - migration 0132
+# CHANGELOG, ILC Studios Lighting Budget Tool
+
+All notable changes to this project are recorded here.
+Format: each session is a dated entry with features added, bugs fixed, and files changed.
+
+---
+
+## [UI standard across the platform (Mike 10-16)] - October 17, 2026 (DEPLOYED) - no migration
+
+Mike 10-16 approved the whole UI audit (UI_UX_AUDIT_2026-10-16.md): "Go ahead with your thoughts. I just want it all the same." Filters and sort live in the page address. All five steps done in one pass.
+
+- **One standard, one source.** `src/components/ui/tokens.js` holds every class string. Cards are white, rounded-xl, slate-200 border, shadow-sm, p-5. Rounded-2xl is for modals only. Primary buttons are orange-500 hover orange-600, one size; compact size for table rows. Red only for delete. Active tabs and steps are an orange underline with orange text. Status colors are green, red and amber only (emerald, rose and yellow retired). Focus rings are orange. Type scale: page title, section title, card title, 11px uppercase label, body, helper; every number is tabular. Gray became slate; the hard-coded navy hex became the navy token.
+- **Shared pieces.** Button, Card, StatTile, WidgetFrame with WidgetEmpty / WidgetLoading / WidgetError, FilterPanel (funnel "Filter (n)" button, "x of y", Clear filters, one box per field) and SortHeader (one chevron per column, SortSelect for card lists). Local StatCard, Card and Widget copies were deleted in favor of the shared ones.
+- **Filters and sort in the address.** `src/lib/useUrlView.js` reads the address on load and writes it back without filling the history (`?city=Denver&units.min=10&sort=units.desc`). A reload or a shared link keeps the view. Test: `scripts/tests/urlView.test.mjs`. The company portal uses it (field keys such as `stage`, `unitCount.min`).
+- **Pages converted.** Every screen under the app (projects, project page, sales, CRM, my desk, notes, market intel, admin, settings), the public wizard, the company portal, share pages, the login pages and the shared components outside `ui/`. The fixture schedule editor got the funnel button, panel and sort chevrons on its existing sort.
+- **Fixes along the way.** Two stale tests pointed at code that had moved (the site reader prompt version and the email template lookup now in `src/lib/bot/templatePick.js`); both now pass. The changelog header was repaired.
+- **Left on purpose.** Data-driven category color maps (charts and tags keep their colors), the dark console boxes, the dark navy sidebar, the dash placeholder in blank table cells, and a few older dashes in existing copy.
+- Files: about 200 screen and component files under `src/app` and `src/components`; no API routes, no schema change.
+
+## [Company portal for web budgets: open, copy, history, "same project?"] - October 16, 2026 (DEPLOYED 10-17) - migration 0132
 
 Mike 10-16: "a very simple portal with no password for now, just an email and all identical suffixes become part of a company"; decisions: hard block of any non work email; the "same project?" question goes only to the person who just made the newer budget; a re-upload uses the new drawings; keep a history of what changed on copied budgets. Compare-three is parked and not built.
 
@@ -18,16 +36,10 @@ Mike 10-16: "a very simple portal with no password for now, just an email and al
 - Migration 0132 (`prisma/migrations/0132_gc_portal`): `ConceptualDraft.copiedFromId`, the three tables above. Additive only. Tests: `scripts/tests/portalGroups.test.mjs` (5), full verify 15 gates.
 - Files: `prisma/schema.prisma`, `src/lib/intake/{portalGroups,portalServer,draftHistory,drafts}.js`, `src/app/api/intake/draft/route.js`, `src/app/api/intake/submit/route.js`, `src/app/api/intake/portal/{list,copy,match,history}/route.js`, `src/app/conceptual_budget/IntakeClient.jsx`, `src/app/conceptual_budget/my-budgets/{page,MyBudgetsClient}.jsx`, `src/lib/desk/deskServer.js`, `src/app/(app)/sales/desk/page.jsx`.
 
-## [Public wizard: "Figures" step renamed "Bldg Data"] - October 16, 2026 (NOT YET DEPLOYED) - no migration
+## [Public wizard: "Figures" step renamed "Bldg Data"] - October 16, 2026 (DEPLOYED 10-17) - no migration
 
 - Mike 10-16: the no-drawings step in the public conceptual budget wizard is now "Bldg Data" in the step strip and "Building Data" as the page heading (was "Figures" / "Building Figures"). The Continue button, the "Next, the building data" note, the live-budget hint and the two API error messages use the same words. Step id stays `figures` so saved drafts keep working.
 - Files: `src/app/conceptual_budget/IntakeClient.jsx`, `src/app/api/intake/submit/route.js`, `src/app/api/intake/pdf/route.js`.
-HANGELOG — ILC Studios Lighting Budget Tool
-
-All notable changes to this project are recorded here.
-Format: each session is a dated entry with features added, bugs fixed, and files changed.
-
----
 
 ## [Emergency garage priced by drive-aisle length (Option 2)] - October 16, 2026 (DEPLOYED) - no migration
 

@@ -23,14 +23,14 @@ function Employer({ contact }) {
     return (
       <span className="text-slate-500">
         {label}
-        <span className="ml-1.5 text-[10px] text-amber-700" title="Typed by hand — not linked to a client record">
+        <span className="ml-1.5 text-[11px] text-amber-700" title="Typed by hand, not linked to a client record">
           not linked
         </span>
       </span>
     );
   }
   return (
-    <span className="text-[10px] font-semibold text-red-700 bg-red-50 border border-red-200 rounded-full px-2 py-0.5">
+    <span className="text-[11px] font-semibold text-red-700 bg-red-50 border border-red-200 rounded-full px-2 py-0.5">
       No company
     </span>
   );
@@ -113,13 +113,13 @@ export default function ProjectPeopleCard({ projectId }) {
   const hasLead     = links.some(l => l.isLead);
 
   return (
-    <div className="bg-white border border-slate-200 rounded-2xl px-6 py-5 shadow-sm">
+    <div className="bg-white border border-slate-200 rounded-xl px-6 py-5 shadow-sm">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Project People</p>
+          <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Project People</p>
           {!loading && links.length > 0 && !hasLead && (
             <span
-              className="text-[10px] font-semibold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full"
+              className="text-[11px] font-semibold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full"
               title="Nobody is marked as the main contact, so this job counts towards no one's record"
             >
               ⚠ no main contact
@@ -129,7 +129,7 @@ export default function ProjectPeopleCard({ projectId }) {
         <button
           type="button"
           onClick={() => setPicking(v => !v)}
-          className="text-xs font-semibold text-amber-600 hover:text-amber-700"
+          className="text-xs font-semibold text-orange-600 hover:text-orange-700"
         >
           {picking ? 'Cancel' : '+ Add person'}
         </button>
@@ -145,7 +145,7 @@ export default function ProjectPeopleCard({ projectId }) {
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Search people by name, email or title…"
-            className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-400"
+            className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500"
           />
           {search.trim() && (
             <div className="mt-2 border border-slate-200 rounded-lg divide-y divide-slate-100 max-h-56 overflow-y-auto">
@@ -186,7 +186,7 @@ export default function ProjectPeopleCard({ projectId }) {
                     <span className="text-sm font-semibold text-slate-800">{c.name}</span>
                     {link.isLead && (
                       <span
-                        className="text-[10px] font-semibold text-green-700 bg-green-50 border border-green-200 rounded-full px-2 py-0.5"
+                        className="text-[11px] font-semibold text-green-700 bg-green-50 border border-green-200 rounded-full px-2 py-0.5"
                         title="The one person responsible for this job. Only their record counts it as won or lost."
                       >
                         ★ Main contact
@@ -231,9 +231,9 @@ export default function ProjectPeopleCard({ projectId }) {
         </ul>
       )}
 
-      <p className="mt-3 text-[10px] text-slate-400 leading-relaxed">
+      <p className="mt-3 text-[11px] text-slate-400 leading-relaxed">
         Anyone here is connected to the job. The main contact is the one it counts
-        for — their own won and lost numbers come from the jobs they are main
+        for, their own won and lost numbers come from the jobs they are main
         contact on, and nobody else's.
       </p>
     </div>

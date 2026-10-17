@@ -108,14 +108,14 @@ function AlertBell({ userId, expanded }) {
               d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
           </svg>
           {unread > 0 && (
-            <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-amber-500 rounded-full text-white text-[8px] font-bold flex items-center justify-center leading-none">
+            <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-orange-500 rounded-full text-white text-[8px] font-bold flex items-center justify-center leading-none">
               {unread > 9 ? '9+' : unread}
             </span>
           )}
         </span>
         {expanded && <span className="flex-1 text-left whitespace-nowrap">Notifications</span>}
         {expanded && unread > 0 && (
-          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500 text-white leading-none min-w-[18px] text-center">
+          <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-full bg-orange-500 text-white leading-none min-w-[18px] text-center">
             {unread > 9 ? '9+' : unread}
           </span>
         )}
@@ -127,7 +127,7 @@ function AlertBell({ userId, expanded }) {
           <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
             <span className="text-sm font-semibold text-slate-800">Notifications</span>
             {unread > 0 && (
-              <button onClick={markAllRead} className="text-xs text-amber-600 hover:text-amber-700 font-medium">
+              <button onClick={markAllRead} className="text-xs text-orange-600 hover:text-orange-700 font-semibold">
                 Mark all read
               </button>
             )}
@@ -137,11 +137,11 @@ function AlertBell({ userId, expanded }) {
               <p className="text-xs text-slate-700">{askMute.question}</p>
               <div className="flex gap-2 mt-2">
                 <button onClick={() => muteType(askMute.alertType)}
-                  className="px-2.5 py-1 rounded-lg bg-slate-800 text-white text-[11px] font-semibold hover:bg-slate-700">
+                  className={BTN_COMPACT_PRIMARY}>
                   Stop sending it
                 </button>
                 <button onClick={() => setAskMute(null)}
-                  className="px-2.5 py-1 rounded-lg border border-slate-200 text-[11px] font-medium text-slate-600 hover:bg-white">
+                  className={BTN_COMPACT}>
                   Keep sending it
                 </button>
               </div>
@@ -149,10 +149,10 @@ function AlertBell({ userId, expanded }) {
           )}
           <div className="max-h-96 overflow-y-auto">
             {alerts.length === 0 ? (
-              <p className="text-sm text-slate-400 text-center py-8">No notifications</p>
+              <WidgetEmpty>No notifications</WidgetEmpty>
             ) : (
               alerts.map(alert => (
-                <div key={alert.id} className={`px-4 py-3 border-b border-slate-50 last:border-0 ${alert.isRead ? '' : 'bg-amber-50'}`}>
+                <div key={alert.id} className={`px-4 py-3 border-b border-slate-50 last:border-0 ${alert.isRead ? '' : 'bg-orange-50'}`}>
                   <div className="flex items-start gap-2">
                     <div className="flex-1 min-w-0">
                       <p className={`text-sm text-slate-800 ${alert.isRead ? 'font-medium' : 'font-semibold'}`}>{alert.title}</p>
@@ -160,29 +160,29 @@ function AlertBell({ userId, expanded }) {
                       <div className="flex items-center gap-3 mt-1.5">
                         {alert.link && (
                           <Link href={alert.link} onClick={() => { markRead(alert.id); setOpen(false); }}
-                            className="text-xs text-amber-600 hover:text-amber-700 font-medium">
+                            className="text-xs text-orange-600 hover:text-orange-700 font-semibold">
                             View →
                           </Link>
                         )}
                         {!alert.isRead && (
-                          <button onClick={() => markRead(alert.id)} className="text-xs text-slate-400 hover:text-slate-600 font-medium">
+                          <button onClick={() => markRead(alert.id)} className="text-xs text-slate-500 hover:text-slate-700 font-semibold">
                             Mark read
                           </button>
                         )}
                       </div>
                       <div className="flex items-center gap-2 mt-1.5">
                         {rated[alert.id] ? (
-                          <span className="text-[11px] text-slate-400">
-                            {rated[alert.id] === 'USEFUL' ? 'Thanks — marked useful.' : "Thanks — marked as one you don't need."}
+                          <span className="text-[11px] text-slate-500">
+                            {rated[alert.id] === 'USEFUL' ? 'Thanks, marked useful.' : "Thanks, marked as one you don't need."}
                           </span>
                         ) : (
                           <>
                             <button onClick={() => rate(alert, 'USEFUL')}
-                              className="text-[11px] px-2 py-0.5 rounded-full border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-700 font-medium">
+                              className="text-[11px] px-2 py-0.5 rounded-lg border border-slate-300 text-slate-600 hover:bg-slate-50 hover:text-slate-800 font-semibold">
                               Useful
                             </button>
                             <button onClick={() => rate(alert, 'NOT_USEFUL')}
-                              className="text-[11px] px-2 py-0.5 rounded-full border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-slate-700 font-medium">
+                              className="text-[11px] px-2 py-0.5 rounded-lg border border-slate-300 text-slate-600 hover:bg-slate-50 hover:text-slate-800 font-semibold">
                               Don&apos;t need
                             </button>
                           </>
@@ -190,7 +190,7 @@ function AlertBell({ userId, expanded }) {
                       </div>
                     </div>
                     <div className="flex flex-col items-center gap-2 shrink-0 pt-0.5">
-                      {!alert.isRead && <div className="w-2 h-2 rounded-full bg-amber-500" />}
+                      {!alert.isRead && <div className="w-2 h-2 rounded-full bg-orange-500" />}
                       <button
                         onClick={() => deleteAlert(alert.id)}
                         title="Delete notification"
@@ -340,12 +340,12 @@ function NavItem({ href, icon, label, active, disabled, badge, expanded }) {
       <span className="shrink-0">{icon}</span>
       <span className={`flex-1 whitespace-nowrap transition-opacity duration-150 ${expanded ? 'opacity-100' : 'opacity-0 w-0 overflow-hidden'}`}>{label}</span>
       {badge != null && expanded && (
-        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500 text-white leading-none min-w-[18px] text-center">
+        <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-full bg-orange-500 text-white leading-none min-w-[18px] text-center">
           {badge}
         </span>
       )}
       {disabled && expanded && (
-        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-navy-800 text-navy-500 leading-none">soon</span>
+        <span className="text-[11px] font-medium px-1.5 py-0.5 rounded bg-navy-800 text-navy-500 leading-none">soon</span>
       )}
     </>
   );
@@ -370,11 +370,11 @@ function SubNavItem({ href, icon, label, active, disabled, badge, expanded }) {
       <span className="shrink-0 opacity-75">{icon}</span>
       {expanded && <span className="whitespace-nowrap">{label}</span>}
       {badge > 0 && expanded && (
-        <span className="ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-500 text-white leading-none min-w-[18px] text-center">
+        <span className="ml-auto text-[11px] font-bold px-1.5 py-0.5 rounded-full bg-orange-500 text-white leading-none min-w-[18px] text-center">
           {badge > 9 ? '9+' : badge}
         </span>
       )}
-      {disabled && expanded && <span className="text-[9px] font-medium px-1 py-0.5 rounded bg-navy-800 text-navy-500 leading-none ml-auto">soon</span>}
+      {disabled && expanded && <span className="text-[11px] font-medium px-1 py-0.5 rounded bg-navy-800 text-navy-500 leading-none ml-auto">soon</span>}
     </>
   );
 
@@ -522,13 +522,12 @@ export default function Sidebar({ user }) {
     <aside
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
-      className={`${mobileOpen ? 'fixed inset-y-0 left-0 w-72 z-50 flex shadow-2xl' : `hidden md:flex ${sidebarW} z-30`} shrink-0 flex-col h-[100dvh] md:h-screen overflow-hidden transition-all duration-200 ease-in-out print:hidden`}
-      style={{ backgroundColor: '#0a1929' }}
+      className={`${mobileOpen ? 'fixed inset-y-0 left-0 w-72 z-50 flex shadow-2xl' : `hidden md:flex ${sidebarW} z-30`} shrink-0 flex-col h-[100dvh] md:h-screen overflow-hidden transition-all duration-200 ease-in-out print:hidden bg-navy-950`}
     >
       {/* ── Logo + pin ── */}
       <div className="px-3 py-4 shrink-0 flex items-center justify-between overflow-hidden">
         <Link href="/dashboard" className="flex items-center gap-2.5 min-w-0">
-          <div className="w-8 h-8 rounded-lg bg-amber-500 flex items-center justify-center shrink-0">
+          <div className="w-8 h-8 rounded-lg bg-orange-500 flex items-center justify-center shrink-0">
             <svg viewBox="0 0 24 24" className="w-5 h-5 text-white" fill="currentColor">
               <path d="M9 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H9v1zm3-19C8.14 2 5 5.14 5 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.86-3.14-7-7-7z"/>
             </svg>
@@ -536,14 +535,14 @@ export default function Sidebar({ user }) {
           {expanded && (
             <div className="min-w-0">
               <div className="text-white font-semibold text-sm leading-tight whitespace-nowrap">ILC Studios</div>
-              <div className="text-[10px] leading-tight whitespace-nowrap" style={{ color: '#4a6fa5' }}>Budget Platform</div>
+              <div className="text-[11px] leading-tight whitespace-nowrap" style={{ color: '#4a6fa5' }}>Budget Platform</div>
             </div>
           )}
         </Link>
         {expanded && (
           <button onClick={toggleLock} title={locked ? 'Unpin sidebar' : 'Pin sidebar open'}
-            className="shrink-0 p-1 rounded transition-colors hover:bg-white/10"
-            style={{ color: locked ? '#f59e0b' : '#4a6fa5' }}>
+            className={`shrink-0 p-1 rounded-lg transition-colors hover:bg-white/10 ${locked ? 'text-orange-500' : ''}`}
+            style={locked ? undefined : { color: '#4a6fa5' }}>
             <IconPin locked={locked} />
           </button>
         )}
@@ -672,7 +671,7 @@ export default function Sidebar({ user }) {
 
         {expanded && (
           <div className="px-3 pb-1">
-            <span className="text-[10px] font-semibold uppercase tracking-widest" style={{ color: '#2d4a6a' }}>Settings</span>
+            <span className="text-[11px] font-semibold uppercase tracking-wide" style={{ color: '#2d4a6a' }}>Settings</span>
           </div>
         )}
 
@@ -686,21 +685,21 @@ export default function Sidebar({ user }) {
       <div className="shrink-0 px-2 py-3 overflow-hidden" style={{ borderTop: '1px solid #1e293b' }}>
         {expanded ? (
           <div className="flex items-center gap-2.5 mb-2 px-1">
-            <div className="w-7 h-7 rounded-full bg-amber-500 flex items-center justify-center text-white text-xs font-bold shrink-0">
+            <div className="w-7 h-7 rounded-full bg-orange-500 flex items-center justify-center text-white text-xs font-bold shrink-0">
               {(user?.name || user?.email || '?')[0].toUpperCase()}
             </div>
             <div className="flex-1 min-w-0">
               <div className="text-sm font-medium leading-tight truncate" style={{ color: '#e2e8f0' }}>
                 {user?.name || user?.email}
               </div>
-              <div className="text-[10px] leading-tight capitalize" style={{ color: '#4a6fa5' }}>
+              <div className="text-[11px] leading-tight capitalize" style={{ color: '#4a6fa5' }}>
                 {ROLE_LABEL[user?.role] || user?.role}
               </div>
             </div>
           </div>
         ) : (
           <div className="flex justify-center mb-2">
-            <div className="w-7 h-7 rounded-full bg-amber-500 flex items-center justify-center text-white text-xs font-bold">
+            <div className="w-7 h-7 rounded-full bg-orange-500 flex items-center justify-center text-white text-xs font-bold">
               {(user?.name || user?.email || '?')[0].toUpperCase()}
             </div>
           </div>

@@ -10,6 +10,7 @@
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { BLOCKS, BLOCK_LABEL } from '@/lib/meetingPrep/brief';
+import { TILE, BTN_COMPACT, LABEL } from '@/components/ui/tokens';
 
 export default function MeetingPrep({ noteId, autoRun = false }) {
   const [brief, setBrief]         = useState(null);
@@ -63,12 +64,12 @@ export default function MeetingPrep({ noteId, autoRun = false }) {
   };
 
   return (
-    <div className="border border-slate-200 rounded-lg p-3 bg-slate-50/60">
+    <div className={TILE}>
       <div className="flex items-center justify-between gap-2 flex-wrap">
         <div>
-          <p className="text-xs font-medium text-slate-500">Meeting prep</p>
+          <p className={LABEL}>Meeting prep</p>
           {brief?.createdAt && (
-            <p className="text-[11px] text-slate-400">
+            <p className="text-[11px] text-slate-500 tabular-nums">
               Built {new Date(brief.createdAt).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}
             </p>
           )}
@@ -77,14 +78,14 @@ export default function MeetingPrep({ noteId, autoRun = false }) {
           type="button"
           onClick={run}
           disabled={busy}
-          className="text-xs px-3 py-1.5 rounded-md border border-slate-300 bg-white hover:bg-slate-100 disabled:opacity-50"
+          className={BTN_COMPACT}
         >
-          {busy ? 'Reading the CRM…' : brief ? 'Refresh brief' : 'Prep for this meeting'}
+          {busy ? 'Reading the CRM...' : brief ? 'Refresh brief' : 'Prep for this meeting'}
         </button>
       </div>
 
       {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
-      {loading && !brief && <p className="mt-2 text-xs text-slate-400">Loading…</p>}
+      {loading && !brief && <p className="mt-2 text-xs text-slate-500">Loading...</p>}
 
       {!loading && !brief && !error && (
         <p className="mt-2 text-xs text-slate-500">
@@ -107,7 +108,7 @@ export default function MeetingPrep({ noteId, autoRun = false }) {
                         type="button"
                         title={factByRef[ref]?.text || ''}
                         onClick={() => openFact(ref)}
-                        className="inline-block align-middle ml-0.5 px-1.5 py-0 rounded bg-indigo-50 text-indigo-700 text-[10px] font-medium hover:bg-indigo-100"
+                        className="inline-block align-middle ml-0.5 px-1.5 py-0 rounded bg-orange-50 text-orange-700 text-[11px] font-semibold hover:bg-orange-100"
                       >
                         {ref}
                       </button>
@@ -137,15 +138,15 @@ export default function MeetingPrep({ noteId, autoRun = false }) {
                 <div className="mt-2 space-y-2">
                   {BLOCKS.filter(b => brief.facts.some(f => f.block === b.key)).map(b => (
                     <div key={b.key}>
-                      <p className="text-[11px] uppercase tracking-wide text-slate-400">{BLOCK_LABEL[b.key]}</p>
+                      <p className={LABEL}>{BLOCK_LABEL[b.key]}</p>
                       <ul className="mt-0.5 space-y-0.5">
                         {brief.facts.filter(f => f.block === b.key).map(f => (
                           <li
                             key={f.id}
                             id={`mp-${noteId}-${f.ref}`}
-                            className={`text-xs text-slate-600 flex gap-2 rounded px-1 ${lit === f.ref ? 'bg-amber-50' : ''}`}
+                            className={`text-xs text-slate-600 flex gap-2 rounded px-1 ${lit === f.ref ? 'bg-orange-50' : ''}`}
                           >
-                            <span className="text-indigo-600 font-medium w-7 shrink-0">{f.ref}</span>
+                            <span className="text-orange-600 font-semibold w-7 shrink-0">{f.ref}</span>
                             <span>{f.text}</span>
                           </li>
                         ))}
