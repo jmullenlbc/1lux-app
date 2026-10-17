@@ -5,7 +5,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [Helpers never cover the page, bug reports carry their links, one Filter button everywhere] - October 17, 2026 (NOT YET DEPLOYED) - no migration
+## [Helpers never cover the page, bug reports carry their links, one Filter button everywhere] - October 17, 2026 (DEPLOYED 13cdbb2) - no migration
 
 Mike 10-17: "The Report Bug and Ask AI buttons can never overlap and make something else not be able to be read"; "Report bug button is missing the hyperlink it should automatically record. Also, it should push to where the internal system bugs go"; the thanks page text and a way back to the company budgets; the company portal wider on a monitor; "Keep the Filter and expands on every location in the app where there is a filter option."
 
@@ -17,7 +17,7 @@ Mike 10-17: "The Report Bug and Ask AI buttons can never overlap and make someth
 - **One Filter button everywhere.** The CRM / Sales dashboard (`DashboardView.jsx`) now uses the funnel "Filter (n)" button that opens a panel, like every other CRM page, and keeps its filters in the page address. The same button and panel replaced the old always-visible selects, chips and pills on Manufacturers (setup to sell, terms, state; kept in the address), Pre-Con All Budgets (type), project Activity (module, user, from, to), Bot Knowledge (category), Conceptual Submissions (status), Knowledge Base category pages (severity with counts), Proposal Templates (type), Admin Tech Stack changelog (category), CRM Intel (verified only), Notification Activity (external or internal), project Files (tag, Ask AI can or can't read), Contracts (tag) and Correspondence (tick one or more tags). Left as tabs on purpose: the takeoff phase chips and the peer review location chips, which switch views rather than narrow a list.
 - Checks: budget math 62 of 62, verify 15 gates passed, node tests 2,250 of 2,250 pass (drawing upload checks included, now that credits are added). The bug board and the changed pages were not opened in the browser because the local sign in is blocked by the safety check.
 
-## [Dashes removed everywhere + login tests run without setup] - October 17, 2026 (NOT YET DEPLOYED) - no migration
+## [Dashes removed everywhere + login tests run without setup] - October 17, 2026 (DEPLOYED 13cdbb2) - no migration
 
 Mike 10-17: "remove all dash's that aren't needed grammatically. Take all stupid AI double dashes out of everything you do."
 
