@@ -8,6 +8,7 @@ import SummaryBudgetBreakdown from '@/app/(app)/project/[id]/summary/SummaryBudg
 import QuestionCard from '@/components/sections/QuestionCard';
 import InteriorTierPicker from '@/components/sections/InteriorTierPicker';
 import { classifyIntakeEmail } from '@/lib/intake';
+import { readRememberedEmail, rememberEmail } from '@/lib/publicVisitor';
 import { INTAKE_QUESTIONS, noDrawingsReady, BOLLARD_PROJECT_TYPES, designChoices, isHomeProjectType, questionFor, optionLabelFor, EXTERIOR_AMENITY_KEY, exteriorAmenityOptions, exteriorAmenityFallback } from '@/lib/intake/questionnaire';
 import { controlsMathWords } from '@/lib/intake/controlsWords';
 import { formatCurrency } from '@/lib/format';
@@ -110,7 +111,8 @@ function clearDraft() {
  *  A page opened and closed without a keystroke leaves nothing to resume. */
 function draftHasWork(d) {
   if (!d) return false;
-  const typed = ['firstName', 'lastName', 'email', 'project'].some(k => String(d[k] ?? '').trim());
+  // Not the email: it is filled in from the sign in, so it alone is not work.
+  const typed = ['firstName', 'lastName', 'project'].some(k => String(d[k] ?? '').trim());
   return typed || Boolean(d.haveDrawings) || Boolean(d.drawings);
 }
 /** Copy only the keys the live state already has, and only string values, so
@@ -670,6 +672,16 @@ export default function IntakeClient() {
   }, [companyDomain]);
   const emailError = touchedEmail && emailCheck && !emailCheck.ok ? emailCheck.message : null;
 
+  // The work email this browser signed in with (Mike 10-17) fills a blank
+  // About You email once the draft question is settled. A good one the
+  // visitor types here (on blur, never a restored draft's author) becomes
+  // the remembered one for next time and for the portal.
+  useEffect(() => {
+    if (!draftDecided || email.trim()) return;
+    const saved = readRememberedEmail();
+    if (saved) setEmail(saved);
+  }, [draftDecided]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // When a drawing read tells us the project type, pre-answer that question , 
   // but never overwrite a choice the submitter already made themselves.
   const guessedType = useMemo(() => guessProjectType(drawings?.siteData?.buildingType), [drawings]);
@@ -922,7 +934,7 @@ export default function IntakeClient() {
     setDraftDecided(true);
   }
 
-  // A draft opened from a resume link needs no Continue / Start over question , 
+  // A draft opened from a resume link needs no Continue / Start over question;
   // following the link was the answer.
   useEffect(() => {
     if (savedDraft?.fromLink) restoreDraft();
@@ -933,7 +945,7 @@ export default function IntakeClient() {
   // Inputs only: never the estimate, never a price, never after Send.
   useEffect(() => {
     if (!draftDecided || submitted || drawingsReading > 0) return;
-    const hasWork = [firstName, lastName, email, project].some(v => v.trim()) || haveDrawings || drawings;
+    const hasWork = [firstName, lastName, project].some(v => v.trim()) || haveDrawings || drawings;
     if (!hasWork) return;
     const t = setTimeout(() => {
       const when = new Date().toISOString();
@@ -1478,7 +1490,8 @@ export default function IntakeClient() {
                             type="email"
                             value={email}
                             onChange={e => setEmail(e.target.value)}
-                            onBlur={() => setTouchedEmail(true)}
+                            onBlur={() => { setTouchedEmail(true); if (emailCheck?.ok) rememberEmail(email); }}
+                            autoComplete="email"
                             placeholder="jane@yourcompany.com"
                           />
                         </FigureField>

@@ -40,7 +40,7 @@ export function FilterToolbar({ count = 0, open, onToggle, onClear, shown, total
       <FilterButton count={count} open={open} onClick={onToggle} />
       {hasCount && (
         <span className={HELPER}>
-          {count > 0 ? `${shown} of ${total} ${noun}` : `${total} ${noun}`}
+          {count > 0 ? `${shown} of ${total} ${noun}` : `${total} ${total === 1 ? noun.replace(/s$/, '') : noun}`}
         </span>
       )}
       {count > 0 && onClear && (

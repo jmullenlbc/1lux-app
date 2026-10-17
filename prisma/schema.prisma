@@ -3707,6 +3707,21 @@ model ConceptualVisit {
   @@index([submissionId])
 }
 
+// One row per sign in to the public budget tool (0133, Mike 10-17: "record it
+// for data"). The work email typed on the password screen, its domain and the
+// device. Only good work emails are kept; a sign in is never refused over it.
+model ConceptualSignIn {
+  id          String   @id @default(cuid())
+  email       String
+  emailDomain String
+  deviceKind  String   @default("desktop") // desktop | tablet | mobile
+  signedInAt  DateTime @default(now())
+
+  @@index([emailDomain])
+  @@index([email])
+  @@index([signedInAt])
+}
+
 // Governed AI Layer, Slice 4b — one row per reviewable AI run: what the model
 // said, what the auto-checks found, and what a person decided. The accuracy
 // record that agentTrust.js computes tiers from.

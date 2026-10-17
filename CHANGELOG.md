@@ -5,6 +5,20 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Browser remembers the work email and the sign in, sign ins recorded] - October 17, 2026 (DEPLOYED) - migration 0133
+
+Mike 10-17: "We need the browser to remember your email and that you signed in with it." Then: one year is right, and "we should record it for data."
+
+- **Work email on the password screen.** The public tool's sign in now asks "Work email" above the password (same work-email check as About You). The pair is marked as a username and password, so the browser offers to save both and fills them next time. File: `src/components/public/PasswordGate.jsx`.
+- **Every sign in is recorded (0133).** New table `ConceptualSignIn` (email, emailDomain, deviceKind, signedInAt), one row per sign in with the right password and a good work email. A failed write never blocks the sign in; a wrong password records nothing. File: `src/app/api/intake/access/route.js`. Migration `0133_conceptual_sign_in` is additive (one new table, three indexes).
+- **One remembered email.** `src/lib/publicVisitor.js` keeps the email in this browser (same storage key the company portal already used, so saved emails carry over). The sign in, the wizard's About You step (fills a blank email; a good one typed there becomes the remembered one) and the company portal (`MyBudgetsClient.jsx`, "Not you?" clears it) all share it. A budget opened from the portal never overwrites it with the author's email.
+- **Email alone is not a draft.** The wizard's "Pick up where you left off" question and autosave no longer count the email, since it is now filled in for you. File: `src/app/conceptual_budget/IntakeClient.jsx`.
+- **Sign in lasts a year** (was 30 days). Changing the password on Admin > Users and settings still signs everyone out. File: `src/lib/publicAccess.js`.
+- **"1 budget", not "1 budgets".** The shared Filter bar count uses the singular for one row on every list. File: `src/components/ui/FilterPanel.jsx`.
+- Checks: verify --full passed (15 gates, production build); budget math 62 of 62; node tests 2,246 of 2,250 (the 4 misses are drawing reads refused by the Anthropic API for a low credit balance, not code). Browser: remembered email fills the wizard and portal, typed email is remembered on blur, no resume prompt from the email alone, gate shows the email and password fields.
+
+---
+
 ## [Helpers never cover the page, bug reports carry their links, one Filter button everywhere] - October 17, 2026 (DEPLOYED 13cdbb2) - no migration
 
 Mike 10-17: "The Report Bug and Ask AI buttons can never overlap and make something else not be able to be read"; "Report bug button is missing the hyperlink it should automatically record. Also, it should push to where the internal system bugs go"; the thanks page text and a way back to the company budgets; the company portal wider on a monitor; "Keep the Filter and expands on every location in the app where there is a filter option."

@@ -20,14 +20,14 @@ import { useUrlView } from '@/lib/useUrlView';
 import { FilterToolbar, FilterPanel } from '@/components/ui/FilterPanel';
 import { SortSelect } from '@/components/ui/SortHeader';
 import { WidgetLoading } from '@/components/ui/WidgetFrame';
+import { readRememberedEmail, rememberEmail } from '@/lib/publicVisitor';
 import { BTN_PRIMARY, BTN_SECONDARY, CARD_PADDED, H1, H2, INPUT, LABEL, HELPER, NUM, TH, TD } from '@/components/ui/tokens';
 
-const EMAIL_KEY = 'ilc.conceptualBudget.portalEmail';
 const ORANGE = BTN_PRIMARY;
 const PLAIN = BTN_SECONDARY;
 
-function readEmail() { try { return localStorage.getItem(EMAIL_KEY) || ''; } catch { return ''; } }
-function writeEmail(v) { try { if (v) localStorage.setItem(EMAIL_KEY, v); else localStorage.removeItem(EMAIL_KEY); } catch {} }
+const readEmail = readRememberedEmail;
+const writeEmail = rememberEmail;
 
 async function post(path, body) {
   const res = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });

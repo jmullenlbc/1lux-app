@@ -12,9 +12,9 @@ export const dynamic = 'force-dynamic';
 // protected for now"). Admins set it on Admin > Users and settings; an empty
 // password opens the tool again. Signed-in staff skip the gate.
 //
-// PublicBugButton is the beta-client "Report a bug" button. It is mounted here
-// rather than inside IntakeClient so it floats over every step of the form; it
-// sends only what the visitor types plus the page URL and browser.
+// PublicBugButton is the beta-client "Report a bug" form. It is mounted here
+// so every public page can open it from a PublicBugLink (nothing floats, Mike
+// 10-17); it sends what the visitor types plus the page and budget links.
 export default async function IntakeLayout({ children }) {
   const allowed = await hasPublicBudgetAccess();
   return (

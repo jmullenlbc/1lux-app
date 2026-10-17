@@ -11,7 +11,8 @@ import { getSession } from '@/lib/auth';
  * Admin > Users and settings. An empty value opens the tool to everyone.
  *
  * A visitor who types the right password gets a cookie holding an HMAC of the
- * password, so changing the password signs everyone out at once. Signed-in
+ * password, so changing the password signs everyone out at once. It lasts a
+ * year (Mike 10-17: the browser should remember the sign in). Signed-in
  * staff never see the gate. The visit and bug-report routes stay open.
  */
 export const PUBLIC_BUDGET_PASSWORD_KEY = 'conceptual_budget_password';
@@ -64,7 +65,7 @@ export function setPublicAccessCookie(response, password) {
     httpOnly: true,
     secure:   process.env.NODE_ENV === 'production',
     sameSite: 'lax',
-    maxAge:   60 * 60 * 24 * 30,
+    maxAge:   60 * 60 * 24 * 365,
     path:     '/',
   });
   return response;
