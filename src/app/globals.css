@@ -11,17 +11,24 @@
     @apply bg-slate-50 text-slate-900 antialiased;
     font-family: 'Inter', system-ui, sans-serif;
   }
-  h1 { @apply text-3xl font-bold tracking-tight; }
-  h2 { @apply text-2xl font-semibold tracking-tight; }
-  h3 { @apply text-lg font-semibold; }
+  /* One type ladder (Mike 10-16): h1 page title, h2 section title, h3 card title. */
+  h1 { @apply text-2xl font-bold text-slate-900; }
+  h2 { @apply text-lg font-semibold text-slate-900; }
+  h3 { @apply text-sm font-semibold text-slate-800; }
 }
 
 @layer components {
   .card {
     @apply bg-white rounded-xl border border-slate-200 shadow-sm;
   }
-  .section-header {
-    @apply text-xs font-semibold uppercase tracking-widest text-slate-400;
+  .section-header, .label {
+    @apply text-[11px] font-semibold uppercase tracking-wide text-slate-500;
+  }
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white transition-colors;
+  }
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold rounded-lg bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 transition-colors;
   }
   .divider {
     @apply border-t border-slate-100 my-4;

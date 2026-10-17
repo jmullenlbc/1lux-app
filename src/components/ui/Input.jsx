@@ -15,9 +15,9 @@ export default function Input({ label, error, hint, className, prefix, suffix, .
         )}
         <input
           className={cn(
-            'w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900',
+            'w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900',
             'placeholder:text-slate-400',
-            'focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent',
+            'focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent',
             'disabled:bg-slate-50 disabled:text-slate-400 disabled:cursor-not-allowed',
             prefix && 'pl-7',
             suffix && 'pr-8',
@@ -32,7 +32,7 @@ export default function Input({ label, error, hint, className, prefix, suffix, .
           </span>
         )}
       </div>
-      {hint  && !error && <p className="text-xs text-slate-400">{hint}</p>}
+      {hint  && !error && <p className="text-xs text-slate-500">{hint}</p>}
       {error && <p className="text-xs text-red-500">{error}</p>}
     </div>
   );
@@ -44,8 +44,8 @@ export function Select({ label, error, hint, children, className, ...props }) {
       {label && <label className="text-sm font-medium text-slate-700">{label}</label>}
       <select
         className={cn(
-          'w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900',
-          'focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent',
+          'w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900',
+          'focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent',
           'disabled:bg-slate-50 disabled:cursor-not-allowed',
           error && 'border-red-400',
           className,
@@ -54,7 +54,7 @@ export function Select({ label, error, hint, children, className, ...props }) {
       >
         {children}
       </select>
-      {hint  && !error && <p className="text-xs text-slate-400">{hint}</p>}
+      {hint  && !error && <p className="text-xs text-slate-500">{hint}</p>}
       {error && <p className="text-xs text-red-500">{error}</p>}
     </div>
   );
