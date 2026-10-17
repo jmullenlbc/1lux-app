@@ -5,7 +5,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [Browser remembers the work email and the sign in, sign ins recorded] - October 17, 2026 (DEPLOYED) - migration 0133
+## [Browser remembers the work email and the sign in, sign ins recorded] - October 17, 2026 (DEPLOYED 5776f24) - migration 0133
 
 Mike 10-17: "We need the browser to remember your email and that you signed in with it." Then: one year is right, and "we should record it for data."
 
