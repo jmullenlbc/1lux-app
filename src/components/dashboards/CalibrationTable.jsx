@@ -17,7 +17,7 @@ const driftClass = (v) => v == null ? 'text-slate-500' : Math.abs(v) >= 15 ? 'te
 const FLAG = { review: ['Review', 'bg-red-50 text-red-700'], watch: ['Watch', 'bg-amber-50 text-amber-700'], ok: ['OK', 'bg-green-50 text-green-700'] };
 
 /**
- * A column-driven table for the calibration widgets that are NOT rate drift —
+ * A column-driven table for the calibration widgets that are NOT rate drift
  * the two Phase 3 driver views. Rate drift earns its own hand-built layout
  * because it has an Apply button and a nested breakdown; these do not, and a
  * generic renderer keeps a new report from needing a new component.

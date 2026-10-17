@@ -62,7 +62,7 @@ test('same city and company but a different name is two jobs, not one', () => {
   assert.equal(findLikelyProject({ proposedName: 'Riverbend', city: 'Denver', state: 'CO', clientId: 'c1', submitterDomain: 'acme.com' }, JOBS), null);
 });
 
-test('whole words only — "Trail" does not match "Trailhead"', () => {
+test('whole words only: "Trail" does not match "Trailhead"', () => {
   assert.equal(findLikelyProject({ proposedName: 'Trail Ridge', city: 'Denver', state: 'CO' }, JOBS), null);
 });
 

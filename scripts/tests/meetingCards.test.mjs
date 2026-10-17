@@ -1,5 +1,5 @@
 /**
- * Weekly Meeting card catalog — the layout rules.
+ * Weekly Meeting card catalog, the layout rules.
  *
  * The screen is shared (Maram runs the meeting), so a bad layout is not one
  * person's problem. These cover the ways a saved layout can arrive wrong:

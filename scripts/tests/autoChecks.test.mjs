@@ -1,5 +1,5 @@
 /**
- * Deterministic auto-checks — Step 16.
+ * Deterministic auto-checks, Step 16.
  *
  * Focused on `extract.unitMatrix`, the first check wired to a real feature and
  * the one every conceptual budget depends on. Pure arithmetic, so these tests
@@ -66,7 +66,7 @@ test('a matrix with more rows than the document states also fails', async () => 
   assert.match(res.checks.find(c => c.key === 'stated-total').detail, /10 unit\(s\) extra/);
 });
 
-test('no stated total means SKIP — never a silent pass', async () => {
+test('no stated total means SKIP, never a silent pass', async () => {
   const m = goodMatrix();
   m.projectTotals.statedTotalUnits = null;
   const res = await runAutoChecks(TASK, m);
@@ -95,7 +95,7 @@ test('unit SF far below gross means rows are missing', async () => {
 
 test('net rentable sitting a hair above gross is inside tolerance', async () => {
   const m = goodMatrix();
-  m.projectTotals.grossInteriorSf = 96000;  // net 96,800 — 0.8% over
+  m.projectTotals.grossInteriorSf = 96000;  // net 96,800, 0.8% over
   const res = await runAutoChecks(TASK, m);
   assert.equal(statusOf(res, 'sf-reconcile'), 'PASS');
 });
@@ -109,7 +109,7 @@ test('missing gross interior SF skips the reconciliation rather than failing it'
 
 // ── row integrity ────────────────────────────────────────────────────────────
 
-test('an empty matrix fails — there is nothing to price', async () => {
+test('an empty matrix fails, there is nothing to price', async () => {
   const res = await runAutoChecks(TASK, { unitTypes: [], projectTotals: {} });
   assert.equal(res.pass, false);
   assert.equal(statusOf(res, 'rows'), 'FAIL');
@@ -124,7 +124,7 @@ test('a fractional or zero quantity fails', async () => {
   }
 });
 
-test('a duplicated type code fails — those units would be counted twice', async () => {
+test('a duplicated type code fails, those units would be counted twice', async () => {
   const m = goodMatrix();
   m.unitTypes.push({ code: '1br-a', qty: 5, unitSf: 720, bedrooms: 1 });
   const res = await runAutoChecks(TASK, m);
@@ -182,7 +182,7 @@ test('codes that state no bedroom count skip the check rather than guessing', as
 
 // ── the three-valued contract ────────────────────────────────────────────────
 
-test('an unknown task type has no opinion — null, not true', async () => {
+test('an unknown task type has no opinion: null, not true', async () => {
   const res = await runAutoChecks('extract.somethingNobodyWiredYet', { anything: 1 });
   assert.equal(res.ran, false);
   assert.equal(res.pass, null);

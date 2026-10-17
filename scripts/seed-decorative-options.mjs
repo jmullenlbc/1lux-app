@@ -5,7 +5,7 @@
  *
  * ── Read this before you trust the prices ───────────────────────────────────
  * The cnPrice figures here are PLACEHOLDERS. They are shaped like real budget
- * fixtures — a few under each target, a few over — so the budget filter has
+ * fixtures, a few under each target, a few over, so the budget filter has
  * something to bite on and so the screens can be looked at. They are not quoted
  * numbers. Replace them from the pool admin (ILC Admin → Decorative Options)
  * before anyone outside ILC sees a survey.
@@ -16,7 +16,7 @@
  * ── What it does ────────────────────────────────────────────────────────────
  * Idempotent. An option is identified by (category, bodyKey), so re-running
  * updates the body and its finishes rather than making a second copy. It never
- * deletes anything — retiring an option is isActive: false, done from the admin
+ * deletes anything, retiring an option is isActive: false, done from the admin
  * screen, and this script will not undo that.
  *
  * Run: node --env-file=.env scripts/seed-decorative-options.mjs
@@ -25,7 +25,7 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
-/** The finish set. Fans are the exception — they are normally white. */
+/** The finish set. Fans are the exception, they are normally white. */
 const F = (finishKey, cnPrice, isDefault = false) => ({ finishKey, cnPrice, isDefault });
 
 const POOL = [
@@ -218,7 +218,7 @@ async function main() {
 
     let optionId;
     if (existing) {
-      // isActive is left alone on purpose — somebody may have retired this one.
+      // isActive is left alone on purpose, somebody may have retired this one.
       await prisma.decorativeOption.update({ where: { id: existing.id }, data });
       optionId = existing.id;
       bodiesUpdated++;

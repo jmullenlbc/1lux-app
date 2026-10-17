@@ -7,7 +7,7 @@ import { prisma } from '@/lib/db';
 // numbers are just the projects they are linked to, counted on read.
 //
 // Not to be confused with /api/projects/[id]/contacts, which is the outside
-// portal-guest list (ProjectExternalContact) — a different thing entirely.
+// portal-guest list (ProjectExternalContact), a different thing entirely.
 
 async function canAccess(projectId, user) {
   const p = await prisma.project.findUnique({ where: { id: projectId } });
@@ -41,7 +41,7 @@ export async function GET(request, { params }) {
   return NextResponse.json({ links });
 }
 
-// POST — attach a person. { contactId, isLead }. Marking someone the lead
+// POST, attach a person. { contactId, isLead }. Marking someone the lead
 // stands the previous lead down, since a project has one Lead Person.
 export async function POST(request, { params }) {
   const { user, error } = await requireAuth();
@@ -75,7 +75,7 @@ export async function POST(request, { params }) {
   return NextResponse.json({ link }, { status: 201 });
 }
 
-// DELETE /api/projects/[id]/people?contactId=… — detach a person.
+// DELETE /api/projects/[id]/people?contactId=…, detach a person.
 export async function DELETE(request, { params }) {
   const { user, error } = await requireAuth();
   if (error) return error;

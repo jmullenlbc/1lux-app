@@ -1,7 +1,7 @@
 // Guard: no browser component may pull in Prisma, even several imports deep.
 // A 'use client' file that reaches @/lib/db builds green and then crashes in
 // the browser with "PrismaClient is unable to run in this browser
-// environment" — which is how every project page broke on 2026-09-23
+// environment", which is how every project page broke on 2026-09-23
 // (NotificationSettingsTab -> notify.js -> db.js). Keep browser-side data in
 // pure files (e.g. src/lib/notificationTypes.js).
 import fs from 'fs'; import path from 'path';

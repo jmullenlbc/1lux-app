@@ -5,7 +5,7 @@ import { normalizeKey } from '@/lib/pricingIntelligence';
 
 // POST /api/pricing/price-history
 // Called fire-and-forget from openMailto() in EmailBidPopup.
-// Receives { projectId } — looks up current budget items itself.
+// Receives { projectId }, looks up current budget items itself.
 // Writes one ProductPriceHistory record per item with manufacturer + partNumber.
 export async function POST(req) {
   const { user, error } = await requireAuth();

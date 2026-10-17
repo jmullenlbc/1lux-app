@@ -71,7 +71,7 @@ test('site features become rows, marked typed or drawing', () => {
   ]);
 });
 
-test('the building type lands as one of the project\'s own types — for every intake choice', () => {
+test('the building type lands as one of the project\'s own types, for every intake choice', () => {
   const q = INTAKE_QUESTIONS.find(x => x.engine?.target === 'buildingTypeKey');
   for (const option of q.options) {
     const plan = planHandoff({ answers: { ...ANSWERS, projectType: option, figureStories: '4' }, drawings: null });

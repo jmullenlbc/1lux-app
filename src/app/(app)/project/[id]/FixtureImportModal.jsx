@@ -66,12 +66,12 @@ export default function FixtureImportModal({ projectId, onImported, onClose }) {
         if (!data || data.length < 2) { setError('File appears to be empty'); return; }
 
         // Auto-detect title row: if first row has only 1 non-empty cell, it's a
-        // merged "LUMINAIRE SCHEDULE" style title — use row 2 as actual headers.
+        // merged "LUMINAIRE SCHEDULE" style title, use row 2 as actual headers.
         let headerRowIdx = 0;
         const row0NonEmpty = data[0].filter(c => String(c ?? '').trim() !== '').length;
         if (row0NonEmpty <= 1 && data.length > 2) headerRowIdx = 1;
 
-        // Build unique header names — blank/duplicate cells get "Column N" suffix
+        // Build unique header names, blank/duplicate cells get "Column N" suffix
         const rawHdrs = data[headerRowIdx].map(h => String(h ?? '').trim());
         const seen = {};
         const hdrs = rawHdrs.map((h, i) => {

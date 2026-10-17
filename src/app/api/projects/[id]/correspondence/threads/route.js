@@ -4,7 +4,7 @@ import { prisma } from '@/lib/db';
 
 // GET /api/projects/[id]/correspondence/threads
 // Returns all threads for a project, grouped by conversationId, sorted by
-// latestReceivedAt desc. Each thread is a summary — no bodyHtml.
+// latestReceivedAt desc. Each thread is a summary, no bodyHtml.
 export async function GET(req, { params }) {
   const { error } = await requireAuth();
   if (error) return error;

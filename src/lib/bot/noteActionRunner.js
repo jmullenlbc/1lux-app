@@ -1,5 +1,5 @@
 /**
- * noteActionRunner.js — runs the bot side of a note's actions, but ONLY for
+ * noteActionRunner.js, runs the bot side of a note's actions, but ONLY for
  * PUBLISHED notes. While a note is a draft, confirming actions just records
  * them; nothing is drafted, scheduled, or rule-fired until the note is published
  * (the publish toggle is the "go" switch for the bot + reviews).
@@ -32,9 +32,9 @@ export async function fireNoteActionConfirmed(noteId, actionId, opts = {}) {
   ]);
   const rw = opts.reviewWindowMinutes ?? await reviewWindow();
 
-  // Trigger baseline + user rules — once per action. A waiting step (intro,
+  // Trigger baseline + user rules, once per action. A waiting step (intro,
   // reply, drawings, invite) is also in the recap email, which stamps
-  // executedAt on it — so for those, "already started" means its reminder
+  // executedAt on it, so for those, "already started" means its reminder
   // ladder has begun, not executedAt. (Found by the Lee demo, 9-25: only the
   // first waiting step on a note ever got a reminder date.)
   const waiting = isWaitExecutor(type?.executor);
@@ -73,7 +73,7 @@ export async function fireNoteActionConfirmed(noteId, actionId, opts = {}) {
 /**
  * On revert-to-draft: pause the bot for this note. Any unsent drafts it created
  * go back to a paused 'DRAFT' state (out of the review queue) and the actions'
- * executed/reminder flags are cleared — so on re-publish they re-run and the
+ * executed/reminder flags are cleared, so on re-publish they re-run and the
  * SAME draft is reactivated + updated with anything new. Sent drafts are left
  * alone (can't un-send).
  */
@@ -105,7 +105,7 @@ export async function pauseNoteOnUnpublish(noteId) {
  * The trigger goes first and deliberately so: a rule built on "a sales note is
  * published" is usually about the note as a whole (log it, tell someone, tag
  * it), and should not have to wait behind however many emails the actions
- * queue. It was also, until 2026-08-22, never fired at all — the trigger was
+ * queue. It was also, until 2026-08-22, never fired at all, the trigger was
  * offered in the rule builder and nothing in the app raised it, so any rule
  * anyone built on it sat there looking active and never ran once.
  */

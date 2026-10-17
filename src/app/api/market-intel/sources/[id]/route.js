@@ -4,7 +4,7 @@ import { prisma } from '@/lib/db';
 import { DEFAULT_MARKET, isKnownMarket } from '@/lib/market-intel/sourceCatalog';
 
 /**
- * Both handlers used to call `getSession()` — never imported, never defined —
+ * Both handlers used to call `getSession()`, never imported, never defined
  * and then read an undefined `user`. Enabling or disabling a source threw a
  * ReferenceError and 500'd. See the sibling route for the same fix.
  */

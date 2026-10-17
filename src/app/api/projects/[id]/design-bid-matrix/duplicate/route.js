@@ -35,7 +35,7 @@ export async function POST(req, { params }) {
   });
   const nextVersion = (lastMatrix?.version ?? 0) + 1;
 
-  // Copy items — carry all pricing forward
+  // Copy items, carry all pricing forward
   const newItems = sourceMatrix.items.map(item => ({
     sourceItemId:       item.sourceItemId,
     type:               item.type,
@@ -75,7 +75,7 @@ export async function POST(req, { params }) {
   });
 
   // Also sync to PeerReviewItems so the live budget reflects the duplicate
-  // (optional: only if explicitly requested — for now, just return the matrix)
+  // (optional: only if explicitly requested, for now, just return the matrix)
 
   return NextResponse.json({ matrix: newMatrix, version: nextVersion }, { status: 201 });
 }

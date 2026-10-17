@@ -3,7 +3,7 @@
  *
  * Runs in the pre-push hook AND in Amplify preBuild. Catches the
  * "schema model declared with no migration to create its table" class
- * of bug — production deploy 143 (and 134 → 142 before it) crashed
+ * of bug, production deploy 143 (and 134 → 142 before it) crashed
  * during seed with P2021 "The table public.RoadmapPriority does not
  * exist" because Mike added the model to schema.prisma but never
  * generated a migration. The Prisma client method `prisma.roadmapPriority`
@@ -36,7 +36,7 @@ function readModelsFromSchema() {
     .join('\n');
 
   const models = [];
-  // Match: model ModelName { ... }  — capture body via balanced-brace walk.
+  // Match: model ModelName { ... }, capture body via balanced-brace walk.
   const headerRe = /^\s*model\s+([A-Za-z_][\w]*)\s*\{/gm;
   let m;
   while ((m = headerRe.exec(cleaned)) !== null) {
@@ -83,14 +83,14 @@ const missing = models
   .filter(m => !created.has(m.tableName));
 
 if (missing.length > 0) {
-  console.error('\n❌ BUILD BLOCKED — schema models with no migration to create their table:\n');
+  console.error('\n❌ BUILD BLOCKED: schema models with no migration to create their table:\n');
   for (const m of missing) {
     const note = m.tableName !== m.modelName ? `  (table "${m.tableName}" via @@map)` : '';
     console.error(`  model ${m.modelName}${note}`);
   }
   console.error('');
   console.error('Why this matters: schema.prisma uses these models to generate the Prisma client,');
-  console.error('so `prisma.<modelName>` methods exist and defensive `if (prisma.X)` guards pass —');
+  console.error('so `prisma.<modelName>` methods exist and defensive `if (prisma.X)` guards pass,');
   console.error('but `prisma migrate deploy` never creates the actual database tables, and any code');
   console.error('that hits the model crashes in production with P2021 "table does not exist".');
   console.error('');

@@ -1,11 +1,11 @@
 /**
- * Merging extracted unit-matrix proposals — pure, and client-safe.
+ * Merging extracted unit-matrix proposals, pure, and client-safe.
  *
  * This lives apart from `drawingExtract.js` for one structural reason: the
  * intake dropzone is a client component and needs this function, while
  * `drawingExtract.js` reaches the model and (through the injection boundary)
  * `node:crypto`. Keeping them in one file meant a browser bundle pulling in
- * server-only machinery — which webpack refuses outright for `node:` imports,
+ * server-only machinery, which webpack refuses outright for `node:` imports,
  * and which would have been wrong even if it had silently succeeded.
  *
  * Nothing here touches IO, the network, or a model. Given proposals, it returns
@@ -23,11 +23,11 @@
  *
  * 1. Unit types are merged by `code`. When the same code appears in two
  *    documents we keep the row with the HIGHER confidence rather than summing
- *    quantities — the common real case is the same matrix appearing on several
+ *    quantities, the common real case is the same matrix appearing on several
  *    sheets, and summing would silently double the unit count. Under-counting
  *    is visible to a reviewer; double-counting looks plausible and is not.
  *    Since 2026-09-16 ONE file is the counted schedule and other files can
- *    only agree or disagree with it — see scoreSchedule below.
+ *    only agree or disagree with it, see scoreSchedule below.
  * 2. Project totals take the first non-null value, in upload order, and every
  *    disagreement is recorded in `conflicts` so a human can settle it.
  * 3. Site-plan reads (`kind: 'site_data'` proposals from the vision path) merge
@@ -39,7 +39,7 @@
 // The numeric fields a site-plan read can carry (mirrors SITE_VISION_SYSTEM in
 // siteVision.js). Listed for the same reason as `totals` below: a new field in
 // the vision schema must be a deliberate decision here too.
-// The WORDS file, not siteFeatures.js — this module reaches the public
+// The WORDS file, not siteFeatures.js, this module reaches the public
 // visitor's browser through DrawingDropzone, and the price defaults must not.
 import { normalizeSiteFeatures } from './siteFeatureWords.js';
 
@@ -61,7 +61,7 @@ const GROSS_SF_META = [
   'grossSfStated', 'grossSfBasis', 'grossSfConfidence', 'grossSfAdjusted',
   'grossSfNeedsReview', 'grossSfNote', 'grossSfSummary', 'grossSfLabel', 'grossSfSheet',
   'grossSfUnreadable',
-  // The per-building addends behind a summed total (attachAreaBasis) — they
+  // The per-building addends behind a summed total (attachAreaBasis), they
   // explain the number, so they travel with it, never mixed across files.
   'perBuildingGross', 'grossSfSummed',
 ];
@@ -87,7 +87,7 @@ const txt = v => String(v ?? '').trim().toLowerCase();
  * Same code, but is it really the same unit type?
  *
  * The model chooses the code, and on Lone Tree Ranch Test v1 (2026-09-15, live)
- * it wrote the BEDROOM COUNT as the code — "2BR", "3BR", "3BR", "3BR", "4BR" —
+ * it wrote the BEDROOM COUNT as the code, "2BR", "3BR", "3BR", "3BR", "4BR"
  * for seven rows the drawings name "Unit 2-1", "Unit 2-1 Type A", "Unit 3-1",
  * "Unit 3-2", ... Keyed on code alone, rule 1 (never sum the same matrix twice)
  * folded them into three rows and threw away 60 units, then reported the four
@@ -116,7 +116,7 @@ function isDifferentType(existing, row, fileName) {
  * Which file's unit schedule is COUNTED.
  *
  * Lone Tree Ranch Test v2, live, 2026-09-16 (Mike's screenshot): the GEN sheet
- * set carried the real unit matrix — seven types, 168 units, and the drawing's
+ * set carried the real unit matrix, seven types, 168 units, and the drawing's
  * own printed total of 168. The ARCH set has no matrix at all; the model
  * ESTIMATED its rows from a typical floor times three levels times four
  * buildings, at 0.4 confidence, and spelled the codes a little differently
@@ -129,8 +129,8 @@ function isDifferentType(existing, row, fileName) {
  * So the merge no longer unions unit rows across files on the strength of a
  * code mismatch. One file is the schedule:
  *
- *   1. a file whose rows add up to its own printed total is complete — the
- *      drawing itself says so — and beats any file that is not;
+ *   1. a file whose rows add up to its own printed total is complete, the
+ *      drawing itself says so, and beats any file that is not;
  *   2. otherwise the most confident read, then the one with the most units.
  *
  * When that file prints a total, or when any other file shares a unit code
@@ -138,8 +138,8 @@ function isDifferentType(existing, row, fileName) {
  * only DISAGREE: a same-code row with a different quantity is recorded as a
  * conflict, and the rows they carry that the schedule does not are listed as
  * one summary disagreement and set aside in `uncountedUnitTypes`, never added.
- * Only when files share no codes and none states a total — two buildings'
- * matrices in two files — are they still unioned, as before.
+ * Only when files share no codes and none states a total, two buildings'
+ * matrices in two files, are they still unioned, as before.
  *
  * The 2026-09-15 rule that rows from ONE file sharing a code are all kept
  * (`isDifferentType`) is untouched: it is about one matrix, not two files.
@@ -173,18 +173,18 @@ export function mergeProposals(results) {
   const byCode = new Map();
   // Keys are listed rather than copied so a new field in the extraction schema
   // is a deliberate decision here too. `statedTotalUnits` is what the auto-check
-  // reconciles row quantities against — dropping it silently would turn that
+  // reconciles row quantities against, dropping it silently would turn that
   // check into a permanent SKIP without anything appearing to break.
   const totals = { grossInteriorSf: null, garageSf: null, corridorSf: null, bohSf: null, interiorAmenitySf: null, exteriorAmenitySf: null, amenityLevels: null, statedTotalUnits: null, buildingType: null };
   let siteData = null;
-  // The gross-SF verdict travels as a BUNDLE, not as independent fields — see
+  // The gross-SF verdict travels as a BUNDLE, not as independent fields, see
   // GROSS_SF_META below.
   let grossBundle = null;
   const conflicts = [];
   const sources = [];
   // The sheets we kept a picture of, gathered across every file in the drop so
   // a reviewer can see what each number was read off. Carried by reference
-  // (a storage key and a page number), never by content — these ride in the
+  // (a storage key and a page number), never by content, these ride in the
   // submission payload, which has a size ceiling measured in kilobytes.
   const keptSheets = [];
   let confSum = 0, confCount = 0;
@@ -206,7 +206,7 @@ export function mergeProposals(results) {
     // A row with no type code used to be dropped outright, which silently
     // deleted its units from the project (Mike, 2026-09-15: the unit count
     // came back far under on Lone Tree Ranch Test v1). A blank code is a
-    // LABELLING failure, not a reason to discard the quantity — quantities.js
+    // LABELLING failure, not a reason to discard the quantity, quantities.js
     // counts a row by its qty and never looks at its code.
     //
     // It still cannot de-duplicate itself the way a real code does, and rule 1
@@ -296,8 +296,8 @@ export function mergeProposals(results) {
    * Which file speaks first for a single figure (a total, a site number).
    *
    * Mike 2026-09-16: "just because it read one first doesn't mean it should
-   * use that data." Upload order — and, worse, the order the reads happened
-   * to finish in — used to decide every first-non-null figure. Now the order
+   * use that data." Upload order, and, worse, the order the reads happened
+   * to finish in, used to decide every first-non-null figure. Now the order
    * is: the file the unit count came from (it is the real set), then the
    * more confident read, then upload order as the final tie-break. The
    * dropzone only calls this once every file is read, so "first" is a
@@ -338,7 +338,7 @@ export function mergeProposals(results) {
   for (const { fileName, proposal } of byPriority(p => p?.siteData?.confidence ?? p?.overallConfidence)) {
     if (!proposal?.siteData) continue;
     if (!siteData) siteData = { _sources: [] };
-    // bedMix is an object, so the scalar loop below can't referee it — the
+    // bedMix is an object, so the scalar loop below can't referee it, the
     // highest-priority drawing that states a mix wins, whole. Splicing studio
     // counts from one file with 2BR counts from another would build a mix no
     // drawing actually says.
@@ -381,7 +381,7 @@ export function mergeProposals(results) {
     // The other totals are single numbers, so first-non-null is fine. This one
     // is a number plus the verdict about what the number MEANS, and those must
     // stay attached to each other. Merging them field-by-field would happily
-    // pair file A's square footage with file B's basis and confidence — a number
+    // pair file A's square footage with file B's basis and confidence, a number
     // and an explanation of a different number, which is worse than either alone.
     //
     // Best-confidence rather than first also gets the right answer for free in

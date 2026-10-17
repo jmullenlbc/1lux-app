@@ -2,13 +2,13 @@
  * activityClassifier.js
  *
  * Four-layer activity classification for calendar events:
- *   1. User-defined rules (ActivityClassificationRule) — checked first, highest priority wins
- *   2. Title and location keywords — free, instant, and works with no API key
- *   3. Claude Haiku AI — for events the first two layers can't call
- *   4. Fallback — returns null (event stays unclassified for manual review)
+ *   1. User-defined rules (ActivityClassificationRule), checked first, highest priority wins
+ *   2. Title and location keywords, free, instant, and works with no API key
+ *   3. Claude Haiku AI, for events the first two layers can't call
+ *   4. Fallback, returns null (event stays unclassified for manual review)
  *
  * Mike, 2026-09-07: "when we sync with Microsoft the system should know it's in
- * person through a title or location." Layer 2 is that promise — it is the layer
+ * person through a title or location." Layer 2 is that promise, it is the layer
  * that always runs, so the answer never depends on an API key being present.
  *
  * Used by:
@@ -117,7 +117,7 @@ async function classifyWithAI(event) {
 
   // Counts and the organizer address are structured fields we derived, so they
   // stay in the instructions. Title, location and description are free text an
-  // outside party wrote when they sent the invite — those go in the fence.
+  // outside party wrote when they sent the invite, those go in the fence.
   const eventText = [
     `Title: ${event.title || ''}`,
     `Location: ${event.location || 'not specified'}`,
@@ -202,19 +202,19 @@ Examples: MEAL|88  or  SKIP|95  or  GOLF|72`;
  *   onlineMeetingUrl?: string
  * }
  * @returns {
- *   activityType: string | null  — null means unclassifiable
+ *   activityType: string | null, null means unclassifiable
  *   isInPerson:   boolean
  *   source:       'rule' | 'keyword' | 'ai' | null
- *   ruleName?:    string         — which rule matched (if source=rule)
- *   confidence?:  number         — 0-100
- *   reason?:      string         — plain English, for the note and the log
+ *   ruleName?:    string, which rule matched (if source=rule)
+ *   confidence?:  number, 0-100
+ *   reason?:      string, plain English, for the note and the log
  * }
  */
 export async function classifyEvent(event) {
   // ── Layer 0: the personal stop-list ────────────────────────────────────────
   // Mike, 2026-09-07: "all personal events like soccer practice, tennis match,
-  // doctors appts, therapy should be excluded." This runs ahead of everything —
-  // ahead of his own rules, ahead of the AI — because a personal appointment
+  // doctors appts, therapy should be excluded." This runs ahead of everything
+  // ahead of his own rules, ahead of the AI, because a personal appointment
   // must never reach a shared CRM, and because there is no reason to spend an
   // API call reading his dentist's address.
   const excluded = excludeFromNotes(event);
@@ -233,8 +233,8 @@ export async function classifyEvent(event) {
     if (evalCondition(rule, event)) {
       if (rule.resultType === 'SKIP') {
         // The one exception: golf, a meal, coffee and happy hour in the title are
-        // in person "full stop" (Mike, 2026-09-07). A generic skip rule — the
-        // seeded "Virtual — skip" is the one that bites — does not get to throw
+        // in person "full stop" (Mike, 2026-09-07). A generic skip rule, the
+        // seeded "Virtual, skip" is the one that bites, does not get to throw
         // away a lunch just because a Teams link was left on the invite.
         if (titleType && ALWAYS_IN_PERSON_TYPES.has(titleType)) continue;
         return {
@@ -255,8 +255,8 @@ export async function classifyEvent(event) {
   }
 
   // ── Layer 2: Title and location keywords ───────────────────────────────────
-  // A title that names the activity outright is answer enough. A weaker read —
-  // location only — is kept aside and used if the AI has nothing to say.
+  // A title that names the activity outright is answer enough. A weaker read
+  // location only, is kept aside and used if the AI has nothing to say.
   const keyword = classifyByTitleAndLocation(event);
   if (keyword && keyword.confidence >= KEYWORD_TRUST_THRESHOLD) {
     return keyword;
@@ -289,7 +289,7 @@ export async function classifyEvent(event) {
 }
 
 /**
- * Batch classify a list of events — respects API rate limits with small delay
+ * Batch classify a list of events, respects API rate limits with small delay
  * between batches.
  */
 export async function classifyEvents(events, { batchSize = 10, delayMs = 300 } = {}) {

@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic';
 // POST /api/calibration/actuals { projectId, lineKey, actualAmount, note? }
 // Records what a line really cost (or what Mike priced it at by hand) next
 // to the engine's latest model figure for that line. One 'actual' row per
-// project+line — a new one replaces the old.
+// project+line, a new one replaces the old.
 export async function POST(request) {
   const { user, error } = await requireAuth();
   if (error) return error;

@@ -47,7 +47,7 @@ export async function DELETE(request, { params }) {
   }
 }
 
-// POST /api/crm/dashboards/[id]/widgets/[widgetId]/run — run single widget
+// POST /api/crm/dashboards/[id]/widgets/[widgetId]/run, run single widget
 export async function POST(request, { params }) {
   const { user, error } = await requireAuth(request);
   if (error) return error;

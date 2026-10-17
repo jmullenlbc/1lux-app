@@ -25,7 +25,7 @@ test('three tiers, low to high, touching with no gaps and no overlap', () => {
 
 test('each rate lands in exactly one tier', () => {
   assert.equal(interiorAmenityTier(4).key, 'low');
-  assert.equal(interiorAmenityTier(8).key, 'low', 'Mike: $4–$8 low');
+  assert.equal(interiorAmenityTier(8).key, 'low', 'Mike: $4 to $8 low');
   assert.equal(interiorAmenityTier(9).key, 'medium');
   assert.equal(interiorAmenityTier('12').key, 'medium');
   assert.equal(interiorAmenityTier(13).key, 'high');
@@ -35,7 +35,7 @@ test('each rate lands in exactly one tier', () => {
   assert.equal(interiorAmenityTier('abc'), null);
 });
 
-test('the public question offers the same $4–$16 list, default $10', () => {
+test('the public question offers the same $4 to $16 list, default $10', () => {
   const q = INTAKE_QUESTIONS.find(x => x.key === 'interiorAmenityFinish');
   assert.deepEqual(q.options, INTERIOR_AMENITY_RATES.map(String));
   assert.equal(q.default, '10');

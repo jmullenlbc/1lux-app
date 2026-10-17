@@ -79,7 +79,7 @@ export default function AmenitiesSection({ responses, projectData, pricing, onSa
         />
         {selectedRate > 0 && !INTERIOR_AMENITY_RATES.includes(selectedRate) && (
           <p className="text-xs text-amber-600 mt-3">
-            This project is currently priced at ${selectedRate}/SF, which is outside the $4–$16 range. Pick a rate above to change it.
+            This project is currently priced at ${selectedRate}/SF, which is outside the $4 to $16 range. Pick a rate above to change it.
           </p>
         )}
       </div>

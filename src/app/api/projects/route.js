@@ -9,7 +9,7 @@ export async function GET() {
   if (error) return error;
 
   // Projects are visible to all ILC staff (Mike, 2026-07). External Client Viewers
-  // stay scoped to their own — never widen this to CLIENT_VIEWER.
+  // stay scoped to their own, never widen this to CLIENT_VIEWER.
   const where = projectScopeWhere(user);
 
   const projects = await prisma.project.findMany({
@@ -40,7 +40,7 @@ export async function POST(request) {
   }
 
   // Numbering, frozen pricing, default margin and the "created" history line
-  // all live in createProject — shared with "create from a web request".
+  // all live in createProject, shared with "create from a web request".
   const project = await createProject(prisma, user.id, body);
 
   return NextResponse.json({ project }, { status: 201 });

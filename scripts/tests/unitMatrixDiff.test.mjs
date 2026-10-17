@@ -1,5 +1,5 @@
 /**
- * The auto-verdict diff — what a human changed about the model's unit matrix.
+ * The auto-verdict diff, what a human changed about the model's unit matrix.
  *
  * This is what turns "Apply to Project" into an accuracy record without asking
  * anyone to review the same extraction twice, so the thing that must not happen
@@ -51,14 +51,14 @@ test('a deleted row is reported as removed', () => {
   const committed = clone(PROPOSED).filter(r => r.code !== 'STUDIO');
   const d = describeUnitMatrixCorrection(PROPOSED, committed);
   assert.equal(d.counts.removed, 1);
-  assert.match(d.summary, /Removed — studio/);
+  assert.match(d.summary, /Removed: studio/);
 });
 
 test('a row the reviewer typed in is reported as added', () => {
   const committed = [...clone(PROPOSED), { code: '3BR-B', qty: 8, unitSf: 1420, bedrooms: 3 }];
   const d = describeUnitMatrixCorrection(PROPOSED, committed);
   assert.equal(d.counts.added, 1);
-  assert.match(d.summary, /Added — 3br-b/);
+  assert.match(d.summary, /Added: 3br-b/);
 });
 
 test('a hand-added row with no type code is still counted, not dropped', () => {

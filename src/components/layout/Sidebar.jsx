@@ -8,6 +8,7 @@ import { openSectionsFor } from '@/lib/deptScreens';
 import { useDraftReminder } from './useDraftReminder';
 import { useDeskCount } from './useDeskCount';
 import { OPEN_MENU } from './MobileTabBar';
+import { OPEN_AI, OPEN_BUG, openHelper } from './helperEvents';
 
 // ── Alert Bell ────────────────────────────────────────────────────────────────
 
@@ -303,6 +304,22 @@ function IconFactory() {
 function IconPackage() {
   return <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 9.776c.112-.017.227-.026.344-.026h15.812c.117 0 .232.009.344.026m-16.5 0a2.25 2.25 0 00-1.883 2.542l.857 6a2.25 2.25 0 002.227 1.932H19.05a2.25 2.25 0 002.227-1.932l.857-6a2.25 2.25 0 00-1.883-2.542m-16.5 0V6A2.25 2.25 0 016 3.75h3.879a1.5 1.5 0 011.06.44l2.122 2.12a1.5 1.5 0 001.06.44H18A2.25 2.25 0 0120.25 9v.776" /></svg>;
 }
+/** A sidebar footer button styled like Sign out: icon only when collapsed. */
+function FooterAction({ icon, label, expanded, onClick }) {
+  return (
+    <button type="button" onClick={onClick}
+      className={`w-full flex items-center py-1.5 rounded-lg text-xs font-medium transition-colors ${expanded ? 'gap-2.5 px-3' : 'justify-center px-0'}`}
+      style={{ color: '#627d98' }}
+      title={!expanded ? label : undefined}
+      aria-label={label}
+      onMouseEnter={e => { e.currentTarget.style.color = '#e2e8f0'; e.currentTarget.style.backgroundColor = '#1e293b'; }}
+      onMouseLeave={e => { e.currentTarget.style.color = '#627d98'; e.currentTarget.style.backgroundColor = 'transparent'; }}>
+      {icon}
+      {expanded && label}
+    </button>
+  );
+}
+
 function IconLogout() {
   return <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" /></svg>;
 }
@@ -431,7 +448,7 @@ export default function Sidebar({ user }) {
   // as an admin. The Software section stays Super Admin only.
   const isAdmin    = actsAsAdmin(user);
   const isIlcAdmin = normalizeRole(user?.role) === 'SUPER_ADMIN';
-  // My calendar meetings still waiting for a published note — shown on Sales
+  // My calendar meetings still waiting for a published note, shown on Sales
   // Notes until the count is zero (the banner says the same thing on every page).
   const waitingDrafts = useDraftReminder()?.count || 0;
   // My Desk: late + today reminders and emails to review (Mike 9-26: one place).
@@ -705,6 +722,13 @@ export default function Sidebar({ user }) {
           </div>
         )}
         <AlertBell userId={user?.id} expanded={expanded} />
+        {/* Ask AI and Report a bug live here, never floating over the page
+            (Mike 10-17). On a phone the menu closes first so the bug
+            screenshot shows the page, not the menu. */}
+        <FooterAction icon={<IconSparkles />} label="Ask AI" expanded={expanded}
+          onClick={() => { setMobileOpen(false); openHelper(OPEN_AI); }} />
+        <FooterAction icon={<IconBug />} label="Report a bug" expanded={expanded}
+          onClick={() => { const wasOpen = mobileOpen; setMobileOpen(false); setTimeout(() => openHelper(OPEN_BUG), wasOpen ? 350 : 0); }} />
         <button onClick={handleLogout} disabled={signingOut}
           className={`w-full flex items-center py-1.5 rounded-lg text-xs font-medium transition-colors ${expanded ? 'gap-2.5 px-3' : 'justify-center px-0'}`}
           style={{ color: '#627d98' }}

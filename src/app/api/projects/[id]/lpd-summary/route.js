@@ -5,14 +5,14 @@ import { prisma } from '@/lib/db';
 // ASHRAE 90.1-2022 interior LPD limits (W/ft²) by normalized location slug
 const ASHRAE_LIMITS = {
   corridor:  0.66,
-  units:     null,  // residential — no ASHRAE limit (exception)
+  units:     null,  // residential, no ASHRAE limit (exception)
   garage:    0.21,
   parking:   0.21,
   boh:       0.75,
   amenity:   0.80,
   office:    0.98,
   lobby:     0.90,
-  exterior:  null,  // site/exterior — no single ASHRAE interior limit
+  exterior:  null,  // site/exterior, no single ASHRAE interior limit
   controls:  null,
   other:     null,
 };

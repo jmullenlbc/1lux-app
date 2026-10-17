@@ -38,7 +38,7 @@ export async function POST(request, { params }) {
 
   let body; try { body = await request.json(); } catch { body = {}; }
 
-  // `{me: true}` — the person signed in, answering for themselves. Nobody types
+  // `{me: true}`, the person signed in, answering for themselves. Nobody types
   // a name; the same row comes back every time they open the survey.
   if (body?.me) {
     const mine = await prisma.unitSelectionResponse.findFirst({

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { headers } from 'next/headers';
 
-// POST — log a view event when someone opens the share link
+// POST, log a view event when someone opens the share link
 export async function POST(request, { params }) {
   const share = await prisma.projectShare.findUnique({ where: { token: params.token } });
   if (!share) return NextResponse.json({ error: 'Not found' }, { status: 404 });

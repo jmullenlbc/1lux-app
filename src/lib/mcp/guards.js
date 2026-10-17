@@ -3,12 +3,12 @@
  *
  * Four independent guards, each of which must pass:
  *
- *   1. MODEL ALLOWLIST — default deny. Only ontology-registered models are
+ *   1. MODEL ALLOWLIST, default deny. Only ontology-registered models are
  *      reachable, for every audience including ILC.
- *   2. FIELD VALIDATION — a `where`, `select` or `orderBy` may only name fields
+ *   2. FIELD VALIDATION, a `where`, `select` or `orderBy` may only name fields
  *      the caller could read anyway.
- *   3. ROW CAP — 25 by default, 100 hard maximum.
- *   4. TIMEOUT — a query that hangs must not hold a Lambda open.
+ *   3. ROW CAP, 25 by default, 100 hard maximum.
+ *   4. TIMEOUT, a query that hangs must not hold a Lambda open.
  *
  * ── Why the allowlist covers ILC too ─────────────────────────────────────────
  * `canReadObject(model, 'ilc')` returns true for unregistered models, because
@@ -43,14 +43,14 @@ export const QUERY_TIMEOUT_MS = 10_000;
  *
  * The second group is the nested-relation arguments. A caller reading a change
  * order with `include: { optionGroups: { include: { lineItems: true } } }` is
- * describing shape, not naming a column — but the walker cannot tell the
+ * describing shape, not naming a column, but the walker cannot tell the
  * difference without being told, and treating `include` as an unreadable field
  * rejected every legitimate nested read.
  *
  * Listing them as structure does NOT widen what comes back: the walker descends
  * through each one and still checks every field name underneath it against the
  * audience's readable set, using the LINKED object's set once it crosses a
- * relation. `select: { originalDN: true }` is still rejected for a client — it
+ * relation. `select: { originalDN: true }` is still rejected for a client, it
  * is now rejected one level deeper, which is where it was always meant to be.
  *
  * These names are reserved by Prisma and cannot collide with a real column.
@@ -75,7 +75,7 @@ export function allowedModels() {
 /**
  * Is this model addressable through MCP at all?
  *
- * Audience-independent by design — the allowlist is the same for everyone, and
+ * Audience-independent by design, the allowlist is the same for everyone, and
  * what differs by audience is which FIELDS come back. Keeping reachability and
  * visibility as separate questions is what stops "ILC can see everything" from
  * quietly becoming "the endpoint exposes everything."
@@ -159,7 +159,7 @@ export function clampLimit(limit) {
 /**
  * Some MCP clients send object arguments as JSON strings. Accept both rather
  * than failing on a client-library quirk, but never accept a string that is not
- * valid JSON — silently treating `"{broken"` as `{}` would turn a malformed
+ * valid JSON, silently treating `"{broken"` as `{}` would turn a malformed
  * filter into an unfiltered full-table read.
  */
 export function parseObjectArg(value, label) {

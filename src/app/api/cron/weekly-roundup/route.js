@@ -12,7 +12,7 @@ import { buildRoundup, SIGNAL_WINDOW_DAYS } from '@/lib/roundup';
  * ── Why this is not another dashboard ──
  * /dashboards/meeting already shows everything open for everybody, and it is
  * the right thing to work down IN the meeting. What was missing is the hour
- * before it — the personal cut, arriving on its own, so nobody has to remember
+ * before it, the personal cut, arriving on its own, so nobody has to remember
  * to go and look. Building a second board would have added a place to look;
  * this adds a thing that finds you.
  *

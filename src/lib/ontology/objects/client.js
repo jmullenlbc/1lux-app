@@ -1,9 +1,9 @@
 /**
- * Client — the developer/owner organisation ILC works for.
+ * Client, the developer/owner organisation ILC works for.
  *
  * Posture note worth stating plainly: almost everything on this object is
  * `ilc_only`. That is not over-caution. A Client row is ILC's CRM read on the
- * account — tier, pipeline value per unit, how many projects a year we expect,
+ * account, tier, pipeline value per unit, how many projects a year we expect,
  * who owns the relationship. A portal contact reading their own client record
  * would be reading our account strategy for them. The client already knows
  * their own name and address; they gain nothing and we lose everything.
@@ -30,7 +30,7 @@ export const Client = {
     locationType:  { type: 'string', sensitivity: 'ilc_only' },
     developerType: { type: 'string', sensitivity: 'ilc_only', desc: 'legacy single value; mirrors developerTypes[0]' },
     developerTypes: { type: 'json',  sensitivity: 'ilc_only', desc: 'JSON-as-string; merchant | longTermHold' },
-    rating:        { type: 'string', sensitivity: 'ilc_only', desc: "ILC's own read on the account — never leaves ILC" },
+    rating:        { type: 'string', sensitivity: 'ilc_only', desc: "ILC's own read on the account, never leaves ILC" },
     address:  { type: 'string', sensitivity: 'ilc_only' },
     city:     { type: 'string', sensitivity: 'ilc_only' },
     state:    { type: 'string', sensitivity: 'ilc_only' },
@@ -54,7 +54,7 @@ export const Client = {
     projectTypes:    { type: 'json',   sensitivity: 'ilc_only' },
     orgTypes:        { type: 'json',   sensitivity: 'ilc_only' },
     projectsPerYear: { type: 'int',    sensitivity: 'ilc_only' },
-    pipelinePerUnit: { type: 'money',  sensitivity: 'ilc_only', globalDeny: true, desc: 'expected ILC revenue per unit — commercial forecast' },
+    pipelinePerUnit: { type: 'money',  sensitivity: 'ilc_only', globalDeny: true, desc: 'expected ILC revenue per unit, commercial forecast' },
     paymentTerms:    { type: 'string', sensitivity: 'ilc_only' },
     cadenceDays:     { type: 'int',    sensitivity: 'ilc_only' },
     ownerId:         { type: 'string', sensitivity: 'ilc_only' },

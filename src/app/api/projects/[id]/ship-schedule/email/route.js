@@ -28,7 +28,7 @@ export async function POST(req, { params }) {
     for (const recipient of recipients) {
       await sendEmail({
         to:      recipient,
-        subject: `Ship Schedule — ${project?.name || 'Project'}`,
+        subject: `Ship Schedule: ${project?.name || 'Project'}`,
         html: `
           <p>Please find the ship schedule for <strong>${escapeHtml(project?.name || 'the project')}${location ? ` (${escapeHtml(location)})` : ''}</strong>.</p>
           ${message ? `<p><em>${escapeHtml(message)}</em></p>` : ''}

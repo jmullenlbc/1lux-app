@@ -26,7 +26,7 @@ export async function PATCH(request, { params }) {
   return NextResponse.json({ rule });
 }
 
-// DELETE /api/crm/cadence-rules/[id]  — admin only
+// DELETE /api/crm/cadence-rules/[id], admin only
 export async function DELETE(request, { params }) {
   const { user, error } = await requireAuth();
   if (error) return error;

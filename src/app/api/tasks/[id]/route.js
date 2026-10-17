@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma as db } from '@/lib/db';
 
-// PATCH /api/tasks/[id] — update a task
+// PATCH /api/tasks/[id], update a task
 export async function PATCH(request, { params }) {
   const { user, error } = await requireAuth(request);
   if (error) return error;
@@ -42,7 +42,7 @@ export async function PATCH(request, { params }) {
   }
 }
 
-// DELETE /api/tasks/[id] — delete a task
+// DELETE /api/tasks/[id], delete a task
 export async function DELETE(request, { params }) {
   const { user, error } = await requireAuth(request);
   if (error) return error;

@@ -6,7 +6,7 @@
  * ('1', '2', '3', '5'). The INTERNAL wizard, the summary page, the share page
  * and the calibration sampler all expect a word key ('low', 'lowMedium',
  * 'medium', 'high'). Every one of them fell back to 'medium' when it saw a
- * number — so a client who picked the CHEAPEST finish at $1/SF had that line
+ * number, so a client who picked the CHEAPEST finish at $1/SF had that line
  * re-priced at $3/SF the moment the job was opened internally, and the
  * summary page printed a bare "1" where a label belonged.
  *
@@ -35,7 +35,7 @@ test("the public questionnaire's bare dollar figures map to the matching level",
 });
 
 test('a figure between two levels takes the nearest one', () => {
-  assert.equal(normalizeAmenityLevel('4'), 'medium');   // 1 away from medium, 1 from high — the lower wins
+  assert.equal(normalizeAmenityLevel('4'), 'medium');   // 1 away from medium, 1 from high, the lower wins
   assert.equal(normalizeAmenityLevel('1.4'), 'low');
 });
 
@@ -47,7 +47,7 @@ test('blank, missing and nonsense fall back to medium', () => {
   assert.equal(normalizeAmenityLevel('whatever'), 'medium');
   assert.equal(normalizeAmenityLevel('0'), 'medium');
   assert.equal(normalizeAmenityLevel('-3'), 'medium');
-  // An explicit fallback is honoured — the calibration sampler passes one.
+  // An explicit fallback is honoured, the calibration sampler passes one.
   assert.equal(normalizeAmenityLevel(null, 'high'), 'high');
 });
 

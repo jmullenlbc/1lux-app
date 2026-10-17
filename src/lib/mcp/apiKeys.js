@@ -1,17 +1,17 @@
 /**
- * Per-person MCP keys — so the audit log can name a human.
+ * Per-person MCP keys, so the audit log can name a human.
  *
  * ── The problem this fixes ──────────────────────────────────────────────────
  * There was one shared `MCP_API_TOKEN`. Every bearer request resolved to the
  * same fixed `mcp-service` / ILC_ADMIN identity, so every line in the audit log
- * said "mcp-service" and the question the audit log exists to answer — *who
- * asked for that client's numbers?* — had no answer at all. Worse, the shared
+ * said "mcp-service" and the question the audit log exists to answer, *who
+ * asked for that client's numbers?*, had no answer at all. Worse, the shared
  * token is ILC_ADMIN by definition, so handing it to anyone hands them the full
  * ILC view regardless of what that person may see in the app.
  *
  * A key issued here belongs to a User, and `resolveCaller` builds the caller
  * from THAT user's role. A key issued to a CLIENT_VIEWER gets the
- * client-redacted view — the same boundary the app enforces, over the same
+ * client-redacted view, the same boundary the app enforces, over the same
  * ontology, with no second implementation of it.
  *
  * ── What is stored ──────────────────────────────────────────────────────────
@@ -21,7 +21,7 @@
  *
  * SHA-256 rather than bcrypt/argon2 on purpose, and the reasoning matters:
  * password hashes are slow because passwords are low-entropy and guessable.
- * These keys are 32 bytes from `randomBytes` — 256 bits. There is no dictionary
+ * These keys are 32 bytes from `randomBytes`, 256 bits. There is no dictionary
  * to run against them, and a slow hash on the hot path of a read API that an
  * agent may call hundreds of times a minute buys nothing and costs real
  * latency. The security comes from the entropy, not from the work factor.
@@ -29,7 +29,7 @@
  * ── Revoked, not deleted ────────────────────────────────────────────────────
  * Revoking stamps `revokedAt`. The row stays, so an audit line from six months
  * ago still resolves to a key with a name and an owner. A deleted key is an
- * audit trail that stops explaining itself — and this codebase is archive-only
+ * audit trail that stops explaining itself, and this codebase is archive-only
  * everywhere else for the same reason.
  *
  * ── Graceful before the migration lands ─────────────────────────────────────
@@ -43,8 +43,8 @@ import { createHash, randomBytes, timingSafeEqual } from 'node:crypto';
 /**
  * Prefix on every key we mint.
  *
- * Present so a leaked key is recognisable on sight — in a log, a pasted config,
- * or a secret scanner — as an ILC MCP credential rather than an unidentified
+ * Present so a leaked key is recognisable on sight, in a log, a pasted config,
+ * or a secret scanner, as an ILC MCP credential rather than an unidentified
  * blob somebody is afraid to rotate.
  */
 export const KEY_PREFIX = 'ilcmcp_';
@@ -77,7 +77,7 @@ export function hashToken(token) {
  * Does this string even look like one of our keys?
  *
  * Cheap gate in front of the database. Without it, every request carrying the
- * shared token — or a typo, or a probe — costs an indexed read that can only
+ * shared token, or a typo, or a probe, costs an indexed read that can only
  * ever miss.
  */
 export function looksLikeApiKey(token) {
@@ -90,8 +90,8 @@ export function looksLikeApiKey(token) {
  * Compare two hashes without leaking, through timing, how much of the hash
  * matched.
  *
- * Largely belt-and-braces here — the lookup is by unique index, so the database
- * has already done an equality test — but the function exists so that a future
+ * Largely belt-and-braces here, the lookup is by unique index, so the database
+ * has already done an equality test, but the function exists so that a future
  * change to a scan-and-compare shape does not quietly introduce the leak.
  */
 export function hashesMatch(a, b) {
@@ -107,8 +107,8 @@ export function keyTableReady(prisma) {
 /**
  * Look up the person a presented key belongs to.
  *
- * Returns `null` for every failure — unknown key, revoked key, deleted or
- * deactivated owner — with no distinction between them. Telling a caller
+ * Returns `null` for every failure, unknown key, revoked key, deleted or
+ * deactivated owner, with no distinction between them. Telling a caller
  * *which* kind of wrong their key is tells an attacker whether they have found
  * a real key, which is the one fact worth withholding.
  *

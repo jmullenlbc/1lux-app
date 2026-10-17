@@ -16,7 +16,7 @@ export const maxDuration = 300; // OCR of a scanned page is slow; see extract.js
 //
 // It can, and it has to. Amplify's front door rejects request bodies over
 // roughly 4.4 MB with an empty 413, so a 25 MB file can never travel THROUGH
-// this route — raising the number here alone would have made things worse, not
+// this route, raising the number here alone would have made things worse, not
 // better. The browser sends the file straight to storage in 5 MB pieces (the
 // same plumbing the drawing sets use) and this route gets only a key, which is
 // why the number below can be six times the front door's own limit.
@@ -63,17 +63,17 @@ export async function GET(request) {
   return NextResponse.json({ docs });
 }
 
-// POST /api/automation/knowledge/docs — one or many files.
+// POST /api/automation/knowledge/docs, one or many files.
 //
 // The bytes arrive one of two ways and this route stopped caring which:
-//   direct    — the browser sent the file straight to storage in 5 MB pieces
+//   direct, the browser sent the file straight to storage in 5 MB pieces
 //               and the form carries only `uploadKeys`. This is how anything
 //               over about 4 MB gets here in production.
-//   classic   — the file itself is in the form under `files`. Small uploads,
+//   classic, the file itself is in the form under `files`. Small uploads,
 //               and everything in local dev, where there is no front door.
 //
 // Park-and-poll (src/lib/parkedJob.js). Reading a 25 MB scanned PDF is OCR
-// page by page — minutes, well past Amplify's ~30-second front door. The
+// page by page, minutes, well past Amplify's ~30-second front door. The
 // first request only writes the job down (the file itself stays where it
 // landed); the polls run the read and collect it. The page still sends one
 // file per request, so a file that fails fails alone.
@@ -92,7 +92,7 @@ export async function POST(request) {
 
     const uploads = [];
 
-    // direct — the form carries only the keys; the bytes stay in storage until the read.
+    // direct, the form carries only the keys; the bytes stay in storage until the read.
     const raw = formData.get('uploadKeys');
     if (raw) {
       let entries;
@@ -109,7 +109,7 @@ export async function POST(request) {
       }
     }
 
-    // classic — the file rode the form body; it is stashed under a key of its own
+    // classic, the file rode the form body; it is stashed under a key of its own
     // so the poll that runs the read can find it.
     for (const file of formData.getAll('files')) {
       if (!file || typeof file === 'string') continue;
@@ -135,7 +135,7 @@ export async function POST(request) {
   });
 }
 
-/** The read itself: store, extract, write the row — one entry at a time. */
+/** The read itself: store, extract, write the row, one entry at a time. */
 async function readDocuments({ uploads = [], category = 'GENERAL', description = null }, { user }) {
   const created = [];
   const failed  = [];
@@ -144,7 +144,7 @@ async function readDocuments({ uploads = [], category = 'GENERAL', description =
     const fileName = String(entry.fileName || 'file');
     const mimeType = String(entry.fileType || '') || 'application/octet-stream';
 
-    // Check the type before storing anything — no point keeping a .zip nobody
+    // Check the type before storing anything, no point keeping a .zip nobody
     // can read.
     if (!detectFileType(fileName, mimeType)) {
       failed.push({ fileName, reason: 'Not a file type the bot can read. Word, Excel, PDF, images and text files work.' });
@@ -174,7 +174,7 @@ async function readDocuments({ uploads = [], category = 'GENERAL', description =
       }
 
       // The file is stored by this point. Whatever the reading turns up, the row
-      // gets written — a FAILED row keeps the file findable and says why it could
+      // gets written, a FAILED row keeps the file findable and says why it could
       // not be read, which is far better than losing it.
       const result = await extractDocumentText(buffer, fileName, mimeType);
 
@@ -205,7 +205,7 @@ async function readDocuments({ uploads = [], category = 'GENERAL', description =
       created.push(doc);
     } finally {
       // The temporary copy in the transfer area has been read and re-filed by now.
-      // Best effort — a 1-day lifecycle rule sweeps anything this misses.
+      // Best effort, a 1-day lifecycle rule sweeps anything this misses.
       await upload.cleanup().catch(() => {});
     }
   }

@@ -1,10 +1,10 @@
 // The review store, the deterministic auto-checks, and the decision that joins
-// them to the trust tiers — Steps 16, 17 and 18 of the Governed AI Layer.
+// them to the trust tiers, Steps 16, 17 and 18 of the Governed AI Layer.
 //
 // ── Why this runs against a fake Prisma and never the file sink ──────────────
 // The store has three sinks, and the FILE one writes to `.agent-runs/reviews.json`
 // in the repo. Two test files touching one file in the repo is exactly the race
-// that made `agentClient.test.mjs` flake one run in three — `node --test` runs
+// that made `agentClient.test.mjs` flake one run in three, `node --test` runs
 // files in separate processes at the same time, so a shared path is shared state.
 //
 // Injecting an in-memory Prisma double keeps every test in this file on the
@@ -22,7 +22,7 @@ import {
 import { runAutoChecks } from '../../src/lib/agent/autoChecks.js';
 import { submitAgentOutput } from '../../src/lib/agent/review.js';
 
-/** An in-memory stand-in for `prisma.agentRun` — create / updateMany / findMany. */
+/** An in-memory stand-in for `prisma.agentRun`, create / updateMany / findMany. */
 function fakePrisma() {
   const rows = [];
   return {
@@ -73,8 +73,8 @@ test('a reviewable run is stored in the shape the AgentRun table expects', async
   assert.equal(row.status, STATUS.AWAITING_REVIEW);
 });
 
-test('the input is never stored — only its hash and descriptor', async () => {
-  const secret = 'CONFIDENTIAL — buy price $412.00, client Northgate Partners';
+test('the input is never stored, only its hash and descriptor', async () => {
+  const secret = 'CONFIDENTIAL: buy price $412.00, client Northgate Partners';
   await recordReviewableRun({
     taskType: 'review.contract',
     inputSummary: 'sha256:deadbeef (contract.pdf, 90210 chars)',
@@ -111,7 +111,7 @@ test('a verdict closes the run and records who signed it', async () => {
   assert.ok(run.verdictAt, 'a signature needs a time on it');
 });
 
-test('a verdict is write-once — a second reviewer cannot overwrite the first', async () => {
+test('a verdict is write-once, a second reviewer cannot overwrite the first', async () => {
   const { id } = await recordReviewableRun({ taskType: 't', output: {} });
   await recordVerdict(id, { verdict: VERDICT.ACCEPTED, userId: 'u1' });
 
@@ -125,7 +125,7 @@ test('"corrected" without saying what changed is refused', async () => {
   const { id } = await recordReviewableRun({ taskType: 't', output: {} });
 
   const empty = await recordVerdict(id, { verdict: VERDICT.CORRECTED, correction: '   ' });
-  assert.equal(empty.ok, false, 'the correction IS the training signal — an empty one teaches nothing');
+  assert.equal(empty.ok, false, 'the correction IS the training signal, an empty one teaches nothing');
   assert.equal((await getRun(id)).verdict, null, 'and the run stays open');
 
   const ok = await recordVerdict(id, { verdict: VERDICT.CORRECTED, correction: 'Type B2 qty was 6, not 16.' });
@@ -165,7 +165,7 @@ test('verdict history is scoped to the prompt version, and null is its own versi
   assert.equal((await verdictHistory('shared', 'v2')).length, 1,
     'a rewritten prompt does not inherit the old version\'s record');
   assert.equal((await verdictHistory('shared', null)).length, 1,
-    'unversioned matches only unversioned — never "any version"');
+    'unversioned matches only unversioned, never "any version"');
 });
 
 test('verdict history comes back oldest-first, because demotion reads the tail', async () => {
@@ -187,7 +187,7 @@ test('storeHealth names the sink, so an empty queue is never ambiguous', async (
 
 // ── Auto-checks ──────────────────────────────────────────────────────────────
 
-test('an unknown task type gets no opinion — null, never a pass', async () => {
+test('an unknown task type gets no opinion: null, never a pass', async () => {
   const r = await runAutoChecks('extract.somethingNew', { items: [] });
   assert.equal(r.ran, false);
   assert.equal(r.pass, null, 'null must never collapse into true');
@@ -208,7 +208,7 @@ test('a cited code section that does not exist fails; one that does, passes', as
   assert.match(bad.checks[0].detail, /C999\.9/);
 });
 
-test('a check with no resolver skips — and a skip is null, not a pass', async () => {
+test('a check with no resolver skips, and a skip is null, not a pass', async () => {
   const r = await runAutoChecks('lookup.codeRequirement', { citations: ['IECC C405.2'] }, {});
   assert.equal(r.pass, null, 'a check that could not run has no opinion');
   assert.equal(r.skipped, 1);
@@ -235,7 +235,7 @@ test('an unresolved fixture is only a failure if it was not flagged', async () =
   const ctx = { resolveProduct: async (mfr) => mfr === 'Acme' ? { id: 1 } : null };
   assert.equal((await runAutoChecks('extract.cutSheetSpec',
     { items: [{ manufacturer: 'Nobody', model: 'X', aiFlagged: true }] }, ctx)).pass, true,
-    'a genuinely new product is fine — as long as it was flagged for a human');
+    'a genuinely new product is fine, as long as it was flagged for a human');
   assert.equal((await runAutoChecks('extract.cutSheetSpec',
     { items: [{ manufacturer: 'Nobody', model: 'X' }] }, ctx)).pass, false,
     'unresolved AND presented as confident is the failure');
@@ -244,7 +244,7 @@ test('an unresolved fixture is only a failure if it was not flagged', async () =
 test('a check that throws reports a failure, not a skip', async () => {
   const ctx = { codeSectionExists: () => { throw new Error('kb offline'); } };
   const r = await runAutoChecks('lookup.codeRequirement', { citations: ['x'] }, ctx);
-  assert.equal(r.pass, false, 'a crashed check is evidence about this output — route it to a human');
+  assert.equal(r.pass, false, 'a crashed check is evidence about this output, route it to a human');
   assert.match(r.checks[0].detail, /kb offline/);
 });
 

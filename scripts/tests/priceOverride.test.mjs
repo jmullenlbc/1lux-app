@@ -14,7 +14,7 @@
  *      said no to.
  *   3. The string 'auto' means "no override". The form writes 'auto' rather than
  *      an empty string when someone clears the box, because the responses store
- *      refuses to overwrite a real answer with a blank one — a cleared field
+ *      refuses to overwrite a real answer with a blank one, a cleared field
  *      sending '' would be skipped and the old override would never go away.
  *   4. Anything that is not a sane non-negative number falls back to master
  *      pricing rather than pricing the line at zero or NaN.
@@ -83,7 +83,7 @@ test("pendant override cleared with 'auto' returns to master pricing", () => {
 
 // ── ceiling fans ─────────────────────────────────────────────────────────────
 
-test('fan override is the net adder per fan — the disk credit is NOT taken off it', () => {
+test('fan override is the net adder per fan: the disk credit is NOT taken off it', () => {
   const base = budget({ units: { fans: 'masterOnly', fanLevel: 'medium' } });
   const fanCount = base.fanCount;
   assert.ok(fanCount > 0, 'expected fans on this project');
@@ -92,7 +92,7 @@ test('fan override is the net adder per fan — the disk credit is NOT taken off
   assert.equal(over.sections.units.fans.product, fanCount * 250);
 
   // Master pricing at the same level goes through the $35 disk credit, so the
-  // two numbers must differ — otherwise this test would pass by coincidence.
+  // two numbers must differ, otherwise this test would pass by coincidence.
   assert.notEqual(base.sections.units.fans.product, over.sections.units.fans.product);
 });
 
@@ -103,7 +103,7 @@ test('fan override is inert when no fans are selected', () => {
 
 // ── vanities ─────────────────────────────────────────────────────────────────
 
-test('vanity override is the net adder — the $45 bath-bar credit is NOT taken off it', () => {
+test('vanity override is the net adder: the $45 bath-bar credit is NOT taken off it', () => {
   const gross  = PRICING.vanity.illuminatedMirrorHigh.product;
   const credit = PRICING.vanityBathBarCredit;
 
@@ -111,7 +111,7 @@ test('vanity override is the net adder — the $45 bath-bar credit is NOT taken 
   assert.equal(master, (gross - credit) * 100);
 
   const over = units({ units: { vanity: 'illuminatedMirrorHigh', vanityPrice: '300' } }).vanity.product;
-  assert.equal(over, 300 * 100, 'what you type is what you get — no credit subtracted');
+  assert.equal(over, 300 * 100, 'what you type is what you get, no credit subtracted');
 });
 
 test('vanity override is inert on the base bath-bar answer (no upgrade selected)', () => {

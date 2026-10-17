@@ -697,7 +697,7 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
     });
   }, [canvasSize]);
 
-  // ── Mouse move — ghost preview, linear draft readout, cloud rect drag ──
+  // ── Mouse move, ghost preview, linear draft readout, cloud rect drag ──
   const handleMouseMove = useCallback((e) => {
     if (isPanMode) return;
     if (!canvasRef.current || !canvasSize.w) return;
@@ -752,7 +752,7 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
     }
   }, [selectedSymbol, canvasSize]);
 
-  // ── Canvas double-click — close polygon or cloud poly ──
+  // ── Canvas double-click, close polygon or cloud poly ──
   const handleCanvasDblClick = useCallback(async (e) => {
     if (isPanMode) return;
     e.stopPropagation();
@@ -764,7 +764,7 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedSymbol, polyDraft, cloudDraft, scaleRatio, projectId, file.id, currentPage]);
 
-  // ── Canvas mousedown — begin cloud rect drag or shape drag ──
+  // ── Canvas mousedown, begin cloud rect drag or shape drag ──
   const handleCanvasMouseDown = useCallback((e) => {
     if (isPanMode) return;
     const rect  = canvasRef.current?.getBoundingClientRect();
@@ -786,7 +786,7 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
       return;
     }
 
-    // Pen tool — start freehand stroke
+    // Pen tool, start freehand stroke
     if (selectedSymbol?.id === 'TOOL_PEN') {
       e.stopPropagation();
       const xPx = xFrac * canvasSize.w;
@@ -807,7 +807,7 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
     };
   }, [selectedSymbol, canvasSize, isPanMode]);
 
-  // ── Canvas mouseup — finalize shape drag or cloud rect drag ──
+  // ── Canvas mouseup, finalize shape drag or cloud rect drag ──
   const handleCanvasMouseUp = useCallback(async (e) => {
     if (isPanMode) return;
 
@@ -896,10 +896,10 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
     if (isPanMode) return;
     if (!selectedSymbol || !canvasRef.current || saving) return;
 
-    // Shape tools use drag — don't process click
+    // Shape tools use drag, don't process click
     if (selectedSymbol.id?.startsWith('TOOL_SHAPE_')) return;
 
-    // Pen tool uses drag — don't process click
+    // Pen tool uses drag, don't process click
     if (selectedSymbol.id === 'TOOL_PEN') return;
 
     // Text tool: single click places a text input at that position
@@ -909,7 +909,7 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
       return;
     }
 
-    // Cloud rect drag was completed in mouseup — don't double-fire
+    // Cloud rect drag was completed in mouseup, don't double-fire
     if (selectedSymbol.id === 'TOOL_CLOUD' && cloudDragRef.current?.wasDrag) return;
 
     const { xFrac, yFrac, xPx, yPx } = eventToCoords(e);
@@ -1443,7 +1443,7 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
                         x2={mousePos.x} y2={mousePos.y}
                         stroke="#f59e0b" strokeWidth="1" strokeDasharray="4 2" opacity="0.7"/>
                     )}
-                    {/* Vertex dots — first is larger and acts as close target */}
+                    {/* Vertex dots, first is larger and acts as close target */}
                     {pts.map((p, i) => (
                       <circle key={i}
                         cx={p.xPx} cy={p.yPx}

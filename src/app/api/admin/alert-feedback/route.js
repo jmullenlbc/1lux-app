@@ -4,7 +4,7 @@ import { prisma } from '@/lib/db';
 import { NOTIFICATION_TYPES } from '@/lib/notify';
 import { summarizeFeedback, describeNoise } from '@/lib/alertFeedback';
 
-// GET /api/admin/alert-feedback — which notifications people find useful and
+// GET /api/admin/alert-feedback, which notifications people find useful and
 // which they call noise. Mike, 2026-09-14: "Admins get a report showing which
 // alerts people find useful and which are noise."
 //

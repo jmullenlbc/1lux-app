@@ -1,5 +1,5 @@
 /**
- * What this server offers, as data — with no database, no session and no app
+ * What this server offers, as data, with no database, no session and no app
  * imports behind it.
  *
  * Every tool's identity (its name, the sentence that explains it, the shape of
@@ -22,10 +22,10 @@
  * agents.md generator stops working and nobody notices until a release.
  *
  * ── audience ─────────────────────────────────────────────────────────────────
- * 'any' — anyone the server has authenticated, ILC or client, may call it. What
+ * 'any', anyone the server has authenticated, ILC or client, may call it. What
  *         comes back is still redacted and still row-scoped; "may call" is not
  *         "may see everything".
- * 'ilc' — ILC staff only. tools.js reads this field and refuses; there is no
+ * 'ilc', ILC staff only. tools.js reads this field and refuses; there is no
  *         second copy of the rule written out inside a run().
  */
 
@@ -44,7 +44,7 @@ export const CATALOG = Object.freeze({
     audience: 'any',
     description:
       'List the data objects available through this server, with a one-line description of each. ' +
-      'Start here — the names returned are the only valid `model` arguments for the other tools.',
+      'Start here: the names returned are the only valid `model` arguments for the other tools.',
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
   },
 
@@ -152,7 +152,7 @@ export const CATALOG = Object.freeze({
     audience: 'ilc',
     description:
       'The sales pipeline: projects with their probability, expected order date and contract value. ' +
-      'ILC staff only — these fields are commercial position, not project facts.',
+      'ILC staff only: these fields are commercial position, not project facts.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -179,7 +179,7 @@ export const CATALOG = Object.freeze({
     audience: 'ilc',
     description:
       'How the budget engine is performing against real figures: which rates are drifting, and which ' +
-      'budget lines look like they are priced off the wrong thing. ILC staff only — this is the ' +
+      'budget lines look like they are priced off the wrong thing. ILC staff only: this is the ' +
       'pricing engine talking about itself, and it is never available to a client or an outside caller.',
     inputSchema: {
       type: 'object',
@@ -205,7 +205,7 @@ export const CATALOG = Object.freeze({
     audience: 'ilc',
     description:
       'Everything ILC owes somebody, and everything somebody owes ILC, in one list. Composed from ' +
-      'the four places obligations are actually recorded — internal tasks, confirmed follow-ups out ' +
+      'the four places obligations are actually recorded: internal tasks, confirmed follow-ups out ' +
       'of meeting and sales notes, the next step on a live deal, and open RFIs. There is no separate ' +
       'commitments table; closing an item on its own screen removes it from here. ILC staff only.',
     inputSchema: {

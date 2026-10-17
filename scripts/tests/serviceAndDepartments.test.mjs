@@ -2,14 +2,14 @@
  * The two controlled lists Mike settled on 2026-09-19.
  *
  * What this pins:
- *   1. Service Type offers exactly four choices — "Other" was dropped because
+ *   1. Service Type offers exactly four choices, "Other" was dropped because
  *      it carried no meaning and split the reporting. A project ALREADY saved
  *      as 'other' must still read "Other", still be filterable, and must not
  *      be silently reassigned when somebody opens its dropdown.
  *   2. A CRM person's department is one of Mike's eight from CRM
  *      ORGANIZATION.xlsx. The old five-word list's odd one out (Finance) stays
  *      readable, common spellings convert, and a word we have never seen is
- *      KEPT AS TYPED — a bulk import must never wipe somebody's department.
+ *      KEPT AS TYPED, a bulk import must never wipe somebody's department.
  *   3. This is NOT the ILC staff department list in src/lib/departments.js.
  *      Different question, different file, and they must not merge by accident.
  *

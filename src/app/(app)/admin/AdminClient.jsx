@@ -24,7 +24,7 @@ const DEPARTMENT_COLORS = {
   FINANCE:            'bg-green-50 text-green-700 border-green-300',
 };
 
-// Departments — pick any number (Mike, 2026-09-12). Being in Sales + marketing
+// Departments, pick any number (Mike, 2026-09-12). Being in Sales + marketing
 // is what puts someone in the Sales Owner dropdowns and the web request queue.
 function DepartmentPicker({ value, onChange }) {
   function toggle(key) {
@@ -270,7 +270,7 @@ function AccessHistory({ userId, refreshKey }) {
 // Everyone on staff sees every job, so this only appears for a Client Viewer.
 // The rows live in ProjectAccess, which sat unused in the database until now:
 // before this, a Client Viewer could see only jobs they had created, and a
-// Client Viewer cannot create a job — so the honest answer was always "none".
+// Client Viewer cannot create a job, so the honest answer was always "none".
 //
 // Saves on its own, separately from the rest of the window, because the list
 // can be long and half-finished tick-boxes should not ride along with a
@@ -425,7 +425,7 @@ function EditUserModal({ user, currentUserRole, projects, onSaved, onClose }) {
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
       <div className={`${MODAL} w-full max-w-3xl flex flex-col max-h-[90vh]`}>
 
-        {/* Header — fixed */}
+        {/* Header, fixed */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
           <div>
             <h3 className={H2}>Edit User</h3>
@@ -436,7 +436,7 @@ function EditUserModal({ user, currentUserRole, projects, onSaved, onClose }) {
           </button>
         </div>
 
-        {/* Body — scrollable, 2-column grid */}
+        {/* Body, scrollable, 2-column grid */}
         <form onSubmit={handleSave} className="flex flex-col flex-1 min-h-0">
           <div className="overflow-y-auto flex-1 p-6">
             <div className="grid grid-cols-2 gap-6">
@@ -547,7 +547,7 @@ function EditUserModal({ user, currentUserRole, projects, onSaved, onClose }) {
             {success && <div className="mt-4 bg-green-50 border border-green-200 rounded-lg px-4 py-2.5 text-sm text-green-700">{success}</div>}
           </div>
 
-          {/* Footer buttons — always visible */}
+          {/* Footer buttons, always visible */}
           <div className="flex gap-3 px-6 py-4 border-t border-slate-100 shrink-0">
             <button type="button" onClick={onClose}
               className={`${BTN_SECONDARY} flex-1`}>
@@ -576,7 +576,7 @@ function canManageUser(actor, target) {
 
 // Which notifications people find useful and which they call noise.
 //
-// Counts only — no names. The point is to fix a noisy alert, not to see who
+// Counts only, no names. The point is to fix a noisy alert, not to see who
 // clicked what. "Turned off" counts the people who said stop after being asked
 // three times; a high number there is the loudest signal on the screen.
 function AlertFeedbackReport() {

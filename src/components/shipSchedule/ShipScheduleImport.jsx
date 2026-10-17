@@ -31,7 +31,7 @@ export default function ShipScheduleImport({ projectId, onClose, onImported }) {
 
     // Wrapped: this used to have no try/catch, so a rejected upload (whose body is
     // empty) threw inside res.json() and the spinner span forever with no message.
-    // appendUpload is inside the try for the same reason — it can throw too.
+    // appendUpload is inside the try for the same reason, it can throw too.
     try {
       await appendUpload(fd, f, { scope: 'project' });
       const res = await fetch(`/api/projects/${projectId}/shipments/import`, { method: 'POST', body: fd });

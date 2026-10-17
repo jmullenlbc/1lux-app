@@ -1,5 +1,5 @@
 /**
- * Follow-up watch — did they do what they said they would? (Mike 9-25)
+ * Follow-up watch, did they do what they said they would? (Mike 9-25)
  *
  * After a meeting, some next steps are the other person's to do: reply, send
  * drawings, send an invite, make an intro. Those are "waiting" steps. This file
@@ -12,7 +12,7 @@
  * The reminder ladder is "days after the meeting": 14 / 30 / 60 by default,
  * editable per step type on Sales Automation → Reminder timeline. A blank rung
  * means stop. After the last rung the bot stops asking and the step shows
- * "no answer after N reminders" — it never nags forever.
+ * "no answer after N reminders", it never nags forever.
  */
 
 /** Executors that wait on the other person, and what each one waits for. */
@@ -67,7 +67,7 @@ export function peopleOn(email) {
 
 function firstName(name) { return String(name || '').trim().split(/\s+/)[0] || 'They'; }
 
-/** Name tokens of a target ("Jane Roe (Acme)") worth searching for — 3+ letters. */
+/** Name tokens of a target ("Jane Roe (Acme)") worth searching for, 3+ letters. */
 function targetTokens(targetName) {
   return lower(targetName).split(/[^a-z0-9]+/).filter(t => t.length >= 3);
 }
@@ -200,8 +200,8 @@ export function waitStatus(action = {}, rungs = [], now = new Date()) {
     const d = new Date(action.remindAt);
     const day = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     const rung = `reminder ${sent + 1} of ${Math.max(rungs.length, sent + 1)}`;
-    return { state: 'waiting', text: d <= now ? `Watching email — ${rung} is due` : `Watching email — ${rung} on ${day}` };
+    return { state: 'waiting', text: d <= now ? `Watching email, ${rung} is due` : `Watching email, ${rung} on ${day}` };
   }
   if (sent > 0) return { state: 'gave up', text: `No answer after ${sent} reminder${sent === 1 ? '' : 's'}` };
-  return { state: 'waiting', text: 'Watching email — no reminders set for this step' };
+  return { state: 'waiting', text: 'Watching email, no reminders set for this step' };
 }

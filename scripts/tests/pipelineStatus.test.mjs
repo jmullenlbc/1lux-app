@@ -5,7 +5,7 @@
  * What this pins:
  *   1. "On Hold" is in the picker; "Completed" is not, but a row that already
  *      says COMPLETED still reads as "Completed" and still counts as won.
- *   2. On Hold is neither open nor decided — it never lands in the win-rate
+ *   2. On Hold is neither open nor decided, it never lands in the win-rate
  *      denominator.
  *   3. A Peer Review with a design fee sits on the Design board; one without
  *      a fee does not. Full Design / Design Assist always do.
@@ -36,7 +36,7 @@ import { fromGraphEvent } from '../../src/lib/calendar/normalize.js';
 import { MEETING_CARDS, MEETING_LEVELS, cardLevel } from '../../src/lib/meeting/cards.js';
 
 // ── 1. The picker ─────────────────────────────────────────────────────────────
-test('the picker offers Open, On Hold, Won, Lost, Abandoned — and not Completed', () => {
+test('the picker offers Open, On Hold, Won, Lost, Abandoned, and not Completed', () => {
   assert.deepEqual(PIPELINE_STATUS.map(s => s.key), ['OPEN', 'ON_HOLD', 'WON', 'LOST', 'ABANDONED']);
   assert.deepEqual(SETTABLE_STATUS_KEYS, ['OPEN', 'ON_HOLD', 'WON', 'LOST', 'ABANDONED']);
   assert.ok(!SETTABLE_STATUS_KEYS.includes('COMPLETED'));

@@ -7,7 +7,7 @@ import { formatCurrency, calculateBudget } from '@/lib/calculations';
 import { PRICING } from '@/lib/pricing';
 
 export default function ExitSignsSection({ responses, projectData, allSections, pricing, onSaveResponses, onNext, onPrev, onLiveAnswers }) {
-  // Rates and the SF-per-sign come from the master price sheet — the same
+  // Rates and the SF-per-sign come from the master price sheet, the same
   // numbers the engine charges (calculations.js, designExitSigns).
   const DX = (pricing || PRICING).designExitSigns || {};
   const SIGN_RATES = {
@@ -23,7 +23,7 @@ export default function ExitSignsSection({ responses, projectData, allSections, 
   const [saving, setSaving] = useState(false);
   useLiveAnswers(onLiveAnswers, 'corridors', ans); // Mike 10-15: sidebar moves before Next
   // What each answer costs (+ estimated labor), recomputed live as answers
-  // change — local answers only save on Next (Mike 2026-09-13).
+  // change, local answers only save on Next (Mike 2026-09-13).
   const qc = useMemo(
     () => calculateBudget(projectData, { ...(allSections || {}), corridors: { ...(allSections?.corridors || {}), ...ans } }, pricing || null).questionCosts || {},
     [projectData, allSections, ans, pricing],
@@ -36,7 +36,7 @@ export default function ExitSignsSection({ responses, projectData, allSections, 
 
   async function handleNext() {
     setSaving(true);
-    // Merge into corridors section — only touches exitSignType
+    // Merge into corridors section, only touches exitSignType
     await onSaveResponses({ exitSignType: ans.exitSignType });
     setSaving(false);
     onNext();

@@ -51,11 +51,11 @@ const BudgetQCStrip = forwardRef(function BudgetQCStrip(
   // Expose checkCanSend to parent via ref
   useImperativeHandle(ref, () => ({
     checkCanSend() {
-      if (!data) return true; // no checklist yet — allow
+      if (!data) return true; // no checklist yet, allow
       const { summary } = data;
       if (phase === 'ifc' && !summary.isComplete) {
         setDrawerOpen(true); // open drawer so they can see what's left
-        return false;        // hard gate — caller must abort send
+        return false;        // hard gate, caller must abort send
       }
       if (!summary.isComplete) {
         return window.confirm(

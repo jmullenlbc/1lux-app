@@ -2,7 +2,7 @@
  * Reading a huge PDF without pulling the whole thing into memory at once.
  *
  * ── The problem this solves ──
- * A real construction drawing set is 200–400 MB. The old path fetched the whole
+ * A real construction drawing set is 200 to 400 MB. The old path fetched the whole
  * object out of S3 into a Buffer before pdfjs saw a single page, so the ceiling
  * on "how big a set can a GC send us" was really "how much memory does the
  * Amplify Lambda have". Mike, 2026-08-21: "We have to make it so it never fails
@@ -11,7 +11,7 @@
  * ── How it works ──
  * A PDF is a random-access format: a table at the END of the file says where
  * every page lives. pdfjs can drive that table itself if you hand it a way to
- * fetch arbitrary byte ranges instead of the whole file — that is what
+ * fetch arbitrary byte ranges instead of the whole file, that is what
  * PDFDataRangeTransport is for, and S3 GetObject takes a Range header. So we
  * fetch the tail, let pdfjs read the index, and then pull only the slices it
  * asks for, page by page.
@@ -23,12 +23,12 @@
  *
  *   - Opening the document reserves a slot the size of the WHOLE file. pdfjs
  *     allocates `new Uint8Array(length)` up front, so external memory jumped
- *     237 MB after fetching 0 MB. The reservation itself is cheap — the pages
+ *     237 MB after fetching 0 MB. The reservation itself is cheap, the pages
  *     are not physically committed until something writes to them, and real
- *     memory only rose 42 MB — but it means the file size is the shape of the
+ *     memory only rose 42 MB, but it means the file size is the shape of the
  *     hole we are filling, not an irrelevance.
  *   - As pages are read, those reserved pages get filled in and parsing costs
- *     roughly 2–3x the bytes fetched on top. Scanning the 231 MB set peaked at
+ *     roughly 2 to 3x the bytes fetched on top. Scanning the 231 MB set peaked at
  *     827 MB of real memory with 108 MB fetched. The byte budget did not
  *     prevent that, because bytes fetched is a bad predictor of bytes resident.
  *
@@ -49,7 +49,7 @@ import { headUploadedObject, rangeFetcherFor, getUploadedObject } from './upload
 /**
  * Above this, read by byte range; below it, just buffer the thing.
  *
- * Not a safety limit — a crossover. Ranged reading costs extra round trips, so
+ * Not a safety limit, a crossover. Ranged reading costs extra round trips, so
  * it only pays once the file is big enough that holding it is the bigger risk.
  * 24 MB is comfortably above the everyday schedule/matrix upload and well below
  * anything that would trouble a Lambda.
@@ -59,14 +59,14 @@ export const RANGE_THRESHOLD_BYTES = 24 * 1024 * 1024;
 /**
  * How many bytes a single read is allowed to pull before we call it enough.
  *
- * A cheap, cost-free sanity brake, NOT the memory guard — see the note at the
+ * A cheap, cost-free sanity brake, NOT the memory guard, see the note at the
  * top of this file. It exists because fetching hundreds of megabytes out of S3
  * is slow and billable even when it fits, and because it is one `+=` rather
  * than a syscall so it can be checked as often as we like.
  *
  * Sheets we care about (cover, code summary, site plan, unit matrix) sit at the
  * FRONT of every set, and the scan runs front to back, so stopping at the
- * budget costs us the tail of the set — the floor plans — which we were not
+ * budget costs us the tail of the set, the floor plans, which we were not
  * going to use anyway. Confirmed on the 231 MB Limelight set: the scan stopped
  * at page 123 of 212 and still found the site plan (p33) and the gross area
  * (p5).
@@ -77,7 +77,7 @@ export const SCAN_BYTE_BUDGET = 96 * 1024 * 1024;
  * The real memory guard: stop when the process is actually running out of room.
  *
  * Lambda publishes its own memory size in the environment, so this does not
- * have to be guessed — on Amplify the number is whatever Amplify configured,
+ * have to be guessed, on Amplify the number is whatever Amplify configured,
  * and if that ever changes the brake follows it without a code change. Outside
  * Lambda (dev, tests, the dry-run scripts) there is no such number and no hard
  * ceiling to hit, so a deliberately conservative 384 MB stands in, which makes
@@ -103,7 +103,7 @@ export function memoryCeilingBytes() {
  * @param {number}   opts.size        total byte length of the object
  * @param {Function} opts.fetchRange  (begin, end) => Promise<Uint8Array>, end exclusive
  * @returns {Promise<{ doc, stats, destroy }>}
- *   `stats` is live — read it after the work is done to see what the read cost.
+ *   `stats` is live, read it after the work is done to see what the read cost.
  */
 export async function openRangedPdf({ size, fetchRange, chunkBytes }) {
   if (!Number.isFinite(size) || size <= 0) throw new Error('openRangedPdf: size is required');
@@ -120,7 +120,7 @@ export async function openRangedPdf({ size, fetchRange, chunkBytes }) {
   let hitCeiling = false;
 
   // pdfjs has no way to be told "that fetch failed". It asks for a range and
-  // then waits, forever, for bytes that are never coming — so an S3 outage does
+  // then waits, forever, for bytes that are never coming, so an S3 outage does
   // not raise an error here, it HANGS until the Lambda's own 300-second timeout
   // kills it and the visitor sees nothing but a spinner. This promise is the
   // missing error channel: the first failure rejects it, and every await below
@@ -168,7 +168,7 @@ export async function openRangedPdf({ size, fetchRange, chunkBytes }) {
   // before getDocument. That crashes: pdfjs only registers its listener partway
   // through getDocument's own async setup, so the push landed on a null
   // listener and threw inside the PDF library. Caught by a dry run on a real
-  // 24-sheet set — it would otherwise have been a production-only failure, on
+  // 24-sheet set, it would otherwise have been a production-only failure, on
   // exactly the big files this path exists for.
   //
   // `false` = not progressively complete.
@@ -189,7 +189,7 @@ export async function openRangedPdf({ size, fetchRange, chunkBytes }) {
     // drawing a plotted sheet pulls its embedded raster images through this
     // pipe, tens of megabytes in hundreds of SERIAL 64 KB round trips to S3.
     // Measured on the 334 MB Skyline Ridge set 2026-09-02: one safe sheet per
-    // request still took ~26 s against a ~28 s front door — nearly all of it
+    // request still took ~26 s against a ~28 s front door, nearly all of it
     // this fetch. The render stage passes a multi-megabyte chunk instead; the
     // RSS brake still guards memory either way.
     ...(Number.isFinite(chunkBytes) && chunkBytes > 0 ? { rangeChunkSize: chunkBytes } : {}),
@@ -207,8 +207,8 @@ export async function openRangedPdf({ size, fetchRange, chunkBytes }) {
     failed,
     /**
      * Pass this to extractPdfPages as `shouldStop`. True once the read has
-     * either run the process close to its memory ceiling — the brake that
-     * actually matters — or pulled more bytes than is reasonable.
+     * either run the process close to its memory ceiling, the brake that
+     * actually matters, or pulled more bytes than is reasonable.
      *
      * Stopping here is a degraded read, not a failed one: the caller keeps
      * every page scanned so far, and the sheets worth having are at the front.
@@ -235,7 +235,7 @@ export async function openRangedPdf({ size, fetchRange, chunkBytes }) {
  *
  * @returns {Promise<{ ok: true, doc, buffer, ranged, size, stats, destroy }
  *                  | { ok: false, code, message }>}
- *   `buffer` is null on the ranged path — nothing downstream may assume the
+ *   `buffer` is null on the ranged path, nothing downstream may assume the
  *   whole file is in hand. Anything that needs bytes should ask the doc.
  */
 export async function openUploadedPdf(key, { limit, chunkBytes } = {}) {

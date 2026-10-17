@@ -42,7 +42,7 @@ test('the figures appear only once the last file lands, from one merge over ever
   const g = read('gen.pdf', [
     { code: 'A1', qty: 100, confidence: 0.9 }, { code: 'B1', qty: 68, confidence: 0.9 },
   ], { statedTotalUnits: 168 }, 0.7);
-  // arch finished first — before this change the screen would have said 60 units here.
+  // arch finished first, before this change the screen would have said 60 units here.
   assert.equal(combineReads([a, pending('gen.pdf')]).merged, null);
   const out = combineReads([a, g]);
   assert.equal(out.merged.unitSchedule.file, 'gen.pdf');

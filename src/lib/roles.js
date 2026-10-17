@@ -1,6 +1,6 @@
 // The one list of login types ("roles"). Before this file the same names were
 // typed out by hand all over the app, and the admin "edit user" screen would
-// store any text it was sent — a typo became a role nobody could match.
+// store any text it was sent, a typo became a role nobody could match.
 //
 // No `@/` imports here so the tests can load this file directly.
 

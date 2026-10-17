@@ -23,7 +23,7 @@ export async function POST(req, { params }) {
   });
   if (!contact) return NextResponse.json({ error: 'Contact not found' }, { status: 404 });
 
-  // Already accepted — don't re-invite
+  // Already accepted, don't re-invite
   if (contact.acceptedAt) {
     return NextResponse.json({ error: 'Contact has already accepted the invitation' }, { status: 409 });
   }

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { getActiveSteps, getNextStep, isHomeBuildingKey, stepsForHome, stepBeside, HOME_SKIPPED_STEPS } from '@/lib/utils';
 import { calculateBudget, formatCurrency } from '@/lib/calculations';
 
-// Section components (unified — each accepts isDesign prop)
+// Section components (unified, each accepts isDesign prop)
 import ProjectDataSection  from '@/components/sections/ProjectDataSection';
 import UnitsSection        from '@/components/sections/UnitsSection';
 import CorridorsSection    from '@/components/sections/CorridorsSection';
@@ -194,13 +194,13 @@ export default function WizardClient({ project, projectData, initialSections, in
     isFirst:          stepIndex === 0,
   };
 
-  // Corridors and Exit Signs both write to the 'corridors' section — always merge
+  // Corridors and Exit Signs both write to the 'corridors' section, always merge
   function saveCorridors(r) {
     return saveResponses('corridors', { ...(sections['corridors'] || {}), ...r });
   }
 
   // A drawing upload committed to Project Info. The commit route returns the
-  // fresh ProjectData row, so the form and the live budget pick it up here —
+  // fresh ProjectData row, so the form and the live budget pick it up here
   // no reload, and no second fetch.
   // `answers` = questionnaire answers the site read filled in (today the
   // Corridors breezeway style, Mike 10-14 "Prefill"), merged in here so the

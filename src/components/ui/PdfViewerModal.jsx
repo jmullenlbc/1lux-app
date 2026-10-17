@@ -1,7 +1,7 @@
 'use client';
 
 export default function PdfViewerModal({ file, projectId, customUrl, onClose }) {
-  // customUrl overrides the default — used for drawing files served from a different route
+  // customUrl overrides the default, used for drawing files served from a different route
   const url = customUrl || `/api/projects/${projectId}/files/${file.id}`;
 
   return (

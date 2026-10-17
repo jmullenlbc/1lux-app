@@ -1,7 +1,7 @@
 /**
  * Server-only: stamp where ProjectData figures came from (ProjectFigureSource),
  * so the tool learns only from real numbers (Mike 2026-09-24). A new value
- * clears any earlier "It's right" — the person checked the old number.
+ * clears any earlier "It's right", the person checked the old number.
  * Never throws: losing a tag must not lose the save it rides on.
  */
 import { FIGURES } from '@/lib/calibration/figureNorms';

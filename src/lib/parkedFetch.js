@@ -8,7 +8,7 @@
  * `body` is a plain object (sent as JSON) or a FormData (sent as-is). The
  * first request only writes the job down; every request after that is a JSON
  * `{ jobKey }` poll. A poll the front door hangs up on (an empty non-2xx,
- * which is never one of our own answers — they all carry a message) is simply
+ * which is never one of our own answers, they all carry a message) is simply
  * asked again after a pause: the server keeps running and parks the answer.
  *
  * `onWait(info)` fires each time the browser goes back to wait, so a screen

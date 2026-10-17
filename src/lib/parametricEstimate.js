@@ -2,7 +2,7 @@
  * Parametric Estimating Engine
  *
  * Bottom-up estimate: confirmed PlacedFixtures × ILCSpec.budget_cost.
- * Pure function — no DB or network calls.
+ * Pure function, no DB or network calls.
  *
  * tierPrefs: { [masterTypeCode]: 'LOW_COST' | 'STANDARD' | 'UPGRADE' }
  */
@@ -89,8 +89,8 @@ export function runParametricEstimate({
 export const WIZARD_FIELD_MAP = {
   F:  'numFans',
   V:  'numVanities',
-  Z:  null,  // steplight — no direct wizard field
-  UC: null,  // undercabinet — wizard uses qualitative choice, not count
+  Z:  null,  // steplight, no direct wizard field
+  UC: null,  // undercabinet, wizard uses qualitative choice, not count
 };
 
 export function deriveWizardCounts(fixtures) {

@@ -1,5 +1,5 @@
 /**
- * Things Needing a Look — the five checks behind the Main-dashboard card.
+ * Things Needing a Look, the five checks behind the Main-dashboard card.
  *
  * Mike, 2026-09-09: "do we need to have a verification area for things that are
  * conflicting or need attention in general but it can't be overwhelming. like
@@ -21,7 +21,7 @@
  *   • every item can be buried for good with "That's fine".
  *
  * Everything in this file is a pure function over rows already loaded. No
- * Prisma, no dates read from the clock — `now` is always passed in — so the
+ * Prisma, no dates read from the clock, `now` is always passed in, so the
  * whole thing is testable without a database. The loading lives in
  * src/app/api/verification/route.js.
  */
@@ -44,8 +44,8 @@ const DECIDED = ['WON', 'LOST', 'ABANDONED'];
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 // ── Company-name comparison ──────────────────────────────────────────────────
-// The Pipeline tab holds whatever was typed into a spreadsheet — "DLR Group,
-// Inc." — while the team seat holds a real company row — "DLR Group". Comparing
+// The Pipeline tab holds whatever was typed into a spreadsheet, "DLR Group,
+// Inc.", while the team seat holds a real company row, "DLR Group". Comparing
 // those two strings raw would flag every single job, which is the fastest way to
 // make a card like this worthless. So both sides are reduced to their bones
 // first: lower case, no punctuation, no legal suffix, no trade word.
@@ -79,7 +79,7 @@ export function normalizeCompany(raw) {
 
 /**
  * Do these two company names plausibly mean the same company?
- * Deliberately generous — a false "these disagree" costs Mike a look at a job
+ * Deliberately generous, a false "these disagree" costs Mike a look at a job
  * that was fine, and five of those in a row is how a card gets ignored.
  */
 export function companiesAgree(a, b) {
@@ -109,7 +109,7 @@ export function boardStatuses(project) {
 
 /**
  * Open jobs, plus jobs closed in the last 90 days. A closed job with no status
- * history at all falls back to when the record was last touched — otherwise a
+ * history at all falls back to when the record was last touched, otherwise a
  * job whose missing close date is the very problem we are looking for would be
  * ruled out of scope by the missing close date.
  */
@@ -136,8 +136,8 @@ export function inScope(project, eventsByProject, now) {
  * point of the check. The Pipeline tab is free text pasted out of a spreadsheet;
  * the team seat is a real company record. Nothing has ever made them agree.
  *
- * PipelineProject has no link to Project — there is no foreign key between them
- * — so a row is matched to a job the only way available: same client, same name.
+ * PipelineProject has no link to Project, there is no foreign key between them
+ * so a row is matched to a job the only way available: same client, same name.
  */
 export function checkTeamMismatch(ctx) {
   const { projects, pipelineRows } = ctx;
@@ -180,7 +180,7 @@ export function checkTeamMismatch(ctx) {
  *    record; this surfaces the same thing where he will actually see it.
  *
  * Scoped to people who are on one of the jobs in scope, or who were added in the
- * last 90 days — an address book of old contacts is not something to chase.
+ * last 90 days, an address book of old contacts is not something to chase.
  */
 export function checkPersonNoCompany(ctx) {
   const { contacts, scopedProjectIds, now } = ctx;
@@ -240,7 +240,7 @@ export function checkCloseDate(ctx) {
           key:       `close_date_guessed:${project.id}:${pipeline}`,
           kind:      'CLOSE_DATE_GUESSED',
           title:     `${project.name}: the ${board} close date is a guess`,
-          detail:    `Nobody told the system when this was ${word}, so it used the day the record was last touched — ${fmtDay(closes[0].changedAt)}. If that is wrong, every month it lands in is wrong too.`,
+          detail:    `Nobody told the system when this was ${word}, so it used the day the record was last touched: ${fmtDay(closes[0].changedAt)}. If that is wrong, every month it lands in is wrong too.`,
           href:      `/project/${project.id}`,
           hrefLabel: 'Open the project',
         });
@@ -252,7 +252,7 @@ export function checkCloseDate(ctx) {
 
 /**
  * 4. Two people with the same email address. The people-table merge deliberately
- *    left the ambiguous pairs alone rather than guessing which one to keep — so
+ *    left the ambiguous pairs alone rather than guessing which one to keep, so
  *    the ones that are left are the ones that need a human.
  *
  * Not scoped to live jobs: a duplicated person is wrong everywhere, it is rare
@@ -363,7 +363,7 @@ export function runChecks(data) {
 
   // Order matters: this is the order they queue up in, so the ones that quietly
   // break a number come before the ones that are merely untidy. A new request
-  // goes first — it is a customer waiting.
+  // goes first, it is a customer waiting.
   return [
     ...checkRequestLooksLikeJob(ctx),
     ...checkTeamMismatch(ctx),
@@ -383,8 +383,8 @@ export function runChecks(data) {
  *
  * `shown` is every item ever put in front of somebody, with the day it first
  * was. `dismissed` is every item somebody buried. Anything already shown and
- * still not fixed stays on the card — it does not get re-charged to this week's
- * five — and anything fresh only joins if this week has room.
+ * still not fixed stays on the card, it does not get re-charged to this week's
+ * five, and anything fresh only joins if this week has room.
  *
  * Returns { items, fresh, remainingThisWeek, totalOpen }, where `fresh` is the
  * keys the caller must record as SHOWN.

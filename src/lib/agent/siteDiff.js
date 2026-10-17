@@ -7,14 +7,14 @@
  * its own tick box, so there are three distinct ways to disagree with it and
  * only one of them looks like an edit:
  *
- *   edited  — the reviewer kept the field and changed the number.
- *   dropped — the reviewer ticked the field OFF. The model read something the
+ *   edited, the reviewer kept the field and changed the number.
+ *   dropped, the reviewer ticked the field OFF. The model read something the
  *             reviewer would not stand behind. That is a rejection of that
  *             field, and it is the one this file exists to stop losing: a
  *             dropped field leaves no trace in the written record, so without
  *             this diff an extraction the reviewer threw half of away would be
  *             recorded as "accepted".
- *   added   — the reviewer typed in a number the model never offered. Not a
+ *   added, the reviewer typed in a number the model never offered. Not a
  *             correction of the model, but evidence the extraction was thin.
  *
  * ── Diffed on the server, against the stored proposal ────────────────────────
@@ -25,7 +25,7 @@
  *
  * Pure: no IO, no store, no clock.
  *
- * @see src/lib/agent/unitMatrixDiff.js — the same idea for a list-shaped output
+ * @see src/lib/agent/unitMatrixDiff.js, the same idea for a list-shaped output
  * @see scripts/tests/siteDiff.test.mjs
  */
 import { proposeSiteFields, SITE_FIELD_DEFS, buildingTypeKeyLabel } from '../siteFields.js';
@@ -93,16 +93,16 @@ export function describeSiteCorrection(visionOutput, committed) {
     return {
       changed: false,
       summary: accepted
-        ? `Applied unchanged — ${accepted} field(s) accepted as read.`
+        ? `Applied unchanged: ${accepted} field(s) accepted as read.`
         : 'Applied unchanged.',
       counts,
     };
   }
 
   const parts = [];
-  if (edited.length)  parts.push(`Edited — ${edited.join('; ')}`);
-  if (dropped.length) parts.push(`Rejected — ${dropped.join('; ')}`);
-  if (added.length)   parts.push(`Added by hand — ${added.join('; ')}`);
+  if (edited.length)  parts.push(`Edited: ${edited.join('; ')}`);
+  if (dropped.length) parts.push(`Rejected: ${dropped.join('; ')}`);
+  if (added.length)   parts.push(`Added by hand: ${added.join('; ')}`);
   if (accepted)       parts.push(`${accepted} field(s) accepted as read`);
 
   return { changed: true, summary: parts.join('. ') + '.', counts };

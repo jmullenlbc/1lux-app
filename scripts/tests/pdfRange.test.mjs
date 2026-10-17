@@ -1,5 +1,5 @@
 /**
- * Tests for src/lib/pdfRange.js — reading a drawing set by byte range instead
+ * Tests for src/lib/pdfRange.js, reading a drawing set by byte range instead
  * of pulling the whole file into memory.
  * Run: node --test scripts/tests/pdfRange.test.mjs
  *
@@ -35,7 +35,7 @@ import { extractPdfPages } from '../../src/lib/drawingExtract.js';
 // There are no PDF fixtures in the repo and no PDF-writing library installed,
 // so the test writes its own: a valid multi-page file with a text layer and a
 // correct cross-reference table. `padBytes` inflates each page's content stream
-// so that fetching a page costs measurable bytes — without that every page is a
+// so that fetching a page costs measurable bytes, without that every page is a
 // few hundred bytes and the budget tests would prove nothing.
 function makePdf(pageTexts, padBytes = 0) {
   const objs = [];
@@ -108,7 +108,7 @@ test('opens a PDF it never holds, and reads the right pages', async () => {
 
 // pdfjs fetches in 64 KB chunks, so a fixture has to be comfortably larger than
 // that before "lazy" and "eager" look any different. At this padding the file is
-// a few megabytes across dozens of chunks — small enough to stay a fast test,
+// a few megabytes across dozens of chunks, small enough to stay a fast test,
 // big enough that reading only part of it is visible.
 const FAT = 400_000;
 
@@ -120,14 +120,14 @@ test('opening does not drag the whole file across', async () => {
   const { size, fetchRange, log } = serve(makePdf(PAGES, FAT));
   const opened = await openRangedPdf({ size, fetchRange });
   assert.ok(log.bytes < size / 2,
-    `opening pulled ${log.bytes} of ${size} bytes — it should read the index, not the file`);
+    `opening pulled ${log.bytes} of ${size} bytes. It should read the index, not the file`);
   await opened.destroy();
 });
 
 test('reading one page fetches one page, not the set', async () => {
   // BYTES FETCHED tracks the pages touched. Note the careful wording: bytes
   // fetched is not the same as bytes resident, and this test does not claim it
-  // is — see the correction at the top of the file.
+  // is, see the correction at the top of the file.
   const { size, fetchRange } = serve(makePdf(PAGES, FAT));
   const opened = await openRangedPdf({ size, fetchRange });
   const scan = await extractPdfPages(opened.doc, { maxPages: 1 });
@@ -186,7 +186,7 @@ test('the budget leaves room under a Lambda and sits above the buffered path', (
     'headroom: the budget is what stands between a big set and an out-of-memory kill');
 });
 
-// ── The memory ceiling — the brake the 400 MB cap actually rests on ─────────
+// ── The memory ceiling, the brake the 400 MB cap actually rests on ─────────
 
 test('the ceiling follows the box it is running on', () => {
   // Lambda publishes its own memory size, so the brake does not have to be
@@ -237,7 +237,7 @@ test('a read that crosses the ceiling stops, even though it has fetched almost n
     const scan = await extractPdfPages(opened.doc, { shouldStop: opened.overBudget });
     // 2026-09-15: one bounded page is the floor, not zero. The ceiling counts
     // baseline process memory, so a big set can be "over" the moment it is
-    // opened — and a read of zero pages was being judged "no text layer"
+    // opened, and a read of zero pages was being judged "no text layer"
     // (Lone Tree ARCH). The brake takes hold right after page 1.
     assert.equal(scan.scannedPages, 1, 'a read already over the ceiling reads exactly the first page');
     assert.equal(scan.braked, true, 'and is finished, not paused');

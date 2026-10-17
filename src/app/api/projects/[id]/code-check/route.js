@@ -62,7 +62,7 @@ function loadRelevantCorpus() {
   return results.join('\n\n');
 }
 
-// ── GET — run deterministic checks ───────────────────────────────────────────
+// ── GET, run deterministic checks ───────────────────────────────────────────
 export async function GET(request, { params }) {
   const { error } = await requireAuth();
   if (error) return error;
@@ -95,7 +95,7 @@ export async function GET(request, { params }) {
   });
 }
 
-// ── POST — AI-powered deep review ────────────────────────────────────────────
+// ── POST, AI-powered deep review ────────────────────────────────────────────
 //
 // Park-and-poll (src/lib/parkedJob.js). One model call over the schedule plus
 // the code corpus runs past Amplify's ~30-second front door. This route used
@@ -121,7 +121,7 @@ export async function POST(request, { params }) {
 
 /**
  * The review itself. Returns the parsed JSON object the panel renders, or a
- * body with an `error` string — the same two shapes the stream used to carry.
+ * body with an `error` string, the same two shapes the stream used to carry.
  */
 async function reviewSchedule({ projectId, user }) {
   const apiKey = getAnthropicKey()?.trim();
@@ -186,9 +186,9 @@ async function reviewSchedule({ projectId, user }) {
 
   const systemPrompt = `You are a senior lighting design code consultant performing a QC review of a fixture schedule for ILC Studios.
 
-Your job: identify code compliance issues, missing data, and design concerns. Be direct and specific — cite the exact code section for every flag.
+Your job: identify code compliance issues, missing data, and design concerns. Be direct and specific. Cite the exact code section for every flag.
 
-RESPONSE FORMAT — return a JSON object exactly matching this schema:
+RESPONSE FORMAT: return a JSON object exactly matching this schema:
 {
   "summary": "1-2 sentence overall assessment",
   "issues": [
@@ -196,7 +196,7 @@ RESPONSE FORMAT — return a JSON object exactly matching this schema:
       "severity": "FLAG" | "VERIFY" | "WARN" | "PASS",
       "code": "Code citation e.g. NEC 2020 §410.10(A)",
       "title": "Short title of the issue",
-      "items": ["Type X — specific issue", "..."],
+      "items": ["Type X: specific issue", "..."],
       "recommendation": "What to do to resolve"
     }
   ],
@@ -218,7 +218,7 @@ TAKEOFF QUANTITIES:
 ${takeoffSummary}
 
 DETERMINISTIC CHECKS ALREADY RUN:
-${detChecks.checks.map(c => `${c.status} — ${c.title}: ${c.summary}`).join('\n')}
+${detChecks.checks.map(c => `${c.status}, ${c.title}: ${c.summary}`).join('\n')}
 
 Please perform a comprehensive code compliance review of this fixture schedule. Focus on:
 1. LPD compliance (ASHRAE 90.1 §9.5.1) with the quantities and areas above

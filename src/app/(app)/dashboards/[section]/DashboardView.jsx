@@ -1,6 +1,8 @@
 'use client';
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import Button from '@/components/ui/Button';
+import { FilterToolbar, FilterPanel } from '@/components/ui/FilterPanel';
+import { useUrlView } from '@/lib/useUrlView';
 import { WidgetLoading, WidgetEmpty } from '@/components/ui/WidgetFrame';
 import Chart from '@/components/dashboards/Chart';
 import CalibrationTable from '@/components/dashboards/CalibrationTable';
@@ -21,12 +23,32 @@ export default function DashboardView({ section, sectionLabel, tabs = null }) {
   const [editor, setEditor]   = useState(null);     // null | { widget? , spec }
   const [sharing, setSharing] = useState(false);
   const [users, setUsers]     = useState([]);
-  const [filters, setFilters] = useState([]);       // global filters [{field, op:'is', value}]
-  const [facets, setFacets]   = useState({});        // dimKey -> [values] for the filter bar
+  const [facets, setFacets]   = useState({});        // dimKey -> [values] for the filter panel
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const dragId = useRef(null);
 
   const measures   = measuresFor(section);
   const dimensions = dimensionsFor(section);
+
+  // The one filter pattern (Mike 10-17): Filter button, panel, filters in the
+  // address. The render API still takes [{field, op:'is', value}].
+  const dimFields = useMemo(
+    () => dimensionsFor(section).filter(d => d.type === 'dimension').map(d => ({ key: d.key, label: d.label, kind: 'pick' })),
+    [section],
+  );
+  const view = useUrlView({ fields: dimFields });
+  const filters = useMemo(
+    () => Object.entries(view.filters).map(([field, value]) => ({ field, op: 'is', value })),
+    [view.filters],
+  );
+  const panelFields = dimFields.filter(f => (facets[f.key] || []).length > 0);
+  const panelChoices = useMemo(() => {
+    const out = {};
+    for (const d of dimensions) {
+      if (facets[d.key]) out[d.key] = facets[d.key].map(v => [v, d.valueLabels?.[v] || v]);
+    }
+    return out;
+  }, [facets, dimensions]);
 
   // ── Load the resolved dashboard ─────────────────────────────────────────────
   const load = useCallback(async () => {
@@ -50,16 +72,8 @@ export default function DashboardView({ section, sectionLabel, tabs = null }) {
     if (res.ok) { const j = await res.json(); setSeries(j.results || {}); if (j.facets) setFacets(j.facets); }
   }, [section]);
 
-  useEffect(() => { if (dash) render(dash, filters); }, [dash, filters, render]);
-
-  // Global filter bar: set a dimension to a value (or clear it back to "All").
-  function setFilter(field, value) {
-    setFilters(prev => {
-      const rest = prev.filter(f => f.field !== field);
-      return value ? [...rest, { field, op: 'is', value }] : rest;
-    });
-  }
-  const filterValue = (field) => filters.find(f => f.field === field)?.value || '';
+  // Waits for the address to be read so a filtered link renders once.
+  useEffect(() => { if (dash && view.ready) render(dash, filters); }, [dash, filters, render, view.ready]);
 
   // ── Editable target: fork the admin default to a personal copy if needed ────
   // Returns the editable dashboard object (its widgets may have fresh ids if we
@@ -105,7 +119,7 @@ export default function DashboardView({ section, sectionLabel, tabs = null }) {
     const target = await ensureEditable();
     if (!target) return 'Could not make your own copy of this dashboard to edit. Please try again.';
     const { legacy, ...clean } = spec;
-    // An older chart with no measure picked keeps its original settings —
+    // An older chart with no measure picked keeps its original settings
     // only the title and width change.
     const keepOld = legacy && !clean.terms?.[0]?.field;
     const body = keepOld
@@ -216,19 +230,15 @@ export default function DashboardView({ section, sectionLabel, tabs = null }) {
         </div>
       </div>
 
-      {dash && Object.keys(facets).length > 0 && (
-        <div className="flex items-center gap-2 flex-wrap mb-4">
-          <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mr-1">Filter</span>
-          {dimensions.filter(d => d.type === 'dimension' && (facets[d.key] || []).length > 0).map(d => (
-            <select key={d.key} value={filterValue(d.key)} onChange={e => setFilter(d.key, e.target.value)}
-              className={`text-xs rounded-lg border px-2 py-1.5 ${filterValue(d.key) ? 'border-orange-400 bg-orange-50 text-orange-700 font-semibold' : 'border-slate-200 text-slate-600'}`}>
-              <option value="">{d.label}: All</option>
-              {facets[d.key].map(v => <option key={v} value={v}>{d.valueLabels?.[v] || v}</option>)}
-            </select>
-          ))}
-          {filters.length > 0 && (
-            <Button size="sm" variant="ghost" onClick={() => setFilters([])} className="text-xs text-slate-500 hover:text-slate-700 underline px-1.5 py-0.5">Clear all</Button>
-          )}
+      {dash && panelFields.length > 0 && (
+        <div className="mb-4">
+          <FilterToolbar
+            count={filters.length}
+            open={filtersOpen}
+            onToggle={() => setFiltersOpen(o => !o)}
+            onClear={view.clearFilters}
+          />
+          <FilterPanel open={filtersOpen} fields={panelFields} filters={view.filters} choices={panelChoices} onChange={view.setFilter} />
         </div>
       )}
 
@@ -299,7 +309,7 @@ const TPL_DESCRIPTION = {
 function newSpec() { return { name: '', terms: [{ field: '', agg: 'sum' }], op: 'single', groupBy: '', timeBucket: 'month', customStart: '', customEnd: '', chartType: 'BAR', width: 'HALF' }; }
 function specFromWidget(w) {
   let s = {}; try { s = typeof w.dataSpec === 'string' ? JSON.parse(w.dataSpec || '{}') : (w.dataSpec || {}); } catch {}
-  // Prebuilt (kind-tagged) widgets keep their kind/report through an edit —
+  // Prebuilt (kind-tagged) widgets keep their kind/report through an edit
   // the editor only lets you retitle/resize them.
   const prebuilt = s.kind ? { kind: s.kind, report: s.report } : {};
   // An older chart built before the field picker has no terms. Without this

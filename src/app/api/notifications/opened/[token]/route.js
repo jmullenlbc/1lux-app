@@ -6,7 +6,7 @@ const PIXEL = Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBR
 
 /**
  * GET /api/notifications/opened/[token]
- * Read-receipt pixel — called when email client loads the tracking image.
+ * Read-receipt pixel, called when email client loads the tracking image.
  * Records first-open timestamp on the NotificationLog record.
  * Returns a 1×1 transparent GIF (always, regardless of token validity).
  */

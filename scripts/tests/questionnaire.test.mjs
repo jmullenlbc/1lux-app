@@ -2,7 +2,7 @@
  * The public conceptual-budget questionnaire and its review flags.
  *
  * validateAnswers() is the boundary between a public, unauthenticated form and
- * our database — every clamping behavior here is a security property, not a
+ * our database, every clamping behavior here is a security property, not a
  * convenience. computeReviewFlags() feeds both the notification email and the
  * admin review panel; its contract is "plain-English sentences, never a crash,
  * whatever the payload looks like."

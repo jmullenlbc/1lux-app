@@ -1,5 +1,5 @@
 /**
- * pdfjsNode — the ONLY place the server is allowed to load pdfjs-dist.
+ * pdfjsNode, the ONLY place the server is allowed to load pdfjs-dist.
  *
  * Why this file exists
  * -------------------
@@ -7,16 +7,16 @@
  * Next's file tracer (nft) and therefore absent from the Lambda in production
  * even though everything works locally (local has all of node_modules on disk):
  *
- *   1. standard_fonts/   — pointed at by a constructed file:// URL. Missing it
+ *   1. standard_fonts/, pointed at by a constructed file:// URL. Missing it
  *                          means getTextContent() yields no text, so every AI
  *                          parse silently returns 0 rows.
- *   2. pdf.worker.mjs    — pdf.mjs has a static block that does
+ *   2. pdf.worker.mjs, pdf.mjs has a static block that does
  *                            GlobalWorkerOptions.workerSrc ||= "./pdf.worker.mjs"
  *                          on Node, then `await import(this.workerSrc)`. That
  *                          dynamic import is opaque to nft. Missing it means
  *                          getDocument() throws
  *                            Setting up fake worker failed: "Cannot find module ..."
- *                          BEFORE page 1 — the symptom is `pages=0 read=0`.
+ *                          BEFORE page 1, the symptom is `pages=0 read=0`.
  *
  * Both are force-included per route in next.config.mjs and asserted against the
  * real build output by scripts/check-runtime-assets.mjs. This module is the
@@ -63,7 +63,7 @@ export const WORKER_URL = PKG_DIR
  * The third runtime-resolved asset, found 2026-08-29 on the Lowell set: pdfjs
  * decodes fax-compressed (CCITT/JBIG2) and JPEG2000 images through WebAssembly
  * helpers it loads from `wasmUrl` at decode time. With wasmUrl unset it does
- * not throw -- it logs a warning and SKIPS the image. On drawings that come
+ * not throw, it logs a warning and SKIPS the image. On drawings that come
  * out as solid black or blank blocks exactly where a table or photo should be,
  * because the paint underneath the missing stencil is what survives.
  */
@@ -92,12 +92,12 @@ export async function loadPdfjs() {
 
   // pdf.mjs's own static block already did
   //   GlobalWorkerOptions.workerSrc ||= "./pdf.worker.mjs"
-  // and that relative specifier is what breaks — so overwrite it unconditionally
+  // and that relative specifier is what breaks, so overwrite it unconditionally
   // with an absolute URL rather than defaulting it.
   if (WORKER_URL) {
     try { pdfjsLib.GlobalWorkerOptions.workerSrc = WORKER_URL; } catch {}
   } else {
-    console.error('[pdfjsNode] could not locate pdfjs-dist on disk — PDF reading will fail');
+    console.error('[pdfjsNode] could not locate pdfjs-dist on disk, PDF reading will fail');
   }
 
   cached = pdfjsLib;

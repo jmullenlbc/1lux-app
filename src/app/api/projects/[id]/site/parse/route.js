@@ -26,7 +26,7 @@ const MAX_PAGES = 3;
  * Three sheets. The site plan and the area summary are where the written site
  * data lives; the landscape / hardscape plan is where the outdoor amenity area
  * and the sporadic site features (dog park, courtyard, courts, turf) are
- * drawn, and Mike's rule (2026-09-16) is "always read the landscape sheet" —
+ * drawn, and Mike's rule (2026-09-16) is "always read the landscape sheet"
  * it used to be opened here only when the set had no area summary, which is
  * exactly the set where the pool deck and the dog park went unread.
  *
@@ -47,8 +47,8 @@ async function canAccess(projectId, user) {
 
 /**
  * Park-and-poll (src/lib/parkedJob.js). The read chains a sheet pick, a
- * three-page render and one vision call, and was measured at 41–70 seconds
- * on a real set — past Amplify's ~30-second front door. The first request
+ * three-page render and one vision call, and was measured at 41 to 70 seconds
+ * on a real set, past Amplify's ~30-second front door. The first request
  * only writes the job down; the polls run it and collect it.
  */
 export const maxDuration = 300;
@@ -122,7 +122,7 @@ async function readSite({ fileId, pages }, { projectId, user }) {
     // Hand it a real drawing set and page 1 is a title page with a vicinity map
     // on it; the site plan is somewhere around page 30 and nothing was looking
     // there. The public intake route has read the sheet index since it was
-    // written — this is the same jump, finally wired into the in-app tool.
+    // written, this is the same jump, finally wired into the in-app tool.
     //
     // An explicit `pages` from the caller still wins: someone who has opened
     // the PDF and knows which sheet they want should not be argued with.
@@ -205,8 +205,8 @@ async function readSite({ fileId, pages }, { projectId, user }) {
     };
   } catch (e) {
     // Governance must never be the reason an extraction fails to reach the user.
-    // This flow is human-in-the-loop by construction — nothing is written until
-    // somebody ticks boxes and presses Apply — so a lost review row costs the
+    // This flow is human-in-the-loop by construction, nothing is written until
+    // somebody ticks boxes and presses Apply, so a lost review row costs the
     // accuracy record, not the safety.
     console.error('[site/parse] review submission failed:', e?.message || e);
   }

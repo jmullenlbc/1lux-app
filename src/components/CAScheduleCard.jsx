@@ -40,8 +40,8 @@ const DEFAULT_MILESTONES = [
 // Singletons: only one instance allowed (no -N suffix).
 //
 // 2026-08-19: light fixtures, final inspection and TCO came OUT of this set.
-// They are per-building facts — on a four-building job the fixtures go in six
-// months apart — so the card now holds one row per building for each, the same
+// They are per-building facts, on a four-building job the fixtures go in six
+// months apart, so the card now holds one row per building for each, the same
 // way it always has for rough-ins. Older projects that stored a bare
 // "light-fixtures" or "tco" still load and display normally: getBaseType()
 // strips the suffix, and a missing suffix is simply no suffix.
@@ -252,7 +252,7 @@ function AddPicker({ milestones, onAdd, onClose }) {
 
   // Multi-phase types can always be added; singletons only if not yet present
   const addableTypes = Object.keys(MILESTONE_CONFIG).filter(type => {
-    if (!SINGLETON_TYPES.has(type)) return true; // electrical-rough, mep-rough — always addable
+    if (!SINGLETON_TYPES.has(type)) return true; // electrical-rough, mep-rough: always addable
     return !milestones.some(m => m.id === type);
   });
 
@@ -314,7 +314,7 @@ export default function CAScheduleCard({ files, projectId, onFileUpdated }) {
     }
 
     // TCO is per-building now, so it is matched by base type rather than by
-    // exact id — a bare "tco" stored by an older parse counts as present, and
+    // exact id, a bare "tco" stored by an older parse counts as present, and
     // nothing gets added twice on a project that predates the change.
     if (!result.some(m => getBaseType(m.id) === 'tco')) {
       result.push({ id: 'tco-1', label: 'TCO', date: null });
@@ -348,7 +348,7 @@ export default function CAScheduleCard({ files, projectId, onFileUpdated }) {
     let stored = [];
     try { stored = JSON.parse(scheduleFile.takeoffData || '{}')?.milestones ?? []; } catch {}
     if (stored.length > 0) return;
-    // Skip if already parsing. (No textContent precondition — /reparse re-extracts
+    // Skip if already parsing. (No textContent precondition, /reparse re-extracts
     // the PDF from disk itself, and returns a clear error if it truly can't.)
     if (autoParsing) return;
 
@@ -430,7 +430,7 @@ export default function CAScheduleCard({ files, projectId, onFileUpdated }) {
       if (!res.ok) throw new Error();
       setDirty(false);
     } catch {
-      setSaveError('Save failed — try again');
+      setSaveError('Save failed, try again');
     } finally {
       setSaving(false);
     }
@@ -467,7 +467,7 @@ export default function CAScheduleCard({ files, projectId, onFileUpdated }) {
             </p>
           ) : (
             <p className="text-[11px] text-slate-300 italic mt-0.5">
-              No schedule uploaded — enter dates manually
+              No schedule uploaded, enter dates manually
             </p>
           )}
         </div>
@@ -512,7 +512,7 @@ export default function CAScheduleCard({ files, projectId, onFileUpdated }) {
                 {m.label}
               </span>
 
-              {/* Date — inline edit on click */}
+              {/* Date, inline edit on click */}
               {isEditing ? (
                 <input
                   type="date"
@@ -547,7 +547,7 @@ export default function CAScheduleCard({ files, projectId, onFileUpdated }) {
                 !isEditing && <span className="w-16 shrink-0" />
               )}
 
-              {/* Delete button — visible on row hover */}
+              {/* Delete button, visible on row hover */}
               {!isEditing && (
                 <button
                   onClick={() => deleteMilestone(m.id)}

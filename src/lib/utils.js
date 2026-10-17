@@ -12,7 +12,7 @@ export function formatDate(dateStr) {
   });
 }
 
-// Client Type — Mike's 8 (2026-09-06). A client can be several of these at once,
+// Client Type, Mike's 8 (2026-09-06). A client can be several of these at once,
 // so the UI is a multi-select stored in Client.orgTypes as label strings; the
 // single `Client.type` column is derived from the first tick and kept for the
 // colour tags, stats and anything else already reading it.
@@ -27,7 +27,7 @@ export const CLIENT_TYPES = [
   { value: 'clientRep',                 label: 'Client Rep' },
 ];
 
-// Retired combined value — a client that was both is now two ticks. Kept so old
+// Retired combined value, a client that was both is now two ticks. Kept so old
 // rows still render a label instead of a raw key.
 const LEGACY_CLIENT_TYPE_LABELS = {
   developerSelfPerformingGc: 'Developer / Self-Performing GC',
@@ -53,7 +53,7 @@ export const LOCATION_TYPES = [
   { value: 'standalone',  label: 'Standalone' },
 ];
 
-// Developer Type — multi-select (a builder can be both). Mike 2026-09-06.
+// Developer Type, multi-select (a builder can be both). Mike 2026-09-06.
 export const DEVELOPER_TYPES = [
   { value: 'merchant',     label: 'Merchant' },
   { value: 'longTermHold', label: 'Long-Term Hold' },
@@ -89,7 +89,7 @@ export function phaseLabel(key, long = false) {
   return long ? p.long : p.label;
 }
 
-// The service-type picker. Mike 2026-09-19: "Other" was dropped — it carried no
+// The service-type picker. Mike 2026-09-19: "Other" was dropped, it carried no
 // meaning and split the reporting. It is NOT deleted from the database: any
 // project already saved as 'other' still reads "Other" everywhere, it just can
 // no longer be chosen. Same shape as the legacy status handling in pipeline.js.
@@ -112,7 +112,7 @@ export const ALL_SERVICE_TYPES = [...SERVICE_TYPES, ...LEGACY_SERVICE_TYPES];
 export const SETTABLE_SERVICE_TYPE_KEYS = SERVICE_TYPES.map(t => t.value);
 
 // The picker for ONE project. "Other" is not offered any more, but if this
-// project is still stored as 'other' the option stays in its list — otherwise
+// project is still stored as 'other' the option stays in its list, otherwise
 // opening the dropdown would show the first option and quietly change the row.
 export function serviceTypeOptions(current) {
   return [...SERVICE_TYPES, ...LEGACY_SERVICE_TYPES.filter(t => t.value === current)];
@@ -122,10 +122,10 @@ export function serviceTypeLabel(key) {
   return ALL_SERVICE_TYPES.find(t => t.value === key)?.label || key || '—';
 }
 
-// Project's asset/product type — one controlled vocabulary used across the platform
+// Project's asset/product type, one controlled vocabulary used across the platform
 // (Sales Details editor, dashboards). Distinct from BUILDING_TYPES (construction form).
 // Mike's six (2026-09-06). Stored values are unchanged where one already
-// existed — 'BTR' stays the value behind "Single Family For Rent" so no project
+// existed, 'BTR' stays the value behind "Single Family For Rent" so no project
 // row has to be rewritten.
 export const PROJECT_TYPES = [
   { value: 'Multi-Family',  label: 'Multi-Family' },

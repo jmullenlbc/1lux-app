@@ -10,7 +10,7 @@ function toInputDate(val) {
 }
 
 const FIXTURE_STATUS_OPTIONS = [
-  { value: '', label: '— None —' },
+  { value: '', label: 'None' },
   { value: 'ORDERED_NOT_DELIVERED',  label: 'Ordered / Not Delivered' },
   { value: 'UNDER_REVIEW',           label: 'Under Review' },
   { value: 'PENDING_COORDINATION',   label: 'Pending Coordination' },

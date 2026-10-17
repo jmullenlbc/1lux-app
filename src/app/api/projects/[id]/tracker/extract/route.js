@@ -28,11 +28,11 @@ async function getOrCreateTracker(projectId) {
  * POST /api/projects/[id]/tracker/extract
  *
  * Body (multipart/form-data):
- *   file        — PDF file to extract
- *   submissionName — optional name for the submission round (e.g. "R1 - Units Package")
+ *   file, PDF file to extract
+ *   submissionName, optional name for the submission round (e.g. "R1 - Units Package")
  *
  * OR Body (JSON):
- *   fileId      — ID of an existing ProjectFile to extract from
+ *   fileId, ID of an existing ProjectFile to extract from
  *   submissionName
  *
  * Pipeline:
@@ -45,7 +45,7 @@ async function getOrCreateTracker(projectId) {
  *   7. Upsert SubmittalOpenItem records
  */
 // Park-and-poll (src/lib/parkedJob.js). A submittal review round is one PDF
-// read plus up to fifty short model calls — minutes, not seconds, on a big
+// read plus up to fifty short model calls, minutes, not seconds, on a big
 // package. The first request only writes the job down; the polls run it and
 // collect it. In-flight window is the Lambda's own ceiling.
 export const maxDuration = 300;
@@ -159,7 +159,7 @@ async function extractSubmittal(args, { projectId, user }) {
     data: {
       trackerId: tracker.id,
       name:      submissionName,
-      notes:     `Auto-extracted from ${fileName} — ${rawNotes.length} notes found`,
+      notes:     `Auto-extracted from ${fileName}, ${rawNotes.length} notes found`,
     },
   });
 
@@ -225,7 +225,7 @@ async function extractSubmittal(args, { projectId, user }) {
   if (otherReviews.length > 0) {
     try {
       const Anthropic = (await import('@anthropic-ai/sdk')).default;
-      // Recorded: see src/lib/agent/ledger.js. One ledger entry per note — the
+      // Recorded: see src/lib/agent/ledger.js. One ledger entry per note, the
       // loop below is capped at 50, so the per-run cost is bounded and worth
       // recording individually rather than as one opaque batch.
       const anthropic  = wrapClient(

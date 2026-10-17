@@ -9,7 +9,7 @@ import DraftReminderBanner from '@/components/layout/DraftReminderBanner';
 import QcCapture from '@/components/qc/QcCapture';
 import GlobalAIButton from '@/components/GlobalAIButton';
 // react-hot-toast ships its own "use client", so Toaster can sit in this server
-// layout. QcCapture calls toast() — before this was mounted its messages went nowhere.
+// layout. QcCapture calls toast(), before this was mounted its messages went nowhere.
 import { Toaster } from 'react-hot-toast';
 
 // Home screen icon for signed-in staff only: public intake and portal pages
@@ -32,7 +32,7 @@ export default async function AppLayout({ children }) {
       <main className="flex-1 overflow-y-auto flex flex-col print:overflow-visible">
         <DraftReminderBanner />
         <AppBreadcrumb />
-        <div className="flex-1 pb-28 print:pb-0">
+        <div className="flex-1 pb-28 md:pb-8 print:pb-0">
           {children}
         </div>
         <div className="print:hidden">

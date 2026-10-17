@@ -46,7 +46,7 @@ export default function ProjectSidebar({ config, activeTab, onTabChange, userId,
     );
   }
 
-  // All items flat — for rail
+  // All items flat, for rail
   const allItems = config.flatMap(s => s.items);
 
   // ── Collapsed rail ──────────────────────────────────────────────────────────

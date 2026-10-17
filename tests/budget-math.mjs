@@ -1,8 +1,8 @@
 /**
- * ILC Budget Math — Test Harness
+ * ILC Budget Math, Test Harness
  *
  * Stress-tests the calculateBudget() function in src/lib/calculations.js
- * with controlled scenarios. Pure-function testing — does not touch the
+ * with controlled scenarios. Pure-function testing, does not touch the
  * database, the UI, or production.
  *
  * Run with:   npx tsx _tests/budget-math.mjs
@@ -82,7 +82,7 @@ function summarize(result) {
 }
 
 // ───────────────────────────────────────────────────────────────────────────
-// Scenario 1: Baseline residential — show what the engine produces
+// Scenario 1: Baseline residential, show what the engine produces
 // ───────────────────────────────────────────────────────────────────────────
 
 section('SCENARIO 1: Baseline 200-unit multifamily (no questionnaire overrides)');
@@ -107,7 +107,7 @@ const baselinePD = {
   buildingFootprintSf:  30000,
   numAccentDownlights:      0,
   buildingTypeKey:    'midRise',
-  salesTaxPct:           0.0915,  // ~9.15% — typical
+  salesTaxPct:           0.0915,  // ~9.15%, typical
 };
 
 const result1 = calculateBudget(baselinePD, {});
@@ -148,10 +148,10 @@ assert(
 );
 
 // ───────────────────────────────────────────────────────────────────────────
-// Scenario 3: Energy credit — does it compound through F/W/T?
+// Scenario 3: Energy credit, does it compound through F/W/T?
 // ───────────────────────────────────────────────────────────────────────────
 
-section('SCENARIO 3: Energy credit — 3% ADDER on lighting AND controls subtotals (Mike 2026-09-01)');
+section('SCENARIO 3: Energy credit, 3% ADDER on lighting AND controls subtotals (Mike 2026-09-01)');
 
 const noCredit   = calculateBudget(baselinePD, { controls: { energyCredit: 'no'  } });
 const withCredit = calculateBudget(baselinePD, { controls: { energyCredit: 'yes' } });
@@ -197,10 +197,10 @@ assert(
 );
 assert(
   withCredit.totalWithControls > noCredit.totalWithControls,
-  'Energy credit INCREASES total (adder, not reduction — Mike 2026-09-01)'
+  'Energy credit INCREASES total (adder, not reduction, Mike 2026-09-01)'
 );
 
-// LEED no longer carries a special controls multiplier — any program prices
+// LEED no longer carries a special controls multiplier, any program prices
 // identically ("forget my controls 20% multiplier").
 const leedBudget = calculateBudget(baselinePD, { controls: { energyCredit: 'yes', energyCreditProgram: 'leed' } });
 assert(
@@ -224,7 +224,7 @@ assert(
 );
 
 // ───────────────────────────────────────────────────────────────────────────
-// Scenario 4: Controls override — does it replace or compound?
+// Scenario 4: Controls override, does it replace or compound?
 // ───────────────────────────────────────────────────────────────────────────
 
 section('SCENARIO 4: Controls override behavior');
@@ -251,10 +251,10 @@ assert(
 );
 
 // ───────────────────────────────────────────────────────────────────────────
-// Scenario 5: Zero / missing input edge cases — does it crash?
+// Scenario 5: Zero / missing input edge cases, does it crash?
 // ───────────────────────────────────────────────────────────────────────────
 
-section('SCENARIO 5: Edge cases — empty / zero / missing inputs');
+section('SCENARIO 5: Edge cases, empty / zero / missing inputs');
 
 const zeroAll   = calculateBudget({}, {});
 const zeroUnits = calculateBudget({ ...baselinePD, numUnits: 0 }, {});
@@ -273,7 +273,7 @@ assert(zeroAll.perUnit === 0,                'numUnits=0 produces perUnit = 0 (n
 assert(zeroSf.perSf === 0,                   'grossSf=0 produces perSf = 0 (not NaN/Infinity)');
 
 // ───────────────────────────────────────────────────────────────────────────
-// Scenario 6: Large project — does the math still make sense?
+// Scenario 6: Large project, does the math still make sense?
 // ───────────────────────────────────────────────────────────────────────────
 
 section('SCENARIO 6: Large project sanity (1M SF, 1000 units)');
@@ -296,11 +296,11 @@ console.log('');
 console.log('  Sanity check: per-SF and per-unit should be in same ballpark as baseline');
 console.log(`  baseline per SF was $${result1.perSf}, large is $${largeResult.perSf}`);
 
-assert(largeResult.perSf > 0 && largeResult.perSf < 50,    'large project per-SF in sane range ($0–$50)');
-assert(largeResult.perUnit > 0 && largeResult.perUnit < 50000, 'large project per-unit in sane range ($0–$50K)');
+assert(largeResult.perSf > 0 && largeResult.perSf < 50,    'large project per-SF in sane range ($0 to $50)');
+assert(largeResult.perUnit > 0 && largeResult.perUnit < 50000, 'large project per-unit in sane range ($0 to $50K)');
 
 // ───────────────────────────────────────────────────────────────────────────
-// Scenario 7: Building type matrix — controls behavior across all 9 types
+// Scenario 7: Building type matrix, controls behavior across all 9 types
 // ───────────────────────────────────────────────────────────────────────────
 
 section('SCENARIO 7: Building type controls comparison (same project, different type)');
@@ -336,7 +336,7 @@ assert(thNoClub.controls === 0, 'townHouses with no clubhouse SF produces $0 con
 // Verify the controls cap at very large grossSf. TWO ceilings apply and the
 // LOWER one wins: the building type's own cap, and the sheet-wide "never over
 // $180K". This assertion used to expect a flat $180,000 for every type, which
-// was the bug fixed 2026-09-04 — the sheet-wide cap was silently REPLACING the
+// was the bug fixed 2026-09-04, the sheet-wide cap was silently REPLACING the
 // type cap, so a garden project could be charged $180K of controls against its
 // own $65K ceiling.
 const huge = calculateBudget({ ...baselinePD, grossSf: 5000000, buildingTypeKey: 'midRise' }, {});
@@ -346,7 +346,7 @@ assert(huge.controls === 175000, 'mid-rise stops at its own $175,000 cap, below 
 // sheet-wide cap is the one that bites. Between them the two assertions prove
 // the lower ceiling wins in both directions.
 const hugeHR = calculateBudget({ ...baselinePD, grossSf: 5000000, buildingTypeKey: 'highRise' }, {});
-assert(hugeHR.controls === 190000, 'high-rise stops at $190,000 — its own cap and the sheet-wide cap agree (Mike 2026-09-24)');
+assert(hugeHR.controls === 190000, 'high-rise stops at $190,000: its own cap and the sheet-wide cap agree (Mike 2026-09-24)');
 
 // And the case that started it: a garden project must never be dragged up to
 // the sheet-wide number.
@@ -421,7 +421,7 @@ assert(Math.abs(stdNetAdder - (expectedStd - plainGarageVal)) < 0.01, 'standard 
 assert(Math.abs(enhNetAdder - (expectedEnh - plainGarageVal)) < 0.01, 'enhanced garage adder = expected - plain');
 
 // ───────────────────────────────────────────────────────────────────────────
-// Scenario 11: Emergency strategies — same project, all 6 strategies
+// Scenario 11: Emergency strategies, same project, all 6 strategies
 // ───────────────────────────────────────────────────────────────────────────
 
 section('SCENARIO 11: Emergency strategies comparison');
@@ -486,10 +486,10 @@ assert(overrideFans.fanCount === 73, 'explicit pd.numFans overrides the multipli
 // ───────────────────────────────────────────────────────────────────────────
 // Scenario X: REALISTIC 350-unit midRise with typical questionnaire choices
 // ───────────────────────────────────────────────────────────────────────────
-// Mason said "$267K seems pretty low" — but baseline used an empty questionnaire.
+// Mason said "$267K seems pretty low", but baseline used an empty questionnaire.
 // Realistic projects have actual unit/corridor/exterior choices made. Show what
 // a representative full-questionnaire project produces and verify it lands in
-// Mike's stated $500K–$1.9M procurement range.
+// Mike's stated $500K, $1.9M procurement range.
 
 section('SCENARIO X: Realistic 350-unit midRise (Mason calibration check)');
 
@@ -537,21 +537,21 @@ const realisticResponses = {
 const realistic = calculateBudget(realisticPD, realisticResponses);
 summarize(realistic);
 console.log('');
-console.log('  Mike said: typical project procurement is $500K–$1.9M average.');
+console.log('  Mike said: typical project procurement is $500K to $1.9M average.');
 console.log('  Mason said: $267K (empty questionnaire) was likely low if it included controls + site.');
 console.log(`  Realistic-questionnaire total: ${$(realistic.totalWithControls)}`);
 console.log(`  Per-unit: ${$(realistic.perUnit)} | per-SF: $${realistic.perSf.toFixed(2)}`);
 
 assert(
   realistic.totalWithControls >= 400000 && realistic.totalWithControls <= 2000000,
-  'Realistic 350-unit midRise lands in $400K–$2M range (Mike\'s stated procurement bracket)'
+  'Realistic 350-unit midRise lands in $400K to $2M range (Mike\'s stated procurement bracket)'
 );
 
 // ───────────────────────────────────────────────────────────────────────────
 // Scenario 13: Misc design adders (spot check several at once)
 // ───────────────────────────────────────────────────────────────────────────
 
-section('SCENARIO 13: Design adders — spot check individual adders');
+section('SCENARIO 13: Design adders, spot check individual adders');
 
 const baseR = calculateBudget(baselinePD, {});
 const baseAdder = baseR.sections.designAdder.product;
@@ -586,7 +586,7 @@ assert(Math.abs((elevStair.sections.designAdder.product - baseAdder) - expectedS
   'stairwell elevated adder = $50 × numEgressStairwells');
 
 // ───────────────────────────────────────────────────────────────────────────
-// Scenario 14: Building wallpacks — per-building model + qty/price overrides
+// Scenario 14: Building wallpacks, per-building model + qty/price overrides
 // ───────────────────────────────────────────────────────────────────────────
 // Wired 2026-08-12. wallpacks = buildings × perBuilding[type] (+ clubhouse on
 // horizontal types) × $350. numBuildings wins; walk-ups fall back to
@@ -647,13 +647,13 @@ console.log(`  exterior delta w/ vs w/o line:   ${$(exWith - exWithout)} (expect
 assert(Math.abs((exWith - exWithout) - expectedWpDelta) < 0.01, 'exterior total carries wallpacks × 1.05 misc buffer');
 
 // The old door-sconce line is GONE (2026-08-12, Mike: "These are the same...
-// delete the old one"). Doors must price $0 — the wallpack line covers them.
+// delete the old one"). Doors must price $0, the wallpack line covers them.
 const doorsPD   = { ...lowellPD, numExteriorDoors: 40 };
 const exDoors   = calculateBudget(doorsPD, {}).sections.exterior;
 const exNoDoors = calculateBudget({ ...doorsPD, numExteriorDoors: 0 }, {}).sections.exterior;
 console.log(`  40 doors vs 0 doors exterior:    ${$(exDoors.total.product)} vs ${$(exNoDoors.total.product)}`);
 assert(exDoors.doors === undefined, 'sections.exterior.doors no longer exists (sconce line deleted)');
-assert(Math.abs(exDoors.total.product - exNoDoors.total.product) < 0.01, 'door count moves NO exterior dollars — wallpacks are the one door-fixture line');
+assert(Math.abs(exDoors.total.product - exNoDoors.total.product) < 0.01, 'door count moves NO exterior dollars: wallpacks are the one door-fixture line');
 
 // ───────────────────────────────────────────────────────────────────────────
 // Summary

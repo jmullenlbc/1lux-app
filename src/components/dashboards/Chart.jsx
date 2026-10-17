@@ -1,5 +1,5 @@
 'use client';
-// Self-contained Bar / Line chart (SVG only — no external lib, CSP-safe).
+// Self-contained Bar / Line chart (SVG only, no external lib, CSP-safe).
 // props: { chartType:'BAR'|'LINE', series:[{label,value}], unit?, height? }
 
 function fmtVal(v, unit) {

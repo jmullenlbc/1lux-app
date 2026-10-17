@@ -17,7 +17,7 @@ function n(val, fallback = 0) {
 }
 
 /**
- * Fan room multipliers — fractional values are intentional.
+ * Fan room multipliers, fractional values are intentional.
  * Accounts for unit mix (not every unit has every room type).
  * Total fan count = pd.numFans if set, else ROUND(numUnits × multiplier)
  */
@@ -37,12 +37,12 @@ const FAN_ROOMS = {
  *
  * Master pricing is the default. If someone types a number into the override box
  * on a question, THAT number becomes the price the engine multiplies by the count.
- * What you type is what you get — no credits, no adjustments applied on top of it.
+ * What you type is what you get, no credits, no adjustments applied on top of it.
  * That matters most for vanities and fans, where master pricing carries a hidden
  * credit ($45 bath bar, $35 disk); an override skips that math entirely, because
  * a person typing "$200 per vanity" means $200, not $200 minus something.
  *
- * Returns the override price, or null meaning "no override — use master pricing".
+ * Returns the override price, or null meaning "no override, use master pricing".
  *
  * Blank is not an override. Neither is the string 'auto', which is what the form
  * writes when someone CLEARS the box. It has to write something non-blank: the
@@ -63,10 +63,10 @@ export function priceOverride(raw) {
 /**
  * A project's frozen pricing snapshot only knows the lines that existed the day
  * the project was created. Lines added since (wallpacks, pathway, landscape
- * caps, the solar multipliers…) are simply absent from it — and absent read as
+ * caps, the solar multipliers…) are simply absent from it, and absent read as
  * $0, which is how every April project came to show $0 wallpacks and $0
  * pathway on its live page. Snapshot values still win for every key they carry;
- * missing keys fall through to the master sheet — the same rule loadPricing()
+ * missing keys fall through to the master sheet, the same rule loadPricing()
  * applies to the saved DB record.
  */
 export function fillPricingDefaults(defaults, override) {
@@ -110,14 +110,14 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   const numUnits       = n(pd.numUnits);
   // Never more balconies than units (Mike, 2026-09-24), whatever was typed or read.
   const numBalconies   = numUnits > 0 ? Math.min(n(pd.numBalconies), numUnits) : n(pd.numBalconies);
-  // Whole numbers only — a half bath still gets a vanity light (Mike, 2026-09-24).
+  // Whole numbers only, a half bath still gets a vanity light (Mike, 2026-09-24).
   const numVanities    = Math.ceil(n(pd.numVanities) || n(pd.numBathrooms));
   const corridorSf     = n(pd.corridorSf);
   const intAmenitySf   = n(pd.interiorAmenitySf);
   const extAmenitySf   = n(pd.exteriorAmenitySf);
   const garageSf       = n(pd.garageSf);
   // BOH is hard-capped at a % of gross SF (Mike: "BOH should never be more
-  // than 5% of the Gross SF") — protects against the remainder-derived BOH
+  // than 5% of the Gross SF"), protects against the remainder-derived BOH
   // swallowing corridors/walls when corridor SF is unknown.
   const bohSfEntered   = n(pd.bohSf);
   const bohCapSf       = grossSf > 0 ? Math.round(grossSf * n(PRICING.boh.maxPctOfGross, 0.05)) : null;
@@ -127,14 +127,14 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   const stallEstimate  = surfaceStalls(pd, PRICING);
   const surfaceParking = stallEstimate.stalls;
   // Garages and carports only count on the building types that have them
-  // (Mike 2026-09-13). Judged on the type actually chosen — not the mid-rise
-  // fallback — so a project with no type yet keeps whatever was typed.
+  // (Mike 2026-09-13). Judged on the type actually chosen, not the mid-rise
+  // fallback, so a project with no type yet keeps whatever was typed.
   const chosenTypeKey  = pd.buildingTypeKey || controls.buildingType || controls.projectType || null;
   const numCarports    = allowsCarports(chosenTypeKey) ? n(pd.numCarports) : 0;
   const numGarages     = allowsGarages(chosenTypeKey)  ? n(pd.numGarages)  : 0;
   const lotSf          = n(pd.lotSf);
   const footprintSf    = n(pd.buildingFootprintSf);
-  // Sporadic site features (dog park, courtyard, playground, courts, turf —
+  // Sporadic site features (dog park, courtyard, playground, courts, turf
   // Mike 2026-09-16). An array of {type, count, lengthFt}: the internal wizard
   // loads the project's SiteFeature rows into it, the public estimate builds
   // it from the takeoff rows. Empty = nothing found or typed = $0.
@@ -154,7 +154,7 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
 
   // Kitchen pendants
   // An override only applies to a selected upgrade. If the answer is "None" the
-  // line is zero no matter what price is sitting in the override box — otherwise
+  // line is zero no matter what price is sitting in the override box, otherwise
   // a stale override would quietly charge for something the project said no to.
   const pendantPricing  = PRICING.kitchenPendants[units.kitchenPendants || 'none'] || PRICING.kitchenPendants.none;
   const pendantsChosen  = (units.kitchenPendants || 'none') !== 'none';
@@ -167,11 +167,11 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   // otherwise fall back to ROUND(numUnits × room multiplier)
   const fanMult  = FAN_ROOMS[units.fans || 'none'] ?? 0;
   const fanCount = n(pd.numFans) > 0 ? n(pd.numFans) : Math.round(numUnits * fanMult);
-  // Two price ladders, decided by whether a fan finish level has been chosen —
+  // Two price ladders, decided by whether a fan finish level has been chosen
   // both GROSS on the sheet, both net of the $35 disk credit here (a 12" disk
   // comes out of the base when a fan goes in):
   //   - no level yet (conceptual budget): the flat conceptual fan price from
-  //     the master pricing sheet — never a number typed in here (Mike
+  //     the master pricing sheet, never a number typed in here (Mike
   //     2026-09-16: "There shouldn't be a coded price for fans. It should
   //     always pull from the master pricing sheet and should be $175 entered
   //     in there."), so $175 − $35 = $140 per fan at today's sheet;
@@ -188,7 +188,7 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
       ? Math.max(0, n(PRICING.fans.conceptualPerFan) - fanDiskCredit)
       : n(PRICING.fans?.adderPerFan, 145);
   }
-  // Override is the NET adder per fan — the $35 disk credit is NOT subtracted from
+  // Override is the NET adder per fan, the $35 disk credit is NOT subtracted from
   // it. Typing $200 means $200 per fan.
   const fanOverride = (units.fans || 'none') !== 'none' ? priceOverride(units.fansPrice) : null;
   if (fanOverride !== null) fanPricePerFan = fanOverride;
@@ -199,7 +199,7 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   const vanityCredit   = n(PRICING.vanityBathBarCredit, 45);
   const vanityPricing  = PRICING.vanity[units.vanity || 'bathBarLow'] || PRICING.vanity.bathBarLow;
   const vanityGross    = n(vanityPricing.product);
-  // Override is the NET adder per vanity — the $45 bath-bar credit is NOT taken off
+  // Override is the NET adder per vanity, the $45 bath-bar credit is NOT taken off
   // it. 'bathBarLow' IS the base (no upgrade selected), so no override applies there.
   const vanityChosen   = (units.vanity || 'bathBarLow') !== 'bathBarLow';
   const vanityOverride = vanityChosen ? priceOverride(units.vanityPrice) : null;
@@ -246,7 +246,7 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   // Stairwells. Enclosed corridor-building stairs: LED strip + battery per
   // landing. Breezeway stairs (the Corridors "stair type" answer, else garden /
   // stacked flats / gurban): the same landing × the small (1.125) or long
-  // (1.225) breezeway multiplier — or the average of the two (1.175) until the
+  // (1.225) breezeway multiplier, or the average of the two (1.175) until the
   // drawings show which (Mike 2026-09-14). Same landings count feeds both.
   const breezewayStairs  = breezewayStairPackage(
     { landings: stairwells, stories: n(pd.numFloors), buildingTypeKey, stairType: corridors.stairType, style: corridors.breezewayStyle },
@@ -309,8 +309,8 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   const stallsPerFixture = PRICING.exterior.surfaceParking.stallsPerFixture ?? 9;
   // Drive-lane area lights: the same area light + pole, along a private drive
   // with no parking lot to hang them on (a townhouse community's one road).
-  // Two ways in: a drive LENGTH (feet) — one light per the width of 9 stalls,
-  // 81 ft (Mike 2026-09-13) — or a straight COUNT from the estimate
+  // Two ways in: a drive LENGTH (feet), one light per the width of 9 stalls,
+  // 81 ft (Mike 2026-09-13), or a straight COUNT from the estimate
   // (quantities.js driveLaneLights). A length wins; 0 unless something passed one.
   // A typed drive length wins. Homes only: a site read (0114) fills in when
   // nothing is typed.
@@ -332,7 +332,7 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
     ? Math.max(0, Math.round(areaLightsOverride))
     : driveLaneFt > 0 ? Math.max(stallFixtures, driveLaneLights)
     : stallFixtures + driveLaneLights;
-  // Solar site design multiplies the area-lighting (surface parking) line —
+  // Solar site design multiplies the area-lighting (surface parking) line
   // each fixture carries its own panel, battery and controller. Mike 2026-09-04
   // (Fulshear review): "Solar lighting should add 2.5x to the area lighting.
   // Should have a note that labor should be reduced dramatically because of no
@@ -349,11 +349,11 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   const carportProduct   = Math.floor(numCarports / 2) * PRICING.exterior.carport.diskEveryOther;
   const garageExtProduct = numGarages * n(PRICING.exterior.detachedGarage.stripPerGarage, 65); // 1 strip per garage (Mike 10-2)
 
-  // Building wallpacks — per-BUILDING model, wired per Mike 2026-08-12: "Wire it
+  // Building wallpacks, per-BUILDING model, wired per Mike 2026-08-12: "Wire it
   // but give us a manual override of quantity and unit price."
   //
   // This line REPLACED the old "exterior door sconces" line (doors × $212.50
-  // avg) on 2026-08-12 — Mike: "These are the same, so we need to use what we
+  // avg) on 2026-08-12, Mike: "These are the same, so we need to use what we
   // figured out today and delete the old one." One fixture, one line. The
   // numExteriorDoors project field survives; drawing takeoffs will use it to
   // refine the wallpack count.
@@ -386,9 +386,9 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   const wpEach         = priceOverride(exterior.wallpacksPrice) ?? (wp.perFixture ?? 350);
   const wallpackProduct = wpQty * wpEach;
 
-  // Landscape: 2% of NET lot SF — lot minus the building footprint (the ground
+  // Landscape: 2% of NET lot SF, lot minus the building footprint (the ground
   // the fixtures can actually sit on). Mike 2026-09-04: "net lot". Before that
-  // the line multiplied the FULL lot (which is what the Excel does too — one
+  // the line multiplied the FULL lot (which is what the Excel does too, one
   // of the reasons Excel and app landscape figures differ on big sites). Falls
   // back to the full lot when no footprint is on file rather than pricing $0.
   //
@@ -398,7 +398,7 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   // landscape additions through `exteriorManualItems.manualExteriorAdder`
   // instead. Engine reference removed 2026-06-22 along with the only
   // remaining project that used it (Mike's "The Approach").
-  // Capped at landscape.maxTotal — the questionnaire's stated ceiling. The rate
+  // Capped at landscape.maxTotal, the questionnaire's stated ceiling. The rate
   // and the cap both come from master pricing now; this line used to hardcode
   // 0.02 and ignore PRICING.exterior.landscape entirely, so editing the rate in
   // the pricing admin had no effect on any budget.
@@ -415,7 +415,7 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   const exteriorOverrideVal  = n(exterior.exteriorOverride);
   const exteriorOverrideUsed = exteriorOverrideVal > 0;
 
-  // Manual adder section: the 3 items the formula does NOT compute — pathway
+  // Manual adder section: the 3 items the formula does NOT compute, pathway
   // lighting, parking entrances, and a catch-all manual adder. These ADD on
   // top of the formula breakdown and DO participate in the 5% misc buffer
   // calculation per Mike's decision 2026-06-22 (the buffer is a "general
@@ -435,12 +435,12 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   // (exterior.pathway.dollarsPerUnit), floored at pathway.minTotal for any
   // project with real scale. Wired 2026-09-04 on Mike's sign-off of the
   // corrected table (townhome $320 kept, wrap $60, garden/stacked/gurban $60,
-  // podium/mid/high $35 — his numbers, all inside the observed calibration
+  // podium/mid/high $35, his numbers, all inside the observed calibration
   // bands). A hand-entered pathway figure in exteriorManualItems wins and
-  // SUPPRESSES the model line — projects like Modera Town Lake carry a real
+  // SUPPRESSES the model line, projects like Modera Town Lake carry a real
   // counted number there, and the model must not stack on top of it.
   // Zero-scale (no units) prices at $0, same rule as wallpacks.
-  // Solar sites bump the MODEL line by pathway.solarMultiplier (1.6 — Mike
+  // Solar sites bump the MODEL line by pathway.solarMultiplier (1.6, Mike
   // 2026-09-04; solar bollards run ~1.5× conventional on the Avilla actuals).
   // Applied after the floor so a floored site still gets the solar premium.
   const pwRates        = PRICING.exterior.pathway?.dollarsPerUnit || {};
@@ -518,14 +518,14 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
     designAdderTotal += numUnits * n(PRICING.designUpgrades?.boilerRoomDisk, 15);
   }
 
-  // Living room: (4) small disks vs (1) 12" disk — $34/unit adder
+  // Living room: (4) small disks vs (1) 12" disk, $34/unit adder
   if (units.livingRoomDisks === '4small') {
     designAdderTotal += numUnits * n(PRICING.designUpgrades?.livingRoom4Disks, 34);
   }
 
-  // Entry disk upgrade — 12" oversized or decorative surface mount.
+  // Entry disk upgrade, 12" oversized or decorative surface mount.
   // Default 'typical' (5"/7" disk, included in base) has no adder.
-  // Both answers are saved on the Units step, so they live under `units` —
+  // Both answers are saved on the Units step, so they live under `units`
   // reading them off the top-level responses (as this did before 2026-09-12)
   // never found them, and the upgrade the screen showed was never charged.
   // 'upgraded12' is the older spelling of the 12" answer.
@@ -536,7 +536,7 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   }
 
   // 52" fan upgrade over the 48" default (only counts when fans are present).
-  // Master pricing sets this to $0 today — no upcharge, per Mike.
+  // Master pricing sets this to $0 today, no upcharge, per Mike.
   if (units.fanSize52 === 'yes' && fanCount > 0) {
     designAdderTotal += fanCount * n(PRICING.designUpgrades?.fanSize52Adder, 0);
   }
@@ -546,10 +546,10 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
     designAdderTotal += stairwells * n(PRICING.designCorridors?.stairwellElevatedAdder, 50);
   }
 
-  // Garage design level — replaces the flat garage $/SF. Rates come from master
+  // Garage design level, replaces the flat garage $/SF. Rates come from master
   // pricing (designGarage); the fallbacks match the sheet. 'standard'/'medium'
   // is the base level, 'enhanced'/'high' the upgraded one.
-  // Only the BASE garage line is swapped out — a typed garage manual adder
+  // Only the BASE garage line is swapped out, a typed garage manual adder
   // stays on top (it used to be wiped out here).
   if (corridors.garageDesignLevel && garageSf > 0) {
     const DG = PRICING.designGarage || {};
@@ -571,7 +571,7 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
     designAdderTotal += garageDesignTotal - garageBaseProduct;
   }
 
-  // Exit sign type — count-based for all three types. Replaces only the base
+  // Exit sign type, count-based for all three types. Replaces only the base
   // exit-sign line; a typed exit-sign manual adder stays on top.
   // Count and price live out here so the per-answer cost table can reuse them.
   const DX = PRICING.designExitSigns || {};
@@ -613,7 +613,7 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   lightingProductSubtotal += energyCreditLighting;
 
   // ─── CONTROLS ─────────────────────────────────────────────────────────────
-  // Controls apply to total gross SF (IECC 2021 — Excel-verified)
+  // Controls apply to total gross SF (IECC 2021, Excel-verified)
   const buildingType = buildingTypeKey;
   const ctrlRate     = PRICING.controls.rates[buildingType] || PRICING.controls.rates.midRise;
   // Two ceilings, and the lower one wins: the building type's own cap (garden
@@ -641,7 +641,7 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   let controlsProduct = Math.min(controlsFormula, controlsCap);
   const controlsCapped = controlsFormula > controlsCap;
 
-  // Manual override — an explicit override replaces the formula result.
+  // Manual override, an explicit override replaces the formula result.
   const controlsOverrideVal = n(controls.controlsOverride);
   if (controlsOverrideVal > 0) controlsProduct = controlsOverrideVal;
 
@@ -667,11 +667,11 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
 
   const totalWithControls = subtotalLightingOnly + controlsTotal;
 
-  // Contingency — held against the lighting product subtotal as a separate
+  // Contingency, held against the lighting product subtotal as a separate
   // line item beneath the totals. UI lives on the Project Data step (design
   // mode for now); engine honors the stored value regardless of mode.
   // Selection values: 'none' / undefined → 0, '5pct' → 0.05, '10pct' → 0.10.
-  // Applied to lightingProductSubtotal per the UI note "5–10% of lighting
+  // Applied to lightingProductSubtotal per the UI note "5 to 10% of lighting
   // subtotal." Does NOT trigger additional freight/warehousing.
   const contingencyRate =
         projectDataR.contingency === '5pct'  ? 0.05
@@ -704,7 +704,7 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
     };
   };
 
-  // Undercabinet: 5 ft per kitchen on average (Mike 2026-09-13) — 120V in 24"
+  // Undercabinet: 5 ft per kitchen on average (Mike 2026-09-13), 120V in 24"
   // pieces, low voltage per foot of tape.
   const ucKey = units.undercabinet || 'none';
   const ucFt  = n(L.undercabinetFtPerUnit, 5);
@@ -718,7 +718,7 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   const pendantsPerUnit = pKey.startsWith('threeSmall') ? 3 : pKey.startsWith('twoMedium') ? 2 : pKey === 'none' ? 0 : 1;
   addQ('units.kitchenPendants', [pendantsChosen && line('Kitchen pendants', numUnits, 'units', pendantsUnit, pendantsPerUnit * lab('pendant'))]);
 
-  // Fans — the fan-rooms answer and the design fan-level answer share one line.
+  // Fans, the fan-rooms answer and the design fan-level answer share one line.
   const fansLine = fanCount > 0 ? line('Ceiling fans', fanCount, 'fans', fanPricePerFan, lab('ceilingFan')) : null;
   addQ('units.fans',     [fansLine]);
   addQ('units.fanLevel', [fansLine]);
@@ -786,11 +786,11 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   // Site features: one line per feature kind found. Both fixture kinds are
   // pole-set and trenched to, so they carry the area-pole labor.
   addQ('exterior.siteFeatures', siteFeatures.items.map(it => it.fixtures > 0 && line(
-    `${it.label} — ${it.fixtureKind === 'areaLight' ? 'area lights' : '12 ft pedestrian poles'}`,
+    `${it.label}: ${it.fixtureKind === 'areaLight' ? 'area lights' : '12 ft pedestrian poles'}`,
     it.fixtures, it.fixtureKind === 'areaLight' ? 'area lights' : 'poles', it.each, poleLabor,
   )));
 
-  // $/SF lines — cost only, no labor (Mike 2026-09-13: "Leave labor off of those").
+  // $/SF lines, cost only, no labor (Mike 2026-09-13: "Leave labor off of those").
   const sfLine = (label, product) => product > 0 ? { label, count: null, countLabel: null, each: null, product, laborEach: null, labor: 0 } : null;
   addQ('amenities.interiorLevel', [sfLine('Interior amenity lighting', intAmenityBaseProduct)]);
   addQ('exterior.amenityLevel',   [sfLine('Exterior amenity lighting', extAmenityProduct)]);
@@ -840,7 +840,7 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
         stairwells: {
           product:   stairwellProduct,
           landings:  stairwells,
-          // Set only for breezeway walk-ups — the per-stair fixture package
+          // Set only for breezeway walk-ups, the per-stair fixture package
           // behind the dollars, so any view can show the counts.
           breezeway: breezewayStairs,
         },
@@ -865,7 +865,7 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
         },
         carports:  { product: carportProduct       },
         garages:   { product: garageExtProduct     },
-        // `doors` (sconce line) removed 2026-08-12 — same fixture as wallpacks.
+        // `doors` (sconce line) removed 2026-08-12, same fixture as wallpacks.
         wallpacks: {
           product:       wallpackProduct,
           qty:           wpQty,
@@ -875,7 +875,7 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
           qtyOverridden:   priceOverride(exterior.wallpacksQty)   != null,
           priceOverridden: priceOverride(exterior.wallpacksPrice) != null,
         },
-        // Landscape — NET lot (lot − footprint) × pct, capped. `netLotSf` and
+        // Landscape, NET lot (lot − footprint) × pct, capped. `netLotSf` and
         // `capped` let every view print the same math the engine ran.
         landscape: {
           product:  landscapeFlat,
@@ -886,11 +886,11 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
           capped:   landscapeRaw > landscapeCap,
           upgradedMultiplier,
         },
-        // Pathway lighting — model line wired 2026-09-04. `suppressedByManual`
+        // Pathway lighting, model line wired 2026-09-04. `suppressedByManual`
         // means a hand-entered exteriorManualItems.pathwayLighting figure is
         // carrying the scope instead (it rides in manualAdderTotal).
         // `solarMultiplier` is 1 on conventional sites, pathway.solarMultiplier
-        // (1.6) on solar sites — already baked into `product`.
+        // (1.6) on solar sites, already baked into `product`.
         pathway: {
           product:            pathwayProduct,
           rate:               pathwayRate,
@@ -904,7 +904,7 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
           bollardsDeclined:   pathwayBollardsDeclined,
         },
         // Site features (Mike 2026-09-16): dog parks, courtyards, playgrounds,
-        // tennis / pickleball courts, turf play areas — each its own fixture
+        // tennis / pickleball courts, turf play areas, each its own fixture
         // package. `items` is one row per kind with its fixture count and how
         // it was worked out; empty when nothing was found or typed.
         siteFeatures: {
@@ -918,7 +918,7 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
         // summary/sidebar to display.
         solar: solarSite ? {
           multiplier: solarMultiplier,
-          note: 'Solar site lighting: install labor should be reduced dramatically — no trenching, conduit, or wire runs to the poles.',
+          note: 'Solar site lighting: install labor should be reduced dramatically: no trenching, conduit, or wire runs to the poles.',
         } : null,
         misc:      { product: extMiscBuffer        },
         formulaTotal:     exteriorFormulaTotal,
@@ -931,7 +931,7 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
         strategy:    strategyKey,
         manualAdder: emergencyManualAdder,
         // Battery-in-every-other-fixture garage backup (every strategy but
-        // generator, when there is a garage) — the count behind the dollars.
+        // generator, when there is a garage), the count behind the dollars.
         garageBatteries: emergencyCost.garageBattery
           ? { count: emergencyCost.batteryCount, cost: emergencyCost.batteryCost }
           : null,

@@ -1489,7 +1489,7 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
   const lightingItems  = items.filter(i => i.section !== 'controls');
   const controlsItems  = items.filter(i => i.section === 'controls');
 
-  // Raw CN sums — round the sum of already-rounded per-row totals
+  // Raw CN sums, round the sum of already-rounded per-row totals
   const rawLighting = r2(lightingItems.reduce((s, i) => s + (i.totalSavings || 0), 0));
   const rawControls = r2(controlsItems.reduce((s, i) => s + (i.totalSavings || 0), 0));
   const rawTotal    = r2(rawLighting + rawControls);
@@ -1499,13 +1499,13 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
   const warehousingPctVal = warehousingPct ?? 0.03;
   const salesTaxPctVal    = salesTaxPct    ?? 0;
 
-  // Adder amounts — each rounded independently before summing
+  // Adder amounts, each rounded independently before summing
   const freightAmt     = r2(rawTotal * freightPctVal);
   const warehousingAmt = r2(rawTotal * warehousingPctVal);
   const salesTaxAmt    = r2(rawTotal * salesTaxPctVal);
   const totalAdders    = r2(freightAmt + warehousingAmt + salesTaxAmt);
 
-  // Loaded subtotals — apply adders proportionally, each rounded
+  // Loaded subtotals, apply adders proportionally, each rounded
   const subtotalLighting = r2(rawLighting + r2(rawLighting * (freightPctVal + warehousingPctVal + salesTaxPctVal)));
   const subtotalControls = r2(rawControls + r2(rawControls * (freightPctVal + warehousingPctVal + salesTaxPctVal)));
   const grandTotal       = r2(rawTotal + totalAdders);
@@ -1627,7 +1627,7 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
               <span className="text-[11px] font-bold uppercase tracking-wide" style={{ color: isDesignBid ? '#7c3aed' : '#2563eb' }}>
                 {isDesignBid ? 'Design Bid Matrix' : 'Budget Matrix'}
               </span>
-              {/* Version selector — matches Fixture Schedule pattern */}
+              {/* Version selector, matches Fixture Schedule pattern */}
               {bidHistory.length > 0 && (
                 <select
                   value={selectedBidVer ?? 'live'}
@@ -1775,7 +1775,7 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
             </svg>
             Budget Settings
           </button>
-          {/* Matrix type toggle — far right */}
+          {/* Matrix type toggle, far right */}
           <button
             onClick={handleToggleRequest}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-colors print:hidden"
@@ -1809,7 +1809,7 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
         {/* ── Summary widgets ── */}
         <div className="grid grid-cols-7 gap-3 mb-5">
 
-          {/* Gross SF — editable */}
+          {/* Gross SF, editable */}
           <div className="bg-white rounded-xl border border-slate-200 px-3 py-3">
             <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-1">Total Gross SF</div>
             <Cell value={grossSf} placeholder="—" numeric
@@ -1817,7 +1817,7 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
               className="text-lg font-bold text-slate-700 w-full" />
           </div>
 
-          {/* # Units — editable */}
+          {/* # Units, editable */}
           <div className="bg-white rounded-xl border border-slate-200 px-3 py-3">
             <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-1"># of Units</div>
             <Cell value={numUnits} placeholder="—" numeric
@@ -2001,7 +2001,7 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
                 </table>
               </div>
 
-              {/* ── Pricing Summary — always uses live budget rates & totals ── */}
+              {/* ── Pricing Summary, always uses live budget rates & totals ── */}
               <div className="mt-4 flex justify-end">
                 <div className="w-80 bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
                   <div className="px-4 py-2.5 border-b border-slate-100">
@@ -2190,7 +2190,7 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
 
                     return (
                       <>
-                        {/* Controls separator — always visible in All view */}
+                        {/* Controls separator, always visible in All view */}
                         {activeSection === 'all' && isControls && (
                           <tr key="controls-separator" className="border-t-2 border-violet-200">
                             <td colSpan={colCount} className="px-3 py-2 bg-violet-50">
@@ -2328,7 +2328,7 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
                                   placeholder="0.00" numeric align="right"
                                   onSave={v => handleDNChange(item, v)} className="text-slate-600 w-full" />
                               </td>
-                              {/* CN $/unit — read-only, auto-calculated from DN + margin */}
+                              {/* CN $/unit, read-only, auto-calculated from DN + margin */}
                               <td className="px-3 py-2 align-middle text-right">
                                 {item.propUnitPrice != null
                                   ? <span className="text-blue-700 font-medium text-xs">{fmtDec(item.propUnitPrice)}</span>

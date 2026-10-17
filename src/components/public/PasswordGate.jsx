@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { BTN_PRIMARY, CARD, H1, INPUT, LABEL } from '@/components/ui/tokens';
+import { PublicBugLink } from '@/components/public/PublicBugButton';
 
 /**
  * The password screen in front of the public conceptual budget tool
@@ -60,6 +61,9 @@ export default function PasswordGate() {
         >
           {busy ? 'Checking…' : 'Continue'}
         </button>
+        <div className="mt-4 flex justify-center">
+          <PublicBugLink />
+        </div>
       </form>
     </div>
   );

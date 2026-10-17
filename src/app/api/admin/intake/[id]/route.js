@@ -5,7 +5,7 @@ import { prisma } from '@/lib/db';
 export const dynamic = 'force-dynamic';
 
 export async function PATCH(request, { params }) {
-  // requireAdmin needs the request to read the auth cookie — calling it bare
+  // requireAdmin needs the request to read the auth cookie, calling it bare
   // threw on every request, 500ing the review queue's approve/reject.
   // Sales can work the queue too (2026-09-12); the portal invite stays admin-only.
   const { user, error } = await requireIntakeReviewer(request);
@@ -28,15 +28,15 @@ export async function PATCH(request, { params }) {
       reviewNote: reviewNote !== undefined ? reviewNote : submission.reviewNote,
       // Only touch clientId when the request explicitly sends it. The previous
       // `clientId || null` NULLED the link on every PATCH that omitted the
-      // field — so approving a submission after linking a client silently
+      // field, so approving a submission after linking a client silently
       // unlinked it, which would break the Task 27 invite bridge.
       clientId: clientId !== undefined ? (clientId || null) : submission.clientId,
       duplicateMatchId: duplicateMatchId !== undefined ? (duplicateMatchId || null) : submission.duplicateMatchId,
-      // "Not the same job" — the guess stays on the row (so we can see later
+      // "Not the same job", the guess stays on the row (so we can see later
       // what it thought), it just stops being shown.
       ...(dismissSuggestion ? { suggestionDismissedAt: new Date() } : {}),
       reviewedById: user.id,
-      // NOTE: no `reviewedAt` — the model has no such column, and writing it
+      // NOTE: no `reviewedAt`, the model has no such column, and writing it
       // made Prisma reject the entire update, 500ing every approve/reject
       // since the 08-04 deploy. `updatedAt` already records review time.
     },

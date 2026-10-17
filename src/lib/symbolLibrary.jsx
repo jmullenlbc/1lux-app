@@ -1,5 +1,5 @@
 /**
- * ILC Studios — Symbol Library
+ * ILC Studios, Symbol Library
  * Derived from 5 Bluebeam .btx tool chest exports.
  * All 80 symbols defined here as React/SVG render functions.
  *
@@ -36,7 +36,7 @@ export function getSymbolContent(symbolId, stroke = SYM_STROKE, fill = SYM_FILL_
   switch (symbolId) {
 
     // ══════════════════════════════════════════════════════════════════════════
-    // INTERIOR + UNIT — RECESSED DOWNLIGHTS
+    // INTERIOR + UNIT, RECESSED DOWNLIGHTS
     // ══════════════════════════════════════════════════════════════════════════
 
     case 'INT_D_CIRCLE':
@@ -123,7 +123,7 @@ export function getSymbolContent(symbolId, stroke = SYM_STROKE, fill = SYM_FILL_
       </>;
 
     // ══════════════════════════════════════════════════════════════════════════
-    // INTERIOR + UNIT — LINEAR FIXTURES
+    // INTERIOR + UNIT, LINEAR FIXTURES
     // ══════════════════════════════════════════════════════════════════════════
 
     case 'INT_W_LINEAR':
@@ -284,7 +284,7 @@ export function getSymbolContent(symbolId, stroke = SYM_STROKE, fill = SYM_FILL_
       </>;
 
     // ══════════════════════════════════════════════════════════════════════════
-    // UNIT ONLY — J-BOX + RECEPTACLES
+    // UNIT ONLY, J-BOX + RECEPTACLES
     // ══════════════════════════════════════════════════════════════════════════
 
     case 'UNIT_JBOX_CEIL':
@@ -337,11 +337,11 @@ export function getSymbolContent(symbolId, stroke = SYM_STROKE, fill = SYM_FILL_
       </>;
 
     case 'EXT_EU_SQUARE':
-      // Ingrade uplight — square
+      // Ingrade uplight, square
       return <rect x={7} y={7} width={26} height={26} stroke={c} strokeWidth={sw} fill={f} fillOpacity={fo}/>;
 
     case 'EXT_EU_CIRCLE':
-      // Ingrade uplight — circle
+      // Ingrade uplight, circle
       return <circle cx={20} cy={20} r={15} stroke={c} strokeWidth={sw} fill={f} fillOpacity={fo}/>;
 
     case 'EXT_EH_HANDRAIL':
@@ -524,7 +524,7 @@ export function getSymbolContent(symbolId, stroke = SYM_STROKE, fill = SYM_FILL_
       );
 
     case 'TOOL_REMOVE':
-      // Crossed lines — marks fixture for removal/demolition
+      // Crossed lines, marks fixture for removal/demolition
       return <>
         <line x1={5}  y1={5}  x2={35} y2={35} stroke={c} strokeWidth="2.5"/>
         <line x1={35} y1={5}  x2={5}  y2={35} stroke={c} strokeWidth="2.5"/>
@@ -616,7 +616,7 @@ export function getSymbolContent(symbolId, stroke = SYM_STROKE, fill = SYM_FILL_
         stroke={c} strokeWidth="2.5" fill="none" strokeLinecap="round" strokeLinejoin="round"/>;
 
     case 'TOOL_CLOUD':
-      // Revision cloud — clockwise bumpy-arc rectangle (4,14)→(36,30)
+      // Revision cloud, clockwise bumpy-arc rectangle (4,14)→(36,30)
       return <path
         d="M4,30 A4,4 0 0 1 12,30 A4,4 0 0 1 20,30 A4,4 0 0 1 28,30 A4,4 0 0 1 36,30 A4,4 0 0 1 36,22 A4,4 0 0 1 36,14 A4,4 0 0 1 28,14 A4,4 0 0 1 20,14 A4,4 0 0 1 12,14 A4,4 0 0 1 4,14 A4,4 0 0 1 4,22 A4,4 0 0 1 4,30 Z"
         stroke={c} strokeWidth={sw} fill={f} fillOpacity={fo}/>;
@@ -694,7 +694,7 @@ export function CanvasSymbol({
   // Determine rendered pixel size
   let sizePx;
   if (sym?.isFixedSize) {
-    sizePx = 20; // CONTROLS_FIXED_PX — always 20px regardless of drawing scale
+    sizePx = 20; // CONTROLS_FIXED_PX, always 20px regardless of drawing scale
   } else if (scaleRatio) {
     sizePx = Math.max(8, _toPx(sym?.symInches ?? 8, scaleRatio, pdfScale));
   } else {
@@ -830,10 +830,10 @@ export function CanvasLinearSymbol({
 
 // ── Symbol metadata catalog ───────────────────────────────────────────────────
 //
-// symInches  — real-world diameter / side / cross-section height in inches.
+// symInches, real-world diameter / side / cross-section height in inches.
 //              Used by CanvasSymbol/CanvasLinearSymbol to scale the symbol to
 //              the current drawing scale via toPixels().
-// isFixedSize — true: symbol renders at CONTROLS_FIXED_PX (20px) regardless of
+// isFixedSize, true: symbol renders at CONTROLS_FIXED_PX (20px) regardless of
 //              drawing scale. Used for wall-mounted controls / annotation tools.
 //              Physical ceiling sensors (OCC_CEIL, REMOTE_PS) are NOT fixed.
 //

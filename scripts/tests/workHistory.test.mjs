@@ -1,4 +1,4 @@
-// Work history (ContactEmployment, migration 0083) — the pure half.
+// Work history (ContactEmployment, migration 0083), the pure half.
 // Run: node --test scripts/tests/workHistory.test.mjs
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -39,8 +39,8 @@ test('parseWorkHistory reads a fenced reply, dedupes and caps', () => {
 });
 
 test('spans and durations read the way LinkedIn does', () => {
-  assert.equal(formatSpan({ startYear: 2019, startMonth: 3, isCurrent: true }), 'Mar 2019 – now');
-  assert.equal(formatSpan({ startYear: 2014, endYear: 2019 }), '2014 – 2019');
+  assert.equal(formatSpan({ startYear: 2019, startMonth: 3, isCurrent: true }), 'Mar 2019 to now');
+  assert.equal(formatSpan({ startYear: 2014, endYear: 2019 }), '2014 to 2019');
   assert.equal(formatSpan({ startYear: 2020 }), 'since 2020');
   assert.equal(formatSpan({ endYear: 2019, endMonth: 6 }), 'until Jun 2019');
   assert.equal(formatSpan({}), '');
@@ -57,12 +57,12 @@ test('spans and durations read the way LinkedIn does', () => {
 
 test('describeJob and describeWorkHistory', () => {
   assert.equal(describeJob({ company: 'Acme', title: 'VP', startYear: 2019, startMonth: 3, isCurrent: true }, NOW),
-    'Acme, VP, Mar 2019 – now (7 yrs 7 mos)');
+    'Acme, VP, Mar 2019 to now (7 yrs 7 mos)');
   assert.equal(describeJob({ company: 'Acme' }, NOW), 'Acme');
   assert.equal(describeWorkHistory('Jane', [], NOW), null);
   assert.equal(describeWorkHistory('Jane', null, NOW), null);
   assert.equal(describeWorkHistory('Jane', [{ company: 'Acme', title: 'VP' }, { company: 'Brick Co' }], NOW),
-    'Jane — Acme, VP; Brick Co.');
+    'Jane: Acme, VP; Brick Co.');
 });
 
 test('sortJobs puts the newest first, however the rows were added', () => {
@@ -74,7 +74,7 @@ test('sortJobs puts the newest first, however the rows were added', () => {
     { company: 'Started only', startYear: 2014, position: 3 },
   ];
   assert.deepEqual(sortJobs(rows).map(j => j.company), ['Now', 'Recent', 'Started only', 'Old', 'Undated']);
-  assert.equal(describeWorkHistory('Jane', rows, NOW).split('; ')[0], 'Jane — Now, 2021 – now (about 5 yrs)');
+  assert.equal(describeWorkHistory('Jane', rows, NOW).split('; ')[0], 'Jane: Now, 2021 to now (about 5 yrs)');
 });
 
 test('the instructions treat the paste as data and ask for JSON only', () => {

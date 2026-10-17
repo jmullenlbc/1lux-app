@@ -145,7 +145,7 @@ export async function PATCH(request, { params }) {
   return NextResponse.json({ client: updated });
 }
 
-// DELETE /api/clients/[id] — refused. Companies are archived, never deleted
+// DELETE /api/clients/[id], refused. Companies are archived, never deleted
 // (Mike, 2026-09-11: "archive only for everything"). Deleting used to unlink
 // every project and silently blank the company's Project Team seats; archiving
 // leaves all of that exactly as it is.
@@ -153,7 +153,7 @@ export async function DELETE() {
   return NextResponse.json({ error: deleteRefused('Companies') }, { status: 405 });
 }
 
-// POST /api/clients/[id]  { archived: true | false } — archive or restore.
+// POST /api/clients/[id]  { archived: true | false }, archive or restore.
 export async function POST(request, { params }) {
   const { user, error } = await requireAuth();
   if (error) return error;

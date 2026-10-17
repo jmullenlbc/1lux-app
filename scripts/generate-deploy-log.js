@@ -19,7 +19,7 @@ const OUT = path.join(__dirname, '..', 'deploy-log.json');
 const COMMIT_SEP = '---COMMIT_END---';
 
 try {
-  // Get commits one at a time using a safe format — each field on its own line
+  // Get commits one at a time using a safe format, each field on its own line
   const raw = execSync(
     `git log -n 200 --pretty=format:"HASH:%H%nSHORT:%h%nAUTHOR:%an%nEMAIL:%ae%nDATE:%aI%nSUBJECT:%s%nBODY_START%n%b%n${COMMIT_SEP}"`,
     { encoding: 'utf8', cwd: path.join(__dirname, '..') }
@@ -73,9 +73,9 @@ try {
     });
 
   fs.writeFileSync(OUT, JSON.stringify(entries, null, 2), 'utf8');
-  console.log(`✓ deploy-log.json written — ${entries.length} commits`);
+  console.log(`✓ deploy-log.json written, ${entries.length} commits`);
 } catch (err) {
-  // Not in a git repo (e.g. during some CI steps) — write empty array so page still loads
+  // Not in a git repo (e.g. during some CI steps), write empty array so page still loads
   fs.writeFileSync(OUT, '[]', 'utf8');
   console.warn('⚠ generate-deploy-log: git log failed, wrote empty log:', err.message);
 }

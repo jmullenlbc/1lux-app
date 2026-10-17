@@ -7,8 +7,8 @@ import { buildMeetingBrief } from '@/lib/meetingPrep/build';
 export const dynamic = 'force-dynamic';
 
 // Meeting Prep on a sales note (migration 0082). Internal only: a CLIENT_VIEWER
-// never gets a brief. A brief can show sell figures — budgets, product sale
-// totals, design fees (Mike, 2026-09-14) — but never DN or any buy price.
+// never gets a brief. A brief can show sell figures, budgets, product sale
+// totals, design fees (Mike, 2026-09-14), but never DN or any buy price.
 
 const BRIEF_INCLUDE = {
   facts:  { orderBy: [{ block: 'asc' }, { position: 'asc' }] },
@@ -52,7 +52,7 @@ async function gate(params) {
   return { user, note };
 }
 
-// GET — the latest brief for this note, or null.
+// GET, the latest brief for this note, or null.
 export async function GET(request, { params }) {
   const { error } = await gate(params);
   if (error) return error;
@@ -64,7 +64,7 @@ export async function GET(request, { params }) {
   return NextResponse.json({ brief: shape(brief) });
 }
 
-// POST — build a new brief: gather facts, ask for talking points, save both.
+// POST, build a new brief: gather facts, ask for talking points, save both.
 export async function POST(request, { params }) {
   const { user, note, error } = await gate(params);
   if (error) return error;

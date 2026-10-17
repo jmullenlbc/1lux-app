@@ -90,7 +90,7 @@ export async function PATCH(request, { params }) {
   return NextResponse.json({ contact: updated });
 }
 
-// DELETE — refused. People are archived, never deleted (Mike, 2026-09-11).
+// DELETE, refused. People are archived, never deleted (Mike, 2026-09-11).
 export async function DELETE() {
   return NextResponse.json({ error: deleteRefused('People') }, { status: 405 });
 }

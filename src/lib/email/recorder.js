@@ -27,7 +27,7 @@ import { getMassEmailThreshold } from './settings.js';
  * is what separates the two Last Email fields: FROM means they wrote to us,
  * anything else means we wrote to them.
  *
- * A person appearing twice (To and Cc, say) gets one row — the FROM role wins,
+ * A person appearing twice (To and Cc, say) gets one row, the FROM role wins,
  * then To, then Cc, then Bcc.
  */
 export function contactRolesForMessage(message, contactsByEmail = {}) {
@@ -64,7 +64,7 @@ export function addressesOnMessage(message) {
  * Sent     = the newest counting email they were a recipient of.
  *
  * Derived from the links every time rather than nudged forward on write, so a
- * date can go BACKWARDS when a message is deleted or a rule changes — a stored
+ * date can go BACKWARDS when a message is deleted or a rule changes, a stored
  * high-water mark could never do that.
  */
 export async function refreshContactEmailDates(prisma, contactId) {

@@ -46,7 +46,7 @@ export async function POST(req, { params }) {
         data: {
           lineItemId,
           qty:                     qtyRequested,
-          // releasedById intentionally omitted for PENDING — set to approving User on APPROVED
+          // releasedById intentionally omitted for PENDING, set to approving User on APPROVED
           status:                  'PENDING',
           requestedAt:             new Date(),
           requestedByPortalUserId: portalUser.portalUserId,
@@ -66,7 +66,7 @@ export async function POST(req, { params }) {
     data: {
       userId:    project.createdById,
       type:      'WAREHOUSE_RELEASE_REQUEST',
-      title:     `Release request — ${project.name}`,
+      title:     `Release request: ${project.name}`,
       message:   `${portalUser.name || portalUser.email} requested ${totalQty} units across ${items.length} fixture type${items.length !== 1 ? 's' : ''}`,
       link:      `/project/${params.id}?tab=ship-schedule`,
       dedupeKey: `release-request-${params.id}-${Date.now()}`,

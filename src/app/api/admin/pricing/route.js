@@ -7,7 +7,7 @@ import { loadPricing, savePricing } from '@/lib/pricingLoader';
 // pricing list"). This used to let in only the old ILC_ADMIN role name, which
 // turned away a Super Admin.
 
-// GET /api/admin/pricing — returns current pricing config
+// GET /api/admin/pricing, returns current pricing config
 export async function GET(req) {
   const { error } = await requirePermission(req, 'editMasterPricing');
   if (error) return error;
@@ -15,7 +15,7 @@ export async function GET(req) {
   return NextResponse.json({ pricing });
 }
 
-// PUT /api/admin/pricing — saves new pricing config
+// PUT /api/admin/pricing, saves new pricing config
 export async function PUT(req) {
   const { user, error } = await requirePermission(req, 'editMasterPricing');
   if (error) return error;

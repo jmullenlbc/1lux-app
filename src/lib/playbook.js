@@ -1,8 +1,8 @@
 /**
- * playbook.js — bot-callable resolvers over the normalized Playbook data.
+ * playbook.js, bot-callable resolvers over the normalized Playbook data.
  *
  * These are the "the bot knows who to email" primitives for the queryable +
- * actionable vision (see memory: project-queryable-actionable). Pure queries —
+ * actionable vision (see memory: project-queryable-actionable). Pure queries
  * a future budget-email / notify flow (or the Ask-AI bot) calls these to resolve
  * recipients before drafting.
  */

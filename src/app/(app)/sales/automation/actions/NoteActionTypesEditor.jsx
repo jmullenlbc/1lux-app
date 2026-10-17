@@ -20,7 +20,7 @@ const EXECUTORS = [
   { v: 'OTHER',          label: 'Other' },
 ];
 const TEMPLATE_EXECUTORS = new Set(['EMAIL', 'TEXT', 'SEND_MATERIALS']);
-// Waiting on them — the full 1st/2nd/3rd ladder is on Sales Automation → Reminder Timeline.
+// Waiting on them, the full 1st/2nd/3rd ladder is on Sales Automation → Reminder Timeline.
 const WAIT_EXECUTORS = new Set(['EXPECT_INTRO', 'EXPECT_REPLY', 'EXPECT_FILES', 'EXPECT_INVITE']);
 
 const blankType = () => ({
@@ -159,7 +159,7 @@ function TypeForm({ draft, setDraft, onSave, onCancel, busy, msg }) {
         <Field label="Label" hint="shown in the dropdown">
           <input className={input} value={draft.label} onChange={e => set('label', e.target.value)} placeholder="e.g. Email" />
         </Field>
-        <Field label="Key" hint={draft._new ? 'unique id, A–Z_' : '(locked)'}>
+        <Field label="Key" hint={draft._new ? 'unique id, A to Z and _' : '(locked)'}>
           <input className={input} value={draft.key} disabled={!draft._new}
             onChange={e => set('key', e.target.value)} placeholder="EMAIL" />
         </Field>
@@ -193,10 +193,10 @@ function TypeForm({ draft, setDraft, onSave, onCancel, busy, msg }) {
 
       {showTemplate && (
         <div className="mt-3">
-          <Field label="Message template" hint="blank email/text body the bot drafts — add DocSend links etc.">
+          <Field label="Message template" hint="blank email/text body the bot drafts. Add DocSend links etc.">
             <TemplateTextarea rows={5} className={input + ' font-mono'} value={draft.emailTemplate || ''}
               onChange={v => set('emailTemplate', v)}
-              placeholder={"Hi {{firstName}},\n\n...\n\n— Mike"} />
+              placeholder={"Hi {{firstName}},\n\n...\n\nMike"} />
           </Field>
         </div>
       )}

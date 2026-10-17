@@ -67,7 +67,7 @@ export async function PATCH(request, { params }) {
 
   // Contract dollars: Construction, Operations, Finance and admins only (Mike,
   // 2026-09-14). A screen may send the whole record back, so only a real change
-  // counts — resending the number already on file is not an edit.
+  // counts, resending the number already on file is not an edit.
   // Money and percents arrive as whatever was typed: "1,200,000", "$41,200",
   // "12%". Number("1,200,000") is NaN, which blanked the field (Maram, 9-18);
   // the shared loose reader (src/lib/numberInput.js) handles the dressing.
@@ -99,7 +99,7 @@ export async function PATCH(request, { params }) {
   const validBudgetTypes = ['conceptual', 'design', 'peer_review'];
   // Mike 2026-09-19: "Other" was dropped. Derived from src/lib/utils.js so this
   // third copy of the list can never drift again. A project already stored as
-  // 'other' keeps that value — it just cannot be written back.
+  // 'other' keeps that value, it just cannot be written back.
   const validServiceTypes = SETTABLE_SERVICE_TYPE_KEYS;
   // Each board's list comes from pipeline.js so a stage added there is accepted
   // here without a second edit. Design has one extra column (Proposal Sent).
@@ -131,7 +131,7 @@ export async function PATCH(request, { params }) {
   const validPipelineStatus    = SETTABLE_STATUS_KEYS;
 
   // Mike's rule: Lost and Abandoned both need a written reason. Enforced here so
-  // no screen can slip a deal into either state without one — the reason may
+  // no screen can slip a deal into either state without one, the reason may
   // arrive with this request or already be on the record from an earlier save.
   const NEEDS_REASON = ['LOST', 'ABANDONED'];
   for (const [board, nextStatus, sentReason, storedReason] of [
@@ -197,7 +197,7 @@ export async function PATCH(request, { params }) {
       ...(budgetType     !== undefined && validBudgetTypes.includes(budgetType) && { budgetType }),
       ...(budgetSentDate !== undefined && { budgetSentDate: budgetSentDate ? new Date(budgetSentDate) : null }),
       ...(peerReviewMatrixType !== undefined && ['PEER_REVIEW', 'DESIGN_BID'].includes(peerReviewMatrixType) && { peerReviewMatrixType }),
-      // ── Pipeline / CRM fields (merged from Deal — a project IS the pipeline entity) ──
+      // ── Pipeline / CRM fields (merged from Deal, a project IS the pipeline entity) ──
       ...(projectType         !== undefined && { projectType: projectType || null }),
       ...(projectSubtype      !== undefined && { projectSubtype: String(projectSubtype || '').trim().slice(0, 120) || null }),
       ...(procurementStage    !== undefined && validProcurementStages.includes(procurementStage) && { procurementStage }),
@@ -221,7 +221,7 @@ export async function PATCH(request, { params }) {
       ...(nextActionType      !== undefined && { nextActionType: (nextActionType && NEXT_ACTION_KEYS.includes(nextActionType)) ? nextActionType : null }),
       ...(nextActionOwnerId   !== undefined && { nextActionOwnerId: nextActionOwnerId || null }),
       ...(nextActionDueDate   !== undefined && { nextActionDueDate: nextActionDueDate ? new Date(nextActionDueDate) : null }),
-      // The six Project Team seats. Always optional -- never required to save.
+      // The six Project Team seats. Always optional, never required to save.
       ...teamUpdate,
     },
     include: { projectData: true, ...TEAM_INCLUDE },
@@ -234,7 +234,7 @@ export async function PATCH(request, { params }) {
 
   // Mike, 2026-09-08: "All of this should write in the history of a project
   // right?" It does now. The same moves the charts run on are written to the
-  // project's History tab in plain English, one line each, from the one source —
+  // project's History tab in plain English, one line each, from the one source
   // so the timeline and the dashboards can never disagree about what happened.
   for (const move of statusMoves) {
     await logActivity(params.id, user, 'deal_status', describeStatusChange(move), {
@@ -256,7 +256,7 @@ export async function PATCH(request, { params }) {
       { pipeline, fromStage: project[field], toStage: updated[field] });
   }
 
-  // Log meaningful changes — skip silent wizard step/progress saves
+  // Log meaningful changes, skip silent wizard step/progress saves
   const silentOnly = Object.keys(body).every(k => ['currentStep', 'completedSteps'].includes(k));
   if (!silentOnly) {
     const events = [];
@@ -308,13 +308,13 @@ export async function PATCH(request, { params }) {
   return NextResponse.json({ project: updated });
 }
 
-// DELETE /api/projects/[id] — refused. Projects are archived, never deleted
+// DELETE /api/projects/[id], refused. Projects are archived, never deleted
 // (Mike, 2026-09-11). A delete took the budget, files, notes and history with it.
 export async function DELETE() {
   return NextResponse.json({ error: deleteRefused('Projects') }, { status: 405 });
 }
 
-// POST /api/projects/[id]  { archived: true | false } — archive or restore.
+// POST /api/projects/[id]  { archived: true | false }, archive or restore.
 // Written to the project's History tab either way.
 export async function POST(request, { params }) {
   const { user, error } = await requireAuth();

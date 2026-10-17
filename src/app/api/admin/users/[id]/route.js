@@ -26,7 +26,7 @@ export async function PATCH(request, { params }) {
 
   const { name, role, departments, permissions, mustChangePassword, isActive, newPassword } = await request.json();
 
-  // Only the four real role names can be saved — this used to store any text it
+  // Only the four real role names can be saved, this used to store any text it
   // was sent. A Company Admin can make someone an admin (Mike, 2026-09-14);
   // only a Super Admin can make a Super Admin.
   if (role !== undefined) {

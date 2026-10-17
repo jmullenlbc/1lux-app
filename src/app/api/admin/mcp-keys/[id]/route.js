@@ -16,13 +16,13 @@ import { keyTableReady } from '@/lib/mcp/apiKeys';
 
 export const dynamic = 'force-dynamic';
 
-// PATCH /api/admin/mcp-keys/[id] — body { revoked: true } | { revoked: false }
+// PATCH /api/admin/mcp-keys/[id], body { revoked: true } | { revoked: false }
 export async function PATCH(request, { params }) {
   const { error } = await requireSuperAdmin(request);
   if (error) return error;
   if (!keyTableReady(prisma)) {
     return NextResponse.json(
-      { error: 'MCP keys are not available yet — migration 0094 has not been applied to this database.' },
+      { error: 'MCP keys are not available yet: migration 0094 has not been applied to this database.' },
       { status: 503 },
     );
   }
@@ -47,7 +47,7 @@ export async function PATCH(request, { params }) {
   return NextResponse.json({ key });
 }
 
-// DELETE is not offered. Keys are revoked, never removed — see the note above.
+// DELETE is not offered. Keys are revoked, never removed, see the note above.
 export async function DELETE() {
   return NextResponse.json(
     { error: 'MCP keys are revoked, not deleted. Deleting one would break the audit trail that explains it.' },

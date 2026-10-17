@@ -7,7 +7,7 @@
  * people and a respondent who picked two pendants would quietly outvote
  * everybody else.
  *
- * A REJECT is different — a person may cross off as many as they like. It is
+ * A REJECT is different, a person may cross off as many as they like. It is
  * kept because "they hated the caged lantern" is worth as much as what they
  * chose, and it is what a divergence row has to be able to say.
  *
@@ -43,7 +43,7 @@ export async function POST(request, { params }) {
 
   let body; try { body = await request.json(); } catch { body = {}; }
 
-  // `picks: [{category, optionId, finishKey}]` — a whole look, or a re-finish,
+  // `picks: [{category, optionId, finishKey}]`, a whole look, or a re-finish,
   // in one go. Every item is a PICK and never toggles off: choosing a look
   // twice should not un-choose half of it.
   if (Array.isArray(body?.picks)) {

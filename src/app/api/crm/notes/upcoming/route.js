@@ -4,7 +4,7 @@ import { prisma } from '@/lib/db';
 
 // GET /api/crm/notes/upcoming
 // Returns sales notes with meetingDate in the next 14 days, ordered by date asc.
-// Used for the "Upcoming — Next 2 Weeks" widget on the Sales Activity page.
+// Used for the "Upcoming, Next 2 Weeks" widget on the Sales Activity page.
 export async function GET() {
   const { error } = await requireAuth();
   if (error) return error;

@@ -1,4 +1,4 @@
-// Emergency lighting cost for one strategy — the ONE copy of this math.
+// Emergency lighting cost for one strategy, the ONE copy of this math.
 // The engine (calculations.js), the Conceptual Emergency screen and the
 // Design Emergency screen all call this, so the number on a screen cannot
 // drift from the number in the budget. Client-safe: only reads master pricing.

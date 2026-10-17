@@ -4,10 +4,10 @@ import { CARD, BTN_PRIMARY, BTN_SECONDARY, BTN_DANGER, BTN_COMPACT, BTN_COMPACT_
 import { WidgetLoading } from '@/components/ui/WidgetFrame';
 
 /**
- * The review queue — Step 17 of the Governed AI Layer.
+ * The review queue, Step 17 of the Governed AI Layer.
  *
  * Three buttons: Accepted · Corrected · Rejected. The middle one is the reason
- * this exists — a correction records WHAT changed, and that field is the only
+ * this exists, a correction records WHAT changed, and that field is the only
  * thing here that compounds. So "Corrected" opens a required text box rather
  * than submitting on click; a one-click "corrected" with nothing recorded is
  * indistinguishable from a reflex, and it teaches nothing.
@@ -211,7 +211,7 @@ function RunCard({ run, tier, open, onToggle, onReviewed }) {
 
       {open && (
         <div className="border-t border-slate-100 px-4 py-4 space-y-4 bg-slate-50/50">
-          {/* Input — a hash and a descriptor, never the document itself. */}
+          {/* Input, a hash and a descriptor, never the document itself. */}
           <Section title="Input">
             <p className="text-xs font-mono text-slate-500 break-all">{run.inputSummary || 'n/a'}</p>
             <p className="text-xs text-slate-500 mt-1">

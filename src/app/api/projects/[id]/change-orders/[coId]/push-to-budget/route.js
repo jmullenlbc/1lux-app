@@ -6,7 +6,7 @@ import { INCLUDE_ARCHIVED } from '@/lib/archive';
 // POST /api/projects/[id]/change-orders/[coId]/push-to-budget
 // Creates a new DesignBidMatrix version containing ONLY the CO's line items.
 // This produces a standalone bid snapshot for PO/RFQ purposes.
-// Does NOT include pricing — DN/CN are carried if they exist on line items.
+// Does NOT include pricing, DN/CN are carried if they exist on line items.
 
 export async function POST(req, { params }) {
   const { user, error } = await requirePermission(req, 'editJobMoney'); // Construction, Operations, Finance, admins
@@ -47,7 +47,7 @@ export async function POST(req, { params }) {
   const matrixType  = ['peerReview', 'bidOnly'].includes(co.project.serviceType) ? 'PEER_REVIEW' : 'DESIGN_BID';
 
   // Build bid matrix items from CO line items
-  // Note: sourceItemId is a FK to FixtureScheduleItem — do NOT set it from CO items
+  // Note: sourceItemId is a FK to FixtureScheduleItem, do NOT set it from CO items
   const bidItems = allLineItems.map((li, idx) => ({
     type:          li.fixtureType  || '',
     description:   li.description  || '',
@@ -61,10 +61,10 @@ export async function POST(req, { params }) {
     notes:         li.notes        || null,
     internalNotes: null,
     sortOrder:     idx,
-    // sourceItemId intentionally omitted — CO items are not FixtureScheduleItems
+    // sourceItemId intentionally omitted, CO items are not FixtureScheduleItems
   }));
 
-  // We need a fixtureSchedule as sourceScheduleId — use or create a stub
+  // We need a fixtureSchedule as sourceScheduleId, use or create a stub
   // (DesignBidMatrix requires a sourceScheduleId FK)
   let stubSchedule = await prisma.fixtureSchedule.findFirst({
     where: { projectId: params.id },
@@ -82,7 +82,7 @@ export async function POST(req, { params }) {
       sourceScheduleId: stubSchedule.id,
       version:          nextVersion,
       pushedById:       user.id,
-      submissionTag:    `${co.coNumber} — ${co.title}`,
+      submissionTag:    `${co.coNumber}: ${co.title}`,
       matrixType,
       changeSummary:    JSON.stringify({ source: 'change_order', coId: co.id, coNumber: co.coNumber }),
       items: { create: bidItems },

@@ -12,7 +12,7 @@ async function assertEdit(id, user) {
   return { dash };
 }
 
-// POST /api/dashboards/[id]/widgets — add a field-picker (or legacy) widget
+// POST /api/dashboards/[id]/widgets, add a field-picker (or legacy) widget
 export async function POST(request, { params }) {
   const { user, error } = await requireAuth();
   if (error) return error;
@@ -29,7 +29,7 @@ export async function POST(request, { params }) {
       chartType: ['BAR', 'LINE', 'TABLE'].includes(b.chartType) ? b.chartType : 'BAR',
       width:     ['HALF', 'FULL'].includes(b.width) ? b.width : 'HALF',
       dataSpec:  b.dataSpec ? (typeof b.dataSpec === 'string' ? b.dataSpec : JSON.stringify(b.dataSpec)) : null,
-      // legacy columns are NOT NULL — sentinels for field-picker widgets
+      // legacy columns are NOT NULL, sentinels for field-picker widgets
       category:  b.category || 'FIELD',
       metric:    b.metric   || 'custom',
       viewBy:    b.viewBy   || 'none',

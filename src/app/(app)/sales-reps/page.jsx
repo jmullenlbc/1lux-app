@@ -26,7 +26,7 @@ export default async function SalesRepsPage() {
     },
   });
 
-  // Deduplicate by repName — collect all projects they appear on
+  // Deduplicate by repName, collect all projects they appear on
   const repMap = new Map();
   for (const item of rawReps) {
     if (!item.repName) continue;

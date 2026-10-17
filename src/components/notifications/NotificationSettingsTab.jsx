@@ -4,16 +4,16 @@ import { NOTIFICATION_TYPES, NOTIFICATION_MODULES } from '@/lib/notificationType
 import NotificationLog from './NotificationLog';
 import { CARD, LABEL, INPUT, HELPER, H2 } from '@/components/ui/tokens';
 
-// ── Pattern badge metadata — plain English ────────────────────────────────────
+// ── Pattern badge metadata, plain English ────────────────────────────────────
 const PATTERN_META = {
   EVENT: {
     label: 'Immediate',
-    description: 'Fires the moment it happens — no waiting',
+    description: 'Fires the moment it happens, no waiting',
     cls: 'bg-green-50 text-green-700 border-green-200',
   },
   DIGEST: {
     label: 'Weekly Digest',
-    description: 'Batched with other updates into one email every Wednesday — less inbox noise',
+    description: 'Batched with other updates into one email every Wednesday, less inbox noise',
     cls: 'bg-blue-50 text-blue-700 border-blue-200',
   },
   THRESHOLD: {
@@ -173,7 +173,7 @@ function NotificationRow({ notificationType, config, allContacts, onChange }) {
         <PatternBadge pattern={meta?.pattern || 'EVENT'} showTip />
       </div>
 
-      {/* Contacts row — only when globally enabled */}
+      {/* Contacts row, only when globally enabled */}
       {meta?.external && enabled && (
         <div className="mt-2.5 ml-12">
           <div className="flex flex-wrap gap-1.5 items-center">
@@ -181,7 +181,7 @@ function NotificationRow({ notificationType, config, allContacts, onChange }) {
               <p className="text-[11px] text-slate-500">Add contacts in the section above to subscribe them</p>
             ) : (
               <>
-                {/* All contacts shown — subscribed ones highlighted */}
+                {/* All contacts shown, subscribed ones highlighted */}
                 {allContacts.map(c => {
                   const subscribed = c.email && subscribedEmails.includes(c.email.toLowerCase());
                   return (
@@ -331,7 +331,7 @@ export default function NotificationSettingsTab({ projectId }) {
       {view === 'settings' && (
         <div className="space-y-0">
 
-          {/* Legend — plain English */}
+          {/* Legend, plain English */}
           <div className="flex flex-col gap-2 mb-5 p-4 bg-slate-50 rounded-xl border border-slate-100">
             <p className={`${LABEL} mb-1`}>How notifications are sent</p>
             {Object.entries(PATTERN_META).map(([key, m]) => (
@@ -351,7 +351,7 @@ export default function NotificationSettingsTab({ projectId }) {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
               </svg>
               <p className="text-xs text-amber-800 flex-1">
-                <strong>Email is in dry-run mode.</strong> Everything is tracked and logged, but no emails are actually sent until Microsoft Outlook is connected. Set up your contacts now — they'll be ready to go when email goes live.
+                <strong>Email is in dry-run mode.</strong> Everything is tracked and logged, but no emails are actually sent until Microsoft Outlook is connected. Set up your contacts now. They'll be ready to go when email goes live.
               </p>
               <button
                 onClick={() => setDismissedDryRun(true)}
@@ -368,7 +368,7 @@ export default function NotificationSettingsTab({ projectId }) {
           {/* No contacts hint */}
           {!loading && contacts.length === 0 && (
             <div className="mb-4 px-4 py-3 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-700">
-              <strong>No project contacts yet.</strong> Add contacts using the "+ Add Project Contacts" button above — then come back here to subscribe them to notifications.
+              <strong>No project contacts yet.</strong> Add contacts using the "+ Add Project Contacts" button above, then come back here to subscribe them to notifications.
             </div>
           )}
 

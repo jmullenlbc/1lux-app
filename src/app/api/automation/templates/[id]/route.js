@@ -47,7 +47,7 @@ export async function PATCH(req, { params }) {
 // URL the screen no longer uses.
 export async function DELETE() {
   return NextResponse.json(
-    { error: 'Email templates are archived, never deleted. Archive it instead — it stops being used and is kept.' },
+    { error: 'Email templates are archived, never deleted. Archive it instead. It stops being used and is kept.' },
     { status: 405 },
   );
 }

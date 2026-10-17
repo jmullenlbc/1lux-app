@@ -11,7 +11,7 @@ import { amenityRate } from '@/lib/amenityLevel';
 import { priceSiteFeatures, siteFeatureCostLine, siteFeatureLineLabel } from '@/lib/siteFeatures';
 import { surfaceStalls } from '@/lib/surfaceParkingDefault';
 
-// Manual adder line items — the things the formula does NOT compute. These ADD
+// Manual adder line items, the things the formula does NOT compute. These ADD
 // on top of the frozen formula breakdown.
 const EXT_MANUAL_ITEMS = [
   ['pathwayLighting',     'Pathway lighting'],
@@ -29,17 +29,17 @@ export default function ExteriorSection({ responses, projectData, allSections, p
     // as Dusk to Dawn, so it shows as that.
     amenityHours:      !responses.amenityHours || responses.amenityHours === 'beforeDusk' ? 'duskToDawn' : responses.amenityHours,
     siteDesignLevel:   responses.siteDesignLevel   || 'base',
-    // Townhomes only (Mike 2026-09-12) — 'no' is the default and prices $0.
+    // Townhomes only (Mike 2026-09-12), 'no' is the default and prices $0.
     pathwayBollards:   responses.pathwayBollards   || 'no',
     exteriorOverride:  responses.exteriorOverride  ?? '',
-    // Building wallpack overrides. 'auto' (not '') is the cleared state — see the
+    // Building wallpack overrides. 'auto' (not '') is the cleared state, see the
     // OverrideBox note in QuestionCard.jsx: the responses store refuses to overwrite
     // a real value with a blank, so clearing must write something non-blank.
     wallpacksQty:      responses.wallpacksQty      ?? '',
     wallpacksPrice:    responses.wallpacksPrice    ?? '',
     // One area-light count (lot poles + drive-lane lights), same 'auto' rule.
     areaLightsQty:     responses.areaLightsQty     ?? '',
-    // Private drive length in feet (townhouse / single-family) — one area light
+    // Private drive length in feet (townhouse / single-family), one area light
     // per 81 ft (Mike 2026-09-13). Same 'auto' cleared state.
     driveLaneFt:       responses.driveLaneFt       ?? '',
     // Walkway length (townhouse / single-family): one bollard / pedestrian
@@ -74,7 +74,7 @@ export default function ExteriorSection({ responses, projectData, allSections, p
   const liveExterior = useMemo(() => ({ ...answers, exteriorManualItems: JSON.stringify(manualItems) }), [answers, manualItems]);
   useLiveAnswers(onLiveAnswers, "exterior", liveExterior);
   // What each answer costs (+ estimated labor), recomputed live as answers
-  // change — local answers only save on Next (Mike 2026-09-13).
+  // change, local answers only save on Next (Mike 2026-09-13).
   const qc = useMemo(
     () => calculateBudget(projectData, { ...(allSections || {}), exterior: { ...(allSections?.exterior || {}), ...answers } }, pricing || null).questionCosts || {},
     [projectData, allSections, answers, pricing],
@@ -91,7 +91,7 @@ export default function ExteriorSection({ responses, projectData, allSections, p
   const lotSf       = Number(projectData?.lotSf)                 || 0;
   const footprintSf = Number(projectData?.buildingFootprintSf)   || 0;
   // Landscape = 2% of NET lot SF (lot − building footprint), capped at the
-  // questionnaire's stated ceiling — mirrors calculations.js (Mike 2026-09-04:
+  // questionnaire's stated ceiling, mirrors calculations.js (Mike 2026-09-04:
   // "net lot"). Falls back to the full lot when no footprint is on file.
   // Rate and cap read from master pricing so this cannot drift from the engine.
   const LS = P.exterior?.landscape || {};
@@ -111,7 +111,7 @@ export default function ExteriorSection({ responses, projectData, allSections, p
   const EA       = P.exteriorAmenities || {};
   // A budget created from a public submission stores this as '1'…'5' rather
   // than low…high. The old lookup missed on those and silently fell back to
-  // medium — so a job the client priced at $1/SF re-priced at $3/SF the moment
+  // medium, so a job the client priced at $1/SF re-priced at $3/SF the moment
   // it was opened internally. amenityRate reads both spellings.
   const baseRate = amenityRate(EA, answers.amenityLevel);
   // Only '24hrs or after dark' doubles the line (Mike, 2026-09-01: Dusk to
@@ -119,10 +119,10 @@ export default function ExteriorSection({ responses, projectData, allSections, p
   const nightMult = answers.amenityHours === 'afterSunset' ? (EA.nighttimeMultiplier ?? 2) : 1;
   const extraFromNight = extSf * baseRate; // the adder shown in the question card
 
-  // Live cost breakdown (mirrors calculations.js exterior block — reads master pricing)
+  // Live cost breakdown (mirrors calculations.js exterior block, reads master pricing)
   const sp = P.exterior?.surfaceParking || {};
   const amenityProduct  = extSf * baseRate * nightMult;
-  // Drive-lane area lights ride the same line — mirrors calculations.js. Only a
+  // Drive-lane area lights ride the same line, mirrors calculations.js. Only a
   // typed-in townhouse/single-family estimate sets them (driveLaneLightsQty).
   // A typed "Area lights" total replaces lot poles + drive lanes together.
   // A typed drive length wins: one light per the width of 9 stalls (81 ft).
@@ -138,7 +138,7 @@ export default function ExteriorSection({ responses, projectData, allSections, p
   const areaQtyOv       = priceOverride(answers.areaLightsQty);
   const parkingFixtures = areaQtyOv != null ? Math.max(0, Math.round(areaQtyOv)) : areaAutoQty;
   // Solar site design multiplies the area-lighting line (fixture carries its
-  // own panel/battery/controller) — mirrors calculations.js. Mike 2026-09-04.
+  // own panel/battery/controller), mirrors calculations.js. Mike 2026-09-04.
   const solarSite       = answers.siteDesignLevel === 'solar';
   const solarMult       = solarSite ? (P.exterior?.solarMultiplier ?? 2.3) : 1;
   const parkingProduct  = parkingFixtures * (sp.perFixture ?? 1325) * solarMult;
@@ -146,10 +146,10 @@ export default function ExteriorSection({ responses, projectData, allSections, p
   const carportProduct  = Math.floor(carports / 2) * (P.exterior?.carport?.diskEveryOther ?? 30);
   const garageProduct   = numGarages * (P.exterior?.detachedGarage?.stripPerGarage ?? 65);
   // The old "exterior door sconces" line (doors × $212.50 avg) was deleted
-  // 2026-08-12 — Mike: same fixture as the building wallpacks below, so it was
+  // 2026-08-12, Mike: same fixture as the building wallpacks below, so it was
   // being counted twice. The door count itself still shows in the scope grid.
 
-  // Building wallpacks — mirrors the engine block in calculations.js exactly:
+  // Building wallpacks, mirrors the engine block in calculations.js exactly:
   //   wallpacks = buildings × perBuilding[type] (+ clubhouse on horizontal types)
   // The # of Buildings project field wins; walk-up types fall back to
   // units ÷ unitsPerBuilding; vertical types are one building. Both overrides
@@ -179,7 +179,7 @@ export default function ExteriorSection({ responses, projectData, allSections, p
     ? 'no units or building count yet, $0'
     : `${wpQtyOv != null ? `${wpQty} (manual)` : `${wpBuildings} bldg${wpBuildings === 1 ? '' : 's'} × ${wpPerBuilding}${wpIsHorizontal && (WPC.clubhouse ?? 0) > 0 ? ` + ${WPC.clubhouse} clubhouse` : ''} = ${wpQty}`} × $${wpEach.toLocaleString()}${wpPriceOv != null ? ' (manual)' : ''}`;
 
-  // Pathway lighting — mirrors the engine block wired 2026-09-04: $/unit by
+  // Pathway lighting, mirrors the engine block wired 2026-09-04: $/unit by
   // building type from master pricing, floored at pathway.minTotal. A manual
   // "Pathway lighting" entry below WINS and suppresses this model line, so a
   // hand-counted figure is never stacked on top of the model's.
@@ -188,7 +188,7 @@ export default function ExteriorSection({ responses, projectData, allSections, p
   const pathwayFloor   = Number(PW.minTotal) || 0;
   const pathwayManual  = parseFloat(manualItems.pathwayLighting) || 0;
   // Solar sites bump the model pathway line by pathway.solarMultiplier (1.6),
-  // applied after the floor — mirrors the engine. Manual entries are taken as-is.
+  // applied after the floor, mirrors the engine. Manual entries are taken as-is.
   const pathwaySolarMult = solarSite ? (PW.solarMultiplier ?? 1.6) : 1;
   // Townhomes and single-family are asked "Light the walking paths with
   // bollards / pedestrian poles?" (Mike 2026-09-12). No, the default, is $0.
@@ -230,19 +230,19 @@ export default function ExteriorSection({ responses, projectData, allSections, p
         : `${numUnitsPD.toLocaleString()} units × $${pathwayRate}/unit${pathwaySolarSuffix}`;
 
   // Sporadic site features (dog park, courts, playground, courtyard, turf play)
-  // — Mike 2026-09-16. Each is its own fixture package on the master sheet;
+  // Mike 2026-09-16. Each is its own fixture package on the master sheet;
   // never folded into amenity SF, area lighting or carports. $0 when none.
   const siteFeat = priceSiteFeatures(projectData?.siteFeatures, P.exterior?.siteFeatures);
 
   const subBeforeMisc   = amenityProduct + parkingProduct + carportProduct + garageProduct + wallpackProduct + autoLandscape + pathwayProduct + siteFeat.product;
-  // The buffer base includes the manual adder — matches the engine
+  // The buffer base includes the manual adder, matches the engine
   // (extBufferBase = extSubBeforeMisc + exteriorManualTotal). This preview
   // previously left the manual adder out of the buffer and understated it.
   const miscBuffer      = (subBeforeMisc + manualTotal) * (P.exterior?.miscBufferPct ?? 0.05);
   const exteriorFormulaTotal = subBeforeMisc + miscBuffer;
 
   // Frozen formula breakdown lines (read-only, auto-calculated, math shown in text).
-  // Exterior amenities are NOT listed here — they're configured + shown by the
+  // Exterior amenities are NOT listed here, they're configured + shown by the
   // amenity question cards above. They stay in the exterior total via the engine.
   const frozenLines = [
     { label: solarSite ? 'Surface parking (solar)' : 'Surface parking',
@@ -260,7 +260,7 @@ export default function ExteriorSection({ responses, projectData, allSections, p
     { label: 'Landscape',             math: landscapeCapped
         ? `${netLotMath} × $${landscapePct.toFixed(2)}/SF = $${Math.round(landscapeRaw).toLocaleString()}, capped at $${landscapeCap.toLocaleString()}`
         : `${netLotMath} × $${landscapePct.toFixed(2)}/SF`, value: autoLandscape },
-    // One line per site feature, each with its own count, rule and dollars —
+    // One line per site feature, each with its own count, rule and dollars
     // Mike 2026-09-16: "a breakdown of these added costs too so it's
     // transparent." The lines still add up to siteFeat.product.
     ...(siteFeat.items.length
@@ -351,7 +351,7 @@ export default function ExteriorSection({ responses, projectData, allSections, p
         </div>
       </div>
 
-      {/* Site design level — base / upgraded / solar (mirrors the public intake question) */}
+      {/* Site design level, base / upgraded / solar (mirrors the public intake question) */}
       <QuestionCard
         question="What level of design would you like on the site?"
         note="Base design covers code-required site and parking lighting. Solar fixtures carry their own panel, battery and controller, so the area lighting runs higher on product, but install labor should be reduced dramatically because there's no trenching or running conduit and wire to the poles."
@@ -374,7 +374,7 @@ export default function ExteriorSection({ responses, projectData, allSections, p
         </div>
       )}
 
-      {/* Townhomes + single-family only — walking-path bollards yes/no (Mike 2026-09-12) */}
+      {/* Townhomes + single-family only, walking-path bollards yes/no (Mike 2026-09-12) */}
       {pathwayAsksBollards && (
         <QuestionCard
           question="Light the walking paths with bollards / pedestrian poles?"
@@ -436,7 +436,7 @@ export default function ExteriorSection({ responses, projectData, allSections, p
         }}
       />
 
-      {/* Exterior amenities subtotal — calculated from the cards above (shown once, here) */}
+      {/* Exterior amenities subtotal, calculated from the cards above (shown once, here) */}
       <div className="bg-white rounded-xl border border-slate-200 p-5 flex items-start justify-between gap-4">
         <div>
           <p className="text-lg font-bold text-slate-900">Exterior Amenities + Pool Area</p>
@@ -482,7 +482,7 @@ export default function ExteriorSection({ responses, projectData, allSections, p
         </div>
       </div>
 
-      {/* ── Area lights — one count for parking-lot poles + drive-lane lights ── */}
+      {/* ── Area lights, one count for parking-lot poles + drive-lane lights ── */}
       <div className="bg-white rounded-xl border border-slate-200 p-5">
         <div className="flex items-start justify-between gap-4 mb-1">
           <div>
@@ -545,7 +545,7 @@ export default function ExteriorSection({ responses, projectData, allSections, p
         )}
       </div>
 
-      {/* ── Building Wallpacks — auto count with quantity + price overrides ── */}
+      {/* ── Building Wallpacks, auto count with quantity + price overrides ── */}
       <div className="bg-white rounded-xl border border-slate-200 p-5">
         <div className="flex items-start justify-between gap-4 mb-1">
           <div>
@@ -607,7 +607,7 @@ export default function ExteriorSection({ responses, projectData, allSections, p
         )}
       </div>
 
-      {/* ── Section 2: Manual Adder (editable — items the formula doesn't cover) ── */}
+      {/* ── Section 2: Manual Adder (editable, items the formula doesn't cover) ── */}
       <div className="bg-white rounded-xl border border-slate-200 p-5">
         <div className="flex items-start justify-between gap-4 mb-1">
           <p className="font-semibold text-slate-900">Exterior Lighting Manual Adder</p>
@@ -651,7 +651,7 @@ export default function ExteriorSection({ responses, projectData, allSections, p
         <span className="text-lg font-bold text-white font-mono">{formatCurrency(exteriorTotal)}</span>
       </div>
 
-      {/* Manual exterior override — replaces everything when set */}
+      {/* Manual exterior override, replaces everything when set */}
       <div className="bg-white rounded-xl border border-slate-200 p-5">
         <p className="font-semibold text-slate-900 mb-1">Manual Exterior Total (Override)</p>
         <p className="text-xs text-slate-400 mb-4">
@@ -717,7 +717,7 @@ export default function ExteriorSection({ responses, projectData, allSections, p
             note="Site type drives fixture selection and layout. Mixed sites may require a combination of strategies."
             options={[
               { value: 'pedestrian',    label: 'Pedestrian poles / bollards only',                     sub: 'Lower-height poles, path lights, bollards', cost: 0 },
-              { value: 'areaLights',    label: 'Area lights on tall poles',                            sub: '25–30ft poles; parking lots and drive aisles', cost: 0 },
+              { value: 'areaLights',    label: 'Area lights on tall poles',                            sub: '25 to 30ft poles; parking lots and drive aisles', cost: 0 },
               { value: 'buildingMount', label: 'Building-mounted fixtures only',                       sub: 'Wall packs and wall-mounted fixtures', cost: 0 },
               { value: 'mixed',         label: 'Mixed, combination of pole types and building-mount', sub: 'Most common for mid-rise and podium buildings', cost: 0 },
             ]}

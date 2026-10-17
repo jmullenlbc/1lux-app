@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
-// GET /api/crm/notes/[id]/history — who changed what on a note, newest first (0108).
+// GET /api/crm/notes/[id]/history, who changed what on a note, newest first (0108).
 export async function GET(request, { params }) {
   const { user, error } = await requireAuth();
   if (error) return error;

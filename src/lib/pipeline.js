@@ -1,4 +1,4 @@
-// Pipeline model — a Project IS the pipeline entity (Deal merged in).
+// Pipeline model, a Project IS the pipeline entity (Deal merged in).
 // Board membership is DERIVED from serviceType; never stored as a fixed tag.
 // Each board has its OWN stage set and its OWN status.
 
@@ -89,11 +89,11 @@ export const STAGE_LABEL = {
   ...Object.fromEntries(Object.entries(LEGACY_DESIGN_STAGE).map(([k, v]) => [k, SHARED_STAGES.find(s => s.key === v).label])),
 };
 
-// Per-pipeline status (each board carries its own). This is the PICKER list —
+// Per-pipeline status (each board carries its own). This is the PICKER list
 // what somebody can set a board to today.
 //
 // Maram 9-17 / Mike 9-18: "Completed" is gone from the picker (a won job that
-// finished is still simply Won — finishing work is not a sales status) and
+// finished is still simply Won, finishing work is not a sales status) and
 // "On Hold" is new. On Hold is neither open nor decided: it drops out of the
 // open-pipeline totals and out of the win-rate denominator, and it has its own
 // revenue figure so a parked deal is never mistaken for a dead one.
@@ -117,9 +117,9 @@ export const ALL_STATUS_KEYS = Object.keys(STATUS_LABEL);
 export const ON_HOLD_STATUSES = ['ON_HOLD'];
 export function isOnHold(status) { return ON_HOLD_STATUSES.includes(status); }
 
-// ── Win rate — ONE definition, used everywhere (Mike, 2026-07-06) ─────────────
+// ── Win rate, ONE definition, used everywhere (Mike, 2026-07-06) ─────────────
 // Won ÷ every project that has moved PAST Open. A COMPLETED job was won and then
-// delivered, so it counts as a win — otherwise finishing work would lower the rate.
+// delivered, so it counts as a win, otherwise finishing work would lower the rate.
 // Never redefine this locally; import it. Two numbers under one label is the bug
 // this replaces (the CRM stats bar and the dashboard disagreed).
 //
@@ -137,7 +137,7 @@ export const WIN_RATE_DESCRIPTION =
 export const WIN_RATE_ALL_DESCRIPTION =
   'Won ÷ every project on this board, including the ones still open or on hold.';
 
-/** Win rate as a 0–100 number, or null when nothing has been decided yet. */
+/** Win rate as a 0 to 100 number, or null when nothing has been decided yet. */
 export function winRate(projects, statusField = 'procurementStatus') {
   const decided = projects.filter(p => DECIDED_STATUSES.includes(p[statusField]));
   if (!decided.length) return null;
@@ -152,16 +152,16 @@ export function winRateAllProjects(projects, statusField = 'procurementStatus') 
   return Math.round((won.length / projects.length) * 100);
 }
 
-// ── Probability — the average of the two entered values ───────────────────────
+// ── Probability, the average of the two entered values ───────────────────────
 // probabilityToWin + probabilityToMoveForward; falls back to whichever exists,
 // then to the legacy single field. Mirrors the sales dashboard provider so the
 // CRM card and the dashboard can never show different numbers.
 //
 // Maram 9-17: on screen this is called "Weighted Probability %" everywhere.
-// The function keeps its name — it is still the average of the two — but every
+// The function keeps its name, it is still the average of the two, but every
 // label reads from here so the wording can never drift screen to screen.
 export const WEIGHTED_PROBABILITY_LABEL = 'Weighted Probability %';
-export const WEIGHTED_PROBABILITY_HINT  = 'Weighted Probability % — win % and move-forward % averaged.';
+export const WEIGHTED_PROBABILITY_HINT  = 'Weighted Probability %: win % and move-forward % averaged.';
 export const WEIGHTED_REVENUE_LABEL     = 'Weighted Revenue';
 export const FORECAST_WINDOW_DAYS       = 90;
 
@@ -224,7 +224,7 @@ export function isWithinDays(date, days, now = new Date()) {
   const t = new Date(date).getTime();
   if (!Number.isFinite(t)) return false;
   // Compared as calendar days, not instants. A date typed on a form is stored
-  // as midnight UTC, which in Denver is 6 pm the evening BEFORE — so an instant
+  // as midnight UTC, which in Denver is 6 pm the evening BEFORE, so an instant
   // comparison against local midnight quietly dropped today's orders.
   const day      = Math.floor(t / 86400000);
   const startDay = Math.floor(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()) / 86400000);
@@ -244,7 +244,7 @@ export function weightedForecast(projects, pipeline, days = FORECAST_WINDOW_DAYS
 }
 
 /**
- * Buyout duration — Mike 9-19: "days from entering the buyout stage to the day
+ * Buyout duration, Mike 9-19: "days from entering the buyout stage to the day
  * it went into CA/Procurement stage. We are trying to see when we enter buyout
  * stage how long does it take for us to order."
  *
@@ -310,7 +310,7 @@ export function pipelinesFor(project) {
  * One project → one row per board it is on.
  *
  * This is the unit everything counts and sums. A Full Design job really is two
- * deals: Mike, 2026-09-05 — "we can win a design and lose the procurement. we
+ * deals: Mike, 2026-09-05, "we can win a design and lose the procurement. we
  * can also lose the design and later win the procurement." So each row carries
  * its own stage, its own status and its own revenue, and the project itself is
  * still one job that simply appears on both boards.
@@ -324,7 +324,7 @@ export function boardRows(project) {
   }));
 }
 
-/** Product sales + design fees on one job — never stored, always summed from the boards. */
+/** Product sales + design fees on one job, never stored, always summed from the boards. */
 export function combinedRevenue(project) {
   return boardRows(project).reduce((sum, row) => sum + (row.revenue || 0), 0);
 }

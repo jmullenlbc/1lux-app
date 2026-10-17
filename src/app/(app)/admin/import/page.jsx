@@ -11,7 +11,7 @@ function fmtAns(v) { return v || '—'; }
 
 const BUILDING_TYPE_LABELS = {
   highRise: 'High Rise (12+)',
-  midRise:  'Mid Rise (5–11)',
+  midRise:  'Mid Rise (5 to 11)',
   podium:   'Podium',
   wrap:     'Wrap',
   garden:   'Garden',

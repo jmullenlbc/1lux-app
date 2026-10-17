@@ -31,7 +31,7 @@ export async function GET(request, { params }) {
   return NextResponse.json({ facts: await list(params.id) });
 }
 
-// POST { category, fact } — typed by hand.
+// POST { category, fact }, typed by hand.
 export async function POST(request, { params }) {
   const { user, error } = await guard(params);
   if (error) return error;

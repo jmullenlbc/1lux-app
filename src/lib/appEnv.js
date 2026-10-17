@@ -1,5 +1,5 @@
 /**
- * Which copy of the app is this — live or staging? (Mike 2026-09-24: "you
+ * Which copy of the app is this, live or staging? (Mike 2026-09-24: "you
  * need something on top big and apparent that makes someone know they are in
  * staging.") Import-free so any screen, public ones included, can use it.
  *

@@ -58,7 +58,7 @@ export async function POST(request, { params }) {
     cellPhone, workPhone, linkedInUrl, department,
   } = await request.json();
 
-  // Either a full name or a first/last pair is enough — whichever the form sent,
+  // Either a full name or a first/last pair is enough, whichever the form sent,
   // both halves end up stored so search and mail-merge always have the parts.
   const fullName = String(name ?? '').trim() || joinName(firstName, lastName);
   if (!fullName) return NextResponse.json({ error: 'Name is required' }, { status: 400 });

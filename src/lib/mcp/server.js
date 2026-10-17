@@ -6,7 +6,7 @@
  * bundle on Amplify has its own failure modes; the transport surface we actually
  * need is five methods of a well-specified wire protocol; and the SDK's
  * server-side adapters assume a Node HTTP server rather than a Web `Request`.
- * This matches how the rest of the repo is built — `node:test` with no test
+ * This matches how the rest of the repo is built, `node:test` with no test
  * framework, no ORM wrapper over Prisma.
  *
  * Stateless: no session ids, no SSE. Every POST is a complete request. That is a
@@ -14,11 +14,11 @@
  * Lambda, where there is no process to hold a session in between calls.
  *
  * Methods:
- *   initialize                 — handshake, returns capabilities
- *   notifications/initialized  — client ack; no response body (it is a notification)
- *   ping                       — liveness
- *   tools/list                 — the tool catalogue
- *   tools/call                 — run one tool
+ *   initialize, handshake, returns capabilities
+ *   notifications/initialized, client ack; no response body (it is a notification)
+ *   ping, liveness
+ *   tools/list, the tool catalogue
+ *   tools/call, run one tool
  */
 import { TOOLS, TOOLS_BY_NAME, McpError } from './tools.js';
 import { logQuery } from './audit.js';
@@ -65,7 +65,7 @@ export async function handleMessage(message, caller) {
         instructions:
           'Read-only access to ILC Studios project data. Call list_models first; the names it ' +
           'returns are the only valid `model` arguments. Fields you are not cleared to read are ' +
-          'absent from responses rather than nulled — do not infer that a missing field is empty.',
+          'absent from responses rather than nulled. Do not infer that a missing field is empty.',
       });
 
     // A notification has no id and takes no response. Returning a result here
@@ -104,9 +104,9 @@ export async function handleMessage(message, caller) {
 /**
  * Run one tool, audit it, and return its raw result.
  *
- * Extracted from the JSON-RPC wrapper because /api/mcp answers two wire shapes —
+ * Extracted from the JSON-RPC wrapper because /api/mcp answers two wire shapes
  * JSON-RPC for real MCP clients, and a plain `{tool, params}` POST for the in-app
- * Ask-AI branch — and those two must not become two implementations of the
+ * Ask-AI branch, and those two must not become two implementations of the
  * guards. Both go through this function; only the envelope differs.
  *
  * Throws McpError for anything the caller did wrong (safe to describe back) and
@@ -172,7 +172,7 @@ async function callTool(id, params, caller) {
       isError: false,
     });
   } catch (err) {
-    // A tool that fails is a successful RPC carrying isError, not an RPC error —
+    // A tool that fails is a successful RPC carrying isError, not an RPC error
     // that is the MCP convention, and it is what lets a model see and react to
     // "you cannot read that field" instead of the client swallowing a transport
     // fault. The one exception is an unknown tool name, which is a protocol-level

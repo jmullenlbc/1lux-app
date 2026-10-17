@@ -6,9 +6,10 @@ import { prisma } from '@/lib/db';
 import { getQcObjectUrl } from '@/lib/qcStorage';
 import TasksQcClient from './TasksQcClient';
 
-async function serializeReport(r) {
+async function serializeReport(r, projectNames = {}) {
   return {
     ...r,
+    projectName:   r.projectId ? (projectNames[r.projectId] || null) : null,
     consoleLog:    JSON.parse(r.consoleJson  || '[]'),
     networkLog:    JSON.parse(r.networkJson  || '[]'),
     pageState:     r.pageStateJson ? JSON.parse(r.pageStateJson) : null,
@@ -58,7 +59,18 @@ export default async function TasksPage({ searchParams }) {
     console.error('[tasks page]', err?.message ?? err);
   }
 
-  const reports = await Promise.all(rawReports.map(serializeReport));
+  // Project names for the board's Project link (Mike 10-17).
+  const projectIds = [...new Set(rawReports.map(r => r.projectId).filter(Boolean))];
+  const projectNames = {};
+  if (projectIds.length) {
+    try {
+      const rows = await prisma.project.findMany({ where: { id: { in: projectIds } }, select: { id: true, name: true } });
+      for (const p of rows) projectNames[p.id] = p.name;
+    } catch (err) {
+      console.error('[tasks page] project names', err?.message ?? err);
+    }
+  }
+  const reports = await Promise.all(rawReports.map(r => serializeReport(r, projectNames)));
 
   return (
     <TasksQcClient

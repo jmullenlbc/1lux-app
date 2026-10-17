@@ -73,7 +73,7 @@ function TriggerConfig({ triggerType, config, onChange }) {
           <label className="block text-[11px] font-semibold text-slate-600 mb-1">Stages</label>
           {(() => {
             // Both boards share the same stage list (2026-09-04), and the list
-            // itself comes from pipeline.js — typed out here once, this dropdown
+            // itself comes from pipeline.js, typed out here once, this dropdown
             // kept offering the old stage names after a rename.
             const stageOptions = PIPELINE_STAGES.PROCUREMENT.map(s => ({ value: s.key, label: s.label }));
             const selected = (config.stages || '').split(',').map(s => s.trim()).filter(Boolean);
@@ -126,7 +126,7 @@ function TriggerConfig({ triggerType, config, onChange }) {
   if (triggerType === 'INBOUND_EMAIL_INTENT') {
     return (
       <div>
-        <label className="block text-[11px] font-semibold text-slate-600 mb-1">Min confidence (0–1)</label>
+        <label className="block text-[11px] font-semibold text-slate-600 mb-1">Min confidence (0 to 1)</label>
         <input
           type="number"
           min={0}
@@ -479,7 +479,7 @@ export default function BotRulesPanel() {
   }
 
   function handleSaved(saved, isEdit) {
-    // API returns { rule: {...} } — unwrap it
+    // API returns { rule: {...} }, unwrap it
     const rule = saved?.rule || saved;
     if (isEdit) {
       setRules(prev => prev.map(r => r.id === rule.id ? rule : r));
@@ -538,7 +538,7 @@ export default function BotRulesPanel() {
               </thead>
               <tbody className="divide-y divide-slate-50">
                 {rules.filter(r => r.isActive).length === 0 ? (
-                  <tr><td colSpan={6} className="py-6 text-center text-xs text-slate-500">No active rules — all are disabled below.</td></tr>
+                  <tr><td colSpan={6} className="py-6 text-center text-xs text-slate-500">No active rules, all are disabled below.</td></tr>
                 ) : rules.filter(r => r.isActive).map(rule => (
                   <tr
                     key={rule.id}

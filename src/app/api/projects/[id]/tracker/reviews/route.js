@@ -8,7 +8,7 @@ async function canAccess(projectId, user) {
   return canSeeAllData(user) || p.createdById === user.id;
 }
 
-// POST — add a review entry to a specific item version
+// POST, add a review entry to a specific item version
 // Body: { versionId, reviewerRole, reviewerName, status, dateNoted, notes }
 export async function POST(request, { params }) {
   const { user, error } = await requireAuth();

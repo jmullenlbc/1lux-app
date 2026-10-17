@@ -4,7 +4,7 @@
  * An ordinary form post, not the presign desk. A catalogue photo is a few
  * hundred kilobytes, and the presign dance exists for 300 MB drawing sets.
  * FIXTURE_IMAGE_MAX_BYTES keeps the body under Amplify's front door, which
- * answers anything bigger with an empty 413 and no message at all — the
+ * answers anything bigger with an empty 413 and no message at all, the
  * check here is what turns that silence into a sentence.
  *
  * Returns the address the screen puts in an <img>, not a storage key. Nothing
@@ -46,7 +46,7 @@ export async function POST(request) {
   if (bytes.length > FIXTURE_IMAGE_MAX_BYTES) {
     const mb = (FIXTURE_IMAGE_MAX_BYTES / (1024 * 1024)).toFixed(0);
     return NextResponse.json(
-      { error: `That picture is too big. Keep it under ${mb} MB — a catalogue photo is normally well under one.` },
+      { error: `That picture is too big. Keep it under ${mb} MB. A catalogue photo is normally well under one.` },
       { status: 400 },
     );
   }
@@ -57,7 +57,7 @@ export async function POST(request) {
   const key = await putFixtureImage(bytes, contentType);
   if (!key) {
     return NextResponse.json(
-      { error: 'The picture could not be stored. Nothing was changed — try again.' },
+      { error: 'The picture could not be stored. Nothing was changed. Try again.' },
       { status: 502 },
     );
   }

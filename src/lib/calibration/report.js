@@ -1,5 +1,5 @@
 /**
- * calibration/report.js — from samples to what the dashboard shows.
+ * calibration/report.js, from samples to what the dashboard shows.
  *
  * Pure (no database). Input is CalibrationSample rows joined with a little
  * project context ({ projectName, clientName, serviceType, buildingType }).
@@ -106,7 +106,7 @@ export function rateDriftReport(samples) {
         .sort((a, b) => Math.abs(b.driftPct ?? 0) - Math.abs(a.driftPct ?? 0)),
     });
   }
-  // Worst drift first — that is the row Mike opens the page for.
+  // Worst drift first, that is the row Mike opens the page for.
   return out.sort((a, b) => Math.abs(b.driftPct ?? 0) - Math.abs(a.driftPct ?? 0));
 }
 
@@ -139,7 +139,7 @@ export function samplesByMonth(samples) {
   return Object.keys(acc).sort().map(k => ({ label: k, value: acc[k].size }));
 }
 
-/** How many projects have an actual on each line — where the model is still blind. */
+/** How many projects have an actual on each line, where the model is still blind. */
 export function coverageByLine(samples) {
   const rows = withActuals(samples);
   const acc = {};
@@ -151,7 +151,7 @@ export function coverageByLine(samples) {
 
 export const CALIBRATION_REPORTS = {
   rateDrift:               { label: 'Rate drift by line (table)',        chartType: 'TABLE', unit: null },
-  modelVsActualByLine:     { label: 'Model vs actual — drift % by line', chartType: 'BAR',   unit: '%'  },
+  modelVsActualByLine:     { label: 'Model vs actual: drift % by line', chartType: 'BAR',   unit: '%'  },
   modelVsActualByBuilding: { label: 'Drift % by building type',          chartType: 'BAR',   unit: '%'  },
   samplesByMonth:          { label: 'Projects with actuals, by month',   chartType: 'LINE',  unit: null },
   coverageByLine:          { label: 'Projects with an actual, per line', chartType: 'BAR',   unit: null },
@@ -187,7 +187,7 @@ export function runCalibrationWidget(spec, samples, filters = [], extra = {}) {
           { key: 'suggestedRate', label: 'Suggested', unit: 'rate' },
         ],
         rows: table,
-        empty: 'No actuals yet — enter a hand-built figure on a project (pathway, entrances) or record an actual, and this table fills itself in.',
+        empty: 'No actuals yet. Enter a hand-built figure on a project (pathway, entrances) or record an actual, and this table fills itself in.',
       },
     };
   }
@@ -260,7 +260,7 @@ export function runCalibrationWidget(spec, samples, filters = [], extra = {}) {
         // "Nothing wrong" and "nothing to go on" look identical on screen and
         // mean opposite things, so the card says which one it is.
         empty: analysis.length
-          ? 'Nothing to report — every line with enough jobs behind it is already priced off the thing it actually follows.'
+          ? 'Nothing to report. Every line with enough jobs behind it is already priced off the thing it actually follows.'
           : 'Not enough jobs with real figures yet. A line needs five before this will say anything about it.',
       },
     };
@@ -269,7 +269,7 @@ export function runCalibrationWidget(spec, samples, filters = [], extra = {}) {
   // Not a sample report: what our real jobs say each stand-in figure should
   // be (figureNorms over ProjectFigureSource), which the render route passes
   // in as extra.figureNorms + extra.adopted. A person adopts a row with
-  // "Use this" — nothing changes on its own (Mike 2026-09-24).
+  // "Use this", nothing changes on its own (Mike 2026-09-24).
   if (report === 'learnedFigures' || report === 'amenitySfByType') {
     const rows = guessSuggestions(extra.figureNorms || {}, extra.adopted || {});
     return {

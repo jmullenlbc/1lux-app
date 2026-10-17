@@ -45,7 +45,7 @@ export async function POST(request) {
     if (found) {
       log.alreadyThere++;
       // Sources that predate the market column all carry the default. If the
-      // catalog says this one is local, say so — that is a fact about the
+      // catalog says this one is local, say so, that is a fact about the
       // paper, not a setting somebody chose, so it is safe to correct.
       if ((found.market || DEFAULT_MARKET) === DEFAULT_MARKET && source.market !== DEFAULT_MARKET) {
         try {

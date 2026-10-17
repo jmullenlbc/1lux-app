@@ -4,7 +4,7 @@
  * The bug these exist to prevent is the one that was already in the product:
  * `NoteAction.remindAt` was written in three places and read in zero, so every
  * reminder the bot ever set silently did nothing. Now that something reads it,
- * the failure mode flips — a sweep that runs daily against a date that stays in
+ * the failure mode flips, a sweep that runs daily against a date that stays in
  * the past will nudge the same person about the same thing every morning until
  * they stop trusting the bell. Most of what is pinned below is about firing
  * exactly once.
@@ -39,7 +39,7 @@ test('a due reminder goes to whoever wrote the note', () => {
 });
 
 test('a note reverted to draft is left alone, not stamped', () => {
-  // Someone is reworking it right now. Nudging is nagging — and stamping would
+  // Someone is reworking it right now. Nudging is nagging, and stamping would
   // throw the reminder away for good, so this must be a skip and not a stale.
   const plan = planNoteReminder(action({}, { isPublished: false }), { now: NOW });
   assert.equal(plan.do, 'skip');
@@ -76,7 +76,7 @@ test('the stale line is a boundary, not a cliff a real reminder falls off', () =
 });
 
 test('a missing or unparseable date is skipped, never treated as due', () => {
-  // `new Date(null)` is the epoch, which is due — and 56 years stale. A row with
+  // `new Date(null)` is the epoch, which is due, and 56 years stale. A row with
   // no date must not silently become a reminder about 1970.
   assert.equal(planNoteReminder(action({ remindAt: null }), { now: NOW }).do, 'skip');
   assert.equal(planNoteReminder(action({ remindAt: 'next tuesday' }), { now: NOW }).do, 'skip');
@@ -92,7 +92,7 @@ test('a date stored as a string still fires', () => {
 
 test('the dedupe key is the action, not the day', () => {
   // If the key carried a date, tomorrow's sweep would be a fresh key and the
-  // same reminder would ring again — which is the exact failure the stamp and
+  // same reminder would ring again, which is the exact failure the stamp and
   // the key exist to prevent, arriving through the back door.
   const plan = planNoteReminder(action(), { now: NOW });
   const later = planNoteReminder(action(), { now: new Date(NOW.getTime() + 5 * DAY) });

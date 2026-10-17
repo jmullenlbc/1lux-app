@@ -30,7 +30,7 @@ export async function POST(request) {
   // useful error message instead of a bare 500. The S3 PutObject and the
   // Prisma create are the two known failure points; surfacing the AWS / DB
   // error verbatim is what unblocked the iteration loop the last time the
-  // S3 path silently broke. Internal admin tool — message leak is fine.
+  // S3 path silently broke. Internal admin tool, message leak is fine.
   try {
     let screenshotKey = null;
     const screenshot = formData.get('screenshot');
@@ -95,7 +95,7 @@ export async function POST(request) {
             userId:    a.id,
             type:      'BUG_BLOCKER',
             title:     `Blocker: ${title.trim()}`,
-            message:   `${user.name || user.email} — ${bugModule || 'app'}`,
+            message:   `${user.name || user.email}: ${bugModule || 'app'}`,
             link:      `/admin/tasks?tab=bugs&focus=${report.id}`,
             dedupeKey: `bug-blocker-${report.id}-${a.id}`,
           },

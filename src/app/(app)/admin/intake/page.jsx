@@ -8,7 +8,7 @@ import { loadFigureNorms, loadAdoptedGuesses } from '@/lib/calibration/figureNor
 import { sweepUnfinishedDraftsQuietly } from '@/lib/intake/conceptualProjects';
 
 // Admins and the Sales team work this queue (2026-09-12). `?id=` opens one
-// request straight away — the link in the Sales alert, the pipeline card and
+// request straight away, the link in the Sales alert, the pipeline card and
 // the Things Needing a Look card all use it.
 export default async function IntakePage({ searchParams }) {
   const { user, error } = await requireIntakeReviewer(cookies());
@@ -45,7 +45,7 @@ export default async function IntakePage({ searchParams }) {
     orderBy: { name: 'asc' },
   });
 
-  // Budgets started on the public page but never sent (migration 0087) — leads.
+  // Budgets started on the public page but never sent (migration 0087), leads.
   // Finished ones carry a submissionId and put-away ones an archivedAt; this
   // model is not on the automatic archive filter, so both are excluded by hand.
   const drafts = await prisma.conceptualDraft.findMany({
@@ -60,8 +60,8 @@ export default async function IntakePage({ searchParams }) {
     },
   });
 
-  // What our real jobs say each figure runs, by building type — the review
-  // flags warn when a request is far off it — plus adopted stand-ins. Never fatal.
+  // What our real jobs say each figure runs, by building type, the review
+  // flags warn when a request is far off it, plus adopted stand-ins. Never fatal.
   const [norms, adopted] = await Promise.all([loadFigureNorms(), loadAdoptedGuesses()]);
 
   const openId = typeof searchParams?.id === 'string' ? searchParams.id : null;

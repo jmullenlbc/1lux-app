@@ -1,5 +1,5 @@
 // Guided, deterministic formula evaluator for dashboard widgets.
-// Only the curated ops below — no free-form code, so widgets can't produce nonsense.
+// Only the curated ops below, no free-form code, so widgets can't produce nonsense.
 //
 // A widget's dataSpec (JSON) shape:
 //   {
@@ -21,7 +21,7 @@ export { AGG_LABEL, MATH_LABEL };
 
 function nums(rows, field) {
   const src = field?.source;
-  // A blank cell is missing, not zero — otherwise an average over a mostly-blank
+  // A blank cell is missing, not zero, otherwise an average over a mostly-blank
   // column (Buyout Duration, probability) is dragged toward 0 by every empty row.
   return rows.map(r => readField(r, src))
     .filter(v => v !== null && v !== undefined && v !== '')

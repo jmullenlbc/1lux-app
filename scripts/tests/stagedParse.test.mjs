@@ -1,8 +1,8 @@
 // The read is four HTTP requests now, and this file drives them.
 //
 // Why it is worth testing at all: the failure it replaced was invisible. The
-// one-request version of the read had never completed once on the live site --
-// Amplify hangs up at ~30 seconds, a real set takes ~66 -- and it looked like a
+// one-request version of the read had never completed once on the live site
+// Amplify hangs up at ~30 seconds, a real set takes ~66, and it looked like a
 // generic upload failure because the 504 arrives with no body. Splitting it up
 // moves that risk into ORDERING: skip a step that was needed, or hand the wrong
 // answer to the combiner, and the visitor gets confidently wrong numbers rather
@@ -47,7 +47,7 @@ function fakeFetch(replies) {
 
 const MATRIX = { unitTypes: [{ name: 'A1', count: 12, sf: 750 }], overallConfidence: 0.9 };
 
-/** A set that reads cleanly off the text layer -- the happy path. */
+/** A set that reads cleanly off the text layer, the happy path. */
 const CLEAN = {
   scan:   { staging: true, scanKey: 'scans/abc.json.gz', totalPages: 120, sheetsRead: [4, 7], hasText: true, needsRender: true },
   render: { keptSheets: [{ page: 4, key: 'sheets/x.jpg', bytes: 90000 }], sheetsRead: [4, 7] },
@@ -94,7 +94,7 @@ test('the four stages run in order, and the working scan is cleaned up', async (
   // drawn), so its request lands before the render's even though the visitor
   // still sees the steps in the listed order.
   assert.deepStrictEqual(f.calls, ['scan', 'matrix', 'render', 'done'],
-    'site must not run when the matrix already answered -- it is the expensive call');
+    'site must not run when the matrix already answered: it is the expensive call');
   assert.ok(steps.includes('site:skipped'),
     'a step that does not run must still be reported, or it looks like the read stopped');
 });
@@ -177,7 +177,7 @@ test('the parked scan is swept even when a stage fails', async () => {
 // ── Retry must not re-upload ─────────────────────────────────────────────────
 // The file card keeps the upload key so Retry re-asks the READ without
 // re-sending the file. That only works if the cleanup after a FAILED read
-// leaves the file in place — it did not (Lone Tree GEN, 25.7 MB, re-uploaded
+// leaves the file in place, it did not (Lone Tree GEN, 25.7 MB, re-uploaded
 // three times, 2026-09-16), so the failed path now says so to the server.
 
 test('a failed read tells the cleanup to keep the upload for Retry', async () => {
@@ -198,7 +198,7 @@ test('a finished read lets the cleanup delete the upload', async () => {
 });
 
 test('a server that declines to stage says so, rather than failing', async () => {
-  // Local dev has no bucket to park a scan in. That is not an error -- it means
+  // Local dev has no bucket to park a scan in. That is not an error, it means
   // "do this one in a single request", and the caller falls back.
   const f = fakeFetch({ scan: { staging: false, fileName: 'small.pdf' } });
   const out = await runStagedParse({ s3Key: 'uploads/intake/a.pdf', fileName: 'small.pdf' });
@@ -208,7 +208,7 @@ test('a server that declines to stage says so, rather than failing', async () =>
 });
 
 test('an error message from the server reaches the visitor unchanged', async () => {
-  // These are written for a public reader -- a GC on a job site -- so the UI
+  // These are written for a public reader, a GC on a job site, so the UI
   // shows them as-is. A wrapper that replaced them with "something went wrong"
   // would throw away the only actionable part.
   const f = fakeFetch({ scan: { __status: 410, message: 'This upload timed out before we finished reading it. Please upload the file again.' } });
@@ -236,8 +236,8 @@ test('every step the UI lists is one the driver actually reports', async () => {
 test('a unit-counts read that fails still lets the site plan answer', async () => {
   // Seen for real 2026-08-25: the model ran long on a code-review sheet and its
   // answer was cut off mid-JSON. The site read on that same sheet found 250
-  // units and 12 buildings. Losing the whole upload over the first failure --
-  // intermittently, so the same file can fail then succeed -- is the worst
+  // units and 12 buildings. Losing the whole upload over the first failure
+  // intermittently, so the same file can fail then succeed, is the worst
   // thing to hand a GC.
   const f = fakeFetch({
     ...CLEAN,
@@ -251,7 +251,7 @@ test('a unit-counts read that fails still lets the site plan answer', async () =
 });
 
 test('when BOTH reads are out, the visitor is told what went wrong', async () => {
-  // Not "no numbers found" -- that blames the drawing for our failure, and
+  // Not "no numbers found", that blames the drawing for our failure, and
   // sends someone off to check a sheet that was perfectly fine.
   const f = fakeFetch({
     ...CLEAN,
@@ -280,7 +280,7 @@ test('a site read that errors after a failed unit-counts read is not swallowed',
 
 test('with nowhere to upload first, the file rides along with the first step', async () => {
   // A laptop has no bucket. Before this, that dropped the whole read back to
-  // one long request -- no steps, no progress, and one connection held open for
+  // one long request, no steps, no progress, and one connection held open for
   // a minute, which is the exact shape this change exists to remove. And the
   // laptop is what Mike tests against from his phone.
   const f = fakeFetch(CLEAN);
@@ -356,7 +356,7 @@ test('no index on the cover means we open the front of the set anyway', async ()
 
 test('an index read that cannot be anchored does not stop the read', async () => {
   // Anchoring is what turns a row in the index into a page in the file. Without
-  // it we know which sheet we want and not where it is -- and guessing would
+  // it we know which sheet we want and not where it is, and guessing would
   // open some other drawing and report ITS numbers as the answer.
   const f = fakeFetch({ ...PLOTTED, sheets: { mapped: false, reason: 'no_anchor', sheetsRead: [1] } });
   const out = await runStagedParse({ s3Key: 'uploads/intake/a.pdf', fileName: 'set.pdf' });
@@ -378,7 +378,7 @@ test('an index step that errors outright is survived, not raised', async () => {
 
 test('the index is read one close-up at a time until the server says it is done', async () => {
   // Reading a 158-sheet index in one request would sail past the ~30s front
-  // door and come back as an empty 504 -- the exact failure this whole staged
+  // door and come back as an empty 504, the exact failure this whole staged
   // read exists to avoid. Each close-up is its own request.
   let n = 0;
   const f = fakeFetch({
@@ -567,7 +567,7 @@ test('waitForVisible is a no-op where there is no page to hide', async () => {
 // ── The front-door hang-up: an empty non-2xx is a drop, not a decision ──────
 // Amplify's front door hangs up on any request past ~30s and returns a 504
 // with NO body. The work is parked server-side under the scanKey, so this is
-// as retryable as a thrown fetch — but it used to be treated as a server
+// as retryable as a thrown fetch, but it used to be treated as a server
 // decision, and one hang-up killed the whole read. That was the R3 on the
 // 294-sheet Skyline Ridge set.
 
@@ -654,7 +654,7 @@ test('a sheet pick still running is waited for, not started a second time', asyn
 // its own key, then one merge request folds the banked pages back into the
 // main scan. What these protect: every offered range must actually be read,
 // the merge must wait for all of the streams, and one dead stream must cost a
-// hole in the read -- never the read itself.
+// hole in the read, never the read itself.
 
 const RANGES = [
   { from: 9, to: 36 }, { from: 37, to: 64 }, { from: 65, to: 92 }, { from: 93, to: 120 },
@@ -689,7 +689,7 @@ test('a monster scan fans out into the offered ranges and merges when all are do
   assert.deepStrictEqual(
     shards.map(b => ({ from: b.from, to: b.to })).sort((a, b) => a.from - b.from),
     RANGES,
-    'every offered range must be read -- a dropped one is silently unread pages');
+    'every offered range must be read: a dropped one is silently unread pages');
   assert.deepStrictEqual([...new Set(shards.map(b => b.shard))].sort(), [0, 1, 2, 3]);
 
   const mergeAt = f.sent.findIndex(b => b.mergeShards);
@@ -714,7 +714,7 @@ test('one dead stream is a hole in the read, not the end of it', async () => {
   f.restore();
 
   assert.equal(f.sent.filter(b => b.mergeShards).length, 1,
-    'the merge still runs -- the other three streams banked real pages');
+    'the merge still runs: the other three streams banked real pages');
   assert.equal(out.unitTypes.length, 1, 'the visitor still gets an answer');
 });
 
@@ -742,7 +742,7 @@ test('the matrix is kicked before the render, and the polled answer is the final
   let matrixCalls = 0;
   const f = fakeFetch({
     ...CLEAN,
-    // First ask: "still reading" -- the server kicked the model call off.
+    // First ask: "still reading", the server kicked the model call off.
     // Second ask (one poll later): the parked answer.
     matrix: () => (++matrixCalls === 1 ? { more: true } : { matrix: MATRIX, needsSite: false }),
   });

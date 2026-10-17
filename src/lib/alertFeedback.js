@@ -19,7 +19,7 @@ export function isVerdict(v) {
 
 /**
  * Should we ask this person whether to stop sending this kind of alert?
- * Only on the click that reaches the threshold, and never once it is muted —
+ * Only on the click that reaches the threshold, and never once it is muted
  * asking again every click would be its own kind of nagging.
  */
 export function shouldOfferMute({ notUsefulCount, alreadyMuted }) {
@@ -36,7 +36,7 @@ export function muteQuestion(typeLabel) {
  * Roll feedback rows up per alert kind for the admin report.
  *
  * Rows in: `{ alertType, verdict }`, plus the mute rows `{ alertType }`.
- * Out: one row per kind, noisiest first — "noisiest" meaning the highest share
+ * Out: one row per kind, noisiest first, "noisiest" meaning the highest share
  * of "Don't need", with the count breaking ties so one grumpy click doesn't
  * top a list above a kind fifty people called noise.
  */
@@ -67,7 +67,7 @@ export function summarizeFeedback(rows = [], mutes = []) {
 /** One plain line under each row of the report. */
 export function describeNoise(row) {
   if (row.total === 0) return `Nobody has rated this one. ${row.mutedBy} turned it off.`;
-  if (row.noisePct >= 60) return `Mostly noise — ${row.notUseful} of ${row.total} said they don't need it.`;
-  if (row.noisePct <= 20) return `People want this one — ${row.useful} of ${row.total} called it useful.`;
-  return `Mixed — ${row.useful} useful, ${row.notUseful} not needed.`;
+  if (row.noisePct >= 60) return `Mostly noise: ${row.notUseful} of ${row.total} said they don't need it.`;
+  if (row.noisePct <= 20) return `People want this one: ${row.useful} of ${row.total} called it useful.`;
+  return `Mixed: ${row.useful} useful, ${row.notUseful} not needed.`;
 }

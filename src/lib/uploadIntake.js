@@ -7,8 +7,8 @@
 // Every upload route now reads its bytes through readUploadedFile() and stops
 // caring which way they arrived:
 //
-//   classic  — FormData carries `file`      (small files, and all of local dev)
-//   direct   — FormData carries `uploadKey` + `fileName` + `fileType`
+//   classic, FormData carries `file`      (small files, and all of local dev)
+//   direct, FormData carries `uploadKey` + `fileName` + `fileType`
 //
 // Keeping BOTH inside FormData is deliberate: routes still parse `tab`, `tags`
 // and friends exactly as they did, and only the line that gets the bytes moves.
@@ -76,12 +76,12 @@ export async function readUploadedFile(formData, { limit = MAX_PROJECT_UPLOAD_BY
  * Multi-file version, for the two windows that accept a whole drawing set at
  * once. Same two shapes:
  *
- *   classic — FormData carries repeated `files`
- *   direct  — FormData carries `uploadKeys`, a JSON array of
+ *   classic, FormData carries repeated `files`
+ *   direct, FormData carries `uploadKeys`, a JSON array of
  *             { key, name, type }, one per file
  *
  * A single bad entry fails the whole batch rather than importing a partial set
- * silently — these callers treat the drop as one submission.
+ * silently, these callers treat the drop as one submission.
  *
  * @returns {Promise<{ ok: true, files: Array<{buffer: Buffer, name: string, type: string}>, cleanup: () => Promise<void> }
  *                 | { ok: false, status: number, message: string }>}

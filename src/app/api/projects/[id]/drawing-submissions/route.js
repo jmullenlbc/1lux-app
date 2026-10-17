@@ -88,7 +88,7 @@ export async function POST(request, { params }) {
     },
   });
 
-  // Store each file — prepend date prefix to displayed name
+  // Store each file, prepend date prefix to displayed name
   const uploadDir = path.join(process.cwd(), 'uploads', params.id, 'drawings');
   try { await mkdir(uploadDir, { recursive: true }); } catch {}
 
@@ -137,7 +137,7 @@ export async function POST(request, { params }) {
       });
       const currentIdx = PHASE_ORDER.indexOf(project?.phase ?? '');
       const newIdx     = PHASE_ORDER.indexOf(newPhase);
-      // Only advance — never go backward
+      // Only advance, never go backward
       if (newIdx > currentIdx) {
         await prisma.project.update({
           where: { id: params.id },

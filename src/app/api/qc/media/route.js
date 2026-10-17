@@ -11,7 +11,7 @@ export async function GET(request) {
   const key = searchParams.get('key');
   if (!key) return NextResponse.json({ error: 'Missing key' }, { status: 400 });
 
-  // Sanitize — only allow qc/ prefix, block path traversal
+  // Sanitize, only allow qc/ prefix, block path traversal
   if (!key.startsWith('qc/') || key.includes('..') || key.includes('\\')) {
     return NextResponse.json({ error: 'Invalid key' }, { status: 400 });
   }

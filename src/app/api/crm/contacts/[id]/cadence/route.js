@@ -20,7 +20,7 @@ export async function PATCH(request, { params }) {
   if (cadenceDays    !== undefined) data.cadenceDays    = cadenceDays != null ? Number(cadenceDays) : null;
   if (nextCheckInAt  !== undefined) data.nextCheckInAt  = nextCheckInAt ? new Date(nextCheckInAt) : null;
 
-  // Handle lastInPersonAt — also update lastTouchpointAt if the new value is more recent
+  // Handle lastInPersonAt, also update lastTouchpointAt if the new value is more recent
   if (lastInPersonAt !== undefined) {
     const newInPerson = lastInPersonAt ? new Date(lastInPersonAt) : null;
     data.lastInPersonAt = newInPerson;

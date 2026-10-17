@@ -115,7 +115,7 @@ export async function POST(request, { params }) {
   });
   const nextBidVersion = (lastBidNumber?.version ?? 0) + 1;
 
-  // Build bid matrix items — split on ' + ' delimiter
+  // Build bid matrix items, split on ' + ' delimiter
   const bidItems = [];
   let sortOrder = 0;
   for (const schedItem of draft.items) {
@@ -182,7 +182,7 @@ export async function POST(request, { params }) {
             isAlternate:   item.isAlternate,
             alternateOf:   item.alternateOf,
             sortOrder:     item.sortOrder,
-            // aiConfidence + aiFlagged intentionally NOT carried forward — fresh draft starts clean
+            // aiConfidence + aiFlagged intentionally NOT carried forward, fresh draft starts clean
           })),
         },
       },
@@ -212,7 +212,7 @@ export async function POST(request, { params }) {
   });
 
   // ── Step 4: Smart merge PeerReviewItem records ────────────────────────────
-  // SMART MERGE — never wipes user-entered pricing/specs.
+  // SMART MERGE, never wipes user-entered pricing/specs.
   // • New type codes in this push → CREATE
   // • Type codes removed from schedule → DELETE
   // • Type codes still present → UPDATE description/location/notes only (keep all pricing)

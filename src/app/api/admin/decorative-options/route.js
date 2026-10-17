@@ -1,5 +1,5 @@
 /**
- * The decorative option pool — list and add.
+ * The decorative option pool, list and add.
  *
  * This is the fixture library for the five things a client actually picks: the
  * kitchen pendant, the bath vanity, the balcony sconce, the unit entry sconce
@@ -83,7 +83,7 @@ export async function GET(request) {
   return NextResponse.json({ options });
 }
 
-// POST /api/admin/decorative-options — add one body, optionally with finishes.
+// POST /api/admin/decorative-options, add one body, optionally with finishes.
 export async function POST(request) {
   const { error } = await requirePermission(request, 'editProducts');
   if (error) return error;

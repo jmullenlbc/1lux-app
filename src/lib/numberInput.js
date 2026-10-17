@@ -1,4 +1,4 @@
-// numberInput.js — one reading of "what number did they type?"
+// numberInput.js, one reading of "what number did they type?"
 //
 // People type money and counts the way they write them: "1,200,000",
 // "$41,200.50", "226,000 SF", "12%", "(500)". JavaScript disagrees with
@@ -12,7 +12,7 @@
 
 /**
  * parseLooseNumber(v)
- *   undefined            → undefined   (field not sent — leave it alone)
+ *   undefined            → undefined   (field not sent, leave it alone)
  *   null | '' | '   '    → null        (deliberately blank)
  *   12 / 12.5            → 12 / 12.5   (already a number; NaN/Infinity → NaN)
  *   "1,200,000"          → 1200000
@@ -21,7 +21,7 @@
  *   "-500" / "(500)"     → -500        (accounting parentheses = negative)
  *   "abc" / "$" / "1.2.3"→ NaN         (typed something, but not a number)
  *
- * NaN means "refuse this", never "treat as zero" — callers decide whether
+ * NaN means "refuse this", never "treat as zero", callers decide whether
  * that is a 400, a skip, or a fallback. Use Number.isFinite() to check.
  */
 export function parseLooseNumber(v) {
@@ -45,7 +45,7 @@ export function parseLooseNumber(v) {
   // Keep digits, one dot and a leading minus.
   const lead = /^-/.test(s);
   s = s.replace(/[^0-9.]/g, '');
-  if (!/[0-9]/.test(s)) return NaN;          // "$", "abc", "SF" — not a number
+  if (!/[0-9]/.test(s)) return NaN;          // "$", "abc", "SF", not a number
   if ((s.match(/\./g) || []).length > 1) return NaN; // "1.2.3"
   const n = Number(s);
   if (!Number.isFinite(n)) return NaN;
@@ -53,7 +53,7 @@ export function parseLooseNumber(v) {
 }
 
 /**
- * looseNumberOrNull(v) — same reading, but anything unreadable becomes
+ * looseNumberOrNull(v), same reading, but anything unreadable becomes
  * null instead of NaN. For "skip what we can't read" callers (bulk grids,
  * imports) where a 400 for one bad cell would throw away the good ones.
  */
@@ -64,7 +64,7 @@ export function looseNumberOrNull(v) {
 }
 
 /**
- * looseInteger(v) — counts and quantities: parse loosely, then round.
+ * looseInteger(v), counts and quantities: parse loosely, then round.
  * "1,250" → 1250, "12.6" → 13, "" → null, "abc" → NaN.
  */
 export function looseInteger(v) {
@@ -74,7 +74,7 @@ export function looseInteger(v) {
 }
 
 /**
- * isUnreadableNumber(raw) — true when somebody typed something that is not
+ * isUnreadableNumber(raw), true when somebody typed something that is not
  * a number ("abc"). Blank and missing are NOT unreadable; they are choices.
  * Handy for the "400 with a friendly message" branch.
  */
@@ -84,7 +84,7 @@ export function isUnreadableNumber(raw) {
 }
 
 /**
- * cleanNumberInput(raw) — for text boxes on the client: what to send to the
+ * cleanNumberInput(raw), for text boxes on the client: what to send to the
  * server. A readable figure goes as its plain digits ("1,200,000" →
  * "1200000") so an older server still reads it; blank stays blank; anything
  * unreadable is passed through untouched so the server can refuse it with a
@@ -102,13 +102,13 @@ export function cleanNumberInput(raw) {
 export const NUMBER_HELP = 'Please enter the amount as a number, like 1,200,000.';
 
 /**
- * wholeFigure(v) — the ONE reading of a figure a visitor typed on the public
+ * wholeFigure(v), the ONE reading of a figure a visitor typed on the public
  * budget form, shared by the readiness gate, the submit whitelist and the
  * quantity ladders so a number prices the same live, on save and on hand-off
  * (big error test 10-14: the three used to disagree on "$300", "0.5", "1e9").
  * Dressing is fine (Mike 9-18): "$300", "226,000 SF", " 2,500 " read as the
  * figure they mean; decimals round; anything unreadable, negative or over
- * nine digits is null. 0 is returned as 0 — callers decide whether 0 counts.
+ * nine digits is null. 0 is returned as 0, callers decide whether 0 counts.
  */
 export const WHOLE_FIGURE_MAX = 999_999_999;
 export function wholeFigure(v) {

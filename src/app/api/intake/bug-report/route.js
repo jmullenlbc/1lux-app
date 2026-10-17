@@ -18,12 +18,12 @@ const MAX_SHOT_BYTES = 4_000_000;
  * source 'PUBLIC'; whatever name/email they chose to type rides in
  * reporterName/reporterEmail. It lands on the same QC board as staff reports.
  *
- *  - Rate limited per IP (same speed-bump limiter as /api/intake/submit — see
+ *  - Rate limited per IP (same speed-bump limiter as /api/intake/submit, see
  *    the limitation note in rateLimit.js).
  *  - Every field is clamped by cleanPublicBugReport before it is stored.
  *  - Admins are told in-app. A failed alert never fails the request: the row
  *    is already saved and the board is the source of truth.
- *  - The response is just { ok: true } — nothing from the row is echoed back.
+ *  - The response is just { ok: true }, nothing from the row is echoed back.
  */
 
 const LIMIT = { limit: 3, windowMs: 60_000 };
@@ -73,6 +73,24 @@ export async function POST(req) {
     }
   }
 
+  // The wizard sends its draft id: the report links to that budget (and to
+  // its project once it has one). A stale or unknown id just links nothing.
+  let draft = null;
+  if (d.draftId) {
+    try {
+      draft = await prisma.conceptualDraft.findUnique({ where: { id: d.draftId }, select: { id: true, email: true, projectId: true } });
+    } catch (e) {
+      console.error('[api/intake/bug-report] draft lookup failed (non-fatal):', e?.message);
+    }
+  }
+  const pageState = (draft || d.step || d.projectName) ? JSON.stringify({
+    budgetName: d.projectName || undefined,
+    step:       d.step || undefined,
+    draftId:    draft?.id,
+    // Opens the budget the way the client sees it (company portal link, 0132).
+    budgetLink: draft ? `/conceptual_budget?open=${draft.id}&as=${encodeURIComponent(draft.email)}` : undefined,
+  }) : null;
+
   let report;
   try {
     report = await prisma.bugReport.create({
@@ -86,6 +104,8 @@ export async function POST(req) {
         browserInfo:   d.browserInfo,
         viewport:      d.viewport,
         screenshotKey,
+        projectId:     draft?.projectId || null,
+        pageStateJson: pageState,
         reporterId:    null,
         reporterName:  d.reporterName,
         reporterEmail: d.reporterEmail,
@@ -94,7 +114,7 @@ export async function POST(req) {
       select: { id: true, title: true },
     });
   } catch (e) {
-    // Public route — log the detail, show the visitor a plain sentence.
+    // Public route, log the detail, show the visitor a plain sentence.
     console.error('[api/intake/bug-report] create failed:', e?.name, e?.message);
     return NextResponse.json(
       { error: "We couldn't save your report just now. Please try again in a minute." },
@@ -113,8 +133,8 @@ export async function POST(req) {
     await notifyUsers(admins.map(a => a.id), {
       type:      'PUBLIC_BUG_REPORT',
       title:     'A beta client reported a bug',
-      message:   `${who} — ${report.title}`.slice(0, 300),
-      link:      `/admin/qc?focus=${report.id}`,
+      message:   `${who}: ${report.title}`.slice(0, 300),
+      link:      `/admin/tasks?tab=bugs&focus=${report.id}`,
       dedupeKey: `public-bug:${report.id}`,
     });
   } catch (e) {

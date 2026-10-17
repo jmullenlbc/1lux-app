@@ -4,7 +4,7 @@
  * ── Nothing is deleted ───────────────────────────────────────────────────────
  * A retired option is `isActive: false`. It stops being offered on new surveys
  * and it keeps every choice anybody ever made from it, which is the whole point
- * — a survey from March has to still say what was on the screen in March. DELETE
+ * a survey from March has to still say what was on the screen in March. DELETE
  * refuses, out loud, the same way the rest of the app refuses.
  *
  * The same applies one level down. Taking a finish off a fixture switches that
@@ -55,7 +55,7 @@ export async function GET(request, { params }) {
 }
 
 /**
- * PATCH — change the body, and/or hand over the whole finish list.
+ * PATCH, change the body, and/or hand over the whole finish list.
  *
  * `finishes`, if sent, is the complete set. A finish in the list is created or
  * updated; a finish not in the list is switched off, not removed.
@@ -148,7 +148,7 @@ export async function DELETE() {
   return NextResponse.json(
     {
       error:
-        'Fixtures are never deleted. Retire it instead — it stops being offered on new surveys ' +
+        'Fixtures are never deleted. Retire it instead. It stops being offered on new surveys ' +
         'and every choice anybody already made from it stays readable.',
     },
     { status: 405 },

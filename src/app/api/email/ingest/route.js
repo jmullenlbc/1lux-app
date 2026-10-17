@@ -6,7 +6,7 @@ import { recordEmailMessage } from '@/lib/email/recorder';
 import { getMassEmailThreshold } from '@/lib/email/settings';
 
 /**
- * POST /api/email/ingest — take a batch of mail and record it against people.
+ * POST /api/email/ingest, take a batch of mail and record it against people.
  *
  * This is the door the Microsoft mailbox sync will knock on. It is built and
  * tested now so that connecting Graph later is a matter of pointing a sync at
@@ -26,7 +26,7 @@ import { getMassEmailThreshold } from '@/lib/email/settings';
  * Sales Automation → Rules → Exclusions; the number in force is returned as
  * `massEmailMinPeople` so a sync can log which rule it ran under.
  *
- * Admin only — this is internal mailbox data and never reaches a client viewer.
+ * Admin only, this is internal mailbox data and never reaches a client viewer.
  */
 export async function POST(req) {
   const { error } = await requireAdmin();

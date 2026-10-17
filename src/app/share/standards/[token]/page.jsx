@@ -29,7 +29,7 @@ export default async function StandardsSharePage({ params }) {
   const client  = share.client;
   const answers = await prisma.clientStandardsAnswer.findMany({ where: { clientId: client.id } });
 
-  // Global (default) resolution — projectType '' / region ''
+  // Global (default) resolution, projectType '' / region ''
   const rec   = (key) => resolveAnswer(answers, key, '', '');
   const val   = (key) => rec(key)?.answer_value || null;
   const note  = (key) => rec(key)?.answer_note  || null;

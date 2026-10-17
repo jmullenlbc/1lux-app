@@ -10,7 +10,7 @@ import { pullMacroStats, macroStale } from '@/lib/market-intel/macroStats';
  *
  * ── Why this exists when /api/market-intel/poll already does the same work ──
  * That route is a POST behind a button. Market intel that only arrives when
- * somebody remembers to press a button is not intelligence — the value is
+ * somebody remembers to press a button is not intelligence, the value is
  * entirely in it having already happened by the time you look. This is the same
  * poll on the same code, reachable the way every other scheduled job in this
  * folder is reachable, so all of them can be found and reasoned about in one

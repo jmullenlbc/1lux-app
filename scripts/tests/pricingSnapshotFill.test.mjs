@@ -4,7 +4,7 @@
  * Every project carries the pricing sheet as it stood when the project was
  * created. Wallpacks, pathway lighting, the landscape cap and the solar
  * multipliers were all added AFTER the April 2026 projects were made, so their
- * snapshots have no entry for them — and the engine read "no entry" as $0.
+ * snapshots have no entry for them, and the engine read "no entry" as $0.
  * Fulshear's live page showed $0 wallpacks and $0 pathway while a fresh run of
  * the same answers priced them at $24,150 and $22,320.
  *
@@ -54,7 +54,7 @@ test('snapshot values still win over the master sheet for keys the snapshot carr
   assert.notEqual(snap.sections.units.base.product, calculateBudget(FULSHEAR, SECTIONS).sections.units.base.product);
 });
 
-test('a snapshot with the newer lines is untouched — no key is overwritten by the sheet', () => {
+test('a snapshot with the newer lines is untouched: no key is overwritten by the sheet', () => {
   const s = JSON.parse(JSON.stringify(PRICING));
   s.exterior.pathway.dollarsPerUnit.garden = 90;
   s.exterior.wallpacks.perFixture = 400;

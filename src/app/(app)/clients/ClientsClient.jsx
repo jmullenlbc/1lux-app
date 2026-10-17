@@ -437,7 +437,7 @@ export default function ClientsClient({ clients: initial, user }) {
                 </div>
               )}
 
-              {/* Deal counts, worked out live from this client's projects —
+              {/* Deal counts, worked out live from this client's projects
                   never a stored number that can drift. One project is one deal,
                   even when it rides both pipelines. */}
               {(() => {

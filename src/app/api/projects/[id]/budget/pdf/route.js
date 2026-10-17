@@ -54,14 +54,14 @@ export async function GET(request, { params }) {
 
   function gl(cat, key) { return OPTION_LABELS[cat]?.[key] || key || '—'; }
   const LL = {
-    diskType:           { flatEdgeLit: 'Flat Edge-Lit (standard)', backlit: 'Backlit Rounded (–$0.04/SF credit)' },
+    diskType:           { flatEdgeLit: 'Flat Edge-Lit (standard)', backlit: 'Backlit Rounded (-$0.04/SF credit)' },
     diskSize:           { '5inch': '5" Disk (standard)', '7inch': '7" Disk (more output)' },
     entryDisk:          { typical: 'Standard', '12inch': '12" Oversized Entry Disk (+$25/unit)', upgraded12: '12" Oversized Entry Disk (+$25/unit)', decorative: 'Decorative Surface Mount (+$30/unit)' },
-    fireRating:         { none: 'None — standard j-boxes', '1hr': '1-Hour fire-rated IC housing', '2hr': '2-Hour fire-rated IC housing' },
+    fireRating:         { none: 'None, standard j-boxes', '1hr': '1-Hour fire-rated IC housing', '2hr': '2-Hour fire-rated IC housing' },
     fanLevel:           { low: 'Low (builder grade pull-chain)', medium: 'Medium (eLuma spec grade)', high: 'High (custom/premium)' },
     fanSize52:          { no: '48" (standard)', yes: '52" upgrade' },
-    fanLightKit:        { no: 'No', yes: 'Yes — light kit on fans' },
-    fanSupplemental:    { no: 'No', yes: 'Yes — supplemental lighting in fan areas' },
+    fanLightKit:        { no: 'No', yes: 'Yes, light kit on fans' },
+    fanSupplemental:    { no: 'No', yes: 'Yes, supplemental lighting in fan areas' },
     undercabinetSwitch: { integrated: 'Integrated on-fixture switch', wallSwitch: 'Dedicated wall switch', backsplash: 'Switch in backsplash' },
     fixtureType:        { disk: 'Surface-Mount Disk', recessed: 'Recessed Downlight' },
     corridorFireRating: { surfaceMount: 'Surface Mount', fireRated: 'Fire-Rated Concealed' },
@@ -79,15 +79,15 @@ export async function GET(request, { params }) {
     boilerRoom:         { no: 'No', yes: 'Yes (+$15/unit)' },
     closetControl:      { switch: 'Standard Switch', occSensor: 'Occupancy Sensor' },
     halfHotReceptacles: { no: 'No', yes: 'Yes' },
-    buyHold:            { buyHold: 'Buy and hold — long-term ownership', buildSell: 'Build and sell — exit at or near CO' },
+    buyHold:            { buyHold: 'Buy and hold, long-term ownership', buildSell: 'Build and sell, exit at or near CO' },
     switchesDimmers:    { ourScope: 'ILC / lighting budget', ecScope: "Electrical contractor's scope", tbd: 'TBD' },
     contingency:        { none: 'No contingency', '5pct': '5% contingency', '10pct': '10% contingency' },
     controlsSystem:     { standalone: 'Standalone / Independent', bms: 'BMS Integrated', none: 'None' },
     decorativeDimming:  { no: 'No', yes: 'Yes' },
     sceneSwitching:     { bankSwitches: 'Bank Switches', dmx: 'DMX / Scene Controller', none: 'None', no: 'None' },
-    zoneReduction:      { no: 'No', yes: 'Yes — Automatic Zone Reduction' },
+    zoneReduction:      { no: 'No', yes: 'Yes, Automatic Zone Reduction' },
     siteType:           { pedestrian: 'Pedestrian-Focused', vehicular: 'Vehicular / Parking-Dominated', mixed: 'Mixed Use' },
-    roadwayLighting:    { no: 'No', yes: 'Yes — Roadway / Streetscape Included' },
+    roadwayLighting:    { no: 'No', yes: 'Yes, Roadway / Streetscape Included' },
     exteriorEmergency:  { wallpack: 'Wall-Pack Fixtures', integrated: 'Integrated Into Design' },
     exteriorPoleControl:{ photocell: 'Photocell', timer: 'Timer', bms: 'BMS / Building Controls' },
   };
@@ -156,7 +156,7 @@ export async function GET(request, { params }) {
           if (v === 'custom' && r.amenities?.interiorCustomRate)
             return `Custom: $${Number(r.amenities.interiorCustomRate).toFixed(2)}/SF`;
           if (labels[v]) return labels[v];
-          // conceptual wizard stores a raw dollar rate; design wizard stores key — handle both
+          // conceptual wizard stores a raw dollar rate; design wizard stores key, handle both
           const rate = parseFloat(v);
           return !isNaN(rate) ? `$${rate.toFixed(0)}/SF` : v;
         })() },
@@ -290,7 +290,7 @@ export async function GET(request, { params }) {
 <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
   <img src="https://app.ilcstudios.com/ilc-studios-logo.jpg" alt="ILC Studios" style="height:36px"/>
   <div style="text-align:right;font-size:7.5pt;color:#64748b;line-height:1.6">
-    ILC Studios — ${esc(typeLabel)} Lighting &amp; Controls Budget<br/>
+    ILC Studios: ${esc(typeLabel)} Lighting &amp; Controls Budget<br/>
     ${esc(project.name)}${project.location ? ' · ' + esc(project.location) : ''}<br/>
     ${esc(new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }))}
   </div>
@@ -298,7 +298,7 @@ export async function GET(request, { params }) {
 
 <!-- Hero -->
 <div style="background:#0f172a;color:white;padding:18px 22px;border-radius:6px;margin-bottom:10px;-webkit-print-color-adjust:exact;print-color-adjust:exact">
-  <div style="font-size:7.5pt;color:#94a3b8;margin-bottom:4px">ILC Studios — ${esc(typeLabel)} Lighting &amp; Controls Budget</div>
+  <div style="font-size:7.5pt;color:#94a3b8;margin-bottom:4px">ILC Studios: ${esc(typeLabel)} Lighting &amp; Controls Budget</div>
   <div style="font-size:22pt;font-weight:700;font-family:monospace;margin-bottom:6px">${esc(fmt(budget.totalWithControls))}</div>
   <div style="display:flex;flex-wrap:wrap;gap:16px;font-size:8pt">
     <div><span style="color:#94a3b8">Lighting Only: </span><span style="font-weight:600">${esc(fmt(budget.subtotalLightingOnly))}</span></div>

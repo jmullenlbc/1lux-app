@@ -8,7 +8,7 @@ async function canAccess(projectId, user) {
   return canSeeAllData(user) || project.createdById === user.id;
 }
 
-// GET /api/projects/[id]/chat/conversations — list all conversations for a project
+// GET /api/projects/[id]/chat/conversations, list all conversations for a project
 export async function GET(request, { params }) {
   const { user, error } = await requireAuth();
   if (error) return error;
@@ -40,7 +40,7 @@ export async function GET(request, { params }) {
   });
 }
 
-// DELETE /api/projects/[id]/chat/conversations — delete all conversations for a project
+// DELETE /api/projects/[id]/chat/conversations, delete all conversations for a project
 export async function DELETE(request, { params }) {
   const { user, error } = await requireAuth();
   if (error) return error;

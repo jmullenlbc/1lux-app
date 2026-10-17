@@ -142,7 +142,7 @@ export default function DraftCard({ draft, onCancel, onUpdate, currentUserId }) 
 
   return (
     <div className={`${CARD} transition-colors ${isPending ? 'border-amber-200' : ''}`}>
-      {/* Card header — always visible */}
+      {/* Card header, always visible */}
       <div className="p-4">
         <div className="flex items-start justify-between gap-3 mb-2">
           <div className="flex-1 min-w-0">
@@ -198,7 +198,7 @@ export default function DraftCard({ draft, onCancel, onUpdate, currentUserId }) 
         </div>
       </div>
 
-      {/* Edit panel — expanded */}
+      {/* Edit panel, expanded */}
       {expanded && (
         <div className="border-t border-slate-100 px-4 py-4 bg-slate-50/50 rounded-b-xl">
           <div className="mb-3">

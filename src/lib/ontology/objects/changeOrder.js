@@ -1,12 +1,12 @@
 /**
- * Change Order — a priced change to project scope. CO-00001.
+ * Change Order, a priced change to project scope. CO-00001.
  *
  * This is the object that already leaked twice (see src/lib/redact.js), so the
  * declarations here are deliberately tight.
  *
  * The subtle one is on the line item: `originalDN` is the buy price and is
- * obviously `ilc_only`. But `cnUnitPrice` (the sell price) is `client_ok` — the
- * client is quoted it — and that means the MARGIN can never be client-visible,
+ * obviously `ilc_only`. But `cnUnitPrice` (the sell price) is `client_ok`, the
+ * client is quoted it, and that means the MARGIN can never be client-visible,
  * because `dn = cn × (1 - marginPct)`. Margin lives on ProjectData and is
  * marked `ilc_only` there. Two fields in two objects, one rule; the drift gate
  * in scripts/check-sensitivity-coverage.mjs is what keeps them married.
@@ -88,7 +88,7 @@ export const ChangeOrderLineItem = {
     manufacturer:  { type: 'string',  sensitivity: 'client_ok' },
     partNumber:    { type: 'string',  sensitivity: 'client_ok' },
     description:   { type: 'string',  sensitivity: 'client_ok' },
-    cnUnitPrice:   { type: 'money',   sensitivity: 'client_ok', desc: 'client net — the quoted sell price' },
+    cnUnitPrice:   { type: 'money',   sensitivity: 'client_ok', desc: 'client net: the quoted sell price' },
     leadTime:      { type: 'string',  sensitivity: 'client_ok' },
     notes:         { type: 'string',  sensitivity: 'client_ok' },
     isOptionRow:   { type: 'boolean', sensitivity: 'client_ok' },
@@ -102,7 +102,7 @@ export const ChangeOrderLineItem = {
     // globalDeny: the bare field name is unambiguous across all 116 models, so
     // the transport-level redactor in src/lib/redact.js can also strip it from
     // hand-assembled payloads whose object type it does not know.
-    originalDN:     { type: 'money',  sensitivity: 'ilc_only', globalDeny: true, desc: 'dealer net / ILC buy price — NEVER to contractors' },
+    originalDN:     { type: 'money',  sensitivity: 'ilc_only', globalDeny: true, desc: 'dealer net / ILC buy price, NEVER to contractors' },
     quoteReference: { type: 'string', sensitivity: 'ilc_only', globalDeny: true, desc: 'manufacturer quote number backing the DN' },
   },
 

@@ -15,7 +15,7 @@ export default function ControlsSection({ responses, projectData, budget, pricin
   const [answers, setAnswers] = useState({
     energyCredit:       responses.energyCredit       || 'no',
     // Program answer (None/LEED/NGBS/WELL/Other). Older projects only have
-    // the yes/no — map a bare 'yes' to 'other' so nothing silently gains LEED.
+    // the yes/no, map a bare 'yes' to 'other' so nothing silently gains LEED.
     energyCreditProgram: responses.energyCreditProgram || (responses.energyCredit === 'yes' ? 'other' : 'none'),
     controlsOverride:   responses.controlsOverride   || '',
     // Design-only
@@ -33,7 +33,7 @@ export default function ControlsSection({ responses, projectData, budget, pricin
 
   const FALLBACK_RATE = { perSf: 0.45, cap: 175000 };
   const baseRate      = P.controls?.rates?.[buildingType] || P.controls?.rates?.midRise || FALLBACK_RATE;
-  // Mirrors the engine: the building type's own cap AND the sheet-wide cap both apply — lower wins.
+  // Mirrors the engine: the building type's own cap AND the sheet-wide cap both apply, lower wins.
   const lowerCap      = Math.min(baseRate.cap ?? Infinity, P.controls?.cap ?? Infinity);
   const controlsCap   = Number.isFinite(lowerCap) ? lowerCap : 190000;
   const selectedRate  = { ...baseRate, cap: controlsCap };
@@ -57,7 +57,7 @@ export default function ControlsSection({ responses, projectData, budget, pricin
   const formulaEst        = basisSf * rateUsed + garageDollars;
   const baseEst           = Math.min(formulaEst, selectedRate.cap ?? 175000);
   // Preview the two energy-credit adder line items. The live budget's lighting
-  // subtotal already contains the lighting-side adder when the credit is on —
+  // subtotal already contains the lighting-side adder when the credit is on
   // back it out so the preview doesn't compound.
   // Mike 10-15: each program carries its own % PER SIDE (WELL = 10% lighting /
   // 30% controls). Same helper as the engine.
@@ -106,7 +106,7 @@ export default function ControlsSection({ responses, projectData, budget, pricin
 
       <StandardsHint category="CONTROLS" />
 
-      {/* Building type — read-only, set at project creation */}
+      {/* Building type, read-only, set at project creation */}
       <div className="bg-slate-50 rounded-xl border border-slate-200 p-4">
         <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Controls Scope Basis</div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center mb-3">
@@ -198,7 +198,7 @@ export default function ControlsSection({ responses, projectData, budget, pricin
       {/* ── DESIGN-ONLY questions ────────────────────────────────────────────── */}
       {isDesign && (
         <>
-          {/* Controls system type — dropdown selector */}
+          {/* Controls system type, dropdown selector */}
           <div className="bg-white rounded-xl border border-slate-200 p-5">
             <p className="font-semibold text-slate-900 mb-1">Controls System Type</p>
             <p className="text-xs text-slate-400 mb-4">

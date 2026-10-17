@@ -1,5 +1,5 @@
 /**
- * roundup.js — building one person's Monday morning.
+ * roundup.js, building one person's Monday morning.
  *
  * ── What this is for ──
  * The weekly sales meeting already has a run-of-show at /dashboards/meeting:
@@ -9,7 +9,7 @@
  *
  * So this does not build a second dashboard. It builds one bell item per
  * person, on Monday, that says what THEY are on the hook for and links into the
- * meeting board. Same data, cut to one person — the cut is the whole product.
+ * meeting board. Same data, cut to one person, the cut is the whole product.
  *
  * ── Two rules that shape everything below ──
  * 1. Nobody gets an empty bell. A roundup that says "nothing this week" every
@@ -33,7 +33,7 @@ const MAX_ITEMS_PER_SECTION = 6;
 
 const DAY = 86400_000;
 
-/** A Date, or null — never `new Date(null)`, which is a valid date in 1970. */
+/** A Date, or null, never `new Date(null)`, which is a valid date in 1970. */
 function asDate(value) {
   if (value == null) return null;
   const d = value instanceof Date ? value : new Date(value);
@@ -70,7 +70,7 @@ export function weekKey(date) {
   return `${isoYear}-W${String(week).padStart(2, '0')}`;
 }
 
-/** Is this project mine — either hat? */
+/** Is this project mine, either hat? */
 function ownedBy(project, userId) {
   return project.salesOwnerId === userId || project.preconManagerId === userId;
 }
@@ -127,7 +127,7 @@ export function buildRoundup({ userId, projects = [], noteActions = [], signals 
   // ── Next actions I own ───────────────────────────────────────────────────
   // Overdue and due-this-week are one section deliberately. Split into two,
   // the overdue list becomes the one you read and the upcoming one becomes the
-  // one you stop reading — which is how something becomes overdue.
+  // one you stop reading, which is how something becomes overdue.
   const actions = mine
     .filter(p => p.nextActionOwnerId === userId && asDate(p.nextActionDueDate))
     .map(p => {
@@ -147,7 +147,7 @@ export function buildRoundup({ userId, projects = [], noteActions = [], signals 
 
   // ── Reminders on notes I own (0108: the step's lead, else every owner) ────
   // Only unsent ones. A reminder that already rang the bell on its own day
-  // must not ring again inside the roundup — that is the same nag wearing a
+  // must not ring again inside the roundup, that is the same nag wearing a
   // different hat, and it is exactly what the remindedAt stamp exists to stop.
   const reminders = (noteActions || [])
     .filter(a => a?.id && a.note?.isPublished && stepIsMine(a, userId) && !a.remindedAt)
@@ -181,7 +181,7 @@ export function buildRoundup({ userId, projects = [], noteActions = [], signals 
 
   // ── News about my clients and my jobs ────────────────────────────────────
   // A SUGGESTED project link is a guess, so it does not get to put an article
-  // in your roundup on its own — but the same article still qualifies if its
+  // in your roundup on its own, but the same article still qualifies if its
   // CLIENT is yours, which is a judgement made by a different mechanism.
   const cutoff = new Date(now.getTime() - SIGNAL_WINDOW_DAYS * DAY);
   const news = (signals || [])
@@ -208,7 +208,7 @@ export function buildRoundup({ userId, projects = [], noteActions = [], signals 
   const counts = Object.fromEntries(sections.map(s => [s.key, s.count]));
 
   // The bell shows a title and one line. The line has to survive being read at
-  // a glance, so it is counts — the names are one click away on the board.
+  // a glance, so it is counts, the names are one click away on the board.
   const parts = [];
   if (counts.awaitingSignature) parts.push(`${counts.awaitingSignature} waiting on signature`);
   const overdue = actions.filter(a => a.overdue).length;
@@ -229,7 +229,7 @@ export function buildRoundup({ userId, projects = [], noteActions = [], signals 
       message: parts.join(' · '),
       link: '/dashboards/meeting',
       // Keyed on the week, so Monday's roundup can only arrive once however
-      // many times the job runs — and next Monday's is a different key.
+      // many times the job runs, and next Monday's is a different key.
       dedupeKey: `roundup:${weekKey(now)}`,
     },
   };

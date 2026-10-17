@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { TH, TD, CARD_PADDED, H1, CARD_TITLE } from '@/components/ui/tokens';
 import { WidgetLoading } from '@/components/ui/WidgetFrame';
+import { FilterToolbar, FilterPanel } from '@/components/ui/FilterPanel';
 import AutomationNav from '@/components/salesAutomation/AutomationNav';
 import DisabledSection from '@/components/salesAutomation/DisabledSection';
 import ConfirmArchiveModal from '@/components/salesAutomation/ConfirmArchiveModal';
@@ -13,7 +14,7 @@ import { postParked } from '@/lib/parkedFetch';
 
 // Matches MAX_KNOWLEDGE_UPLOAD_BYTES in uploadStorage.js, which is server-only
 // (it reaches for the AWS SDK) and so cannot be imported into a screen. Checked
-// here purely so an oversized file is refused before it is sent anywhere — the
+// here purely so an oversized file is refused before it is sent anywhere, the
 // server checks it again for real.
 const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
 
@@ -28,6 +29,8 @@ const CATEGORY_OPTIONS = [
 
 const CATEGORY_ENTRY_OPTIONS = CATEGORY_OPTIONS.filter(o => o.value !== '');
 const DEFAULT_CATEGORIES     = CATEGORY_ENTRY_OPTIONS.map(o => o.value);
+const CATEGORY_FIELD         = [{ key: 'category', label: 'Category', kind: 'pick' }];
+const CATEGORY_CHOICES       = { category: CATEGORY_ENTRY_OPTIONS.map(o => [o.value, o.label]) };
 
 // ── CreatableSelect ───────────────────────────────────────────────────────────
 function CreatableSelect({ value, onChange, options, placeholder = 'Select or type…' }) {
@@ -112,7 +115,7 @@ function parseCSV(text) {
   if (lines.length < 2) return [];
   // skip header row (index 0)
   return lines.slice(1).map(line => {
-    // simple comma split — won't handle quoted commas but fine for structured data
+    // simple comma split, won't handle quoted commas but fine for structured data
     const cols = line.split(',');
     return {
       category: (cols[0] || '').trim().toUpperCase() || 'GENERAL',
@@ -216,7 +219,7 @@ function ImportModal({ open, onClose, onImported }) {
 
           {parsed.length > 0 && (
             <div>
-              <p className="text-xs font-semibold text-slate-600 mb-1.5">{parsed.length} rows detected — preview (first 3):</p>
+              <p className="text-xs font-semibold text-slate-600 mb-1.5">{parsed.length} rows detected. Preview (first 3):</p>
               <div className="overflow-x-auto rounded-lg border border-slate-200">
                 <table className="w-full text-[11px]">
                   <thead className="bg-slate-50">
@@ -392,7 +395,7 @@ function EntryDrawer({ open, onClose, entry, onSaved }) {
               value={form.answer}
               onChange={e => set('answer', e.target.value)}
               className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-500 resize-none"
-              placeholder="Custom fixture lead times typically run 8–14 weeks..."
+              placeholder="Custom fixture lead times typically run 8 to 14 weeks..."
             />
           </div>
 
@@ -447,7 +450,7 @@ const TYPE_TINT = {
 };
 
 /**
- * The documents half of the page — a drop zone plus the list of what has been
+ * The documents half of the page, a drop zone plus the list of what has been
  * dropped.
  *
  * A file that could not be read still shows up here with the reason in plain
@@ -458,7 +461,7 @@ const TYPE_TINT = {
 /**
  * What the sales bot actually reads.
  *
- * Mike, 2026-09-08: "It sounds like it isnt right now." He was right — and the
+ * Mike, 2026-09-08: "It sounds like it isnt right now." He was right, and the
  * reason he had to ask is that this screen never said. What reaches the bot was
  * decided entirely in code (a category list, a limit of five, a 1,600-character
  * excerpt), so the only way to know was to go and read it. Now the page says so,
@@ -489,7 +492,7 @@ function ReachBanner({ refreshKey }) {
   ].filter(Boolean).join(' and ');
 
   const pct = budget ? Math.round((usedChars / budget) * 100) : 0;
-  const room = `${usedChars.toLocaleString()} characters — ${pct < 1 ? 'under 1%' : `${pct}%`} of what one email can carry`;
+  const room = `${usedChars.toLocaleString()} characters, ${pct < 1 ? 'under 1%' : `${pct}%`} of what one email can carry`;
 
   return (
     <div className="mb-4 space-y-2">
@@ -500,7 +503,7 @@ function ReachBanner({ refreshKey }) {
       ) : complete ? (
         <p className="text-xs text-green-800 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
           <span className="font-semibold">The sales bot reads all of this.</span>{' '}
-          Every word of {pieces} goes into every email it drafts — {room}.
+          Every word of {pieces} goes into every email it drafts: {room}.
         </p>
       ) : (
         <p className="text-xs text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
@@ -508,7 +511,7 @@ function ReachBanner({ refreshKey }) {
           {sentCount} of {itemCount} pieces are sent, most relevant first
           {truncatedCount ? `, ${truncatedCount} cut short` : ''}
           {droppedCount ? `, ${droppedCount} left out entirely` : ''}. Archive what is
-          out of date, or tell Claude — the bot can be moved to a model that holds more.
+          out of date, or tell Claude. The bot can be moved to a model that holds more.
         </p>
       )}
 
@@ -543,7 +546,7 @@ function DocumentsPanel({ category, onChanged }) {
     try {
       const params = new URLSearchParams();
       if (category) params.set('category', category);
-      // Archived documents are fetched too, so Restore is reachable — archiving
+      // Archived documents are fetched too, so Restore is reachable, archiving
       // one otherwise removes the only button that could bring it back.
       const archived = new URLSearchParams(params);
       archived.set('active', 'false');
@@ -568,7 +571,7 @@ function DocumentsPanel({ category, onChanged }) {
   //
   // Two reasons, and both are about the same 30-second limit. A big file goes
   // straight to storage in 5 MB pieces (the drawing-set plumbing), so the
-  // request itself is tiny — but the READING still happens while the request is
+  // request itself is tiny, but the READING still happens while the request is
   // open, and five 25 MB files read back to back in one request would sail past
   // the limit and come back as nothing at all. One file per request bounds that.
   // It also means a file that fails fails alone: the other four are already in.
@@ -597,7 +600,7 @@ function DocumentsPanel({ category, onChanged }) {
         if (file.size > MAX_UPLOAD_BYTES) {
           trouble.push({
             fileName: file.name,
-            reason: `Too big (${(file.size / 1024 / 1024).toFixed(1)} MB). The limit is 25 MB — split it, or save the PDF at a smaller size.`,
+            reason: `Too big (${(file.size / 1024 / 1024).toFixed(1)} MB). The limit is 25 MB. Split it, or save the PDF at a smaller size.`,
           });
           continue;
         }
@@ -652,12 +655,12 @@ function DocumentsPanel({ category, onChanged }) {
     if (res.ok) load();
   }
 
-  // Archiving is the only way a file leaves the bot now — there is no delete.
+  // Archiving is the only way a file leaves the bot now, there is no delete.
   //
   // Mike, 2026-09-10: "I think we should make all knowledge base probably be
   // archived and not be deleted at all if it takes it out of the bot box reach."
   // It does: retrieve.js only ever looks at active rows. All three things are
-  // kept — the record, the text pulled out of the file, and the file itself —
+  // kept, the record, the text pulled out of the file, and the file itself
   // so Restore puts it straight back.
   async function archiveDoc(doc) {
     setArchivingDoc(doc.id);
@@ -679,7 +682,7 @@ function DocumentsPanel({ category, onChanged }) {
   }
 
   // The file itself was kept even when reading it failed, so a file that failed
-  // for a reason since fixed can be read again in place — no deleting and
+  // for a reason since fixed can be read again in place, no deleting and
   // re-uploading. (2026-09-08: every PDF on the live screen failed because the
   // server was missing a piece of its PDF reader.)
   async function reread(doc) {
@@ -726,7 +729,7 @@ function DocumentsPanel({ category, onChanged }) {
             <div className="flex items-center justify-center gap-2">
               {progress
                 ? <span className="truncate max-w-[22rem]">
-                    {progress.total > 1 ? `File ${progress.index} of ${progress.total} — ` : ''}
+                    {progress.total > 1 ? `File ${progress.index} of ${progress.total}: ` : ''}
                     {progress.name}
                   </span>
                 : 'Reading the files…'}
@@ -740,7 +743,7 @@ function DocumentsPanel({ category, onChanged }) {
                   />
                 </div>
                 <p className="text-xs text-slate-500 mt-2">
-                  {progress.pct < 100 ? `Sending… ${progress.pct}%` : 'Reading it — a scanned PDF can take a minute.'}
+                  {progress.pct < 100 ? `Sending… ${progress.pct}%` : 'Reading it. A scanned PDF can take a minute.'}
                 </p>
               </>
             )}
@@ -751,15 +754,15 @@ function DocumentsPanel({ category, onChanged }) {
             <p className="text-xs text-slate-500 mt-1">
               Word, Excel, PDF, images and text files. Up to 25 MB each.
             </p>
-            {/* Say the quiet part out loud. Dropping a pile DOES work — the loop
-                above sends them one at a time by itself — but a big batch means a
+            {/* Say the quiet part out loud. Dropping a pile DOES work, the loop
+                above sends them one at a time by itself, but a big batch means a
                 long wait on one screen, and anything still in the queue is lost if
                 the tab closes. Telling people to go one at a time is the honest
                 advice, not a limitation of the uploader. */}
             <p className="text-xs text-slate-500 mt-3 leading-relaxed max-w-md mx-auto">
               <span className="font-semibold text-slate-600">Add one file at a time.</span>{' '}
               You can drop several and they will go up one after another, but a big
-              batch keeps you waiting on this screen — and if you close the tab
+              batch keeps you waiting on this screen, and if you close the tab
               partway through, the ones still in line never make it. A large scanned
               PDF can take a minute on its own.
             </p>
@@ -778,7 +781,7 @@ function DocumentsPanel({ category, onChanged }) {
           </p>
           {problems.map((p, i) => (
             <p key={i} className="text-xs text-amber-700">
-              <span className="font-semibold">{p.fileName}</span> — {p.reason}
+              <span className="font-semibold">{p.fileName}</span>: {p.reason}
             </p>
           ))}
         </div>
@@ -808,7 +811,7 @@ function DocumentsPanel({ category, onChanged }) {
                   )}
                   {!doc.isActive && (
                     <span
-                      title="The bot cannot read this file. Nothing has been thrown away — press Restore to put it back."
+                      title="The bot cannot read this file. Nothing has been thrown away, press Restore to put it back."
                       className="text-[11px] font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-full px-2 py-0.5 shrink-0"
                     >
                       Archived
@@ -849,7 +852,7 @@ function DocumentsPanel({ category, onChanged }) {
                   onClick={() => (doc.isActive ? setConfirmDoc(doc) : toggleActive(doc))}
                   disabled={archivingDoc === doc.id}
                   title={doc.isActive
-                    ? 'Archive this file — it leaves the bot, but nothing is thrown away'
+                    ? 'Archive this file. It leaves the bot, but nothing is thrown away'
                     : 'Put this file back where the bot can read it'}
                   className="text-[11px] font-semibold text-slate-400 hover:text-orange-600 px-2 py-1 rounded-lg hover:bg-orange-50 transition-colors disabled:opacity-50"
                 >
@@ -874,7 +877,7 @@ function DocumentsPanel({ category, onChanged }) {
             for better intelligence. Everything the sales bot knew from this
             document stops being available the moment it is archived.
             <br /><br />
-            Nothing is thrown away — the file, and everything read out of it, are
+            Nothing is thrown away: the file, and everything read out of it, are
             kept. It stays in this list, greyed out and marked{' '}
             <span className="font-semibold">Archived</span>, and{' '}
             <span className="font-semibold">Restore</span> puts it back in front of
@@ -896,6 +899,7 @@ export default function KnowledgePage() {
   const [loading,        setLoading]        = useState(true);
   const [search,         setSearch]         = useState('');
   const [categoryFilter, setCategoryFilter] = useState('');
+  const [filtersOpen,    setFiltersOpen]    = useState(false);
   const [showDrawer,     setShowDrawer]     = useState(false);
   const [editingEntry,   setEditingEntry]   = useState(null);
   const [showImport,     setShowImport]     = useState(false);
@@ -905,7 +909,7 @@ export default function KnowledgePage() {
   const [archivingEntry, setArchivingEntry] = useState(false);
   const debounceRef = useRef(null);
 
-  // Stable on purpose — DocumentsPanel's loader depends on it.
+  // Stable on purpose, DocumentsPanel's loader depends on it.
   const bumpReach = useCallback(() => setReachTick(t => t + 1), []);
 
   const load = useCallback(async (q, cat) => {
@@ -933,7 +937,7 @@ export default function KnowledgePage() {
     return () => clearTimeout(debounceRef.current);
   }, [search, categoryFilter, load]);
 
-  // Archiving is the only way an answer leaves the bot — there is no delete.
+  // Archiving is the only way an answer leaves the bot, there is no delete.
   //
   // Mike, 2026-09-10: "I don't think these cards should ever get deleted."
   // Archiving already does the whole job: retrieve.js only reads active rows, so
@@ -999,7 +1003,7 @@ export default function KnowledgePage() {
       <div className="mb-5">
         <h1 className={H1}>Bot Knowledge</h1>
         <p className="text-xs text-slate-500 mt-0.5">
-          Everything here is read, in full, by the sales bot every time it drafts an email — typed answers below, and any documents you drop in.
+          Everything here is read, in full, by the sales bot every time it drafts an email: typed answers below, and any documents you drop in.
         </p>
       </div>
 
@@ -1023,15 +1027,8 @@ export default function KnowledgePage() {
             className="w-full pl-8 pr-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-500"
           />
         </div>
-        <select
-          value={categoryFilter}
-          onChange={e => setCategoryFilter(e.target.value)}
-          className="border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-orange-500"
-        >
-          {CATEGORY_OPTIONS.map(o => (
-            <option key={o.value} value={o.value}>{o.label}</option>
-          ))}
-        </select>
+        <FilterToolbar count={categoryFilter ? 1 : 0} open={filtersOpen}
+          onToggle={() => setFiltersOpen(o => !o)} onClear={() => setCategoryFilter('')} />
         <button
           onClick={() => setShowImport(true)}
           className="px-4 py-2 rounded-lg border border-slate-200 text-slate-600 text-sm hover:bg-slate-50 transition-colors"
@@ -1044,9 +1041,11 @@ export default function KnowledgePage() {
         >
           + Add Entry
         </button>
+        <FilterPanel open={filtersOpen} fields={CATEGORY_FIELD} filters={{ category: categoryFilter }}
+          choices={CATEGORY_CHOICES} onChange={(_, v) => setCategoryFilter(v)} className="basis-full mt-1" />
       </div>
 
-      {/* Documents dropped in — Word, Excel, PDF, images */}
+      {/* Documents dropped in, Word, Excel, PDF, images */}
       <DocumentsPanel category={categoryFilter} onChanged={bumpReach} />
 
       {/* Content */}
@@ -1102,7 +1101,7 @@ export default function KnowledgePage() {
                       {entry.isActive && (
                         <button
                           onClick={() => setConfirmEntry(entry)}
-                          title="Archive this answer — it leaves the bot, but nothing is thrown away"
+                          title="Archive this answer. It leaves the bot, but nothing is thrown away"
                           className="text-[11px] font-semibold text-slate-400 hover:text-orange-600 px-2 py-1 rounded-lg hover:bg-orange-50 transition-colors"
                         >
                           Archive
@@ -1165,7 +1164,7 @@ export default function KnowledgePage() {
             it for better intelligence. It stops showing up in anything the sales
             bot writes from the moment it is archived.
             <br /><br />
-            Nothing is thrown away — every word is kept. It moves down to{' '}
+            Nothing is thrown away: every word is kept. It moves down to{' '}
             <span className="font-semibold">Archived entries</span>, and{' '}
             <span className="font-semibold">Restore</span> puts it back in front of
             the bot.

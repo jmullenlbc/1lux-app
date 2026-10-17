@@ -2,20 +2,20 @@
  * The Weekly Meeting card catalog.
  *
  * The meeting screen used to be two hardcoded queues. Mike asked for a screen he
- * can customize, and Maram is the one who actually runs the meeting — so this is
+ * can customize, and Maram is the one who actually runs the meeting, so this is
  * a SHARED team screen with a default set an admin owns, not a per-person view.
  * Every card that lists deals therefore carries an owner column: the point of the
  * meeting is "who owes what", and a list without a name on each row cannot answer
  * that.
  *
  * This file is the single source of truth for what a card IS. It is deliberately
- * pure — no Prisma, no React, no `@/` alias — so the layout rules can be tested
+ * pure, no Prisma, no React, no `@/` alias, so the layout rules can be tested
  * directly and so both the API and the screen read the same catalog instead of
  * drifting apart.
  *
  * Storage: a card layout is Dashboard(section="MEETING") + one DashboardWidget
  * row per card, where `metric` holds the card key and `position` the order. No
- * schema change was needed — Dashboard.section is a plain string, and
+ * schema change was needed, Dashboard.section is a plain string, and
  * ownerUserId being null already means "the shared default", set means "somebody's
  * personal copy". A user with no personal copy sees the shared default.
  */
@@ -33,7 +33,7 @@ export const MEETING_CATEGORY = 'MEETING_CARD';
  * so this came out of four years of his own calendar (scripts/calendar/quietGap.mjs):
  * across 5,353 gaps between meetings with the same company, half were 14 days or
  * less, 80% were 28 days or less, and 90% were 70 days or less. Every one of those
- * gaps is a gap a relationship SURVIVED — another meeting followed it. So a line
+ * gaps is a gap a relationship SURVIVED, another meeting followed it. So a line
  * at 60 days flags roughly one gap in nine; at 30 days it would flag nearly one in
  * five, which is his normal rhythm and would make the card noise.
  *
@@ -42,7 +42,7 @@ export const MEETING_CATEGORY = 'MEETING_CARD';
  */
 export const QUIET_AFTER_DAYS = 60;
 
-/** Cards that list deals get an owner column — Maram runs the meeting, not the owner. */
+/** Cards that list deals get an owner column, Maram runs the meeting, not the owner. */
 const DEALS = { showsOwner: true };
 const INFO  = { showsOwner: false };
 
@@ -63,7 +63,7 @@ export function cardLevel(key) { return PEOPLE_LEVEL_CARDS.has(key) ? 'people' :
  * The catalog.
  *
  * `needs` names a field the app does not have yet. A card with `needs` set is
- * real and listed, but cannot be switched on until that field exists — the screen
+ * real and listed, but cannot be switched on until that field exists, the screen
  * shows it greyed with the reason, rather than pretending the data is there.
  */
 export const MEETING_CARDS = [
@@ -102,7 +102,7 @@ export const MEETING_CARDS = [
   {
     key: 'nextActions',
     title: 'Next actions due',
-    subtitle: 'Who owes what, by when — overdue in red',
+    subtitle: 'Who owes what, by when, overdue in red',
     ...DEALS,
     defaultOn: true,
   },
@@ -152,7 +152,7 @@ export const MEETING_CARDS = [
   {
     key: 'proposalsAwaiting',
     title: 'Proposals awaiting a response',
-    subtitle: 'Sent, not accepted, not declined — oldest first',
+    subtitle: 'Sent, not accepted, not declined, oldest first',
     ...DEALS,
     defaultOn: true,
   },
@@ -200,7 +200,7 @@ export const MEETING_CARDS = [
     subtitle: 'Budgets we promised by a date that lands this week',
     ...DEALS,
     defaultOn: false,
-    needs: 'a "budget promised by" date on the project — the app records when a '
+    needs: 'a "budget promised by" date on the project. The app records when a '
       + 'budget was SENT, but never when it was promised',
   },
   {
@@ -209,7 +209,7 @@ export const MEETING_CARDS = [
     subtitle: 'Proposals we promised by a date inside 14 days',
     ...DEALS,
     defaultOn: false,
-    needs: 'a "proposal promised by" date on the proposal — same gap as budgets',
+    needs: 'a "proposal promised by" date on the proposal, same gap as budgets',
   },
   {
     key: 'ifcBudgets',
@@ -217,7 +217,7 @@ export const MEETING_CARDS = [
     subtitle: 'The ones that are actually about to be bought',
     ...DEALS,
     defaultOn: false,
-    needs: 'a phase on the budget itself — a budget\'s phase is not always the '
+    needs: 'a phase on the budget itself. A budget\'s phase is not always the '
       + 'phase of the last drawing set that came in',
   },
   {
@@ -226,16 +226,16 @@ export const MEETING_CARDS = [
     subtitle: 'Who is on the road, and where',
     ...INFO,
     defaultOn: false,
-    needs: 'the Microsoft calendar connection — travel is already detected, but '
+    needs: 'the Microsoft calendar connection. Travel is already detected, but '
       + 'nothing is syncing yet',
   },
   {
     key: 'marketing',
     title: 'Marketing in flight',
-    subtitle: 'Presentations and material being built — typed by hand',
+    subtitle: 'Presentations and material being built, typed by hand',
     ...INFO,
     defaultOn: false,
-    needs: 'somewhere to type it — a meeting notes table',
+    needs: 'somewhere to type it: a meeting notes table',
   },
   {
     key: 'parkingLot',
@@ -243,7 +243,7 @@ export const MEETING_CARDS = [
     subtitle: 'Carried forward until somebody closes it',
     ...INFO,
     defaultOn: false,
-    needs: 'somewhere to type it — a meeting notes table',
+    needs: 'somewhere to type it: a meeting notes table',
   },
   {
     key: 'whosOut',
@@ -251,7 +251,7 @@ export const MEETING_CARDS = [
     subtitle: 'PTO and coverage',
     ...INFO,
     defaultOn: false,
-    needs: 'somewhere to type it — a meeting notes table',
+    needs: 'somewhere to type it: a meeting notes table',
   },
 ];
 
@@ -280,7 +280,7 @@ export function defaultLayout() {
  *
  * Drops unknown keys (a card removed from the catalog leaves stale rows behind),
  * drops cards that are not buildable yet, and de-duplicates. Order is kept as
- * given — that IS the run-of-show, and the person running the meeting decides it.
+ * given, that IS the run-of-show, and the person running the meeting decides it.
  */
 export function normalizeLayout(keys) {
   if (!Array.isArray(keys)) return defaultLayout();
@@ -293,6 +293,6 @@ export function normalizeLayout(keys) {
     seen.add(key);
     out.push(key);
   }
-  // An empty layout is a mistake, not a preference — nobody wants a blank meeting.
+  // An empty layout is a mistake, not a preference, nobody wants a blank meeting.
   return out.length ? out : defaultLayout();
 }

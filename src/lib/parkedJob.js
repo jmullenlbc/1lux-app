@@ -2,7 +2,7 @@
  * Park-and-poll for the in-app AI reads.
  *
  * Amplify's front door hangs up on any single request that runs longer than
- * ~30 seconds and answers the browser with an EMPTY 504 — but the Lambda keeps
+ * ~30 seconds and answers the browser with an EMPTY 504, but the Lambda keeps
  * running to its own `maxDuration`. The public conceptual-budget read already
  * lives with that (src/app/api/intake/parse/route.js): it parks its state,
  * marks the work in flight, and the browser polls until the answer is there.
@@ -25,9 +25,9 @@
  *
  * What a route keeps doing itself, on EVERY request: auth, project access, and
  * any cheap validation that produces a friendly 4xx. Those run again on each
- * poll, which is the point — a poll is a real request from the same person.
+ * poll, which is the point, a poll is a real request from the same person.
  *
- * What the route hands over: `args` (small, JSON-able — a fileId or an upload
+ * What the route hands over: `args` (small, JSON-able, a fileId or an upload
  * key, never bytes) and `run(args)`, which returns the success body as a plain
  * object or throws `jobError(status, payload)` to send the failure body the
  * UI already knows how to read.
@@ -69,7 +69,7 @@ const respond = (payload, status = 200) => new Response(JSON.stringify(payload ?
   status, headers: { 'content-type': 'application/json; charset=utf-8' },
 });
 
-/** Run it here and now — the no-store path and the "done" path share this. */
+/** Run it here and now, the no-store path and the "done" path share this. */
 async function runInline(run, args, deps) {
   try {
     return respond(await run(args));
@@ -84,12 +84,12 @@ async function runInline(run, args, deps) {
  * @param {object} opts
  * @param {object} opts.body        the parsed JSON body (or the fields lifted off a form)
  * @param {string} opts.kind        a name for this job type, e.g. 'site.parse'
- * @param {string} opts.scope       what it belongs to — the project id — so a
+ * @param {string} opts.scope       what it belongs to, the project id, so a
  *                                  key minted on one project cannot be replayed on another
  * @param {object} [opts.args]      what run() needs; read only on the START request
  * @param {(args: object) => Promise<object>} opts.run
  * @param {number} [opts.inflightMs]
- * @param {object} [opts.deps]      test seam — the storage functions and a clock
+ * @param {object} [opts.deps]      test seam, the storage functions and a clock
  * @returns {Promise<Response>}
  */
 export async function runParkedJob({ body, kind, scope, args = null, run, inflightMs = JOB_INFLIGHT_MS, deps = {} }) {
@@ -157,7 +157,7 @@ export async function runParkedJob({ body, kind, scope, args = null, run, inflig
     }, 504);
   }
 
-  // Marker first, then the work — if the front door cuts this request the next
+  // Marker first, then the work, if the front door cuts this request the next
   // poll must already be able to see that a run is alive.
   await d.putScanAttempt(jobKey, { stage: 'run', startedAt: d.now(), kicks: kicks + 1 });
 

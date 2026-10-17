@@ -1,5 +1,5 @@
 /**
- * Pathway lighting — the model line wired into the exterior formula 2026-09-04.
+ * Pathway lighting, the model line wired into the exterior formula 2026-09-04.
  *
  * The deal Mike signed off on:
  *   pathway = units × dollarsPerUnit[buildingType], floored at pathway.minTotal.
@@ -9,7 +9,7 @@
  *
  * The rules worth protecting:
  *   1. A hand-entered pathway figure (exteriorManualItems.pathwayLighting)
- *      SUPPRESSES the model line — counted numbers are never doubled. Modera
+ *      SUPPRESSES the model line, counted numbers are never doubled. Modera
  *      Town Lake carries $4,800 hand-built and must stay at $4,800.
  *   2. The $4,000 floor applies only when the project has real scale; a
  *      zero-unit project prices pathway at $0, same rule as wallpacks.
@@ -95,7 +95,7 @@ test('single-family Yes prices bollards at its own rate (Mike 2026-09-12: "Yes")
   assert.equal(p.bollardsDeclined, false);
 });
 
-test('the bollard question is townhome/single-family only — other types ignore a No', () => {
+test('the bollard question is townhome/single-family only: other types ignore a No', () => {
   for (const type of ['stackedFlats', 'garden', 'podium']) {
     const p = pathway({ numUnits: 200, buildingTypeKey: type }, { exterior: { pathwayBollards: 'no' } });
     assert.ok(p.product > 0, `${type} should still price pathway`);
@@ -129,7 +129,7 @@ test('small projects floor at minTotal (50-unit podium: $1,750 → $4,000)', () 
   assert.equal(p.floorApplied, true);
 });
 
-test('no units means no pathway line at all — the floor never charges a phantom site', () => {
+test('no units means no pathway line at all: the floor never charges a phantom site', () => {
   const p = pathway({ numUnits: 0, buildingTypeKey: 'garden' });
   assert.equal(p.product, 0);
   assert.equal(p.floorApplied, false);
@@ -180,13 +180,13 @@ test('solar site design multiplies the model pathway line by pathway.solarMultip
   assert.ok(Math.abs(solar.product - 372 * 60 * 1.6) < 0.01, `got ${solar.product}`);
 });
 
-test('solar applies AFTER the floor — a floored site still gets the premium ($4,000 → $6,400)', () => {
+test('solar applies AFTER the floor, a floored site still gets the premium ($4,000 → $6,400)', () => {
   const p = pathway({ numUnits: 50, buildingTypeKey: 'podium' }, { exterior: { siteDesignLevel: 'solar' } });
   assert.equal(p.floorApplied, true);
   assert.ok(Math.abs(p.product - 4000 * 1.6) < 0.01, `got ${p.product}`);
 });
 
-test('a hand-entered pathway figure is never multiplied — solar or not', () => {
+test('a hand-entered pathway figure is never multiplied, solar or not', () => {
   const b = calculateBudget(
     { numUnits: 381, buildingTypeKey: 'highRise' },
     { exterior: { siteDesignLevel: 'solar', exteriorManualItems: { pathwayLighting: 4800 } } },
@@ -195,7 +195,7 @@ test('a hand-entered pathway figure is never multiplied — solar or not', () =>
   assert.equal(b.sections.exterior.manualAdderTotal, 4800);
 });
 
-test('surface parking keeps its own 2.3× solar multiplier — the pathway bump does not leak', () => {
+test('surface parking keeps its own 2.3× solar multiplier, the pathway bump does not leak', () => {
   const pd = { numUnits: 372, numSurfaceParking: 90, buildingTypeKey: 'garden' };
   const conv  = calculateBudget(pd).sections.exterior;
   const solar = calculateBudget(pd, { exterior: { siteDesignLevel: 'solar' } }).sections.exterior;
@@ -209,7 +209,7 @@ test('surface parking keeps its own 2.3× solar multiplier — the pathway bump 
 test('the pathway line rides in the exterior total and the misc-buffer base', () => {
   const pd = { numUnits: 200, buildingTypeKey: 'garden' };
   const withP    = calculateBudget(pd).sections.exterior;
-  // Same project, but pathway zeroed via a pricing override — the delta must be
+  // Same project, but pathway zeroed via a pricing override, the delta must be
   // exactly the pathway line grossed up by the misc buffer. The rate is set to
   // 0 explicitly: a snapshot that simply LACKS the table falls through to the
   // master sheet (see pricingSnapshotFill.test.mjs), so emptying it is not

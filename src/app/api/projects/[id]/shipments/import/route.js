@@ -13,7 +13,7 @@ import { readUploadedFile } from '@/lib/uploadIntake';
  *   LEAD TIME, ESD, TRACKING, DELIVERED DATE, FIXTURE STATUS, NOTES
  *
  * Groups line items by MANUFACTURER to auto-create Shipment records.
- * Returns preview data — does NOT write to DB unless ?commit=true.
+ * Returns preview data, does NOT write to DB unless ?commit=true.
  */
 export async function POST(req, { params }) {
   const { user, error } = await requireAuth();

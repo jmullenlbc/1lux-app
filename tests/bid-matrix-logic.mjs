@@ -27,7 +27,7 @@ function splitCatalogNumber(raw) {
 // --- mirror of carry-forward key builder ---
 const cfKey = (type, part) => `${(type || '').toLowerCase()}|${(part || '').toLowerCase()}`;
 
-console.log('\nBID MATRIX — splitCatalogNumber');
+console.log('\nBID MATRIX: splitCatalogNumber');
 eq(splitCatalogNumber('ABC-123'),              ['ABC-123'],            'single part, no delimiter');
 eq(splitCatalogNumber('ABC + DEF'),            ['ABC', 'DEF'],         'two parts split on " + "');
 eq(splitCatalogNumber('ABC + DEF + GHI'),      ['ABC', 'DEF', 'GHI'],  'three parts');
@@ -35,12 +35,12 @@ eq(splitCatalogNumber('  ABC  +  DEF  '),      ['ABC', 'DEF'],         'trims wh
 eq(splitCatalogNumber(null),                   [null],                 'null -> [null]');
 eq(splitCatalogNumber(''),                     [null],                 'empty string -> [null]');
 
-console.log('\nBID MATRIX — known gotcha: only exact " + " (space-plus-space) splits');
+console.log('\nBID MATRIX, known gotcha: only exact " + " (space-plus-space) splits');
 eq(splitCatalogNumber('ABC+DEF'),              ['ABC+DEF'],            'GOTCHA: "ABC+DEF" (no spaces) does NOT split');
 eq(splitCatalogNumber('ABC +DEF'),             ['ABC +DEF'],           'GOTCHA: "ABC +DEF" (one space) does NOT split');
 eq(splitCatalogNumber('ABC+ DEF'),             ['ABC+ DEF'],           'GOTCHA: "ABC+ DEF" (one space) does NOT split');
 
-console.log('\nBID MATRIX — carry-forward key (case-insensitive type|part)');
+console.log('\nBID MATRIX: carry-forward key (case-insensitive type|part)');
 eq(cfKey('C2', 'DL-7-3000'),                   'c2|dl-7-3000',         'lowercases type and part');
 eq(cfKey('C2', 'DL-7-3000') === cfKey('c2', 'dl-7-3000'), true, 'matches across case differences');
 eq(cfKey('F', null),                           'f|',                   'null part -> empty (all no-catalog items of a type share a key)');

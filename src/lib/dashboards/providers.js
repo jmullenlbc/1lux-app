@@ -1,4 +1,4 @@
-// Section data providers — the seam that keeps the dashboard engine MCP-independent.
+// Section data providers, the seam that keeps the dashboard engine MCP-independent.
 // Today each section reads existing Prisma; later a section can swap to an MCP
 // Function without any widget change. Returns rows shaped so the field catalog's
 // dot-path `source`s resolve directly (e.g. a row's `client.name`, `salesOwner.name`).
@@ -19,7 +19,7 @@ export async function getSectionRows(section) {
   }
 }
 
-// SALES — the pipeline (a project IS the pipeline entity).
+// SALES, the pipeline (a project IS the pipeline entity).
 async function getSalesRows() {
   const rows = await prisma.project.findMany({
     select: {
@@ -39,7 +39,7 @@ async function getSalesRows() {
       _count: { select: { shipments: true } },
     },
   });
-  // Average Probability is derived (never stored) — mean of the two entered values,
+  // Average Probability is derived (never stored), mean of the two entered values,
   // falling back to whichever is present, then the legacy single probability.
   // Weighted Revenue and Buyout Duration are derived the same way (Maram 9-17),
   // from the one definition in pipeline.js, so a dashboard tile and the CRM
@@ -66,7 +66,7 @@ function avgProbability(r) {
   return r.pipelineProbability ?? null;
 }
 
-// MAIN — all projects (executive portfolio overview).
+// MAIN, all projects (executive portfolio overview).
 async function getMainRows() {
   return prisma.project.findMany({
     select: {
@@ -79,10 +79,10 @@ async function getMainRows() {
   });
 }
 
-// BUDGET (Pre-con) — one row per project's budget. A project's budget is its
+// BUDGET (Pre-con), one row per project's budget. A project's budget is its
 // Conceptual, Design-questionnaire, or latest Bid-Matrix estimate (Mike's def).
 // Dollar totals we can compute cheaply: the latest Bid Matrix (Σ item cnTotal)
-// and the latest Design proposal fee. Conceptual $ needs the budget engine — a
+// and the latest Design proposal fee. Conceptual $ needs the budget engine, a
 // follow-up; counts/timing/client work today.
 async function getBudgetRows() {
   const [projects, matrices, defaultPricing] = await Promise.all([
@@ -106,7 +106,7 @@ async function getBudgetRows() {
   }
 
   return projects.map(p => {
-    // Product budget total — the same number the project summary shows
+    // Product budget total, the same number the project summary shows
     // (Conceptual or Design-questionnaire depending on the project's inputs).
     let productBudgetTotal = 0;
     try {
@@ -121,7 +121,7 @@ async function getBudgetRows() {
     const hasBidMatrix = !!bm;
 
     // Priority: a *priced* Bid Matrix > Design Questionnaire > Conceptual.
-    // (A draft/unpriced matrix — total 0 — doesn't hide the conceptual number.)
+    // (A draft/unpriced matrix, total 0, doesn't hide the conceptual number.)
     let budgetValue, budgetSource;
     if (bidMatrixTotal > 0)                  { budgetValue = bidMatrixTotal;     budgetSource = 'Bid Matrix'; }
     else if (p.budgetType === 'design')      { budgetValue = productBudgetTotal; budgetSource = 'Design Questionnaire'; }

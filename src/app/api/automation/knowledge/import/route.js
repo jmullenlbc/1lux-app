@@ -9,7 +9,7 @@ export async function POST(req) {
   const body = await req.json();
 
   // The Import from CSV button has always sent `{ entries: [...] }` while this
-  // route only accepted a bare array, so every import 400'd. Accept both — the
+  // route only accepted a bare array, so every import 400'd. Accept both, the
   // envelope is the shape the screen sends, and a bare array is what a script
   // posting straight at the API would send.
   const rows = Array.isArray(body) ? body : body?.entries;

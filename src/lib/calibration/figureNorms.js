@@ -1,21 +1,21 @@
 /**
- * What our real jobs say every budget figure runs, by building type — and an
+ * What our real jobs say every budget figure runs, by building type, and an
  * on-screen alert when a figure is far off it (Mike, 2026-09-24: "build that
  * intelligence into everything with budgeting as alert notifications at a
  * line level … only learn from non made up info").
  *
  * Which numbers are real (ProjectFigureSource.source):
- *   drawing, staff, fixtures, import — always learned from.
- *   client  — typed by a visitor on the public form; learned from only when
+ *   drawing, staff, fixtures, import, always learned from.
+ *   client, typed by a visitor on the public form; learned from only when
  *             it sits inside the normal range ("they don't want to make stuff
  *             up either").
- *   guess   — a stand-in the tool made up; never learned from.
+ *   guess, a stand-in the tool made up; never learned from.
  * A figure somebody marked "It's right" on an alert counts as checked.
  *
  * Learned figures are SUGGESTIONS: a person adopts one on the Pre-Con
  * dashboard (ConfirmedGuess) before it changes any budget.
  *
- * INTERNAL ONLY. Alert sentences name our ranges and job counts — the
+ * INTERNAL ONLY. Alert sentences name our ranges and job counts, the
  * background data Mike said never reaches a public visitor. Staff screens,
  * the review screen and the precon email only.
  *
@@ -73,7 +73,7 @@ export const ROW_FIELD = {
   garageSf: 'garageSf', corridorSf: 'corridorSf', bohSf: 'bohSf',
 };
 
-// null / '' mean "never recorded" — not 0, which can be a real answer.
+// null / '' mean "never recorded", not 0, which can be a real answer.
 const num = (v) => { if (v == null || v === '') return null; const x = Number(v); return Number.isFinite(x) ? x : null; };
 
 function pct(sorted, p) {
@@ -182,15 +182,15 @@ export function figureNorms(rows, confirmed = null) {
 
 /**
  * One on-screen alert for a figure, or null. ctx = { buildingType, units, grossSf }.
- * Text like: "Vanities 120 is 0.4 per unit — our 6 garden jobs usually run
- * 1.3–1.5 per unit (about 390–450 here). Check it."
+ * Text like: "Vanities 120 is 0.4 per unit, our 6 garden jobs usually run
+ * 1.3 to 1.5 per unit (about 390 to 450 here). Check it."
  */
 export function figureAlert(field, value, ctx, norms, confirmed = null) {
   const f = FIGURES[field];
   if (!f || !ctx?.buildingType) return null;
   const v = num(value);
   if (v == null || v < 0) return null;
-  // A 0 on a figure where 0 isn't real is simply "not counted yet" — the
+  // A 0 on a figure where 0 isn't real is simply "not counted yet", the
   // blank-field prompts handle that, not the alert.
   if (v === 0 && !f.zeroOk) return null;
   const r = f.basis === 'raw' ? v : ratioOf(field, v, ctx);
@@ -206,15 +206,15 @@ export function figureAlert(field, value, ctx, norms, confirmed = null) {
   let yard;
   if (!j.byGuess) {
     const lo = asTotal(field, stats.low, ctx), hi = asTotal(field, stats.high, ctx);
-    const here = f.basis !== 'raw' && lo != null && hi != null ? ` (about ${lo}–${hi} here)` : '';
+    const here = f.basis !== 'raw' && lo != null && hi != null ? ` (about ${lo} to ${hi} here)` : '';
     yard = j.way === 'zero'
-      ? `our ${stats.jobs} ${name} jobs normally have some (${fmtRatio(field, stats.low)}–${fmtRatio(field, stats.high)}${per(field)})`
-      : `our ${stats.jobs} ${name} jobs usually run ${fmtRatio(field, stats.low)}–${fmtRatio(field, stats.high)}${per(field)}${here}`;
+      ? `our ${stats.jobs} ${name} jobs normally have some (${fmtRatio(field, stats.low)} to ${fmtRatio(field, stats.high)}${per(field)})`
+      : `our ${stats.jobs} ${name} jobs usually run ${fmtRatio(field, stats.low)} to ${fmtRatio(field, stats.high)}${per(field)}${here}`;
   } else {
     const t = asTotal(field, guess, ctx);
-    yard = `the usual figure for ${name} is ${fmtRatio(field, guess)}${per(field)}${t && f.basis !== 'raw' ? ` (about ${t} here)` : ''} — fewer than ${MIN_DRIVER_PROJECTS} real jobs to compare against yet`;
+    yard = `the usual figure for ${name} is ${fmtRatio(field, guess)}${per(field)}${t && f.basis !== 'raw' ? ` (about ${t} here)` : ''}, fewer than ${MIN_DRIVER_PROJECTS} real jobs to compare against yet`;
   }
-  const lead = j.way === 'zero' ? `${f.label} is 0, but` : `${f.label} ${shown} looks ${j.way}:${is ? is.replace(/^ is/, '') : ''} —`;
+  const lead = j.way === 'zero' ? `${f.label} is 0, but` : `${f.label} ${shown} looks ${j.way}:${is ? `${is.replace(/^ is/, '')},` : ''}`;
   return { field, way: j.way, text: `${lead} ${yard}. Check it.` };
 }
 
@@ -253,16 +253,16 @@ export function guessSuggestions(norms, confirmed = null) {
       const differs = now == null ? true : Math.abs(learned - now) > Math.max(Math.abs(now) * 0.05, 1e-9);
       rows.push({
         field, guessKey: f.guessKey, buildingType: type,
-        label: `${f.label} — ${typeLabel(type)}`,
+        label: `${f.label}: ${typeLabel(type)}`,
         jobs: s.jobs,
         current: now == null ? null : fmtRatio(field, now) + per(field),
         learned: fmtRatio(field, learned) + per(field),
         learnedValue: learned,
         adopted: confirmed?.[f.guessKey]?.[type] != null,
-        range: `${fmtRatio(field, s.low)}–${fmtRatio(field, s.high)}`,
+        range: `${fmtRatio(field, s.low)} to ${fmtRatio(field, s.high)}`,
         canAdopt: s.jobs >= MIN_DRIVER_PROJECTS && differs,
         status: s.jobs < MIN_DRIVER_PROJECTS ? `Needs ${MIN_DRIVER_PROJECTS - s.jobs} more real job(s)`
-          : differs ? 'Ready — a person can adopt it' : 'Matches what we use',
+          : differs ? 'Ready, a person can adopt it' : 'Matches what we use',
       });
     }
   }

@@ -1,4 +1,4 @@
-// Public layout — no auth check, no Navbar
+// Public layout, no auth check, no Navbar
 export default function ShareLayout({ children }) {
   return children;
 }

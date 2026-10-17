@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma as db } from '@/lib/db';
 
-// GET /api/tasks — list all tasks
+// GET /api/tasks, list all tasks
 export async function GET(request) {
   const { user, error } = await requireAuth(request);
   if (error) return error;
@@ -26,7 +26,7 @@ export async function GET(request) {
   }
 }
 
-// POST /api/tasks — create a task
+// POST /api/tasks, create a task
 export async function POST(request) {
   const { user, error } = await requireAuth(request);
   if (error) return error;

@@ -404,7 +404,7 @@ const EMPTY_EXCL_RULE = {
   name:     '',
   ruleType: 'RECURRING_WEEKLY',
   keywords: '',
-  minRecipients: 25,          // Mike's number — see MASS_EMAIL_MIN_PEOPLE
+  minRecipients: 25,          // Mike's number, see MASS_EMAIL_MIN_PEOPLE
   senderDomain: '',
   isActive: true,
 };
@@ -640,7 +640,7 @@ function FollowUpRuleDrawer({ open, onClose, onSaved }) {
     setErr('');
     try {
       const payload = {
-        name:          form.name || `${form.pipeline} – ${form.stage} stale (${form.staleDays}d)`,
+        name:          form.name || `${form.pipeline}: ${form.stage} stale (${form.staleDays}d)`,
         triggerType:   'DEAL_STALE',
         actionType:    'DRAFT_FOLLOW_UP_EMAIL',
         isActive:      form.isActive,
@@ -1261,10 +1261,10 @@ export default function RulesPage() {
       {/* Header */}
       <div className="mb-5">
         <h1 className={H1}>Rules</h1>
-        <p className="text-xs text-slate-500 mt-0.5">Bot rules, scheduling, exclusions, classification, and relationship cadence — all in one place.</p>
+        <p className="text-xs text-slate-500 mt-0.5">Bot rules, scheduling, exclusions, classification, and relationship cadence, all in one place.</p>
       </div>
 
-      {/* Bot Rules — global, always at top */}
+      {/* Bot Rules, global, always at top */}
       <div className="mb-6">
         <BotRulesPanel />
       </div>
@@ -1406,7 +1406,7 @@ export default function RulesPage() {
                         <td className={`${TD} font-medium text-slate-800`}>{r.meetingType || '—'}</td>
                         <td className={`${TD} text-slate-500`}>{r.dealStage || <span className="text-slate-300">All</span>}</td>
                         <td className={`${TD} text-slate-500 font-mono text-[11px] tabular-nums`}>{r.days || 'MON-FRI'}</td>
-                        <td className={`${TD} text-slate-500 tabular-nums`}>{r.startTime} – {r.endTime}</td>
+                        <td className={`${TD} text-slate-500 tabular-nums`}>{r.startTime} to {r.endTime}</td>
                         <td className={`${TD} text-slate-500 tabular-nums`}>{r.durationMins ?? '—'} min</td>
                         <td className={`${TD} text-slate-500`}>{r.locationType || '—'}</td>
                         <td className={`${TD} text-slate-500 tabular-nums`}>{r.travelBuffer ?? 0} min</td>
@@ -1426,7 +1426,7 @@ export default function RulesPage() {
             )}
           </div>
 
-          {/* Follow-Up Thresholds removed — these are now managed in Bot Rules above (trigger = Deal Stale). */}
+          {/* Follow-Up Thresholds removed, these are now managed in Bot Rules above (trigger = Deal Stale). */}
 
           {/* ── Section: Relationship Cadence Defaults ────────────────── */}
           <div className={CARD_PADDED}>
@@ -1615,7 +1615,7 @@ export default function RulesPage() {
                 <h3 className={CARD_TITLE}>Activity Classification Rules</h3>
                 <p className="text-xs text-slate-500 mt-0.5">
                   Rules determine how calendar events are classified (Coffee, Lunch, Golf, etc.).
-                  Checked highest-priority first — first match wins.
+                  Checked highest-priority first. First match wins.
                   Unmatched events are classified by AI.
                 </p>
               </div>
@@ -1685,7 +1685,7 @@ export default function RulesPage() {
                             rule.resultType === 'TRAVEL'     ? 'bg-sky-50 text-sky-700' :
                             'bg-slate-100 text-slate-600'
                           }`}>
-                            {/* Rules saved before the rename still say LUNCH — show them as Meal. */}
+                            {/* Rules saved before the rename still say LUNCH, show them as Meal. */}
                             {rule.resultType === 'SKIP' ? 'Skip'
                               : rule.resultType === 'LUNCH' ? 'Meal'
                               : rule.resultType.replace(/_/g, ' ')}

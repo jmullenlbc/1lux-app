@@ -5,7 +5,7 @@
  * Reading a real drawing set takes about a minute. Amplify's front door hangs
  * up on any single request that runs longer than ~30 seconds and returns an
  * empty 504, so the one-request version of this had NEVER once finished on the
- * live site — at any file size. (Measured 2026-08-25: 504 at 28.1s, every time,
+ * live site, at any file size. (Measured 2026-08-25: 504 at 28.1s, every time,
  * including on a 472 KB single sheet.)
  *
  * The read is therefore four short requests instead of one long one, and the
@@ -15,12 +15,12 @@
  *
  * ── The side benefit, which is really the point ───────────────────────────────
  * A single long request has nothing to say until it ends. Four short ones can
- * tell a GC standing on a job site exactly what is happening — which is what
+ * tell a GC standing on a job site exactly what is happening, which is what
  * Mike asked for, and what turns a one-minute wait from "it's broken" into
  * "it's working".
  *
- * @see src/app/api/intake/parse/route.js — the matching stages
- * @see src/components/intake/ReadingSteps.jsx — what the visitor sees
+ * @see src/app/api/intake/parse/route.js, the matching stages
+ * @see src/components/intake/ReadingSteps.jsx, what the visitor sees
  */
 import { combineIntakeResult, siteHasNumbers } from './combineResult.js';
 
@@ -29,7 +29,7 @@ import { combineIntakeResult, siteHasNumbers } from './combineResult.js';
  *
  * Two of them do not always run: a spreadsheet has no sheets to open, and a
  * clean unit matrix means the site plan never has to be looked at. They are
- * still listed, and reported as skipped rather than quietly dropped — a step
+ * still listed, and reported as skipped rather than quietly dropped, a step
  * that vanishes mid-read looks like something went wrong.
  */
 /**
@@ -45,7 +45,7 @@ const MAX_SITE_SHEET_READS = 16;
  * The runaway stop on the sheet-drawing loop.
  *
  * The server draws at most four sheets, plus four more after a landing
- * re-aim, one or two per request — and a sheet that hits the wall's remainder
+ * re-aim, one or two per request, and a sheet that hits the wall's remainder
  * mid-slice is retried once as the first sheet of the next, so each sheet can
  * cost up to two requests, plus one recheck-only pass. Kept well above that
  * worst case (4×2 + 1 + 4×2 = 17) so this never ends a render early; it only
@@ -57,8 +57,8 @@ const MAX_RENDER_PASSES = 20;
  * The unit-matrix read is ONE model call that can outlive the front door: the
  * server kicks it off, parks the answer when it lands, and answers "still
  * reading" (`more: true`) to every request in between. Each poll here is
- * sub-second and free of model cost. The cap covers the server's worst case —
- * three kicks of its in-flight window — with room to spare; the server parks
+ * sub-second and free of model cost. The cap covers the server's worst case
+ * three kicks of its in-flight window, with room to spare; the server parks
  * an honest "could not finish" long before this runs out, so hitting the cap
  * means a server that keeps saying "one more", same as the other stops.
  */
@@ -122,8 +122,8 @@ export const STEP_WORDS = {
  *
  * Sized for the biggest set we have actually seen (294 full-size plotted
  * sheets, 334 MB): measured on production 2026-09-02, a slice reads only 5-8
- * pages there — the Lambda's CPU and its trip to storage are both a fraction
- * of a desktop's — so that set needs on the order of sixty slices, not the
+ * pages there, the Lambda's CPU and its trip to storage are both a fraction
+ * of a desktop's, so that set needs on the order of sixty slices, not the
  * dozen the desktop suggests. This stop only exists so a server that never
  * finishes cannot spin the visitor forever.
  */
@@ -155,8 +155,8 @@ export const HANGUP_RETRY_WAITS_MS = [3000, 10000];
  * Wait for the page to be visible again, up to a limit.
  *
  * A hidden page is the worst place to retry from: the phone that just killed
- * one request will kill the next the same way. When the visitor comes back --
- * unlocks the phone, returns from a text -- the retry actually has a chance,
+ * one request will kill the next the same way. When the visitor comes back
+ * unlocks the phone, returns from a text, the retry actually has a chance,
  * and the read picks up exactly where the parked state says it left off.
  */
 export function waitForVisible(limitMs = 5 * 60 * 1000) {
@@ -179,14 +179,14 @@ export function waitForVisible(limitMs = 5 * 60 * 1000) {
  * Post one stage, and do not give up on the first dropped request.
  *
  * The work is parked server-side under a scanKey, so re-asking a stage is
- * always safe -- the server picks up wherever the parked state says it is.
+ * always safe, the server picks up wherever the parked state says it is.
  * That makes a THROWN fetch (the phone dimmed its screen, the radio blinked
  * on a job site) retryable for free, where it used to kill a minutes-long
  * read on the spot: that was every R1 in every screenshot.
  *
  * The front door hanging up (an empty non-2xx at ~30 seconds) is retried the
  * same way, just more patiently: it is a drop with a status code stapled on,
- * not an answer, and one hang-up used to kill a fully-resumable read — that
+ * not an answer, and one hang-up used to kill a fully-resumable read, that
  * was the R3 on the 294-sheet Skyline Ridge set.
  *
  * Deliberate exceptions: an answer the server actually WROTE (a message meant
@@ -212,7 +212,7 @@ export async function stage(body, signal, file) {
  * Post one stage, ONCE. A non-2xx carries a message written for a public reader.
  *
  * `file` is only ever set on the first step, and only when there was nowhere to
- * upload to first -- a laptop with no bucket. The file rides along with that
+ * upload to first, a laptop with no bucket. The file rides along with that
  * one short request and the server parks it; every step after works from the
  * key it hands back, exactly as it does in production.
  */
@@ -235,7 +235,7 @@ async function stageOnce(body, signal, file) {
     // one did not come from our code: it is the front door hanging up at ~30
     // seconds, or the Lambda dying. That used to print a bare "Could not read
     // this file", which reads as "your drawing is bad" and names neither the
-    // step nor the status -- the two things that actually locate the fault.
+    // step nor the status, the two things that actually locate the fault.
     const err = new Error(d.message
       || `The read stopped while ${STEP_WORDS[body.stage] ?? 'reading the file'} (${r.status}). Please try again. (R3/${body.stage})`);
     err.shown = true;          // already public-readable; don't dress it up
@@ -251,17 +251,17 @@ async function stageOnce(body, signal, file) {
 /**
  * Read the rest of a big set with several slice streams at once.
  *
- * The server measured 5-8 pages per 12-second slice on production — one polite
+ * The server measured 5-8 pages per 12-second slice on production, one polite
  * stream needs nine minutes for a 294-page set. But each slice runs on its own
  * Lambda, and Lambdas don't queue behind each other: the ranges the first
  * slice's response offered are read here CONCURRENTLY, each stream parking
  * into its own server-side object so no two ever write the same thing. When
  * the streams are done, one merge request folds every banked page back into
- * the main scan and answers exactly like a finishing slice — the caller's
+ * the main scan and answers exactly like a finishing slice, the caller's
  * loop carries on without knowing the read was ever parallel.
  *
  * A stream that dies for good is a hole in the merge, not the end of the read
- * (its stretch of the set goes unread, same as a memory-braked scan) — the
+ * (its stretch of the set goes unread, same as a memory-braked scan), the
  * whole thing only fails if EVERY stream failed.
  */
 async function runShardedScan(scan, signal, onStep) {
@@ -303,7 +303,7 @@ async function runShardedScan(scan, signal, onStep) {
  * @param {File}     [a.file]     the file itself, when there was nowhere to PUT
  *                                it (local dev). Sent with the first step only.
  * @param {string}   a.fileName
- * @param {Function} a.onStep     (key, state, extra) — state is
+ * @param {Function} a.onStep     (key, state, extra), state is
  *                                'active' | 'done' | 'skipped'
  * @param {AbortSignal} [a.signal]
  * @returns {Promise<object|null>} the proposal, or null if the server declined
@@ -316,7 +316,7 @@ export async function runStagedParse({ s3Key, file, fileName, onStep = () => {},
   // A set can be too big to read inside one request even now: 158 sheets of a
   // 60 MB architectural set took longer than the front door allows, and the
   // whole read died on its first step. So the scan is allowed to come back and
-  // say "still reading" -- each slice is short, and together they finish.
+  // say "still reading", each slice is short, and together they finish.
   const tooLong = () => {
     const err = new Error(
       'This set is taking longer to read than we can hold a line open for. '
@@ -329,7 +329,7 @@ export async function runStagedParse({ s3Key, file, fileName, onStep = () => {},
   while (scan.staging && scan.more) {
     onStep('scan', 'active', { totalPages: scan.totalPages, pagesRead: scan.pagesRead });
     // "Still picking": the sheet pick is running on a server that has not
-    // answered yet (its first response was hung up on). Wait and ask again —
+    // answered yet (its first response was hung up on). Wait and ask again
     // a poll is not a slice, and must not eat the slice budget.
     if (scan.waiting) {
       if (pickPolls++ >= MAX_PICK_POLLS) throw tooLong();
@@ -339,8 +339,8 @@ export async function runStagedParse({ s3Key, file, fileName, onStep = () => {},
     }
     if (slices++ >= MAX_SCAN_SLICES) throw tooLong();
     // A big set's first slice comes back with the rest of the pages offered as
-    // parallel ranges. Fan out — four streams reading at once instead of one
-    // stream reading politely — then merge, and carry on with the merged
+    // parallel ranges. Fan out, four streams reading at once instead of one
+    // stream reading politely, then merge, and carry on with the merged
     // response exactly as if one very productive slice had just answered.
     if (scan.shardRanges?.length > 1) {
       scan = await runShardedScan(scan, signal, onStep);
@@ -349,7 +349,7 @@ export async function runStagedParse({ s3Key, file, fileName, onStep = () => {},
     scan = await stage({ stage: 'scan', scanKey: scan.scanKey }, signal);
   }
 
-  // The server can decline to stage — no bucket to park the scan in. That is
+  // The server can decline to stage, no bucket to park the scan in. That is
   // not a failure; it means "this one is small enough to do in one go".
   if (!scan.staging) return null;
 
@@ -365,12 +365,12 @@ export async function runStagedParse({ s3Key, file, fileName, onStep = () => {},
     // The unit-count read is ONE long model think (about two minutes on a
     // dense set) that needs nothing but the text the scan already parked. So
     // when there IS text, it is kicked off NOW and left thinking while the
-    // sheets are drawn underneath it — the server parks its answer in an
+    // sheets are drawn underneath it, the server parks its answer in an
     // object of its own, so the two stages never touch each other's state.
     // The empty catch below only keeps an early rejection from being
     // "unhandled" while the render runs; the real await at the matrix step
     // still sees the original error. Without text there is no table to read
-    // and the matrix answers instantly — nothing worth overlapping.
+    // and the matrix answers instantly, nothing worth overlapping.
     const readMatrix = async () => {
       let m = await stage({ stage: 'matrix', scanKey }, signal);
       // "Still reading": the server kicked the model call off and is letting
@@ -384,8 +384,8 @@ export async function runStagedParse({ s3Key, file, fileName, onStep = () => {},
     const matrixEarly = scan.hasText ? readMatrix() : null;
     matrixEarly?.catch(() => {});
 
-    // A scanned set -- paper that was photographed, or a plot with the text
-    // stripped out -- has nothing to search, so the sheets to open have to be
+    // A scanned set, paper that was photographed, or a plot with the text
+    // stripped out, has nothing to search, so the sheets to open have to be
     // found by READING the drawing index off the cover as a picture. A run of
     // short requests: look at the front sheets one at a time until one of them
     // has an index on it, then read that index one close-up at a time. None of
@@ -474,8 +474,8 @@ export async function runStagedParse({ s3Key, file, fileName, onStep = () => {},
         onStep('site', 'done');
       } catch (e) {
         // With a unit matrix in hand the answer is still good, and a failed
-        // second look should not throw it away. With no text layer -- or with a
-        // unit-counts read that FAILED rather than came up empty -- there was
+        // second look should not throw it away. With no text layer, or with a
+        // unit-counts read that FAILED rather than came up empty, there was
         // never any other way in, so those really are failures.
         if (!scan.hasText || m.matrixError) throw e;
         onStep('site', 'skipped');
@@ -514,7 +514,7 @@ export async function runStagedParse({ s3Key, file, fileName, onStep = () => {},
     // A read that FAILED keeps its uploaded file: the file card holds on to
     // the upload key so Retry re-asks the read without re-sending the file,
     // and that only works if the file is still there. (Until 2026-09-16 it
-    // never was — this same cleanup deleted it, and every Retry silently
+    // never was, this same cleanup deleted it, and every Retry silently
     // re-uploaded.) The visitor leaving is not a failure to retry.
     const keepUpload = !finished && !signal?.aborted;
     stage({ stage: 'done', scanKey, ...(keepUpload ? { keepUpload: true } : {}) }).catch(() => {});

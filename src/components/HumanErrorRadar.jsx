@@ -6,10 +6,10 @@ function buildRadarIssueContent(issue, radarType) {
   const parts = [`<p>${issue.message}</p>`];
   if (issue.items?.length) {
     parts.push('<ul>' + issue.items.map(it =>
-      `<li><code>${it.type || it}</code>${it.detail ? ' — ' + it.detail : ''}</li>`
+      `<li><code>${it.type || it}</code>${it.detail ? ': ' + it.detail : ''}</li>`
     ).join('') + '</ul>');
   }
-  parts.push(`<p><em>Source: Human Error Radar — ${radarType}</em></p>`);
+  parts.push(`<p><em>Source: Human Error Radar: ${radarType}</em></p>`);
   return parts.join('');
 }
 
@@ -57,14 +57,14 @@ function QuantityRadarSection({ radar }) {
           {radar.missingFromTakeoff?.length > 0 && (
             <div className="mb-4">
               <p className="text-[10px] font-semibold text-red-600 uppercase tracking-wide mb-1.5">
-                In schedule — not in takeoff ({radar.missingFromTakeoff.length})
+                In schedule, not in takeoff ({radar.missingFromTakeoff.length})
               </p>
               <div className="space-y-1">
                 {radar.missingFromTakeoff.map((item, i) => (
                   <div key={i} className="flex items-start gap-2 text-xs">
                     <span className="text-red-400 mt-0.5">▲</span>
                     <span><span className="font-semibold text-slate-700">{item.type}</span>
-                      {item.description && <span className="text-slate-400"> — {item.description}</span>}
+                      {item.description && <span className="text-slate-400">: {item.description}</span>}
                       {item.location && <span className="text-slate-300"> · {item.location}</span>}
                     </span>
                   </div>
@@ -76,7 +76,7 @@ function QuantityRadarSection({ radar }) {
           {radar.orphanTakeoffKeys?.length > 0 && (
             <div className="mb-4">
               <p className="text-[10px] font-semibold text-amber-600 uppercase tracking-wide mb-1.5">
-                In takeoff — not in schedule ({radar.orphanTakeoffKeys.length})
+                In takeoff, not in schedule ({radar.orphanTakeoffKeys.length})
               </p>
               <div className="space-y-1">
                 {radar.orphanTakeoffKeys.map((item, i) => (
@@ -208,7 +208,7 @@ function BidRadarSection({ radar }) {
                       {issue.items.map((it, j) => (
                         <div key={j} className="flex items-center gap-2 text-[10px] text-slate-500">
                           <span className="font-semibold font-mono text-slate-700">{it.type}</span>
-                          {it.detail && <span className="text-slate-400">— {it.detail}</span>}
+                          {it.detail && <span className="text-slate-400">· {it.detail}</span>}
                         </div>
                       ))}
                     </div>
@@ -345,7 +345,7 @@ export default function HumanErrorRadar({ projectId }) {
               </div>
 
               <div className="px-6 py-3 border-t border-slate-100 bg-slate-50 text-[10px] text-slate-400">
-                Human Error Radar catches cross-document inconsistencies — not code violations. FLAG = definite discrepancy. WARN = needs attention.
+                Human Error Radar catches cross-document inconsistencies, not code violations. FLAG = definite discrepancy. WARN = needs attention.
               </div>
             </>
           )}

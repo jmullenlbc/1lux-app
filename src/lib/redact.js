@@ -1,7 +1,7 @@
 /**
  * The single audited redaction boundary.
  *
- * Mike's rule: **DN / buy price is never shown to contractors** — not in PDFs,
+ * Mike's rule: **DN / buy price is never shown to contractors**, not in PDFs,
  * not in share links, not in the client portal. Only logged-in ILC staff see it.
  *
  * Before this module that rule was enforced four different ways in four places
@@ -10,10 +10,10 @@
  * those were correct. The gaps that motivated consolidating them:
  *
  *   1. `change-orders/[coId]/pdf` called `requireAuth()` but never checked the
- *      returned `error`, so the route was **completely unauthenticated** — and
+ *      returned `error`, so the route was **completely unauthenticated**, and
  *      `?hideInternalDN=false` printed the buy price for anyone with the URL.
  *   2. `share/co/[token]` correctly dropped `originalDN` from every line item,
- *      then handed back `rates` — which contains `marginPct`. Because CN is
+ *      then handed back `rates`, which contains `marginPct`. Because CN is
  *      derived as `cn = dn / (1 - marginPct)`, publishing the margin publishes
  *      the buy price: `dn = cn × (1 - marginPct)`. The strip was arithmetic
  *      theatre.
@@ -27,19 +27,19 @@
  * which is itself dependency-free, so it can be unit-tested with plain
  * `node --test` (importing `@/lib/auth` would pull in `next/headers`).
  *
- * @see src/lib/ontology/index.js       — where the field list is actually declared
- * @see src/lib/ontology/redact.js      — the object-aware allowlist counterpart
- * @see scripts/tests/redact.test.mjs   — unit tests for this module
- * @see scripts/tests/dn-leak.test.mjs  — live audit of the real outbound routes
+ * @see src/lib/ontology/index.js, where the field list is actually declared
+ * @see src/lib/ontology/redact.js, the object-aware allowlist counterpart
+ * @see scripts/tests/redact.test.mjs, unit tests for this module
+ * @see scripts/tests/dn-leak.test.mjs, live audit of the real outbound routes
  */
 import { globalDenyFieldNames } from './ontology/index.js';
 
 /**
  * Who is on the other end of the response.
  *
- *   ILC    — a logged-in ILC staff member. Sees everything; redact() is a no-op.
- *   CLIENT — an authenticated portal contact (developer / owner side).
- *   PUBLIC — anyone holding a share-link token: contractors, bidders, forwards.
+ *   ILC, a logged-in ILC staff member. Sees everything; redact() is a no-op.
+ *   CLIENT, an authenticated portal contact (developer / owner side).
+ *   PUBLIC, anyone holding a share-link token: contractors, bidders, forwards.
  *
  * CLIENT and PUBLIC are both stripped identically today. They are kept distinct
  * so a future field can be client-ok-but-not-public without another rewrite.
@@ -62,13 +62,13 @@ const VALID_AUDIENCES = Object.freeze(Object.values(AUDIENCE));
  * second list here to forget.
  *
  * Two flags rather than one because they are different claims:
- *   `sensitivity: 'ilc_only'`  — this PROPERTY of this OBJECT is internal.
- *   `globalDeny: true`         — the bare NAME is unambiguous across all 116
+ *   `sensitivity: 'ilc_only'`, this PROPERTY of this OBJECT is internal.
+ *   `globalDeny: true`, the bare NAME is unambiguous across all 116
  *                                models, so seeing it in a payload of unknown
  *                                shape is enough to strip it.
  *
  * `marginPct` and `originalDN` earn the second flag. `notes` and `status` never
- * could — they are `ilc_only` on Client and `client_ok` on ChangeOrder, and
+ * could, they are `ilc_only` on Client and `client_ok` on ChangeOrder, and
  * stripping them by name would blank out the client's own quote. Those are left
  * to the object-aware redactor, which knows what it is holding.
  *
@@ -83,7 +83,7 @@ export const ILC_ONLY_FIELDS = Object.freeze(globalDenyFieldNames());
  * Returns a redacted copy; the input is never mutated (callers routinely compute
  * footers and totals from the full row first, then redact for transport).
  *
- * `audience` is required and validated — there is no default. A default would
+ * `audience` is required and validated, there is no default. A default would
  * mean a forgotten argument silently picks a policy, and the safe-looking
  * default (PUBLIC) would quietly blank out ILC's own screens while the unsafe
  * one leaks. Making it explicit forces the call site to state who is asking.
@@ -95,7 +95,7 @@ export const ILC_ONLY_FIELDS = Object.freeze(globalDenyFieldNames());
 export function redact(data, audience) {
   if (!VALID_AUDIENCES.includes(audience)) {
     throw new Error(
-      `redact(): audience must be one of ${VALID_AUDIENCES.join(' | ')} — got ${JSON.stringify(audience)}. ` +
+      `redact(): audience must be one of ${VALID_AUDIENCES.join(' | ')} , got ${JSON.stringify(audience)}. ` +
       `Pass AUDIENCE.ILC explicitly for internal responses.`
     );
   }

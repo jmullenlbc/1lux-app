@@ -8,7 +8,7 @@ const PDFJS_RUNTIME_ASSETS = [
 ];
 
 const nextConfig = {
-    // Old public-intake URL — /start was shared externally before the page
+    // Old public-intake URL, /start was shared externally before the page
     // moved to /conceptual_budget, so keep the old link forwarding forever.
     async redirects() {
           return [
@@ -23,15 +23,15 @@ const nextConfig = {
     // in value of process.env.DATABASE_URL is what gets passed through.
     // Without this, the Lambda has no DB connection and every API route fails.
     //
-    // ANTHROPIC_API_KEY must be baked in here — same Amplify Gen 1 trap as
+    // ANTHROPIC_API_KEY must be baked in here, same Amplify Gen 1 trap as
     // DATABASE_URL and S3 keys. Console env vars do NOT reach the SSR Lambda
     // runtime; they're only available during the build. getAnthropicKey() in
     // src/lib/anthropicKey.js checks process.env first, then falls back to
-    // reading .env from disk — but .env is gitignored and not in the bundle.
+    // reading .env from disk, but .env is gitignored and not in the bundle.
     // Without baking the key in here, all AI parsers (fixture schedule, schedule
     // extract, etc.) silently return null in production. Empirically confirmed
     // broken; same fix pattern as S3_ACCESS_KEY_ID (commit d0c8d8c).
-    // JWT_SECRET is intentionally NOT here — it's only used by jose/bcrypt in
+    // JWT_SECRET is intentionally NOT here, it's only used by jose/bcrypt in
     // auth.js which is webpack-bundled differently and needs separate analysis.
     env: {
           DATABASE_URL:        process.env.DATABASE_URL,
@@ -39,19 +39,19 @@ const nextConfig = {
           // S3_BUCKET / S3_REGION must be baked in here for the same reason as
           // DATABASE_URL: src/lib/qcStorage.js is webpack-bundled, so without
           // these in the env block, process.env.S3_BUCKET inlines as undefined
-          // and the prod code path (putS3) never runs — uploads silently fall
+          // and the prod code path (putS3) never runs, uploads silently fall
           // back to the ephemeral Lambda filesystem and disappear immediately.
           S3_BUCKET:           process.env.S3_BUCKET,
           S3_REGION:           process.env.S3_REGION,
           // S3_ACCESS_KEY_ID / S3_SECRET_ACCESS_KEY: same trap, second layer.
           // Amplify Hosting Gen 1 does NOT propagate console-set env vars to
-          // the SSR Lambda runtime — they're available at build time only.
+          // the SSR Lambda runtime, they're available at build time only.
           // Confirmed empirically: with both set in the Amplify console but
           // not in this env block, the Lambda saw process.env.S3_ACCESS_KEY_ID
           // as undefined and the AWS SDK threw CredentialsProviderError. So we
           // bake them in here. They end up in the server bundle (never sent to
           // the browser), and the IAM user backing them is scoped to PutObject/
-          // GetObject/DeleteObject on the ilc-qc-media bucket only — minimal
+          // GetObject/DeleteObject on the ilc-qc-media bucket only, minimal
           // blast radius if the bundle is ever exposed. Swap to a proper SSR
           // compute role during the security pass and delete this block.
           S3_ACCESS_KEY_ID:     process.env.S3_ACCESS_KEY_ID,
@@ -69,7 +69,7 @@ const nextConfig = {
           // safe. Both, not either.
           MCP_API_TOKEN:        process.env.MCP_API_TOKEN,
           // CRON_SECRET: shared secret for EventBridge → /api/cron/* routes.
-          // Same Gen 1 trap — must be baked in so the Lambda runtime can compare
+          // Same Gen 1 trap, must be baked in so the Lambda runtime can compare
           // the x-cron-secret header. Without it, every cron call returns 401.
           CRON_SECRET:          process.env.CRON_SECRET,
     },
@@ -81,11 +81,11 @@ const nextConfig = {
           //
           // Same trap, second case: pdfjs-dist's standard_fonts/ is resolved at
           // RUNTIME via a constructed file:// path (see ocr.js / scheduleExtract.js /
-          // fixture-schedule/parse), so nft never traces it — it only traced
+          // fixture-schedule/parse), so nft never traces it, it only traced
           // pdfjs-dist/legacy/build. In prod the fonts directory simply wasn't in the
           // Lambda, standardFontDataUrl pointed at nothing, getTextContent yielded no
           // text, and every AI parse silently returned 0 rows while local worked fine.
-          // 804K / 16 files — force-include it on every route that touches pdfjs.
+          // 804K / 16 files, force-include it on every route that touches pdfjs.
           outputFileTracingIncludes: {
                 '/api/projects/[id]/budget/pdf': ['./node_modules/@sparticuz/chromium/**/*'],
                 '/api/projects/[id]/peer-review/pdf': ['./node_modules/@sparticuz/chromium/**/*'],
@@ -93,8 +93,8 @@ const nextConfig = {
                 // Public conceptual-budget PDF download (/conceptual_budget review step).
                 '/api/intake/pdf': ['./node_modules/@sparticuz/chromium/**/*'],
                 // Every route that reads a PDF server-side needs BOTH of these.
-                //   standard_fonts/  — resolved at runtime via a constructed file:// URL
-                //   pdf.worker.mjs   — pdfjs-dist's own static block sets
+                //   standard_fonts/, resolved at runtime via a constructed file:// URL
+                //   pdf.worker.mjs, pdfjs-dist's own static block sets
                 //                      GlobalWorkerOptions.workerSrc ||= './pdf.worker.mjs' on Node and
                 //                      then `await import(this.workerSrc)`. That dynamic import is
                 //                      invisible to the tracer, so without this line the worker is
@@ -113,7 +113,7 @@ const nextConfig = {
                 '/api/projects/[id]/site/parse': PDFJS_RUNTIME_ASSETS,
                 '/api/projects/[id]/unit-matrix/parse': PDFJS_RUNTIME_ASSETS,
                 // Bot Knowledge reads PDFs too, and this was missed when the file
-                // uploads shipped 2026-09-07 — the route's Lambda trace carried
+                // uploads shipped 2026-09-07, the route's Lambda trace carried
                 // tesseract and xlsx but ZERO pdfjs assets, so every PDF dropped on
                 // the live Bot Knowledge screen failed with "Setting up fake worker
                 // failed" while local was fine. Found 2026-09-08 from Mike's upload.

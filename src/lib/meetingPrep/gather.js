@@ -1,10 +1,10 @@
 /**
- * Meeting Prep — pull the rows a brief is built from, for one sales note.
+ * Meeting Prep, pull the rows a brief is built from, for one sales note.
  *
  * Sell figures only (Mike, 2026-09-14): each job's product sale total and
  * design fee, plus its budget from opts.budgetFor(). Nothing about what ILC
- * pays is read here — no DN, no pricing snapshot, no pipelinePerUnit, no
- * change-order line items — so none of it can reach brief.js, the model, or
+ * pays is read here, no DN, no pricing snapshot, no pipelinePerUnit, no
+ * change-order line items, so none of it can reach brief.js, the model, or
  * the saved brief.
  *
  * Who counts as "on this meeting": the companies, projects and people linked
@@ -20,13 +20,13 @@ import { boardRows } from '../pipeline.js';
 const DAY = 86_400_000;
 const NEWS_LOOKBACK_DAYS = 120;
 // Budgets run the whole budget engine per job, so only the jobs a brief can
-// show get one: the note's own, the people's, and open ones — at most this many.
+// show get one: the note's own, the people's, and open ones, at most this many.
 const MAX_BUDGETS = 60;
 
 const CONTACT_SELECT = {
   id: true, name: true, title: true, company: true, clientId: true,
   lastInPersonAt: true, lastTouchpointAt: true, lastEmailReceivedAt: true, lastEmailSentAt: true,
-  // Nested lists skip the archive filter in db.js — filter by hand.
+  // Nested lists skip the archive filter in db.js, filter by hand.
   projectLinks: { where: { project: { archivedAt: null } }, select: { projectId: true, isLead: true } },
   employment: {
     where: { archivedAt: null },
@@ -135,12 +135,12 @@ export async function gatherMeetingFacts(prisma, noteId, now = new Date(), opts 
     ? await safe('budgets', opts.budgetFor(budgetIds), {})
     : {};
 
-  // Change orders and RFIs: the note's jobs and its companies' jobs — not every
+  // Change orders and RFIs: the note's jobs and its companies' jobs, not every
   // job a person has ever been on at some other company.
   const projectIds = uniq([...linkedProjectIds, ...projects.filter(p => clientSet.has(p.clientId)).map(p => p.id)]);
   const contactIds = uniq([...noteContactIds, ...contacts.map(c => c.id)]);
 
-  // Notes that touch the same people, companies or jobs — other than this one.
+  // Notes that touch the same people, companies or jobs, other than this one.
   const relatedNote = {
     id: { not: noteId },
     archivedAt: null,

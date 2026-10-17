@@ -4,6 +4,10 @@ import Link from 'next/link';
 import SortHeader from '@/components/ui/SortHeader';
 import { WidgetEmpty } from '@/components/ui/WidgetFrame';
 import { CARD, CARD_TITLE, HELPER, INPUT } from '@/components/ui/tokens';
+import { FilterToolbar, FilterPanel } from '@/components/ui/FilterPanel';
+
+const TYPE_FIELD = [{ key: 'type', label: 'Type', kind: 'pick' }];
+const TYPE_CHOICES = { type: [['conceptual', 'Conceptual'], ['design', 'Design'], ['peer_review', 'Budget Matrix']] };
 
 const BUDGET_TYPE_META = {
   conceptual:  { label: 'Conceptual', color: 'bg-slate-100 text-slate-600',   dot: 'bg-slate-400'   },
@@ -39,6 +43,7 @@ const COLS = [
 export default function PreConBudgetsTable({ projects }) {
   const [search,   setSearch]   = useState('');
   const [typeFilter, setTypeFilter] = useState('');
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [sortKey,  setSortKey]  = useState('createdAt');
   const [sortDir,  setSortDir]  = useState('desc');
 
@@ -80,14 +85,11 @@ export default function PreConBudgetsTable({ projects }) {
             type="search"
             placeholder="Search budgets..."
             className={`${INPUT} w-48`} />
-          <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)}
-            className={`${INPUT} w-auto`}>
-            <option value="">All Types</option>
-            <option value="conceptual">Conceptual</option>
-            <option value="design">Design</option>
-            <option value="peer_review">Budget Matrix</option>
-          </select>
+          <FilterToolbar count={typeFilter ? 1 : 0} open={filtersOpen} onToggle={() => setFiltersOpen(o => !o)}
+            onClear={() => setTypeFilter('')} />
         </div>
+        <FilterPanel open={filtersOpen} fields={TYPE_FIELD} filters={{ type: typeFilter }} choices={TYPE_CHOICES}
+          onChange={(_, v) => setTypeFilter(v)} className="basis-full mt-0" />
       </div>
 
       {/* Table */}

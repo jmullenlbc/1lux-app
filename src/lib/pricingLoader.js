@@ -12,7 +12,7 @@ const CONFIG_KEY = 'pricing';
 
 /**
  * Returns the active pricing config object.
- * Always server-side — do not import in client components.
+ * Always server-side, do not import in client components.
  */
 export async function loadPricing() {
   try {
@@ -25,7 +25,7 @@ export async function loadPricing() {
       return deepMerge(STATIC_PRICING, JSON.parse(record.value));
     }
   } catch {
-    // DB not available or parse error — fall through to static
+    // DB not available or parse error, fall through to static
   }
   return STATIC_PRICING;
 }

@@ -2,8 +2,8 @@
  * Turning a mail provider's message into the neutral shape the rules read.
  *
  * This is the ONE file that changes when the Microsoft mailbox is connected.
- * Everything downstream — the filters in classify.js, the recorder, the two
- * Last Email dates on a person — works off the neutral shape and never learns
+ * Everything downstream, the filters in classify.js, the recorder, the two
+ * Last Email dates on a person, works off the neutral shape and never learns
  * that Microsoft exists.
  *
  * Two directions are supported:

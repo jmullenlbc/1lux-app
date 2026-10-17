@@ -19,7 +19,7 @@ const STATUS_META = {
   ACCEPTED: { label: 'Accepted', color: 'bg-green-100 text-green-700 border-green-200' },
   DECLINED: { label: 'Declined', color: 'bg-red-100 text-red-700 border-red-200' },
 };
-// Expired retired 2026-09-18 (Maram 9-17) — read-only for rows that already have it.
+// Expired retired 2026-09-18 (Maram 9-17), read-only for rows that already have it.
 const LEGACY_STATUS_META = {
   EXPIRED:  { label: 'Expired',  color: 'bg-slate-100 text-slate-500 border-slate-200' },
 };

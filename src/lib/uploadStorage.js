@@ -1,11 +1,11 @@
-// Direct-to-S3 uploads — the server side of the "permission slip" flow.
+// Direct-to-S3 uploads, the server side of the "permission slip" flow.
 //
 // Amplify's front door rejects request bodies over ~4.4 MB before our code
 // runs (measured on prod 2026-08-15), so large files can never travel THROUGH
 // the app. Instead the browser asks us for a presigned PUT URL (a one-time,
 // expiring permission slip scoped to one key under uploads/), sends the file
 // straight to S3, then tells the route the key. The route reads the bytes back
-// from S3 and — on stateless routes like the public intake parse — deletes the
+// from S3 and, on stateless routes like the public intake parse, deletes the
 // object when it's done.
 //
 // In local dev there is no S3 bucket and no front-door cap, so presigning is
@@ -13,7 +13,7 @@
 // path they always had. Nothing about local testing changes.
 //
 // Build plan: G:\Shared drives\SOFTWARE\_MIKE's APP\Software engineering\
-// 2026.08.15 Direct-to-S3 Uploads — Build Plan.md
+// 2026.08.15 Direct-to-S3 Uploads, Build Plan.md
 
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
@@ -42,14 +42,14 @@ export const MAX_INTAKE_UPLOAD_BYTES = 400 * 1024 * 1024; // 400 MB
 export const MAX_DIRECT_UPLOAD_BYTES = MAX_INTAKE_UPLOAD_BYTES;
 
 // What the in-app project upload windows enforce. Mike, 2026-08-19: "we need
-// that limit to go up to 25mb — schedules can be 50 pages long if detailed."
+// that limit to go up to 25mb, schedules can be 50 pages long if detailed."
 // Deliberately below the hard ceiling above: every megabyte here also becomes
 // PDF text we parse and, on some tabs, tokens we pay for.
 export const MAX_PROJECT_UPLOAD_BYTES = 25 * 1024 * 1024; // 25 MB
 
 // What the Bot Knowledge drop zone enforces. Mike, 2026-09-07: "we should make
 // it up to 25mbs like email." Same number as the project windows, and for the
-// same reason — every megabyte here becomes text we store and search.
+// same reason, every megabyte here becomes text we store and search.
 export const MAX_KNOWLEDGE_UPLOAD_BYTES = 25 * 1024 * 1024; // 25 MB
 
 // The slip has to outlive the upload itself. A 400 MB set over a job-site
@@ -69,7 +69,7 @@ const PRESIGNABLE = {
 };
 
 // The bot's library takes everything the reader can open, not just drawings and
-// schedules — Word documents, images and plain text as well. Kept separate from
+// schedules, Word documents, images and plain text as well. Kept separate from
 // the list above so widening it here cannot widen what the public intake page
 // accepts.
 const KNOWLEDGE_PRESIGNABLE = {
@@ -90,7 +90,7 @@ const KNOWLEDGE_PRESIGNABLE = {
 };
 
 // The only scopes a slip may be issued for. The key is always a random cuid
-// under uploads/, so a scope cannot be used to reach an existing object — it
+// under uploads/, so a scope cannot be used to reach an existing object, it
 // only selects which ceiling and which type list apply, and makes the temp keys
 // readable.
 const SCOPES = ['intake', 'project', 'knowledge'];
@@ -145,7 +145,7 @@ export function validatePresignRequest({ fileName, size, scope = 'intake' } = {}
 
 /**
  * Issue a permission slip for one upload.
- * @returns { key, url, expiresIn } — key is where the object will live.
+ * @returns { key, url, expiresIn }, key is where the object will live.
  */
 export async function presignUpload({ scope = 'intake', ext, contentType }) {
   const safeScope = SCOPES.includes(scope) ? scope : 'intake';
@@ -163,9 +163,9 @@ export async function presignUpload({ scope = 'intake', ext, contentType }) {
 // One long PUT is the wrong shape for a phone. Mike's upload died about 10%
 // into a set on wifi (2026-08-29): the transfer started fine and the
 // connection dropped partway, which kills the whole file because a single PUT
-// has no smaller unit to fall back to. Anything can cause that drop -- a wifi
+// has no smaller unit to fall back to. Anything can cause that drop, a wifi
 // access-point handoff walking across an office, a carrier NAT timing out an
-// idle-looking connection, a router with an itchy trigger on long uploads --
+// idle-looking connection, a router with an itchy trigger on long uploads
 // and none of it is worth diagnosing, because the fix is the same either way:
 // stop betting the whole file on one connection.
 //
@@ -175,7 +175,7 @@ export async function presignUpload({ scope = 'intake', ext, contentType }) {
 // Two deliberate choices:
 //   - ALL the part slips are minted in one response. The alternative (ask for
 //     each slip as we reach it) adds a round trip per part through a front
-//     door that hangs up at 30 seconds -- exactly the fragility we're removing.
+//     door that hangs up at 30 seconds, exactly the fragility we're removing.
 //   - The browser never reads the parts' ETags back. S3 needs them to reassemble
 //     the file, but a browser can only see a cross-origin response header if the
 //     bucket's CORS policy exposes it, and that is a console setting we don't
@@ -186,7 +186,7 @@ export async function presignUpload({ scope = 'intake', ext, contentType }) {
 // Smaller parts are strictly better for the failure we're chasing: Mike's
 // 12 MB file died about 1.2 MB in, so the smaller the unit of work, the more
 // likely a retry clears it and the sooner we learn where the trouble is. The
-// only cost is part count -- a 400 MB set becomes 80 parts, nowhere near the
+// only cost is part count, a 400 MB set becomes 80 parts, nowhere near the
 // 10,000 storage allows, and 80 links is a ~40 KB response minted once.
 export const PART_BYTES = 5 * 1024 * 1024;
 
@@ -222,7 +222,7 @@ export async function presignMultipart({ scope = 'intake', ext, contentType, siz
 
 /**
  * Stitch the uploaded parts into one object. Asks S3 which parts landed rather
- * than trusting the browser to report them, so a missing part fails here --
+ * than trusting the browser to report them, so a missing part fails here
  * loudly and before anything tries to read a half-written file.
  * @returns { ok: true, key } | { ok: false, code, message }
  */
@@ -277,7 +277,7 @@ export function isUploadKey(key) {
 
 /**
  * Fetch an uploaded object's bytes. Refuses keys outside uploads/ and objects
- * over the size ceiling — the slip constrains the declared size, but the
+ * over the size ceiling, the slip constrains the declared size, but the
  * object's ACTUAL size is what we re-check here.
  * @returns { ok: true, buffer } | { ok: false, code, message }
  */
@@ -316,7 +316,7 @@ export async function getUploadedObject(key, { limit = MAX_INTAKE_UPLOAD_BYTES }
 
 /**
  * Best-effort delete after a stateless route is done with the bytes. Never
- * throws — the 1-day lifecycle rule on uploads/ is the backstop for anything
+ * throws, the 1-day lifecycle rule on uploads/ is the backstop for anything
  * this misses.
  */
 export async function deleteUploadedObject(key) {
@@ -337,7 +337,7 @@ export async function deleteUploadedObject(key) {
 /**
  * Size and existence of an uploaded object, without fetching a byte of it.
  * This is what lets the parser decide HOW to read a file before it commits to
- * reading it — see pdfRange.js.
+ * reading it, see pdfRange.js.
  * @returns { ok: true, size, contentType } | { ok: false, code, message }
  */
 export async function headUploadedObject(key) {
@@ -376,7 +376,7 @@ export async function headUploadedObject(key) {
  */
 export function rangeFetcherFor(key) {
   if (!isUploadKey(key)) throw new Error('rangeFetcherFor: not a valid upload key');
-  // Reading ranges off local disk is not an optimisation -- it is the only way
+  // Reading ranges off local disk is not an optimisation, it is the only way
   // the ranged path gets exercised before it reaches production. The staged
   // read exists BECAUSE a production-only code path went unnoticed for weeks.
   if (!presignAvailable()) {
@@ -410,7 +410,7 @@ export function rangeFetcherFor(key) {
 // fixture photo has to still be there next year when somebody asks what was on
 // the screen when the client picked it.
 //
-// They are small — a catalogue photo, not a drawing — so they come in through
+// They are small, a catalogue photo, not a drawing, so they come in through
 // the ordinary form post rather than the presign desk. FIXTURE_IMAGE_MAX_BYTES
 // keeps that under Amplify's front door, which answers a bigger body with an
 // empty 413 and no message at all.
@@ -450,7 +450,7 @@ export async function putFixtureImage(buffer, contentType = 'image/jpeg') {
   }
 }
 
-/** Read one back. null means gone — the screen shows a gap, not a 500. */
+/** Read one back. null means gone, the screen shows a gap, not a 500. */
 export async function getFixtureImage(key) {
   if (!isFixtureKey(key)) return null;
   if (!presignAvailable()) {
@@ -524,7 +524,7 @@ export async function putSheetImage(buffer, contentType = 'image/jpeg') {
 //
 // Staging broke that. The stages are separate HTTP requests, so the file and
 // the scan have to outlive a request, and with no bucket there was nowhere for
-// them to live -- which would have meant the staged path could ONLY be
+// them to live, which would have meant the staged path could ONLY be
 // exercised in production, on the public GC-facing page. That is exactly the
 // arrangement that let the 30-second timeout reach a live site unnoticed.
 //
@@ -598,7 +598,7 @@ export function isScanKey(key) {
 const gzip   = promisify(gzipCb);
 const gunzip = promisify(gunzipCb);
 
-// A scan of a 120-sheet set is ~2.7 MB of JSON -- the text layer of every page,
+// A scan of a 120-sheet set is ~2.7 MB of JSON, the text layer of every page,
 // which the unit-matrix read needs in full. Two things follow from that number:
 // it cannot travel back through the browser (Amplify's front door rejects
 // bodies over ~4.4 MB, and a GC on a job-site connection should not be made to
@@ -614,7 +614,7 @@ const MAX_SCAN_BYTES = 25 * 1024 * 1024;   // compressed; ~10x that in raw JSON
  * its own request, so the work between them has to live somewhere, and it is
  * far too big to hand back to the browser.
  *
- * Same lifetime and same disposability as the upload it came from -- it holds
+ * Same lifetime and same disposability as the upload it came from, it holds
  * text lifted off an anonymous submission, so it is swept by the same rule and
  * deleted explicitly once the last stage is done.
  *
@@ -627,8 +627,8 @@ export async function putScanState(state) {
 /**
  * Update a parked scan, keeping the key the caller already handed out.
  *
- * The render stage learns something the scan stage could not know -- where the
- * drawn sheets ended up -- and the site stage needs it. Minting a second key
+ * The render stage learns something the scan stage could not know, where the
+ * drawn sheets ended up, and the site stage needs it. Minting a second key
  * would mean the browser is holding a stale one, so this writes over the same
  * object instead.
  */
@@ -686,7 +686,7 @@ export async function getScanState(key, { quiet = false } = {}) {
     return { ok: true, state: JSON.parse(raw.toString('utf8')) };
   } catch (err) {
     // `quiet` marks probes for objects that may legitimately not exist yet
-    // (a scan shard's first slice, the matrix's parked answer) — a miss there
+    // (a scan shard's first slice, the matrix's parked answer), a miss there
     // is the expected case, not a fault worth an error line.
     if (!quiet) {
       console.error('[uploadStorage] getScanState failed for key', key, err?.name ?? err?.message ?? err);
@@ -716,19 +716,19 @@ export async function deleteScanState(key) {
 
 // ── The "last risky thing started" marker ────────────────────────────────────
 // pdfjs draws a sheet in one synchronous bite, and one Skyline Ridge sheet
-// proved that bite can run ~4 seconds on a laptop — 3-5x that at Lambda pace —
+// proved that bite can run ~4 seconds on a laptop, 3-5x that at Lambda pace
 // during which the event loop never turns. A timeout raced against that render
 // cannot fire: the race needs the event loop, and the event loop is the thing
 // that is blocked. So the front door hangs up at ~28s, the Lambda dies
-// mid-bite, nothing gets parked, and the retry replays the identical death —
+// mid-bite, nothing gets parked, and the retry replays the identical death
 // measured at 28.1s three times in a row, twice, under two different rounds of
 // guard logic that never got to run.
 //
 // The marker is the answer that doesn't need to preempt anything: the render
 // stage writes the NAME of each risky piece of work here, a few dozen bytes,
 // BEFORE starting it, and overwrites it before the next one. It is never
-// deleted mid-read. Whether the work finished is not the marker's business —
-// the parked scan state records completion — so a retry that finds the marker
+// deleted mid-read. Whether the work finished is not the marker's business
+// the parked scan state records completion, so a retry that finds the marker
 // naming the exact piece it is ABOUT to start knows that piece already ate a
 // whole request alive, and skips it. The 504 itself becomes the probe.
 
@@ -736,7 +736,7 @@ export async function deleteScanState(key) {
 const attemptKeyFor = (scanKey) =>
   isScanKey(scanKey) ? scanKey.replace(/\.json\.gz$/i, '.attempt.json') : null;
 
-/** @returns {Promise<boolean>} false means no protection this attempt — never fatal. */
+/** @returns {Promise<boolean>} false means no protection this attempt, never fatal. */
 export async function putScanAttempt(scanKey, attempt) {
   const key = attemptKeyFor(scanKey);
   if (!key || !attempt || (!presignAvailable() && !devStoreOn())) return false;
@@ -754,7 +754,7 @@ export async function putScanAttempt(scanKey, attempt) {
   }
 }
 
-/** @returns {Promise<object|null>} null is the normal case — no attempt parked. */
+/** @returns {Promise<object|null>} null is the normal case, no attempt parked. */
 export async function getScanAttempt(scanKey) {
   const key = attemptKeyFor(scanKey);
   if (!key || (!presignAvailable() && !devStoreOn())) return null;
@@ -788,7 +788,7 @@ export async function deleteScanAttempt(scanKey) {
  *
  * The vision read needs the PNG of a sheet, and rendering one costs ~4 seconds
  * apiece. Doing that again inside the site-data stage would push it to ~33
- * seconds and back over the front door's limit -- the exact wall this staging
+ * seconds and back over the front door's limit, the exact wall this staging
  * exists to get under. So the render stage stores what it made and this hands
  * it back, turning a 4-second re-render into a sub-second fetch.
  *
@@ -813,7 +813,7 @@ export async function getSheetImage(key) {
 }
 
 /** Best-effort delete of a stored sheet. Used for the render stage's working
- *  PNGs, which are scaffolding -- the kept JPEGs a reviewer looks at survive. */
+ *  PNGs, which are scaffolding, the kept JPEGs a reviewer looks at survive. */
 export async function deleteSheetImage(key) {
   if (!isSheetKey(key)) return false;
   if (!presignAvailable()) return devStoreOn() ? devDel(key) : false;
@@ -830,7 +830,7 @@ export async function deleteSheetImage(key) {
 /**
  * A short-lived link to view a kept sheet.
  *
- * Read-only and expiring, so the caller decides who gets one — the only route
+ * Read-only and expiring, so the caller decides who gets one, the only route
  * that issues these is admin-gated. Returns null rather than throwing, because
  * a sheet that has gone missing should leave a gap in the page, not a 500.
  */

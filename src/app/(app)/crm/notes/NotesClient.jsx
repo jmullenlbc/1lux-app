@@ -24,7 +24,7 @@ const NOTE_STATUS_CHOICES = [['mine', 'Mine to publish'], ['draft', 'Draft'], ['
 // ── Contact tag chip + inline link picker ────────────────────────────────────
 function ContactChip({ name, linked, onClick }) {
   return (
-    <button type="button" onClick={onClick} title={linked ? 'Linked to a CRM contact — click to change' : 'Not linked — click to link a CRM contact'}
+    <button type="button" onClick={onClick} title={linked ? 'Linked to a CRM contact. Click to change' : 'Not linked. Click to link a CRM contact'}
       className={`inline-flex items-center gap-1 pl-0.5 pr-1.5 py-0.5 rounded-full text-[11px] border transition-colors ${
         linked
           ? 'bg-white border-slate-200 text-slate-700 hover:border-orange-400'
@@ -321,7 +321,7 @@ function NoteActions({ noteId, noteBody, published, owners = [], onChanged }) {
   const acts    = visible.filter(a => a.kind === 'ACTION');
   const intel   = visible.filter(a => a.kind === 'INTEL');
 
-  // Confirmed outreach asks grouped by contact — one consolidated email each
+  // Confirmed outreach asks grouped by contact, one consolidated email each
   // (drafted automatically on confirm). Asks without a linked contact can't be
   // emailed yet, so they're surfaced as "link a contact" prompts.
   const execOf = key => types.find(t => t.key === key)?.executor;
@@ -344,7 +344,7 @@ function NoteActions({ noteId, noteBody, published, owners = [], onChanged }) {
           : <button onClick={runExtract} className="text-xs text-slate-500 hover:text-orange-600" title="Re-extract now">↻</button>}
       </div>
       {visible.length === 0 ? (
-        <p className="text-xs text-slate-600">{busy ? 'Reading your note...' : 'Next steps show up here a few seconds after you write them — "send Jane the cut sheets", "call back Tuesday".'}</p>
+        <p className="text-xs text-slate-600">{busy ? 'Reading your note...' : 'Next steps show up here a few seconds after you write them: "send Jane the cut sheets", "call back Tuesday".'}</p>
       ) : (
         <div className="space-y-2">
           {acts.map(a => <ActionRow key={a.id} a={a} onPatch={patch} types={types} owners={owners} />)}
@@ -353,7 +353,7 @@ function NoteActions({ noteId, noteBody, published, owners = [], onChanged }) {
         </div>
       )}
 
-      {/* Consolidated outreach — one email per contact, drafted automatically */}
+      {/* Consolidated outreach, one email per contact, drafted automatically */}
       {groups.length > 0 && (
         <div className="mt-3 pt-3 border-t border-slate-200">
           <label className="text-xs font-semibold text-slate-500">Outreach <span className="text-slate-400">(one email per person, all their items)</span></label>
@@ -620,7 +620,7 @@ function NewNoteModal({ open, clients, onClose, onCreated }) {
       const d = await res.json().catch(() => ({}));
       if (!res.ok) { setErr(d.error || 'Could not create the note.'); return; }
       onCreated(d);
-    } catch { setErr('Network error — try again.'); }
+    } catch { setErr('Network error. Try again.'); }
     finally { setBusy(false); }
   }
 
@@ -631,7 +631,7 @@ function NewNoteModal({ open, clients, onClose, onCreated }) {
         <h2 className="text-base font-semibold text-slate-900">New meeting note</h2>
         <div>
           <label className={`block ${LABEL} mb-1`}>Meeting</label>
-          <input autoFocus value={f.title} onChange={e => setF({ ...f, title: e.target.value })} placeholder="Coffee with Jane — Hilltop Apartments" className={input} />
+          <input autoFocus value={f.title} onChange={e => setF({ ...f, title: e.target.value })} placeholder="Coffee with Jane: Hilltop Apartments" className={input} />
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
@@ -660,7 +660,7 @@ function NewNoteModal({ open, clients, onClose, onCreated }) {
           </div>
         </div>
         <div>
-          <label className={`block ${LABEL} mb-1`}>Calendar link <span className="font-normal text-slate-400">(optional — paste the Outlook event link)</span></label>
+          <label className={`block ${LABEL} mb-1`}>Calendar link <span className="font-normal text-slate-400">(optional, paste the Outlook event link)</span></label>
           <input value={f.meetingLink} onChange={e => setF({ ...f, meetingLink: e.target.value })} placeholder="https://outlook.office.com/calendar/item/…" className={input} />
           <p className={`mt-1 ${HELPER}`}>When the calendar syncs, this note joins that meeting instead of a second note appearing.</p>
         </div>
@@ -797,7 +797,7 @@ function NoteDetail({ note, clients, projects, onUpdate, onDelete, currentUser }
   const owners = ownersOf(note);
 
   const [form, setForm] = useState(() => formFromNote(note));
-  // Only fields a person actually touched are saved — so opening a calendar
+  // Only fields a person actually touched are saved, so opening a calendar
   // draft never stamps it 'manual' or rewrites its guest list.
   const dirtyRef = useRef(new Set());
   const formRef   = useRef(form);
@@ -1032,7 +1032,7 @@ function NoteDetail({ note, clients, projects, onUpdate, onDelete, currentUser }
           </div>
         )}
 
-        {/* Details — everything that describes the meeting, folded away once filled */}
+        {/* Details, everything that describes the meeting, folded away once filled */}
         {detailsOpen && (
           <div className="mt-3 mb-1 rounded-lg border border-slate-200 bg-slate-50 p-4 space-y-4 max-h-[45vh] overflow-y-auto">
             <div>
@@ -1146,7 +1146,7 @@ function NoteDetail({ note, clients, projects, onUpdate, onDelete, currentUser }
           </div>
         )}
 
-        {/* Tabs — Prep before the meeting, Notes after it (Mike 9-25) */}
+        {/* Tabs, Prep before the meeting, Notes after it (Mike 9-25) */}
         <div className="flex gap-5 mt-3">
           {[...(canPrep ? [['prep', 'Prep']] : []), ['notes', 'Notes']].map(([key, label]) => (
             <button key={key} onClick={() => setTab(key)}
@@ -1179,7 +1179,7 @@ function NoteDetail({ note, clients, projects, onUpdate, onDelete, currentUser }
               <textarea
                 value={form.noteBody}
                 onChange={e => set('noteBody', e.target.value)}
-                placeholder="Type as you go — next steps are pulled out below automatically."
+                placeholder="Type as you go. Next steps are pulled out below automatically."
                 rows={10}
                 className={`${INPUT} resize-y leading-relaxed`}
               />

@@ -46,7 +46,7 @@ export async function GET(req) {
   const log = { due: 0, sent: 0, skipped: 0, stale: 0, errors: [], waiting: null, checkIns: null };
 
   try {
-    // Waiting on them (reply, drawings, invite, intro): the reminder ladder —
+    // Waiting on them (reply, drawings, invite, intro): the reminder ladder
     // a "still waiting" draft for review plus a bell, then the next rung.
     try {
       log.waiting = await sendDueWaitReminders(prisma, { now });
@@ -80,7 +80,7 @@ export async function GET(req) {
       try {
         const plan = planNoteReminder(action, { now, maxLateDays: MAX_LATE_DAYS });
 
-        // Leave the row alone — whatever stopped it may not be true tomorrow.
+        // Leave the row alone, whatever stopped it may not be true tomorrow.
         if (plan.do === 'skip') { log.skipped++; continue; }
 
         // Stamp a stale one so it stops turning up in every future sweep, but

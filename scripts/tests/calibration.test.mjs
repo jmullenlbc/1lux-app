@@ -1,5 +1,5 @@
 /**
- * Pricing calibration — the learning loop (2026-09-04).
+ * Pricing calibration, the learning loop (2026-09-04).
  *
  * buildSamples() turns one engine run into one row per budget line
  * (quantity × rate = model $, beside the actual when one is known), and
@@ -7,13 +7,13 @@
  * with a suggested rate an admin can apply back to /admin/pricing.
  *
  * Rules worth protecting:
- *   1. Every sample's model $ equals what the engine put on the budget —
+ *   1. Every sample's model $ equals what the engine put on the budget
  *      the table never disagrees with the budget page.
  *   2. A hand-entered pathway figure is the ACTUAL for that line and the
  *      model number is rebuilt beside it (the engine suppresses it).
  *   3. suggested rate = actual ÷ quantity, pooled across projects.
  *   4. Only true rate × quantity lines get a pricing key (emergency,
- *      controls, total never do) — and only allowlisted keys can be written.
+ *      controls, total never do), and only allowlisted keys can be written.
  *
  * Run: node --test scripts/tests/calibration.test.mjs
  */

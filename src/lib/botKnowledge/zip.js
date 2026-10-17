@@ -1,4 +1,4 @@
-// A minimal ZIP reader — just enough to pull one named file out of a .docx.
+// A minimal ZIP reader, just enough to pull one named file out of a .docx.
 //
 // Why hand-rolled instead of a library: a .docx is a ZIP archive, and the only
 // thing we need out of it is `word/document.xml`. Adding a zip dependency to
@@ -77,7 +77,7 @@ export function readZipEntry(buf, wantedName) {
   }
 
   // The local header repeats the name and extra-field lengths, and they are NOT
-  // always the same as the central directory's — the extra field in particular
+  // always the same as the central directory's, the extra field in particular
   // routinely differs. The data starts after the LOCAL lengths, so they are the
   // ones to trust here.
   const nameLen  = buf.readUInt16LE(entry.offset + 26);

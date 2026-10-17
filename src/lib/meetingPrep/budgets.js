@@ -1,10 +1,10 @@
 /**
- * Meeting Prep — one budget figure per job (Mike, 2026-09-14: "Budgets of
+ * Meeting Prep, one budget figure per job (Mike, 2026-09-14: "Budgets of
  * those jobs").
  *
  * The same rule the Budget dashboard uses (src/lib/dashboards/providers.js):
  * a priced Bid Matrix wins; otherwise the budget engine's total for the job's
- * Conceptual or Design-questionnaire answers. These are SELL figures — what
+ * Conceptual or Design-questionnaire answers. These are SELL figures, what
  * the client would pay. DN / buy price is never read or returned here.
  *
  * Returns { [projectId]: { total, source } } for jobs with a budget above zero.

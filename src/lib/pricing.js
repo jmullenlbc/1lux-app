@@ -1,5 +1,5 @@
 /**
- * ILC Studios — Internal Pricing Data
+ * ILC Studios, Internal Pricing Data
  * Source: Conceptual lighting & controls design multifamily questionnaire
  * All rates verified against Excel master template (26.04.17 Modera Town Lake).
  */
@@ -53,7 +53,7 @@ export const PRICING = {
   // GROSS product prices. The engine subtracts vanityBathBarCredit per vanity
   // (a bath bar is already included in the $0.38/SF base). bathBarLow is the base.
   vanity: {
-    bathBarLow:              { product: 0,   labor: 0 }, // the base bath bar — no charge
+    bathBarLow:              { product: 0,   labor: 0 }, // the base bath bar, no charge
     illuminatedMirrorLow:    { product: 175, labor: 0 }, // gross; net = 175 - 45 = 130
     illuminatedMirrorMedium: { product: 200, labor: 0 }, // gross; net = 200 - 45 = 155
     illuminatedMirrorHigh:   { product: 250, labor: 0 }, // gross; net = 250 - 45 = 205
@@ -87,7 +87,7 @@ export const PRICING = {
     // Mike 2026-09-16: corridors are "a very typical % range of the overall
     // gross SF", so like BOH they get a cap. It only TRIMS a printed corridor
     // figure that lands above it (a "CORRIDORS & STAIRS & AMENITY" line, say)
-    // — it never rounds a smaller printed figure up. The no-drawings share per
+    // it never rounds a smaller printed figure up. The no-drawings share per
     // building type lives in intake/noDrawingGuesses.js (corridorPctOfGross).
     maxPctOfGross: 0.15,
     stairwellPerLanding: {
@@ -98,9 +98,9 @@ export const PRICING = {
     // at a multiple of the stairwell rate, by breezeway style (Mike 2026-09-14):
     //   Small (like Lowell + I76): EM disk at the ground floor, a wall pack up
     //     each flight, a 7" disk + frogeye at the 2nd-floor landing, a 7" disk
-    //     at the open landing — "a 10-15% increase". 1.125 × $200 = $225.
+    //     at the open landing, "a 10-15% increase". 1.125 × $200 = $225.
     //   Long (like Lone Tree Ranch): 2 wall packs over long stairs, 4 disks
-    //     along the open corridor above, 2 of them with integrated EM — "a
+    //     along the open corridor above, 2 of them with integrated EM, "a
     //     20-25% increase". 1.225 × $200 = $245.
     // These replaced the flat 2.2× (2026-09-12), which ran budgets high.
     breezewaySmallMultiplier: 1.125,
@@ -133,9 +133,9 @@ export const PRICING = {
 
   // ─── EXTERIOR SITE LIGHTING ───────────────────────────────────────────────
   exterior: {
-    // CALIBRATION — Lowell + I76 (Mike, 2026-08-12): ~430 surface stalls.
-    // ILC's first gut guess was 80 area lights; the project landed at 45–50.
-    // This model predicts ceil(430 ÷ 9) = 48 — inside the landed range.
+    // CALIBRATION, Lowell + I76 (Mike, 2026-08-12): ~430 surface stalls.
+    // ILC's first gut guess was 80 area lights; the project landed at 45 to 50.
+    // This model predicts ceil(430 ÷ 9) = 48, inside the landed range.
     // Mike: "Wow we figured out that math well." Wired into calculations.js
     // and shown on the Exterior step of both questionnaires.
     surfaceParking: {
@@ -154,13 +154,13 @@ export const PRICING = {
 
     // Solar site lighting costs more than conventional because the fixture
     // carries its own panel, battery and controller. This is a MULTIPLIER on the
-    // conventional rate, not a flat adder — it replaces the old
+    // conventional rate, not a flat adder, it replaces the old
     // `surfaceParking.solarUpgrade = 3000`, which was a flat $3,000 that was
     // never wired to anything and did not scale with fixture type.
     //
     // The Avilla actuals it is blended from:
-    //   solar area light $2,169.86–$2,297.57 + $1,030.52 pole  vs  $1,325
-    //     conventional  →  2.4–2.5x
+    //   solar area light $2,169.86 to $2,297.57 + $1,030.52 pole  vs  $1,325
+    //     conventional  →  2.4 to 2.5x
     //   solar bollard   $1,224.78                              vs  $800
     //     conventional  →  1.53x
     // Mike set 2.3 (2026-08-09) as a blend leaning toward area lights, and
@@ -168,7 +168,7 @@ export const PRICING = {
     //
     // WIRED 2026-09-04: calculations.js multiplies the surface-parking (area
     // lighting) line by this when siteDesignLevel === 'solar'. The budget also
-    // carries a note that install labor drops dramatically — no trenching,
+    // carries a note that install labor drops dramatically, no trenching,
     // conduit, or wire runs to the poles.
     solarMultiplier: 2.3,
 
@@ -203,20 +203,20 @@ export const PRICING = {
     //
     // Mike's field figures, which these encode:
     //   • garden walk-up: ~4 per building; a 15-building project = 60 = $21,000
-    //   • wrap / podium / high-rise: ~15 for the project (10–20 on a podium)
-    //   • townhomes: 5, on the clubhouse only — nothing on the residences
+    //   • wrap / podium / high-rise: ~15 for the project (10 to 20 on a podium)
+    //   • townhomes: 5, on the clubhouse only, nothing on the residences
     // Top to bottom that is roughly $1,750 to $21,000. Mike: "not a huge
-    // discrepancy when you are talking hundreds of thousands of dollars" — so
+    // discrepancy when you are talking hundreds of thousands of dollars", so
     // this is deliberately a coarse model, not a fixture-by-fixture count.
     //
     // CROSS-CHECK against the 21 real budgets: 4 wallpacks on a 12-unit walk-up
     // building is 0.333 per unit. The measured walk-up median is 0.402 per unit.
     // Mike's field estimate and the actual budgets agree within about 20%.
     //
-    // CALIBRATION — Lowell + I76 (Mike, 2026-08-12): ILC's conceptual guess on
+    // CALIBRATION, Lowell + I76 (Mike, 2026-08-12): ILC's conceptual guess on
     // the 5600 Lowell site plan (7 buildings, 300 units, garden walk-up) was
     // 34 wallpacks, plus 80 area lights and 10 bollards near the exterior
-    // amenity spaces. This model predicts 7 × 4 + 5 (clubhouse) = 33 — a
+    // amenity spaces. This model predicts 7 × 4 + 5 (clubhouse) = 33, a
     // near-exact match to the human guess. (Avalon Arvada's DESIGN-SET actual
     // of 216 is a separate data point from the extracted budgets; its original
     // conceptual guess is unknown.)
@@ -236,10 +236,10 @@ export const PRICING = {
         stackedFlats: 4,
         garden:       4,
         gurban:       4,   // Mike: gurban is a garden walk-up in every way but
-                           // corridors and elevators — see `elevatorShaft`
+                           // corridors and elevators, see `elevatorShaft`
         // Vertical products: one building, so "per building" IS the project total.
         wrap:         15,
-        podium:       15,  // Mike's range was 10–20
+        podium:       15,  // Mike's range was 10 to 20
         midRise:      15,
         highRise:     15,
       },
@@ -252,8 +252,8 @@ export const PRICING = {
       // Fallback ONLY. Used to estimate the building count when # of Buildings
       // has not been entered on the project. Mike 2026-08-12: "There is never a
       // 33 bldg garden project, they just have more entrances in a building or
-      // two sides. so 8 units each floor." — 3 floors × 8 units = 24 per
-      // building. (The Lowell site plan runs even bigger: 36–48 per building.)
+      // two sides. so 8 units each floor.", 3 floors × 8 units = 24 per
+      // building. (The Lowell site plan runs even bigger: 36 to 48 per building.)
       unitsPerBuilding: {
         stackedFlats: 24,
         garden:       24,
@@ -266,7 +266,7 @@ export const PRICING = {
       // "small amount… for now enter $4000."
       minTotal: 4000,
 
-      // Solar site design multiplies the pathway line too — a solar bollard
+      // Solar site design multiplies the pathway line too, a solar bollard
       // ($1,224.78 on the Avilla actuals) runs ~1.53× a conventional one
       // ($800). Mike 2026-09-04: "yes pathway should get a bump of 1.6x".
       // Applied to the MODEL line only when siteDesignLevel === 'solar'; a
@@ -281,7 +281,7 @@ export const PRICING = {
       // suppresses the model line so counted figures are never doubled.
       //
       // Mike, 2026-08-12: this table is now DOLLARS per unit, not bollards per
-      // unit. Multiply by the unit count to get the pathway lighting line —
+      // unit. Multiply by the unit count to get the pathway lighting line
       // one step instead of two, and the admin screen shows a price rather than
       // a fixture count, which is what everyone actually wants to argue about.
       // Every value below is the old bollard count × $800 (`bollard.perUnit`),
@@ -290,12 +290,12 @@ export const PRICING = {
       // Derived from 16 real projects (10 multifamily conceptual budgets +
       // 6 NexMetro Avilla BTR procurement budgets).
       //
-      // ⚠ MEASUREMENT MISMATCH — READ BEFORE TRUSTING THE OBSERVED NUMBERS.
+      // ⚠ MEASUREMENT MISMATCH, READ BEFORE TRUSTING THE OBSERVED NUMBERS.
       // The multifamily figures come from CONCEPTUAL budgets (an up-front
-      // estimate of 6–30 bollards). The BTR figures come from PROCUREMENT
+      // estimate of 6 to 30 bollards). The BTR figures come from PROCUREMENT
       // budgets priced off completed photometric plans (actual counted
       // fixtures). Estimates vs actuals is not a like-for-like comparison, and
-      // the gap is suspiciously large — so the multifamily observations may
+      // the gap is suspiciously large, so the multifamily observations may
       // reflect UNDER-ESTIMATION at concept stage rather than true scope.
       // Mike's field judgment (2026-07-19) contradicts the raw multifamily
       // numbers directly, and takes precedence over them here:
@@ -307,8 +307,8 @@ export const PRICING = {
       // grounded in actuals; the rest are Mike's relative ranking, anchored
       // loosely to the (suspect) conceptual data. All are PROVISIONAL.
       //
-      // Observed for reference — conceptual budgets, n in brackets:
-      //   garden [4] 0.037–0.089   wrap [2] 0.018–0.085 (the 5x spread is
+      // Observed for reference, conceptual budgets, n in brackets:
+      //   garden [4] 0.037 to 0.089   wrap [2] 0.018 to 0.085 (the 5x spread is
       //   consistent with surface parking being present or not)
       //   podium [1] 0.025   highRise [1] 0.045
       //
@@ -322,39 +322,39 @@ export const PRICING = {
       // calibration; it also distorts every density fit it appears in.
       dollarsPerUnit: {
         // ── Tier 1: horizontal product, long walks to individual doors ──
-        singleFamily: 320,  // 0.40 bollards/unit — grounded in BTR actuals
-        townHouses:   320,  // 0.40 — n=6 actuals, de-escalated 30%
+        singleFamily: 320,  // 0.40 bollards/unit, grounded in BTR actuals
+        townHouses:   320,  // 0.40, n=6 actuals, de-escalated 30%
         // Mike 2026-09-04: garden $240 → $60. His own conceptual budgets put
-        // garden at 0.037–0.089 bollards/unit ($30–$71); the July deep read
+        // garden at 0.037 to 0.089 bollards/unit ($30 to $71); the July deep read
         // showed garden walk-ups light walkways FROM the buildings (Avalon:
         // 0.56 wallpacks/unit, near-zero ground) and wallpacks are already
-        // priced off the exit-door count — so a high ground rate here was
+        // priced off the exit-door count, so a high ground rate here was
         // double-counting scope. $60 keeps a 300-unit garden at $18K, inside
-        // the historical $5–24K band ($240 would have said $72K).
+        // the historical $5 to 24K band ($240 would have said $72K).
         stackedFlats: 60,   // NO DATA of its own; matches garden per Mike 2026-08-09 (re-confirmed 2026-09-04)
         garden:       60,
-        // Mike 2026-08-12: "They are the same thing" — gurban carries the SAME
+        // Mike 2026-08-12: "They are the same thing", gurban carries the SAME
         // pathway rate as garden. Kept as its own field because gurban is a real
-        // building type everywhere else in the app (4–5 levels, its own controls
+        // building type everywhere else in the app (4 to 5 levels, its own controls
         // rate); only the pathway number is shared.
         gurban:       60,
         // ── Tier 2: can carry surface parking, so varies widely ──
         // Mike 2026-09-04: "$96 seems high … closer to $60." $60 = 0.075
-        // bollards/unit, the top of the observed conceptual band (0.018–0.085),
+        // bollards/unit, the top of the observed conceptual band (0.018 to 0.085),
         // so the number now sits ON the data instead of above it. Still the
-        // thinnest tier — the one deep-read wrap actual came in at 0.34
+        // thinnest tier, the one deep-read wrap actual came in at 0.34
         // combined ground fixtures/unit, so revisit if wraps start landing low.
         wrap:          60,
         // ── Tier 3: structured parking, interior circulation, least site lighting ──
         // Mike 2026-07-21: keep podium / mid-rise / high-rise as SEPARATE fields
         // but with the SAME number for now. 0.06 ground fixtures/unit is the
         // median of five procurement actuals (Clermont 0.108, 95 Lincoln 0.000,
-        // West Middle Creek 0.060, 38th+Huron 0.077, 40th+Walnut 0.062) —
-        // ~$48–80/unit at conventional rates. On these products most site
+        // West Middle Creek 0.060, 38th+Huron 0.077, 40th+Walnut 0.062)
+        // ~$48 to 80/unit at conventional rates. On these products most site
         // lighting is building-mounted (wallpacks/steplights), not ground.
-        // Mike 2026-09-04: cut $48 → $35 — these products carry HIGH unit
+        // Mike 2026-09-04: cut $48 → $35, these products carry HIGH unit
         // counts, so a per-unit rate over-scales (Modera Town Lake actual was
-        // ~$33/unit, the low end of the $33–$81 observed high-rise band).
+        // ~$33/unit, the low end of the $33 to $81 observed high-rise band).
         podium:        35,
         midRise:       35,
         highRise:      35,
@@ -365,14 +365,14 @@ export const PRICING = {
     upgradedMultiplier: 1.25,
     landscape: {
       // NET lot: (lotSf − buildingFootprintSf) × $0.02 PER SQUARE FOOT. Wired
-      // to the net figure 2026-09-04 (Mike: "net lot") — before that the
+      // to the net figure 2026-09-04 (Mike: "net lot"), before that the
       // engine multiplied the FULL lot despite this key's name. Falls back to
       // the full lot when no footprint is on file. The key name says "pct"
       // for history's sake; it is a $/SF rate (Mike 2026-09-05: label it
       // "$ per SF of net lot", not a percentage).
       pctOfNetLotSf: 0.02,
       // Hard ceiling. The source questionnaire says "add an estimate flat amount
-      // for landscape lighting — for most projects do not exceed $3,000". Without
+      // for landscape lighting, for most projects do not exceed $3,000". Without
       // this cap the percentage runs away on large sites (a 1M SF lot returned
       // $20,000 against a stated $3,000 ceiling). Confirmed by Mike 2026-07-18.
       maxTotal: 3000,
@@ -421,7 +421,7 @@ export const PRICING = {
       // Mike 2026-08-12: "a unit price of $350 with integrated battery.
       // Typically needed for egress paths." Same figure as wallpacks.perFixture.
       // The door-count-driven refinement (floor-1 egress doors + 10%) will feed
-      // the WALLPACK quantity once drawing parsing lands — not a separate line.
+      // the WALLPACK quantity once drawing parsing lands, not a separate line.
       wallpackWithBattery: 350,
       egressUpliftPct:     0.10,
     },
@@ -431,7 +431,7 @@ export const PRICING = {
   // ─── EMERGENCY / EGRESS LIGHTING ─────────────────────────────────────────
   // $/SF rates per space type per strategy
   // ─── ELEVATOR SHAFT VAPORTIGHT ────────────────────────────────────────────
-  // COUNT ONLY — never add dollars to a budget from this block. Mike,
+  // COUNT ONLY, never add dollars to a budget from this block. Mike,
   // 2026-08-12: "The elevator shaft part we don't need to wire in, because
   // it's caught in the $/SF for BOH." The BOH / Core+Shell $/SF rate already
   // carries this fixture's cost; pricing it here too would double-charge it.
@@ -440,19 +440,19 @@ export const PRICING = {
   // count calculated of them. Eventually I want to have a count of all
   // fixtures from our budget."
   //
-  // The count is per SHAFT, per floor — Mike, correcting his earlier "2 per
+  // The count is per SHAFT, per floor, Mike, correcting his earlier "2 per
   // floor": "It's 1 per elevator shaft, but every shaft needs it. You could
   // have 2 elevators next to each other and in turn need 2 per floor."
   //
   //   fixtures = shafts × floors × perShaftPerFloor
   //
   // perFixture ($200, set by Mike 2026-08-12) is the reference price of the
-  // fixture — kept for the eventual fixture-count/takeoff view, not for the
+  // fixture, kept for the eventual fixture-count/takeoff view, not for the
   // budget total. Shaft count will come from drawing parsing (shafts are easy
   // to spot on floor plans).
   elevatorShaft: {
     perShaftPerFloor: 1,   // 1 vaportight w/ integrated battery per shaft per floor
-    perFixture:       200, // reference price ONLY — dollars live in the BOH $/SF
+    perFixture:       200, // reference price ONLY, dollars live in the BOH $/SF
   },
 
   emergency: {
@@ -470,7 +470,7 @@ export const PRICING = {
         corridorPerSf: 0,    amenityPerSf: 0,    garagePerSf: 0,    batteryGarage: false,
       },
       frogeyes: {
-        // Flat rate in corridors + amenity — driven by emergency.frogeyesPerSf (the editable knob)
+        // Flat rate in corridors + amenity, driven by emergency.frogeyesPerSf (the editable knob)
         corridorPerSf: 0.17, amenityPerSf: 0.17, garagePerSf: 0,    batteryGarage: true,
       },
       frogeyes_inv: {
@@ -490,7 +490,7 @@ export const PRICING = {
         corridorPerSf: 0.50, amenityPerSf: 1.50, garagePerSf: 0,    batteryGarage: true,
       },
     },
-    // Flat $/SF for the "frogeyes everywhere" strategy — editable in master pricing
+    // Flat $/SF for the "frogeyes everywhere" strategy, editable in master pricing
     frogeyesPerSf: 0.17,
     // Garage on the non-integrated choices (Mike 10-16, Option 2): frogeyes
     // along the drive aisles. Garage SF / aisleWidthFt = feet of aisle,
@@ -577,8 +577,8 @@ export const PRICING = {
     // (≥2 exit stairs per building, more on a long floor plate) fills in when
     // the drawings never state the exit-stair count. The plate factors were
     // calibrated 2026-09-05 against six real projects on file: corridor
-    // buildings (wrap/podium/mid/high-rise) ran ~12K–22K SF per stair, and
-    // garden/breezeway walk-ups ~5K SF per stair — each open breezeway stair
+    // buildings (wrap/podium/mid/high-rise) ran ~12K, 22K SF per stair, and
+    // garden/breezeway walk-ups ~5K SF per stair, each open breezeway stair
     // serves only the handful of units around it.
     landingsContingency:          0.10,
     exitStairsMinPerBuilding:     2,
@@ -586,8 +586,8 @@ export const PRICING = {
     breezewayPlateSfPerExitStair: 5000,
     // No footprint and no stair count on a breezeway walk-up (a typed-in
     // budget): stairs ≈ units ÷ this. Real gardens on file (2026-09-12) ran
-    // ~12–20 units per open stair; the 2-per-building code minimum gave 11
-    // landings where real jobs had 81–144.
+    // ~12 to 20 units per open stair; the 2-per-building code minimum gave 11
+    // landings where real jobs had 81 to 144.
     breezewayUnitsPerStair:       15,
   },
 
@@ -601,7 +601,7 @@ export const PRICING = {
     boilerRoomDisk:           15,   // $15/unit for boiler room disk w/ occ sensor
     fanSize52Adder:            0,   // 52" is no upcharge over 48" (per Mike)
     livingRoom4Disks:         34,   // $34/unit adder when (4) small disks chosen over (1) 12" in living room
-    closetOccSensor:           0,   // same cost as switch — info only
+    closetOccSensor:           0,   // same cost as switch, info only
   },
 
   // ─── DESIGN BUDGET FAN LEVEL PRICING ────────────────────────────────────
@@ -614,8 +614,8 @@ export const PRICING = {
 
   // ─── DESIGN BUDGET GARAGE ────────────────────────────────────────────────
   designGarage: {
-    baseMediumPerSf:         0.20, // 'standard' — eLuma garage fixture (per Link+Pin sheet)
-    baseHighPerSf:           0.25, // 'enhanced' — higher-end (per Link+Pin sheet)
+    baseMediumPerSf:         0.20, // 'standard', eLuma garage fixture (per Link+Pin sheet)
+    baseHighPerSf:           0.25, // 'enhanced', higher-end (per Link+Pin sheet)
     occSensorAdderPerSf:     0.02, // integrated occupancy sensor (legacy key)
     batteryAdderPerSf:       0.05, // integrated battery backup every other fixture (legacy)
     batteryAndSensorPerSf:   0.06, // integrated battery + occupancy sensor (legacy)
@@ -632,18 +632,18 @@ export const PRICING = {
     accentDownlightEach: 120,       // $120/ea for fire-rated adj. downlight
     // Stairwell elevated design adder (above code minimum)
     stairwellElevatedAdder: 50,     // flat $ per landing above code minimum
-    elevatedAdderPerSf: 0.25,       // legacy — kept for backward compat
+    elevatedAdderPerSf: 0.25,       // legacy, kept for backward compat
   },
 
   // ─── DESIGN BUDGET EXIT SIGNS ─────────────────────────────────────────────
   designExitSigns: {
-    thermoplasticPerSign: 22,   // $22/sign — thermoplastic (code baseline)
+    thermoplasticPerSign: 22,   // $22/sign, thermoplastic (code baseline)
     mixedPerSign:         75,   // blended avg: edge-lit in FOH ($118), thermo in BOH/garage ($22)
-    edgelitPerSign:      120,   // edge-lit everywhere — split of $118 (sheet) / $127 (prior), rounded
+    edgelitPerSign:      120,   // edge-lit everywhere: split of $118 (sheet) / $127 (prior), rounded
     sfPerSign:          5000,   // approx 1 sign per 5,000 gross SF
   },
 
-  // ─── INSTALL LABOR (estimate only — never added to any budget total) ──────
+  // ─── INSTALL LABOR (estimate only, never added to any budget total) ──────
   // RAW electrician labor per fixture, no 20% OH&P (Mike 2026-09-13: "Without
   // to be conservative"). Source: the ILC labor cheat sheet (Google Sheet
   // 14InNdKBej69m9Gzq-1AiCZKVb-dQMXYfSzF11CZGlJk). Excludes the fixture itself.
@@ -736,15 +736,15 @@ export const OPTION_LABELS = {
     integrated: '1 Integrated unit number/light ($200)',
   },
   interiorAmenities: {
-    low:    '$6/SF — Low finish (e.g., garden walk-up)',
-    medium: '$10/SF — Medium finish',
-    high:   '$16/SF — High finish (e.g., high-end mid-rise or high-rise)',
+    low:    '$6/SF: Low finish (e.g., garden walk-up)',
+    medium: '$10/SF: Medium finish',
+    high:   '$16/SF: High finish (e.g., high-end mid-rise or high-rise)',
   },
   exteriorAmenities: {
-    low:       '$1/SF — Low finish (e.g., garden walk-up)',
-    lowMedium: '$2/SF — Low-Medium finish',
-    medium:    '$3/SF — Medium finish',
-    high:      '$5/SF — High finish (may include façade lighting)',
+    low:       '$1/SF: Low finish (e.g., garden walk-up)',
+    lowMedium: '$2/SF: Low-Medium finish',
+    medium:    '$3/SF: Medium finish',
+    high:      '$5/SF: High finish (may include façade lighting)',
   },
   amenityHours: {
     beforeDusk:  'Closes at or before dusk',
@@ -771,7 +771,7 @@ export const OPTION_LABELS = {
     highRise:     'High Rise (12+ Levels)',
   },
   energyCredit: {
-    no:  'No — standard code-compliant LPDs',
-    yes: 'Yes — targeting better-than-code LPDs (energy credit)',
+    no:  'No, standard code-compliant LPDs',
+    yes: 'Yes, targeting better-than-code LPDs (energy credit)',
   },
 };

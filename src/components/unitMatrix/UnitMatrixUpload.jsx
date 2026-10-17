@@ -150,7 +150,7 @@ function ReviewModal({ proposal, fileName, onConfirm, onCancel }) {
 
   // The net-vs-gross verdict for the Gross Interior SF row. See src/lib/areaSheet.js.
   //
-  // Once the reviewer types their own number the verdict stops applying — it was
+  // Once the reviewer types their own number the verdict stops applying, it was
   // about the number we read off the drawing, not about theirs. Keeping the red
   // flag on a hand-entered figure would be telling them we're unsure about their
   // own input, and the flag would never clear no matter what they did.
@@ -184,7 +184,7 @@ function ReviewModal({ proposal, fileName, onConfirm, onCancel }) {
     if (tierA.unitsSf    != null) init.unitsSf     = true;
     if (tierA.numBedrooms!= null) init.numBedrooms = true;
     if (tierA.numBathrooms!=null) init.numBathrooms= true;
-    // Tier B always starts unchecked — user must explicitly confirm
+    // Tier B always starts unchecked, user must explicitly confirm
     init.numBalconies = false;
     init.grossSf      = false;
     init.garageSf     = false;
@@ -601,7 +601,7 @@ export default function UnitMatrixUpload({ projectId, onCommitted }) {
     setState('uploading');
     setErrMsg('');
 
-    // Check the size before sending — a 4 MB+ body is rejected by the host before
+    // Check the size before sending, a 4 MB+ body is rejected by the host before
     // it ever reaches us, and "Upload failed, please try again" is a lie there:
     // retrying the same file never works.
     const tooBig = oversizeMessage(file);

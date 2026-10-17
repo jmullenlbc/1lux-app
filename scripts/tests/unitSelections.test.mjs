@@ -1,11 +1,11 @@
 /**
- * Unit Selections — the facts, the filters and the reconcile.
+ * Unit Selections, the facts, the filters and the reconcile.
  *
  * Three things here would cost real money if they broke quietly, and none of
  * them would show up as an error on screen:
  *
  *   1. The budget cut. Every option is measured against a per-FIXTURE target,
- *      but the master price sheet quotes several of these per UNIT — three
+ *      but the master price sheet quotes several of these per UNIT, three
  *      small pendants is $300 for the set, not $300 each. Divide in the wrong
  *      place and the survey either shows a developer $300 pendants on a $100
  *      job, or hides everything they can actually afford.
@@ -150,7 +150,7 @@ test('the tier is a summary of the five answers, and a tie breaks high', () => {
   });
   assert.equal(value.tier, 'value');
 
-  // Two low, two high — the job with High fixtures in it is not a value job.
+  // Two low, two high, the job with High fixtures in it is not a value job.
   const tie = deriveFacts({
     answers: {
       units: { vanity: 'bathBarHigh', balcony: 'sconceHigh', kitchenPendants: 'threeSmallLow' },
@@ -170,7 +170,7 @@ test('island length is read off the pendant answer', () => {
 });
 
 test('nobody has been asked the mounting height yet', () => {
-  // It is not in the app anywhere. Until the survey asks, it is null — and null
+  // It is not in the app anywhere. Until the survey asks, it is null, and null
   // must NOT behave like "mounted low", or half the pool vanishes for no reason.
   const facts = deriveFacts({ answers: { corridors: { unitSconce: 'high' } } });
   assert.equal(facts.entryMountHigh, null);
@@ -204,7 +204,7 @@ test('nothing over the target is ever returned as eligible', () => {
   const facts = { targets: { w1: 125 } };
   const cheap = opt({ id: 'cheap', finishes: [{ cnPrice: 90, isActive: true }] });
   const dear  = opt({ id: 'dear',  finishes: [{ cnPrice: 400, isActive: true }] });
-  // One finish inside the target is enough — you buy the fixture in that finish.
+  // One finish inside the target is enough, you buy the fixture in that finish.
   const mixed = opt({ id: 'mixed', finishes: [
     { cnPrice: 400, isActive: true },
     { cnPrice: 120, isActive: true },
@@ -243,7 +243,7 @@ test('a balcony fixture must be wet rated and a vanity at least damp rated', () 
   const wetOnly = opt({ id: 'wetOnly', category: 'v1', wetRated: true });
   const neither = opt({ id: 'neither', category: 'v1' });
   const res = eligibleOptions('v1', facts, [damp, wetOnly, neither]);
-  // Wet is a higher rating than damp — a wet fixture belongs in a bathroom.
+  // Wet is a higher rating than damp, a wet fixture belongs in a bathroom.
   assert.deepEqual(res.eligible.map(o => o.id).sort(), ['damp', 'wetOnly']);
 });
 

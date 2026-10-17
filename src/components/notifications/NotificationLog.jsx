@@ -2,6 +2,10 @@
 import { useState, useEffect } from 'react';
 import { NOTIFICATION_TYPES } from '@/lib/notificationTypes';
 import { CARD, CARD_TITLE, HELPER } from '@/components/ui/tokens';
+import { FilterToolbar, FilterPanel } from '@/components/ui/FilterPanel';
+
+const AUDIENCE_FIELD = [{ key: 'audience', label: 'Audience', kind: 'pick' }];
+const AUDIENCE_CHOICES = { audience: [['external', 'External'], ['internal', 'Internal']] };
 
 function relativeTime(dateStr) {
   if (!dateStr) return '';
@@ -105,6 +109,7 @@ export default function NotificationLog({ projectId }) {
   const [logs,    setLogs]    = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter,  setFilter]  = useState('all'); // 'all' | 'external' | 'internal'
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   useEffect(() => {
     fetch(`/api/projects/${projectId}/notification-logs`)
@@ -128,21 +133,11 @@ export default function NotificationLog({ projectId }) {
           <p className={`${HELPER} mt-0.5`}>Last 100 log entries, most recent first</p>
         </div>
 
-        {/* Filter pills */}
-        <div className="flex gap-1 bg-slate-100 p-0.5 rounded-lg">
-          {[['all', 'All'], ['external', 'External'], ['internal', 'Internal']].map(([val, lbl]) => (
-            <button
-              key={val}
-              onClick={() => setFilter(val)}
-              className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors ${
-                filter === val ? 'bg-white text-slate-700 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-              }`}
-            >
-              {lbl}
-            </button>
-          ))}
-        </div>
+        <FilterToolbar count={filter === 'all' ? 0 : 1} open={filtersOpen} onToggle={() => setFiltersOpen(o => !o)}
+          onClear={() => setFilter('all')} />
       </div>
+      <FilterPanel open={filtersOpen} fields={AUDIENCE_FIELD} filters={{ audience: filter === 'all' ? '' : filter }}
+        choices={AUDIENCE_CHOICES} onChange={(_, v) => setFilter(v || 'all')} className="mt-0 mb-4" />
 
       {loading ? (
         <div className="text-center py-10 text-sm text-slate-500">Loading...</div>

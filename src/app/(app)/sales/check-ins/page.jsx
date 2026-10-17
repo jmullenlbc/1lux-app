@@ -197,7 +197,7 @@ function ContactRow({ contact, showQuickLog, onLogActivity, onCancelLog, onSaveL
                 <span className="text-sm font-semibold text-slate-900">{contact.name}</span>
                 {lastMeta && (
                   <span className="text-xs text-slate-500">
-                    {lastMeta.emoji} {lastMeta.label} — <span className="tabular-nums">{fmtDate(lastActivity.meetingDate || lastActivity.createdAt)}</span>
+                    {lastMeta.emoji} {lastMeta.label}: <span className="tabular-nums">{fmtDate(lastActivity.meetingDate || lastActivity.createdAt)}</span>
                     {ago !== null && <span className="text-slate-500 tabular-nums"> ({ago}d ago)</span>}
                   </span>
                 )}
@@ -323,7 +323,7 @@ export default function CheckInsPage() {
   const [filterOpen,     setFilterOpen]     = useState(false);
   const filter = filters.due || 'all'; // 'all' | 'overdue' | 'due_soon'
   const [showQuickLog,   setShowQuickLog]   = useState(null);  // contactId or null
-  const [quickLogForm,   setQuickLogForm]   = useState(null);  // unused — managed inside QuickLogForm
+  const [quickLogForm,   setQuickLogForm]   = useState(null);  // unused, managed inside QuickLogForm
   const [savingLog,      setSavingLog]      = useState(false);
   const [updatingCadence, setUpdatingCadence] = useState(null);
   const [err, setErr] = useState('');

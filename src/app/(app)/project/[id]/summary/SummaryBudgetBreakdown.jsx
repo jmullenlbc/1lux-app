@@ -1,11 +1,11 @@
 'use client';
-// formatCurrency must come from format.js (NOT calculations.js) — this
+// formatCurrency must come from format.js (NOT calculations.js), this
 // component is reused on the public /conceptual_budget review step, and
 // importing calculations.js would bundle the PRICING model into the
 // public visitor's browser.
 import { formatCurrency } from '@/lib/format';
 import { TooltipBudgetRow } from '@/components/ui/Tooltip';
-// Words only — '@/lib/siteFeatures' carries the price defaults and must not
+// Words only, '@/lib/siteFeatures' carries the price defaults and must not
 // reach the public page either.
 import { siteFeatureLineLabel } from '@/lib/siteFeatureWords';
 
@@ -25,7 +25,7 @@ function Row({ label, value }) {
 const approxSuffix = (line) => line?.approx ? ` (${line.approx})` : '';
 
 export default function SummaryBudgetBreakdown({ budget, freightPct, warehousingPct }) {
-  // The public budget page passes no percentages — the visitor sees the freight
+  // The public budget page passes no percentages, the visitor sees the freight
   // and warehousing dollars, never the rate behind them (Mike, 2026-09-17).
   const freightLabel     = freightPct     == null ? 'Freight'     : `Freight (${freightPct}%)`;
   const warehousingLabel = warehousingPct == null ? 'Warehousing' : `Warehousing (${warehousingPct}%)`;
@@ -163,14 +163,14 @@ export default function SummaryBudgetBreakdown({ budget, freightPct, warehousing
         ))}
       </div>
 
-      {/* Solar site design — labor note rides with the budget wherever it's shown */}
+      {/* Solar site design, labor note rides with the budget wherever it's shown */}
       {sections?.exterior?.solar && (
         <div className="mt-2 mb-1 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2 text-xs text-amber-800 print:bg-transparent print:border-amber-300">
           <span className="font-semibold">Solar site lighting</span>: area lighting priced at {sections.exterior.solar.multiplier}× conventional. {sections.exterior.solar.note}
         </div>
       )}
 
-      {/* Energy credit adder — inside the lighting subtotal, shown as its own line */}
+      {/* Energy credit adder, inside the lighting subtotal, shown as its own line */}
       {energyCreditLighting > 0 && (
         <>
           <div className="print:hidden">
@@ -199,7 +199,7 @@ export default function SummaryBudgetBreakdown({ budget, freightPct, warehousing
         <Row label={freightLabel}         value={freight     || 0} />
         <Row label={warehousingLabel} value={warehousing || 0} />
       </div>
-      {/* Sales tax on lighting product — only when a rate is on file */}
+      {/* Sales tax on lighting product, only when a rate is on file */}
       {lightingTaxAmount > 0 && (
         <>
           <div className="print:hidden">
@@ -277,7 +277,7 @@ export default function SummaryBudgetBreakdown({ budget, freightPct, warehousing
         </div>
       </div>
 
-      {/* Contingency (only shown when selected — none/empty produces no rows) */}
+      {/* Contingency (only shown when selected, none/empty produces no rows) */}
       {contingencyAmount > 0 && (
         <>
           <div className="mt-3 print:hidden">

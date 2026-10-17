@@ -1,6 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import { readFileSync } from 'fs';
-// parse CSV manually — no external dep needed for this simple format
+// parse CSV manually, no external dep needed for this simple format
 function parseCSV(text) {
   const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n').filter(l => l.trim());
   const headers = lines[0].split(',').map(h => h.replace(/^﻿/, '').trim());
@@ -32,7 +32,7 @@ async function main() {
       const cat = r['CATALOG #'];
       if (!cat) return false;
       if (cat.includes('*')) return false;       // skip wildcards
-      if (cat === 'DL EMCASE') return false;     // deduplicate — DL-EMCASE is canonical
+      if (cat === 'DL EMCASE') return false;     // deduplicate, DL-EMCASE is canonical
       return true;
     });
 

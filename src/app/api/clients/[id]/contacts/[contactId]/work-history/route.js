@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 
 // A person's work history (ContactEmployment, migration 0083). Mike, 2026-09-14:
 // "meeting prep should pull in the person's Linkedin resume with years worked
-// at places." LinkedIn is never read by the app — a salesperson pastes the
+// at places." LinkedIn is never read by the app, a salesperson pastes the
 // Experience section in, or types a job by hand. Rows are archived, never deleted.
 
 const JOB_SELECT = {
@@ -36,7 +36,7 @@ async function list(contactId) {
   return sortJobs(rows);
 }
 
-// GET — this person's jobs, newest first.
+// GET, this person's jobs, newest first.
 export async function GET(request, { params }) {
   const { user, error } = await requireAuth();
   if (error) return error;
@@ -45,9 +45,9 @@ export async function GET(request, { params }) {
   return NextResponse.json({ jobs: await list(contact.id) });
 }
 
-// POST { text } — read a LinkedIn paste. The jobs from the last paste are
+// POST { text }, read a LinkedIn paste. The jobs from the last paste are
 //   archived and replaced; jobs typed in by hand stay.
-// POST { row }  — add one job by hand.
+// POST { row }, add one job by hand.
 export async function POST(request, { params }) {
   const { user, error } = await requireAuth();
   if (error) return error;
@@ -97,8 +97,8 @@ export async function POST(request, { params }) {
   return NextResponse.json({ error: 'Send { "text": "…" } to read a LinkedIn paste, or { "row": { … } } to add one job.' }, { status: 400 });
 }
 
-// PATCH { id, archived: true | false } — archive or restore one job.
-// PATCH { id, company?, title?, startYear?, … } — correct one job.
+// PATCH { id, archived: true | false }, archive or restore one job.
+// PATCH { id, company?, title?, startYear?, … }, correct one job.
 export async function PATCH(request, { params }) {
   const { user, error } = await requireAuth();
   if (error) return error;
@@ -126,7 +126,7 @@ export async function PATCH(request, { params }) {
   return NextResponse.json({ jobs: await list(contact.id) });
 }
 
-// DELETE — refused. Work history is archived, never deleted.
+// DELETE, refused. Work history is archived, never deleted.
 export async function DELETE() {
   return NextResponse.json({ error: deleteRefused('Work history entries') }, { status: 405 });
 }

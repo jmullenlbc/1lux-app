@@ -194,7 +194,7 @@ function IntakeDrawer({ projectId, allUsers, onCreated, onClose }) {
             <label className="block text-xs font-semibold text-slate-600 mb-1">Assign To</label>
             <select value={form.assignedToId} onChange={e => set('assignedToId', e.target.value)}
               className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500">
-              <option value="">— Unassigned —</option>
+              <option value="">Unassigned</option>
               <PersonOptions users={allUsers} picker="rfiAssignee" />
             </select>
           </div>
@@ -319,7 +319,7 @@ function RFIDetail({ rfiId, projectId, currentUserName, onClose }) {
         </div>
       )}
 
-      {/* LEFT — Thread */}
+      {/* LEFT, Thread */}
       <div className="flex-1 min-w-0 flex flex-col gap-4">
         <div className="flex items-start justify-between">
           <div>
@@ -480,7 +480,7 @@ function RFIDetail({ rfiId, projectId, currentUserName, onClose }) {
         </div>
       </div>
 
-      {/* RIGHT — Context panel */}
+      {/* RIGHT, Context panel */}
       <div className="w-72 shrink-0 space-y-3">
         <div className="border border-slate-200 rounded-xl overflow-hidden">
           <div className="px-3 py-2 bg-slate-50 border-b border-slate-200">

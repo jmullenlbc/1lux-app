@@ -35,7 +35,7 @@ function mapRow(clientId, r) {
   };
 }
 
-// GET — current synced pipeline + upload history (with download URLs)
+// GET, current synced pipeline + upload history (with download URLs)
 export async function GET(request, { params }) {
   const { error, client } = await authorize(params.id);
   if (error) return error;
@@ -53,7 +53,7 @@ export async function GET(request, { params }) {
   return NextResponse.json({ projects, uploads, perUnit: client.pipelinePerUnit ?? null });
 }
 
-// PATCH — bulk dismiss/restore pipeline projects ("we're not working on it").
+// PATCH, bulk dismiss/restore pipeline projects ("we're not working on it").
 // Dismissed projects stay out across future re-syncs (POST preserves the flag).
 export async function PATCH(request, { params }) {
   const { error } = await authorize(params.id);
@@ -76,7 +76,7 @@ export async function PATCH(request, { params }) {
   return NextResponse.json({ ok: true, count: ids.length });
 }
 
-// POST — store the file + sync the pipeline (add / modify / remove by name)
+// POST, store the file + sync the pipeline (add / modify / remove by name)
 export async function POST(request, { params }) {
   const { user, error } = await authorize(params.id);
   if (error) return error;

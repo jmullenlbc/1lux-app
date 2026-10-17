@@ -1,6 +1,6 @@
 /**
  * Unit tests for area-sheet finding and net-vs-gross classification.
- * Pure logic only — no model calls, no file IO.
+ * Pure logic only, no model calls, no file IO.
  * Run: node --test scripts/tests/areaSheet.test.mjs
  *
  * The fixtures are real text off BECK's Virgin Hotel Fox Park set (2026-08-18),
@@ -57,8 +57,8 @@ const FLOOR_PLAN = `
 // Each of these produced a WRONG answer before the fix. Shortened, not invented.
 
 // G0.01. Names every sheet in the set, so it matches every marker we look for
-// and carries no number at all. Classified as a code area at 0.75 — above the
-// review threshold — which would have applied a 5.4% uplift silently.
+// and carries no number at all. Classified as a code area at 0.75, above the
+// review threshold, which would have applied a 5.4% uplift silently.
 const SHEET_INDEX = `
   SHEET INDEX
   G0.00 COVER SHEET          G0.01 SHEET INDEX
@@ -74,7 +74,7 @@ const SHEET_INDEX = `
 // G0.02 as it really reads: TWO tables on ONE sheet, two different bases. Judged
 // as a whole page this is a coin flip; judged around the number it is not.
 //
-// The guestroom rows are repeated because the real sheet lists 260 of them — the
+// The guestroom rows are repeated because the real sheet lists 260 of them, the
 // two tables sit about 2,000 characters apart, and that distance is part of what
 // the classifier reads. A fixture with two rows would be a harder page than any
 // architect has ever drawn.
@@ -99,14 +99,14 @@ const TWO_TABLE_SHEET = `
 `;
 
 // The same two tables jammed together with no rows between them. Genuinely
-// ambiguous — there is no distance for the classifier to use — and it must come
+// ambiguous, there is no distance for the classifier to use, and it must come
 // out flagged rather than confidently one way.
 const TWO_TABLES_TOUCHING = `
   GUESTROOM MIX   AVG AREA   NET RENTABLE 105,903 SF
   GROSS BUILDING AREA   TOTAL BUILDING GSF   233,919 SF
 `;
 
-// The address block that produced "sheet PL100" — a sheet that does not exist.
+// The address block that produced "sheet PL100", a sheet that does not exist.
 const ADDRESS_BLOCK = `
   LIGHTING PROGRAM AREA PLAN   PROGRAM BREAKDOWN   GUESTROOMS   BOH   AMENITY
   THE BECK GROUP   1001 17TH STREET SUITE PL100 DENVER, CO 80202
@@ -114,7 +114,7 @@ const ADDRESS_BLOCK = `
 `;
 
 // BECK's real A-811 text layer. The table is vector art; this is everything the
-// PDF actually carries — Revit layer names and the title block. Zero numbers.
+// PDF actually carries, Revit layer names and the title block. Zero numbers.
 const VECTOR_ONLY = `
   LIGHTING PROGRAM AREA PLAN
   LIGHTING-BOH   LIGHTING-CORR-STAIR   LIGHTING-EXT-AMENITY
@@ -281,8 +281,8 @@ test('resolveGrossSf: net room schedule is corrected AND explained', () => {
   assert.match(r.note, /net/i);
 });
 
-test('resolveGrossSf: unreadable basis fills the field AND flags it — Mike\'s rule', () => {
-  // "fill the field, make red and give a confidence %" — all three, together.
+test('resolveGrossSf: unreadable basis fills the field AND flags it, Mike\'s rule', () => {
+  // "fill the field, make red and give a confidence %", all three, together.
   const r = resolveGrossSf(180000, FLOOR_PLAN);
   assert.equal(r.value, 180000,   'the field is still filled');
   assert.equal(r.needsReview, true, 'and it is flagged');
@@ -290,7 +290,7 @@ test('resolveGrossSf: unreadable basis fills the field AND flags it — Mike\'s 
 });
 
 test('resolveGrossSf: the code-summary trap is caught and corrected', () => {
-  // Left alone this is the silent 5% — a budget that looks completely normal.
+  // Left alone this is the silent 5%, a budget that looks completely normal.
   const r = resolveGrossSf(221022, CODE_SHEET);
   assert.equal(r.basis, 'code');
   assert.ok(r.value > 221022);
@@ -307,7 +307,7 @@ test('resolveGrossSf survives a null square footage', () => {
 
 test('the drawing index is thrown out, not scored', () => {
   // THE worst failure this module can produce: G0.01 scored 70 and classified as
-  // a code area at 0.75 — confident enough to skip review — off a page that is
+  // a code area at 0.75, confident enough to skip review, off a page that is
   // nothing but a list of sheet titles.
   assert.equal(looksLikeSheetIndex(SHEET_INDEX), true);
   assert.equal(scoreAreaPage(SHEET_INDEX).score, 0, 'an index must not be a candidate');
@@ -320,7 +320,7 @@ test('the drawing index is thrown out, not scored', () => {
 test('a real sheet that cross-references others is NOT an index', () => {
   // The first cut of this rule excluded half the set. On the real Fox Park DD
   // pages the sheet-number-shaped tokens are IBC occupancy groups (A-1, S-1,
-  // R-1) and detail bubbles, not sheet numbers — 14 of them on a life-safety
+  // R-1) and detail bubbles, not sheet numbers, 14 of them on a life-safety
   // sheet that we very much want to keep.
   const lifeSafety = CODE_SHEET + `
     OCCUPANCY A-1 A-2 A-3 S-1 S-2 R-1 CONSTRUCTION TYPE I-A II-B
@@ -398,8 +398,8 @@ test('"SHEET NO." beats a bare "SHEET" elsewhere on the page', () => {
 });
 
 test('a table that is a picture is reported as unreadable, not as an answer', () => {
-  // BECK's A-811: the program breakdown is vector art. The sheet is found — it
-  // scores high — but there is nothing on it to read, and pretending otherwise
+  // BECK's A-811: the program breakdown is vector art. The sheet is found, it
+  // scores high, but there is nothing on it to read, and pretending otherwise
   // is how a made-up number reaches a budget.
   const s = scoreAreaPage(VECTOR_ONLY);
   assert.ok(s.score > 0, 'the sheet is still found');

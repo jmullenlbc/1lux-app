@@ -1,5 +1,5 @@
 /**
- * Meeting Prep — the one model call. Facts in, 3–5 cited talking points out.
+ * Meeting Prep, the one model call. Facts in, 3 to 5 cited talking points out.
  *
  * The facts are sealed as untrusted text: they carry news headlines, calendar
  * titles and lines people typed, any of which can read like an instruction.
@@ -9,6 +9,7 @@ import { agentClient } from '@/lib/agent/client';
 import { modelParams, textFrom } from '@/lib/aiModels';
 import { buildUntrustedPrompt, warnOnInjection } from '@/lib/agent/untrusted';
 import { buildPrepPrompt, parseTalkingPoints, parseJson } from './brief';
+import { stripDashes } from '@/lib/bot/emailStyle';
 
 const JOB = 'bot.meetingPrep';
 
@@ -34,7 +35,7 @@ export async function draftTalkingPoints(facts, note, ctx = {}) {
     messages: [{ role: 'user', content: sealed.content }],
   });
   const reply = textFrom(msg);
-  // A reply we cannot read is a failure, not "nothing to say" — the panel says so.
+  // A reply we cannot read is a failure, not "nothing to say", the panel says so.
   if (parseJson(reply) == null) throw new Error(`unreadable reply (stop: ${msg?.stop_reason || 'unknown'})`);
-  return { points: parseTalkingPoints(reply, facts), model: params.model };
+  return { points: parseTalkingPoints(reply, facts).map(p => ({ ...p, text: stripDashes(p.text) })), model: params.model };
 }

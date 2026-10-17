@@ -35,12 +35,12 @@ const PATTERNS = [
   { name: 'Bearer JWT-ish',        regex: /\beyJ[A-Za-z0-9_-]{30,}\.[A-Za-z0-9_-]{30,}\.[A-Za-z0-9_-]{20,}\b/ },
 ];
 
-// Files we never want to scan (binary, lockfiles, etc.) — high false-positive risk.
+// Files we never want to scan (binary, lockfiles, etc.), high false-positive risk.
 const SKIP_FILES = /(package-lock\.json|yarn\.lock|\.next\/|node_modules\/|\.png|\.jpg|\.jpeg|\.gif|\.pdf|\.zip|deploy-log\.json)$/;
 
 function getDiff() {
   try {
-    // Compare current HEAD to origin/main — exactly what's about to be pushed.
+    // Compare current HEAD to origin/main, exactly what's about to be pushed.
     return execSync('git diff --no-color origin/main...HEAD', { encoding: 'utf8' });
   } catch {
     // Fallback: just the last commit (origin/main not reachable on first push).
@@ -76,13 +76,13 @@ for (const line of diff.split('\n')) {
 }
 
 if (findings.length > 0) {
-  console.error('\n❌ PUSH BLOCKED — looks like one or more credentials are in this push:\n');
+  console.error('\n❌ PUSH BLOCKED: looks like one or more credentials are in this push:\n');
   for (const f of findings) {
     console.error(`  ${f.file}`);
     console.error(`    ${f.name}: ${f.snippet}`);
   }
   console.error('\nIf this is a false positive, you can override with: git push --no-verify');
-  console.error('But please look first — credentials in git history are very hard to remove cleanly.\n');
+  console.error('But please look first. Credentials in git history are very hard to remove cleanly.\n');
   process.exit(1);
 } else {
   console.log('✓ check-secrets: no credentials detected in pending push');

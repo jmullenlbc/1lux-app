@@ -1,5 +1,5 @@
 /**
- * Tests for src/lib/sheetIndexVision.js — finding the sheets that matter in a
+ * Tests for src/lib/sheetIndexVision.js, finding the sheets that matter in a
  * set that has no text in it at all.
  * Run: node --test scripts/tests/sheetIndexVision.test.mjs
  *
@@ -7,12 +7,12 @@
  *
  *   1. A wrong page number is worse than no page number. If the offset is off
  *      by two, the read opens a sheet nobody chose and reports whatever numbers
- *      happen to be on it — and it looks exactly like a successful read. Every
+ *      happen to be on it, and it looks exactly like a successful read. Every
  *      test here about offsets and bounds is about that one failure.
  *   2. Nothing the model returns is trusted. It is reading a stranger's drawing
  *      and can return anything at all; the shape has to survive that.
  *   3. Picks that fall outside the document must be DROPPED, not clamped. A
- *      clamped pick silently becomes page 1 or the last page — see (1).
+ *      clamped pick silently becomes page 1 or the last page, see (1).
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -41,7 +41,7 @@ const PICKS = { sitePlan: 'C2.1', areaSummary: 'G0.02', unitMatrix: 'A0.10' };
 
 // ─── normalizeSheetNumber ───────────────────────────────────────────────────
 
-test('sheet numbers compare loosely — punctuation and case do not matter', () => {
+test('sheet numbers compare loosely: punctuation and case do not matter', () => {
   assert.equal(normalizeSheetNumber('A-1.00'), normalizeSheetNumber('a1.00'));
   assert.equal(normalizeSheetNumber(' C2.1 '), 'C21');
   assert.equal(normalizeSheetNumber(''), null);
@@ -66,7 +66,7 @@ test('bare sheet numbers and {sheetNumber} objects mean the same thing', () => {
 });
 
 test('an illegible row is KEPT, because it holds a position', () => {
-  // Dropping it would shift every sheet after it by one — which is how a read
+  // Dropping it would shift every sheet after it by one, which is how a read
   // lands on the wrong drawing and reports its numbers as the answer.
   const out = validateIndexRead({ entries: ['A1.00', '?', 'A3.00'] });
   assert.equal(out.entries.length, 3);
@@ -228,7 +228,7 @@ test('picks become page numbers through the anchored offset', () => {
   assert.equal(targets[1].page, 4);   // row 2 + offset 2
 });
 
-test('no offset means no pages — never a fallback to the front of the set', () => {
+test('no offset means no pages, never a fallback to the front of the set', () => {
   const { targets } = mapPicksToPages({ entries: ENTRIES, picks: PICKS, offset: null, totalPages: 50 });
   assert.equal(targets.length, 0);
 });
@@ -318,7 +318,7 @@ test('the LONGEST overlap wins, so a repeated sheet number does not fool it', ()
   assert.deepStrictEqual(nums(mergeIndexEntries(a, b)), ['A1.1', 'A2.1', 'A1.1', 'A2.2', 'A3.1']);
 });
 
-test('no overlap at all just joins -- a row cut in half is dropped, not doubled', () => {
+test('no overlap at all just joins: a row cut in half is dropped, not doubled', () => {
   const a = rows('G0.01', 'G0.02');
   const b = rows('C2.1', 'C3.1');
   assert.deepStrictEqual(nums(mergeIndexEntries(a, b)), ['G0.01', 'G0.02', 'C2.1', 'C3.1']);
@@ -382,7 +382,7 @@ test('a sheet number already read is never listed a second time', () => {
     ['G0.01', 'G0.02', 'C2.1', 'X9.9', 'A1.1']);
 });
 
-test('illegible rows are exempt -- two of them are not the same sheet', () => {
+test('illegible rows are exempt: two of them are not the same sheet', () => {
   const merged = mergeIndexEntries(rows('G0.01', '?'), rows('X9.9', '?'));
   assert.strictEqual(merged.length, 4);
 });
@@ -399,7 +399,7 @@ test('a close-up is capped shorter than it is wide, because height is rows', () 
 //
 // The position of a row in the transcript is what tells us which page to open.
 // A horizontal strip across a two-column index shows the top of both columns,
-// so the rows come back braided -- and on a real 127-row set they did, sending
+// so the rows come back braided, and on a real 127-row set they did, sending
 // the picks two pages late. These pin the cut to the printed columns.
 
 // Which printed column a close-up belongs to is decided by its middle: the
@@ -452,7 +452,7 @@ test('a single-column index is not split sideways for no reason', () => {
 });
 
 test('close-ups do not reach across a gutter into the next column', () => {
-  // Sideways overlap saves a row cut down the middle -- but there is no row in
+  // Sideways overlap saves a row cut down the middle, but there is no row in
   // a gutter, and reaching over it drags the neighbour's first rows in, where
   // the duplicate check would keep them at the wrong position.
   const box = { x: 0.1, y: 0.1, w: 0.4, h: 0.5 };
@@ -491,7 +491,7 @@ test('a nonsense column count is treated as one, not obeyed', () => {
 // An index fills its columns top to bottom, so the last one usually stops
 // partway down. The close-ups are cut on a grid regardless, and each blank one
 // costs a request and about five seconds of a stranger's wait. On Lowell that
-// was five close-ups of nothing -- twenty seconds -- and these are about not
+// was five close-ups of nothing, twenty seconds, and these are about not
 // paying it, without skipping a column that merely started blank.
 
 const COLS = [0, 0, 0, 1, 1, 1];   // three close-ups down, two columns across
@@ -631,7 +631,7 @@ test('each look halves where the sheet can be', () => {
 });
 
 test('an UNLISTED corner still steers the hunt', () => {
-  // Page 100 reads A1.09 -- not a row on the cover, but after A1.04, so a
+  // Page 100 reads A1.09, not a row on the cover, but after A1.04, so a
   // sheet wanted at row 2 must be left of page 100.
   const { probePage } = planHunt({
     entries: IDX, picks: { areaSummary: 'A1.03' }, probes: { 100: 'A1.09' }, totalPages: 158,

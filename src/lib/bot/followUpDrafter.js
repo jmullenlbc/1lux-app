@@ -1,7 +1,7 @@
 /**
  * followUpDrafter.js
- * Core logic for Phase B — generates a follow-up email draft for a stale PROJECT.
- * (A project IS the pipeline entity — Deal merged into Project.)
+ * Core logic for Phase B, generates a follow-up email draft for a stale PROJECT.
+ * (A project IS the pipeline entity, Deal merged into Project.)
  * Called by /api/bot/check-followup (cron) and /api/bot/draft-follow-up (manual).
  */
 
@@ -76,7 +76,7 @@ async function findTemplate(project, contact) {
 //
 // Mike, 2026-09-08: "We need every character or everything we upload to do that."
 //
-// So no category list and no limit — the whole library, whole documents. The
+// So no category list and no limit, the whole library, whole documents. The
 // project is still passed as the query, but only to ORDER the library; nothing
 // is dropped for failing to match. See src/lib/botKnowledge/retrieve.js.
 async function findKnowledge(project) {
@@ -112,7 +112,7 @@ export async function generateFollowUpDraft(project, rule, { senderUserId } = {}
   const toName  = contact?.preferredName || contact?.name?.split(' ')[0] || contact?.name || null;
 
   if (!toEmail) {
-    return { error: 'No contact email found for project — skipping', project: project.name };
+    return { error: 'No contact email found for project, skipping', project: project.name };
   }
 
   const [template, knowledgeText, personalText] = await Promise.all([findTemplate(project, contact), findKnowledge(project), personalPromptFor(contact?.id, toName)]);

@@ -5,7 +5,7 @@ import { getSession } from '@/lib/auth';
 import ReviewQueue from './ReviewQueue';
 
 /**
- * /admin/agent-runs — the AI review queue. Step 17 of the Governed AI Layer.
+ * /admin/agent-runs, the AI review queue. Step 17 of the Governed AI Layer.
  *
  * Mirrors the guard on /api/admin/agent-runs. Gating the page alone would be
  * decoration, the route is the boundary, but a COMPANY_ADMIN who can reach the

@@ -51,7 +51,7 @@ const QUESTIONNAIRE_SYNC = {
 
 // Drawing-takeoff counts (Phase 1, 2026-08-12): saveable from the Dashboard's
 // Counts panel and (later) the drawing parser, but deliberately NOT wizard
-// questions — so they are not in QUESTIONNAIRE_SYNC and never sync to the
+// questions, so they are not in QUESTIONNAIRE_SYNC and never sync to the
 // questionnaire. Mike: these get "filled out in an automated way".
 const NON_QUESTIONNAIRE_FIELDS = ['numElevatorShafts', 'numFloors'];
 
@@ -100,7 +100,7 @@ export async function PUT(request, { params }) {
   // exteriorAmenitySf=19909 and several other fields after he reopened
   // the wizard and clicked through. The wizard's Project Data form
   // sends every field in its payload, including blanks that hadn't been
-  // populated from a stale projectData prop — the old loop treated each
+  // populated from a stale projectData prop, the old loop treated each
   // blank as null and overwrote the DB column.
   //
   // Trade-off: the wizard can no longer be used to *clear* an existing
@@ -123,7 +123,7 @@ export async function PUT(request, { params }) {
     data[field] = val;
   }
 
-  // contingencyPct is not a questionnaire field — handle separately
+  // contingencyPct is not a questionnaire field, handle separately
   if (body.contingencyPct !== undefined &&
       body.contingencyPct !== null &&
       body.contingencyPct !== '') {
@@ -253,7 +253,7 @@ export async function PUT(request, { params }) {
   return NextResponse.json({ projectData: { ...updated, buildingTypeKey: project.buildingType, siteFeatures } });
 }
 
-// PATCH — same as PUT for compatibility (single-field saves from dashboard)
+// PATCH, same as PUT for compatibility (single-field saves from dashboard)
 export async function PATCH(request, { params }) {
   return PUT(request, { params });
 }

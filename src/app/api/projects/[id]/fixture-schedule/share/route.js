@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
-// GET — get current share link(s) for this project's fixture schedule
+// GET, get current share link(s) for this project's fixture schedule
 export async function GET(req, { params }) {
   const { user, error } = await requireAuth();
   if (error) return error;
@@ -15,7 +15,7 @@ export async function GET(req, { params }) {
   return NextResponse.json({ share: share || null });
 }
 
-// POST — create or regenerate a share link
+// POST, create or regenerate a share link
 // Body: { permission: 'view' | 'edit' }
 export async function POST(req, { params }) {
   const { user, error } = await requireAuth();
@@ -38,7 +38,7 @@ export async function POST(req, { params }) {
   return NextResponse.json({ share });
 }
 
-// DELETE — revoke the share link
+// DELETE, revoke the share link
 export async function DELETE(req, { params }) {
   const { user, error } = await requireAuth();
   if (error) return error;

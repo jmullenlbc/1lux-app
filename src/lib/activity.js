@@ -84,10 +84,10 @@ export const TAB_LABELS = {
 };
 
 export const PHASE_LABELS = {
-  sd:           'SD — Schematic Design',
-  dd:           'DD — Design Development',
-  cd:           'CD — Construction Documents',
-  ifc:          'IFC — Issued for Construction',
+  sd:           'SD: Schematic Design',
+  dd:           'DD: Design Development',
+  cd:           'CD: Construction Documents',
+  ifc:          'IFC: Issued for Construction',
   construction: 'Construction',
   closeout:     'Closeout',
 };

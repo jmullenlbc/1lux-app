@@ -1,5 +1,5 @@
 /**
- * Making a new project — the one way. Used by the New Project form's API and
+ * Making a new project, the one way. Used by the New Project form's API and
  * by "Create a project from this web request" in the review queue, so both get
  * the same project number, budget number, frozen pricing, 23% margin and
  * "created" history line.

@@ -1,5 +1,5 @@
 // The upload drop zones used to fail silently: `if (res.ok) {...}` with no else,
-// inside `try {} catch {}`. Every failure looked the same to the user — the spinner
+// inside `try {} catch {}`. Every failure looked the same to the user, the spinner
 // vanished and the file never appeared. These tests pin the honest messages.
 import { test } from 'node:test';
 import assert from 'node:assert';
@@ -44,12 +44,12 @@ test('the message says what to DO, not just that it failed', () => {
 // with the 4 MB the host allows. Both numbers must appear in the right message
 // or the user is told to shrink a file that was never too big.
 
-test('a 9 MB construction schedule is fine — this is the whole point of the change', () => {
+test('a 9 MB construction schedule is fine: this is the whole point of the change', () => {
   assert.equal(oversizeMessage(file('Marmalade CD Schedule.pdf', 9 * 1024 * 1024)), null);
   assert.equal(oversizeMessage(file('unit matrix.xlsx', 20 * 1024 * 1024)), null);
 });
 
-test('a 9 MB image is NOT fine — it has no direct-to-S3 route', () => {
+test('a 9 MB image is NOT fine: it has no direct-to-S3 route', () => {
   const msg = oversizeMessage(file('site photo.png', 9 * 1024 * 1024));
   assert.match(msg, /4 MB/);
   assert.doesNotMatch(msg, /25 MB/);
@@ -62,7 +62,7 @@ test('limitForFile picks the ceiling from the extension, case-insensitively', ()
   assert.equal(limitForFile(file('noextension', 1)), UPLOAD_LIMIT_BYTES);
 });
 
-test('a PDF over BOTH ceilings still reports 25, not 4 — the number that applied', () => {
+test('a PDF over BOTH ceilings still reports 25, not 4: the number that applied', () => {
   const msg = oversizeMessage(file('huge.pdf', 60 * 1024 * 1024));
   assert.match(msg, /25 MB/);
   assert.doesNotMatch(msg, /4 MB/);
@@ -76,7 +76,7 @@ test('a 413 explains the size cap even though the response body is empty', async
   assert.match(msg, /25 MB/);
 });
 
-test('a 401/403 tells the user to sign back in — not to shrink the file', async () => {
+test('a 401/403 tells the user to sign back in, not to shrink the file', async () => {
   for (const status of [401, 403]) {
     const msg = await uploadErrorMessage(res(status), file('a.pdf', 100));
     assert.match(msg, /session expired/i);
@@ -110,7 +110,7 @@ test('a network throw on a small file reports the connection, not a phantom size
   assert.doesNotMatch(msg, /MB\./);
 });
 
-test('every message ends up a non-empty string — silence is the bug being fixed', async () => {
+test('every message ends up a non-empty string: silence is the bug being fixed', async () => {
   const cases = [
     await uploadErrorMessage(res(413), file('a.pdf', 90e6)),
     await uploadErrorMessage(res(401), file('a.pdf', 10)),
@@ -127,7 +127,7 @@ test('every message ends up a non-empty string — silence is the bug being fixe
 // the whole set travelled in one request body; now the PDFs leave one at a
 // time. Getting this wrong means refusing a drawing set that would upload fine.
 
-test('a set of large PDFs is fine — they no longer share one 4 MB budget', () => {
+test('a set of large PDFs is fine: they no longer share one 4 MB budget', () => {
   const set = [file('A-100.pdf', 12e6), file('A-200.pdf', 15e6), file('A-300.pdf', 20e6)];
   assert.equal(batchOversizeMessage(set), null);
 });

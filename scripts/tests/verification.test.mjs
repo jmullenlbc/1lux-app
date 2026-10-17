@@ -1,4 +1,4 @@
-// Things Needing a Look — the five checks and the two ceilings.
+// Things Needing a Look, the five checks and the two ceilings.
 //
 // These pin the promises made to Mike, not the implementation:
 //   • it only looks at open jobs and jobs closed in the last 90 days;
@@ -153,7 +153,7 @@ test('check 3 says nothing about a real close date, or about an open board', () 
 });
 
 test('check 3 only looks at boards the job actually has', () => {
-  // serviceType PROCUREMENT means there is no Design board — designStatus still
+  // serviceType PROCUREMENT means there is no Design board, designStatus still
   // holds its "WON" default and must not be read.
   const p = project({ serviceType: 'PROCUREMENT', procurementStatus: 'OPEN', designStatus: 'WON' });
   assert.equal(checkCloseDate({ scopedProjects: [p], eventsByProject: new Map() }).length, 0);

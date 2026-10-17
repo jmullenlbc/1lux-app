@@ -1,11 +1,11 @@
 /**
- * calibration/lines.js — turn one budget run into calibration samples.
+ * calibration/lines.js, turn one budget run into calibration samples.
  *
  * Pure: no database, no pricing loader. Given the same inputs the engine got
  * (projectData + questionnaire sections), the budget it produced, and the
  * pricing sheet it used, this returns one sample per budget line: the
  * quantity the engine multiplied, the rate it used, the dollars it produced,
- * and — where the project carries a hand-built figure for that same line —
+ * and, where the project carries a hand-built figure for that same line
  * the actual. The dashboard's calibration widgets compare the two.
  *
  * Every line names the pricing key its rate lives under so a drift finding
@@ -20,8 +20,8 @@ import { surfaceStalls } from '../surfaceParkingDefault.js';
 const n = (v, d = 0) => { const x = Number(v); return Number.isFinite(x) ? x : d; };
 
 export const LINE_LABELS = {
-  'units.base':               'Units — base $/SF',
-  'corridors.disks':          'Corridors — disks',
+  'units.base':               'Units: base $/SF',
+  'corridors.disks':          'Corridors: disks',
   'corridors.stairwells':     'Stairwells (per landing)',
   'boh':                      'Back of House',
   'interior':                 'Interior amenities',
@@ -127,7 +127,7 @@ export function buildSamples({ projectData = {}, sections = {}, budget, pricing 
     rateUsed: breezeway && landings > 0 ? stairProduct / landings : n(pricing.corridors?.stairwellPerLanding?.product),
     // a breezeway drift is tuned on its style's multiplier, not the shared stairwell rate
     pricingKey: breezeway
-      // an average breezeway (no drawings) rides on both multipliers — no single knob to tune
+      // an average breezeway (no drawings) rides on both multipliers, no single knob to tune
       ? ({ small: 'corridors.breezewaySmallMultiplier', long: 'corridors.breezewayLongMultiplier' }[breezeway.style] ?? null)
       : 'corridors.stairwellPerLanding.product',
     note: breezeway ? breezeway.how : null });
@@ -169,7 +169,7 @@ export function buildSamples({ projectData = {}, sections = {}, budget, pricing 
     note: wp.qtyOverridden || wp.priceOverridden ? 'hand override on qty/price' : null });
 
   // Pathway: the ONE line where a hand-built figure regularly sits next to the
-  // model — the manual entry suppresses the model line, so rebuild the model
+  // model, the manual entry suppresses the model line, so rebuild the model
   // number here to put the two side by side.
   const pw = s.exterior?.pathway || {};
   const pathwayRate = n(pw.rate);
@@ -191,7 +191,7 @@ export function buildSamples({ projectData = {}, sections = {}, budget, pricing 
 
   // Sporadic site features (dog park, courts, …): a fixture package per kind,
   // so the line's quantity is the fixture count across every kind. No single
-  // rate to suggest — each kind has its own price on the master sheet.
+  // rate to suggest, each kind has its own price on the master sheet.
   const sf = s.exterior?.siteFeatures || {};
   const sfFixtures = n(sf.areaLights) + n(sf.pedestrianPoles);
   push({ lineKey: 'exterior.siteFeatures', quantity: sfFixtures, quantityUnit: 'fixtures', modelAmount: sf.product,
@@ -203,7 +203,7 @@ export function buildSamples({ projectData = {}, sections = {}, budget, pricing 
   const entrances = n(manual.parkingEntrances);
   if (entrances > 0) {
     push({ lineKey: 'exterior.parkingEntrances', quantity: null, modelAmount: 0, actualAmount: entrances,
-      rateUsed: null, pricingKey: null, note: 'no model line — hand-entered' });
+      rateUsed: null, pricingKey: null, note: 'no model line, hand-entered' });
   }
 
   // ── Emergency / exit signs / controls / total ────────────────────────────

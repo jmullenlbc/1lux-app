@@ -4,8 +4,8 @@
  *
  * ILC budget format:
  *   Header:  "Budget Number  Budget Date  B0805  26.04.23"
- *   Totals:  "total $274,250"  (lowercase — product subtotal)
- *            "Total $310,588"  (uppercase T — grand total w/ tax + freight)
+ *   Totals:  "total $274,250"  (lowercase, product subtotal)
+ *            "Total $310,588"  (uppercase T, grand total w/ tax + freight)
  *
  * We take the LARGEST dollar total found, which is always the grand total.
  */
@@ -46,8 +46,8 @@ export function parseBudgetFields(text) {
  *
  * Examples:
  *   "26.04.23 ILC - 16W DRY CREEK IFC VE BUDGET.pdf" → "IFC VE"
- *   "25.10.17 ILC - Budget -- 16W DRY CREEK 100DD.pdf" → "100DD"
- *   "26.02.10 ILC - Budget -- 16W DRY CREEK GMP.pdf"  → "GMP"
+ *   "25.10.17 ILC - Budget, 16W DRY CREEK 100DD.pdf" → "100DD"
+ *   "26.02.10 ILC - Budget, 16W DRY CREEK GMP.pdf"  → "GMP"
  */
 export function budgetLabelFromFilename(name) {
   const upper = name.toUpperCase().replace(/\.PDF$/i, '');

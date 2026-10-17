@@ -8,6 +8,10 @@ import { computeQuantities } from '@/lib/intake/quantities';
 import { INTAKE_QUESTIONS } from '@/lib/intake/questionnaire';
 import { draftStage, reachedLabel } from "@/lib/intake/drafts";
 import SortHeader, { Th } from "@/components/ui/SortHeader";
+import { FilterToolbar, FilterPanel } from "@/components/ui/FilterPanel";
+
+const STATUS_FIELD = [{ key: 'status', label: 'Status', kind: 'pick' }];
+const STATUS_CHOICES = { status: [['PENDING', 'Pending'], ['APPROVED', 'Approved'], ['REJECTED', 'Rejected']] };
 
 const STATUS_CONFIG = {
   PENDING: { color: 'bg-amber-50 text-amber-700 border border-amber-200', label: 'Pending' },
@@ -596,6 +600,7 @@ export default function IntakeClient({ submissions: initialSubmissions, drafts =
   const [sortCol, setSortCol] = useState('createdAt');
   const [sortDir, setSortDir] = useState('desc');
   const [statusFilter, setStatusFilter] = useState('ALL');
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   function toggleSort(col) {
     if (sortCol === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
@@ -683,17 +688,11 @@ export default function IntakeClient({ submissions: initialSubmissions, drafts =
         <div className="grid grid-cols-3 gap-6">
           {/* List */}
           <div className="col-span-2">
-            <div className="flex gap-2 mb-4 pb-4 border-b border-slate-200">
-              {['ALL', 'PENDING', 'APPROVED', 'REJECTED'].map(s => (
-                <button key={s} onClick={() => setStatusFilter(s)}
-                  className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-colors ${
-                    statusFilter === s
-                      ? "bg-orange-50 border-orange-400 text-orange-700"
-                      : "bg-white border-slate-300 text-slate-700 hover:bg-slate-50"
-                  }`}>
-                  {s}
-                </button>
-              ))}
+            <div className="mb-4 pb-4 border-b border-slate-200">
+              <FilterToolbar count={statusFilter === 'ALL' ? 0 : 1} open={filtersOpen} onToggle={() => setFiltersOpen(o => !o)}
+                onClear={() => setStatusFilter('ALL')} shown={filtered.length} total={submissions.length} noun="submissions" />
+              <FilterPanel open={filtersOpen} fields={STATUS_FIELD} filters={{ status: statusFilter === 'ALL' ? '' : statusFilter }}
+                choices={STATUS_CHOICES} onChange={(_, v) => setStatusFilter(v || 'ALL')} />
             </div>
             <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
               <table className="w-full text-sm">

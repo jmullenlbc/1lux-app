@@ -8,15 +8,15 @@ import { modelParams, textFrom, answerBudget } from '@/lib/aiModels';
 import { buildUntrustedPrompt, warnOnInjection } from '@/lib/agent/untrusted';
 
 // POST /api/projects/[id]/rfi-extract
-// Body: { fileId } — extracts just the RFI question/request from a file's textContent
-// Body: { emailContent } — parses a pasted email and creates an RFI record
+// Body: { fileId }, extracts just the RFI question/request from a file's textContent
+// Body: { emailContent }, parses a pasted email and creates an RFI record
 export async function POST(req, { params }) {
   const { user, error } = await requireAuth();
   if (error) return error;
 
   const body = await req.json().catch(() => ({}));
   // Recorded: see src/lib/agent/ledger.js. The two modes below are named
-  // separately — one reads a stored file, the other parses a pasted email —
+  // separately, one reads a stored file, the other parses a pasted email
   // and they fail for different reasons, so the rollup should keep them apart.
   const raw = new Anthropic({ apiKey: getAnthropicKey() });
   const ctx = { projectId: params.id, userId: user.id };
@@ -73,7 +73,7 @@ Return only 1-3 sentences describing what is being asked. Be concise and specifi
 
   // ── Mode 2: Parse a pasted email and create an RFI record ────────────────
   if (body.emailContent) {
-    // A pasted email is the most obviously attacker-shaped input in the app —
+    // A pasted email is the most obviously attacker-shaped input in the app
     // it arrives from outside, unmodified, and a sender chooses every word of it.
     const sealed = buildUntrustedPrompt({
       instructions: `You are reading an email that contains or references an RFI (Request for Information) for a construction project.
@@ -82,7 +82,7 @@ Extract the following and return as JSON only (no explanation):
 {
   "subject": "email subject or RFI title",
   "rfiNumber": "RFI number if found, else null",
-  "question": "1-3 sentence summary of exactly what information is being requested — ignore headers/boilerplate",
+  "question": "1-3 sentence summary of exactly what information is being requested, ignore headers/boilerplate",
   "from": "sender name or company if identifiable, else null",
   "date": "date string if found, else null"
 }`,
@@ -98,7 +98,7 @@ Extract the following and return as JSON only (no explanation):
     });
 
     // Named `answer`, not `raw`. It used to be `const raw`, which shadowed the
-    // Anthropic client of the same name declared above — and because `const` is
+    // Anthropic client of the same name declared above, and because `const` is
     // block-scoped, the `wrapClient(raw, …)` call earlier in THIS block was
     // reading the shadowed binding while it was still in its temporal dead zone.
     // Mode 2 threw `Cannot access 'raw' before initialization` on every pasted

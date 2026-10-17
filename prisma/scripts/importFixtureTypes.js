@@ -7,7 +7,7 @@
 // Usage:
 //   node prisma/scripts/importFixtureTypes.js <path-to-csv>
 //
-// The script is idempotent — re-running with the same file does upserts.
+// The script is idempotent, re-running with the same file does upserts.
 // Missing master_type_id values are skipped with a warning.
 
 const fs           = require('fs');
@@ -96,10 +96,10 @@ async function main() {
     const activeRaw      = iActive !== -1 ? row[iActive]?.trim().toLowerCase() : 'yes';
     const is_active      = !['no', 'false', '0', 'inactive', ''].includes(activeRaw);
 
-    if (!code) { console.warn(`Row ${i + 1}: missing type code — skipped.`); skipped++; continue; }
-    if (!master_type_id) { console.warn(`Row ${i + 1}: missing master_type for "${code}" — skipped.`); skipped++; continue; }
+    if (!code) { console.warn(`Row ${i + 1}: missing type code, skipped.`); skipped++; continue; }
+    if (!master_type_id) { console.warn(`Row ${i + 1}: missing master_type for "${code}", skipped.`); skipped++; continue; }
     if (!validCodes.has(master_type_id)) {
-      console.warn(`Row ${i + 1}: MasterType "${master_type_id}" not found for type "${code}" — skipped.`);
+      console.warn(`Row ${i + 1}: MasterType "${master_type_id}" not found for type "${code}", skipped.`);
       skipped++; continue;
     }
 

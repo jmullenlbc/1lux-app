@@ -4,7 +4,7 @@
  *
  * This bug has now shipped three times. A route calls `getSession()` or
  * `isSuperAdmin()`, the import line only ever mentioned `requireAuth`, and
- * nothing complains — not the editor, not the build, not the tests. The route
+ * nothing complains, not the editor, not the build, not the tests. The route
  * throws a ReferenceError on the first real request and the user sees a bare
  * 500. It broke the market-intel source buttons, the client-standards tabs,
  * the budget-QC assignment, and a project's assignee list.
@@ -40,7 +40,7 @@ for (const file of walk('src')) {
   const src = readFileSync(file, 'utf8');
 
   // Client components are skipped. None of these helpers can run in the
-  // browser — getSession reads server cookies — so a real call in a client
+  // browser, getSession reads server cookies, so a real call in a client
   // component would fail the build long before this gate. What they DO carry
   // is prose: the tech-stack page prints `await requireAuth(request)` inside a
   // <code> tag to document the convention, and that is not a call.
@@ -54,7 +54,7 @@ for (const file of walk('src')) {
       if (name) imported.add(name);
     }
   }
-  // What the file defines for itself — a local helper of the same name is fine.
+  // What the file defines for itself, a local helper of the same name is fine.
   const declared = new Set(
     [...src.matchAll(/(?:function|const|let|var|class)\s+([A-Za-z_$][\w$]*)/g)].map(m => m[1])
   );
@@ -82,7 +82,7 @@ if (problems.length) {
   console.error('\ncheck-auth-imports: an auth helper is called but never imported.\n');
   for (const { file, helper } of problems) {
     console.error(`  ${file}`);
-    console.error(`    calls ${helper}() — add it to the import from '@/lib/auth'\n`);
+    console.error(`    calls ${helper}(), add it to the import from '@/lib/auth'\n`);
   }
   console.error('Every request to these routes throws a ReferenceError and returns a 500.\n');
   process.exit(1);

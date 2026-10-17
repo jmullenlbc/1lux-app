@@ -20,7 +20,7 @@ const PALETTE = [
 ];
 
 // Segment names arrive from the engine in plain English now ("Won", not "WON"),
-// so the colour lookup answers to both spellings — a green Won bar should not
+// so the colour lookup answers to both spellings, a green Won bar should not
 // turn grey because the word behind it changed.
 const STATUS_COLORS = {
   OPEN: '#3b82f6',      Open: '#3b82f6',
@@ -94,7 +94,7 @@ function WidgetChart({ data }) {
   const isDuration = category === 'DURATION';
   const isPercent  = category === 'PROPOSALS' && metric === 'acceptance_rate';
 
-  // CONVERSION — horizontal bar showing win rate %
+  // CONVERSION, horizontal bar showing win rate %
   if (category === 'CONVERSION') {
     return (
       <ResponsiveContainer width="100%" height="100%">
@@ -116,7 +116,7 @@ function WidgetChart({ data }) {
     );
   }
 
-  // All other categories — vertical grouped/stacked bar chart
+  // All other categories, vertical grouped/stacked bar chart
   const useStacked = segmentBy && segments.length > 1;
   const segList = segments.filter(s => s !== '_total');
   const showSingle = !segmentBy || segList.length === 0;
@@ -154,7 +154,7 @@ function WidgetChart({ data }) {
 
 // Mike, 2026-09-08: "We need to always break out deals won to design deals won
 // and procurement deals won." So wherever a Won figure appears, both boards
-// appear under it — never one merged number.
+// appear under it, never one merged number.
 function wonSub(won) {
   if (!won) return undefined;
   return `${won.PROCUREMENT?.count || 0} procurement · ${won.DESIGN?.count || 0} design`;
@@ -239,7 +239,7 @@ function WidgetStats({ data, widget }) {
 // ── Widget filter summary ──────────────────────────────────────────────────
 
 // The little grey chips under a chart's title, saying what it is filtered to.
-// They used to print the raw field name and the raw stored value — "projectType
+// They used to print the raw field name and the raw stored value, "projectType
 // Multi-Family" next to "stage PRECONSTRUCTION". Same names as the picker now.
 function FilterSummary({ filters }) {
   if (!filters?.length) return null;
@@ -321,7 +321,7 @@ function WidgetCard({ widget, onEdit, onDelete }) {
 // Every choice on this panel is a stored value with a plain-English name beside
 // it. The stored value is what gets saved and what the engine queries; the name
 // is only ever what you read. Both come out of the same vocabulary modules the
-// rest of the app uses (pipeline.js, utils.js) — typed out here, this list drifts
+// rest of the app uses (pipeline.js, utils.js), typed out here, this list drifts
 // the moment anyone renames a stage or adds a service type.
 const labelsFrom = list => Object.fromEntries(list.map(t => [t.value, t.label]));
 
@@ -330,7 +330,7 @@ const FILTER_FIELDS = [
   // "all of them"; Design is the jobs whose service type puts them on that board.
   { key: 'pipeline',    label: 'Pipeline',     type: 'enum', options: ['PROCUREMENT', 'DESIGN'],
     labels: { PROCUREMENT: 'Procurement', DESIGN: 'Design' } },
-  // Open / Won / Lost / Completed / Abandoned — the same five the boards use.
+  // Open / Won / Lost / Completed / Abandoned, the same five the boards use.
   // (This list used to offer "ON_HOLD", which is not a status a deal can hold,
   // so picking it always came back empty.)
   { key: 'dealStatus',  label: 'Project Status',  type: 'enum', options: PIPELINE_STATUS.map(s => s.key),
@@ -342,7 +342,7 @@ const FILTER_FIELDS = [
     labels: labelsFrom(PROJECT_TYPES) },
   // These are stored as fullDesign / designAssist / peerReview / bidOnly. The old
   // list here spelled them FULL_SERVICE_DESIGN etc., which matches nothing in the
-  // database — every chart filtered this way came back empty.
+  // database, every chart filtered this way came back empty.
   // ALL_SERVICE_TYPES so a project still stored as "Other" stays filterable.
   { key: 'serviceType', label: 'Service Type', type: 'enum', options: ALL_SERVICE_TYPES.map(t => t.value),
     labels: labelsFrom(ALL_SERVICE_TYPES) },
@@ -351,7 +351,7 @@ const FILTER_FIELDS = [
   { key: 'expectedOrderDate',label: 'Expected Order Date',type: 'date' },
   { key: 'createdAt',        label: 'Created Date',       type: 'date' },
   // Dropped from this list on 2026-09-08: Project Status, Lost Reason and Won
-  // Date. None of the three is a field a project actually has — Project Status
+  // Date. None of the three is a field a project actually has, Project Status
   // made the chart fail to load outright, the other two were quietly ignored, so
   // the chart showed everything while claiming to be filtered. A reason for a
   // lost deal is written free-text on the project, not picked from a list.
@@ -371,14 +371,14 @@ const VIEW_BY_OPTIONS = [
   { key: 'projectType',    label: 'Project Type' },
   { key: 'serviceType',    label: 'Service Type' },
   { key: 'probabilityTier',label: 'Probability Tier' },
-  // "Lost Reason" was offered here and always drew a single "Unknown" bar — the
+  // "Lost Reason" was offered here and always drew a single "Unknown" bar, the
   // reason a deal is lost is written out on the project now, not picked from a
   // list, so there is nothing to group by.
   { key: 'pipeline',       label: 'Pipeline' },
   { key: 'state',          label: 'State' },
 ];
 
-// The colour split inside each bar. Named properly here — the screen used to
+// The colour split inside each bar. Named properly here, the screen used to
 // build these names by chopping up the field name, which read "deal Status".
 const SEGMENT_OPTIONS = [
   { key: 'dealStatus',  label: 'Project Status' },

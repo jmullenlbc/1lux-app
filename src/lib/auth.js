@@ -37,7 +37,7 @@ export function isClientViewer(role) {
 // ── Who can see which records ────────────────────────────────────────────────
 // Mike, 2026-08-25: every ILC staff account sees every project, every client
 // and every contact inside a client. Ownership is still recorded on each
-// record (createdById) — it just no longer decides who is allowed to look.
+// record (createdById), it just no longer decides who is allowed to look.
 //
 // External Client Viewers are the one exception and must stay scoped to their
 // own records: they are contractors, and buy/DN pricing must never reach them.
@@ -100,7 +100,7 @@ export async function verifyToken(token) {
 // The pass never carried permissions or departments either, so every screen
 // that read them from it quietly never matched. They come from the account now.
 //
-// cache(): a page and its layout both ask on the same request — one read, not two.
+// cache(): a page and its layout both ask on the same request, one read, not two.
 const cache = React.cache || (fn => fn);
 
 const loadAccount = cache(async (id) => {
@@ -171,7 +171,7 @@ export async function requireAuth(request) {
   return { user, error: null };
 }
 
-// Any admin — which includes everyone in Operations (Mike, 2026-09-14).
+// Any admin, which includes everyone in Operations (Mike, 2026-09-14).
 export async function requireAdmin(request) {
   const { user, error } = await requireAuth(request);
   if (error) return { user: null, error };
@@ -197,7 +197,7 @@ export function isSalesTeam(user) {
 }
 
 // Who can work the web budget request queue: any admin, plus anyone in the
-// Sales + marketing department (Mike, 2026-09-12 — sales follows up on every
+// Sales + marketing department (Mike, 2026-09-12, sales follows up on every
 // new request). Departments come from the live account.
 export async function requireIntakeReviewer(request) {
   const { user, error } = await requireAuth(request);

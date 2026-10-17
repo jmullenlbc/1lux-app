@@ -1,9 +1,9 @@
 /**
- * The reviewable-run store — Steps 16–18 of the Governed AI Layer, Slice 4b.
+ * The reviewable-run store, Steps 16 to 18 of the Governed AI Layer, Slice 4b.
  *
  * ── Why this exists separately from ledger.js ────────────────────────────────
  * `ledger.js` records EVERY model call and deliberately stores **no prompts and
- * no completions** — that record must not become a second, unredacted copy of
+ * no completions**, that record must not become a second, unredacted copy of
  * every contract the app touches.
  *
  * A review queue cannot work that way. A human being asked "is this extraction
@@ -11,7 +11,7 @@
  * `citations` on purpose, and the narrowness is the mitigation: only runs a
  * feature explicitly opens for review are stored this way, never the whole
  * firehose, and the INPUT is still only ever a hash plus a descriptor
- * (`summariseInput()` from untrusted.js) — never the third-party document text.
+ * (`summariseInput()` from untrusted.js), never the third-party document text.
  *
  * So the rule is: **outputs are reviewable, inputs are never stored.** A wrong
  * extraction is visible without the contract it came from being copied here.
@@ -24,7 +24,7 @@
  * That only works if the stand-in is *behaviourally* the same as the table in
  * every way a caller can observe: same field names, same status transitions,
  * same "verdict is write-once" rule, same ordering. Where it differs it must
- * differ loudly. It is a second implementation of one contract, not a fake —
+ * differ loudly. It is a second implementation of one contract, not a fake
  * a fake would let a bug hide until the day the schema arrives, which is exactly
  * the day nobody wants to be debugging this.
  *
@@ -36,19 +36,19 @@
  *
  * Step 3 differs from the ledger's "drop it". A dropped telemetry row costs a
  * gap in a chart. A dropped *reviewable* run means a human was told something was
- * queued for their sign-off and it silently was not — the queue would show empty
+ * queued for their sign-off and it silently was not, the queue would show empty
  * and read as "nothing to review" rather than "the store is broken". In-memory
  * keeps the current process honest, and `storeHealth()` lets the UI say so out
  * loud rather than showing a comforting empty list.
  *
  * ── Why a JSON map and not JSONL ─────────────────────────────────────────────
- * The ledger appends; nothing ever changes an entry. A review row is *mutated* —
+ * The ledger appends; nothing ever changes an entry. A review row is *mutated*
  * it opens as AWAITING_REVIEW and later carries a verdict. Append-only would need
  * a compaction pass to answer "what is this row now", and a compaction pass is a
  * thing to get wrong. A keyed map is the honest shape for mutable rows.
  *
- * @see src/lib/agent/autoChecks.js — Step 16, what gates AUTO_PASSED
- * @see src/lib/agentTrust.js       — Step 18, what decides whether review is needed
+ * @see src/lib/agent/autoChecks.js, Step 16, what gates AUTO_PASSED
+ * @see src/lib/agentTrust.js, Step 18, what decides whether review is needed
  * @see scripts/tests/reviewStore.test.mjs
  */
 import { promises as fs } from 'node:fs';
@@ -79,7 +79,7 @@ let warned    = false;
 let injected  = null;
 const memory  = new Map();
 
-/** Test seam — forget the memoised sink and drop in-memory rows. */
+/** Test seam, forget the memoised sink and drop in-memory rows. */
 export function _resetStoreForTests() {
   resolved = null;
   warned   = false;
@@ -87,7 +87,7 @@ export function _resetStoreForTests() {
   memory.clear();
 }
 
-/** Test seam — supply the Prisma client rather than importing it. */
+/** Test seam, supply the Prisma client rather than importing it. */
 export function _setPrismaForTests(client) { injected = client; }
 
 async function loadPrisma() {
@@ -122,16 +122,16 @@ export async function storeHealth() {
     sink,
     durable: sink === SINK.PRISMA,
     note: {
-      [SINK.PRISMA]: 'AgentRun table — durable.',
+      [SINK.PRISMA]: 'AgentRun table, durable.',
       [SINK.FILE]:   'Local stand-in (.agent-runs/reviews.json). Dev only; not shared between machines and not deployed.',
-      [SINK.MEMORY]: 'NO STORE — the AgentRun table is missing in production. Verdicts live only in this process and are lost on restart.',
+      [SINK.MEMORY]: 'NO STORE: the AgentRun table is missing in production. Verdicts live only in this process and are lost on restart.',
     }[sink],
   };
 }
 
 // ── File sink ────────────────────────────────────────────────────────────────
 // Read-modify-write on a single JSON file. Safe enough for the dev stand-in
-// (one process, one developer) and NOT safe for concurrent writers — which is
+// (one process, one developer) and NOT safe for concurrent writers, which is
 // among the reasons this is a stand-in and not the destination.
 
 async function readFileMap() {
@@ -153,7 +153,7 @@ async function writeFileMap(map) {
  * Build a row in the exact shape of the planned `AgentRun` model.
  *
  * JSON-as-string for `outputJson`, `citations` and `autoChecks` looks redundant
- * in a JSON file, and it is — but it is what the Prisma model stores (SQLite has
+ * in a JSON file, and it is, but it is what the Prisma model stores (SQLite has
  * no JSON column), and the stand-in exists to behave like the table. Storing a
  * real object here would let a caller write something Prisma later rejects.
  */
@@ -220,7 +220,7 @@ export function hydrate(row) {
  * Record a reviewable run.
  *
  * Never throws. A store failure must not take down the feature that produced the
- * output — but unlike the ledger, it does not fail *silently* either: it returns
+ * output, but unlike the ledger, it does not fail *silently* either: it returns
  * `{ stored: false }` so a caller that genuinely needs the run to be reviewable
  * (a Tier 0 task, where the output must not be written without a signature) can
  * see that it was not and refuse to write.
@@ -244,7 +244,7 @@ export async function recordReviewableRun(input) {
       if (!warned) {
         warned = true;
         console.warn(
-          '[agent/reviewStore] No AgentRun table in production — reviewable runs are ' +
+          '[agent/reviewStore] No AgentRun table in production, reviewable runs are ' +
           'being kept in memory only and will be LOST on restart. The review queue is ' +
           'not trustworthy until the AgentRun model is pushed.'
         );
@@ -259,7 +259,7 @@ export async function recordReviewableRun(input) {
 }
 
 /**
- * Attach a human verdict. **Write-once** — a verdict is a signature.
+ * Attach a human verdict. **Write-once**, a verdict is a signature.
  *
  * Re-verdicting would let a second reviewer quietly overwrite the first, and
  * since Step 18 computes trust from these rows, that is a path to editing an
@@ -270,7 +270,7 @@ export async function recordVerdict(id, { verdict, correction = null, note = nul
   if (!Object.values(VERDICT).includes(verdict)) {
     return { ok: false, error: `unknown verdict "${verdict}"` };
   }
-  // The whole point of the queue is the corrections it captures — "corrected"
+  // The whole point of the queue is the corrections it captures, "corrected"
   // with nothing recorded about WHAT changed is the one outcome that teaches
   // nothing, and it is also the easiest button to click by reflex.
   if (verdict === VERDICT.CORRECTED && !String(correction || '').trim()) {
@@ -296,7 +296,7 @@ export async function recordVerdict(id, { verdict, correction = null, note = nul
 
     if (sink === SINK.PRISMA) {
       // The `verdict: null` guard is the write-once rule expressed where it is
-      // actually enforceable — in the WHERE clause, so two reviewers racing
+      // actually enforceable, in the WHERE clause, so two reviewers racing
       // produce one winner and one explicit refusal rather than a last-write-wins
       // silent overwrite.
       const res = await prismaClient.agentRun.updateMany({
@@ -330,7 +330,7 @@ export async function getRun(id) {
 }
 
 /**
- * The queue. Newest first — a reviewer working a backlog wants the freshest
+ * The queue. Newest first, a reviewer working a backlog wants the freshest
  * extraction, because a stale one has usually been superseded by a re-parse.
  */
 export async function listRuns({ status = null, taskType = null, verdict = null, limit = 100 } = {}) {
@@ -345,7 +345,7 @@ export async function listRuns({ status = null, taskType = null, verdict = null,
 }
 
 /**
- * Verdict history for one task type at one prompt version — the input to Step 18.
+ * Verdict history for one task type at one prompt version, the input to Step 18.
  *
  * Oldest → newest, because "the last 5 runs" and "the last 50 verdicts" are both
  * questions about the END of this list, and a caller that has to remember to
@@ -355,7 +355,7 @@ export async function verdictHistory(taskType, promptVersion = null, limit = 50)
   const rows = (await allRows())
     .filter(r => r.taskType === taskType && r.verdict)
     // `null` promptVersion means "unversioned", which is a real value and must
-    // match only other unversioned rows — not "any version".
+    // match only other unversioned rows, not "any version".
     .filter(r => (r.promptVersion || null) === (promptVersion || null))
     .sort((a, b) => String(a.verdictAt).localeCompare(String(b.verdictAt)));
   return rows.slice(-limit).map(r => ({

@@ -3,7 +3,7 @@ import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { DEPARTMENT_KEYS, DEPARTMENTS_SELECT, departmentKeys, inDepartment } from '@/lib/departments';
 
-// GET /api/users — list users for @mention autocomplete / owner pickers.
+// GET /api/users, list users for @mention autocomplete / owner pickers.
 // Optional ?department=SALES_MARKETING keeps only that department (used by the
 // Sales Owner dropdowns). Each user comes back with a plain list of department
 // keys.

@@ -1,10 +1,10 @@
 /**
- * The AgentRun ledger — one row per model call, across the whole app.
+ * The AgentRun ledger, one row per model call, across the whole app.
  *
  * Slice 4a of the Governed AI Layer, and deliberately only 4a: **record every
  * call.** No trust tiers, no review queue, no blocking. Those are 4b, and they
  * are unbuildable until this exists, because there is currently no way to answer
- * "how often does the follow-up drafter run, and what does it cost" — which is
+ * "how often does the follow-up drafter run, and what does it cost", which is
  * the question that decides which calls need a reviewer at all.
  *
  * ── Why a ledger rather than logging ─────────────────────────────────────────
@@ -21,7 +21,7 @@
  * is resolved at runtime, in this order:
  *
  * (This used to say `amplify.yml` runs `prisma db push --accept-data-loss`. It
- * runs `prisma migrate deploy` — numbered migrations only. `db push` against
+ * runs `prisma migrate deploy`, numbered migrations only. `db push` against
  * production drops any table no migration has declared, ContactLegacy first.)
  *
  *   1. `prisma.agentRun` exists → write rows. (After the model is pushed.)
@@ -29,7 +29,7 @@
  *   3. production, no table     → console.warn once, then drop.
  *
  * Step 3 differs from the MCP auditor on purpose, and the difference is the
- * point. There, no sink means REFUSE — an unlogged read API is a liability, and
+ * point. There, no sink means REFUSE, an unlogged read API is a liability, and
  * failing closed costs nothing but an error message. Here, failing closed would
  * mean an unpushed migration silently disables contract analysis, RFI drafting
  * and schedule parsing across the app. The ledger is an observability record,
@@ -39,11 +39,11 @@
  * ── What is NOT stored ───────────────────────────────────────────────────────
  * Not prompts, not completions. Those carry client names, buy prices, contract
  * terms and internal notes, and a ledger that copies them is a second, unaudited
- * store of everything sensitive the app touches — with none of the redaction the
+ * store of everything sensitive the app touches, with none of the redaction the
  * rest of this layer exists to enforce. Sizes, token counts, latency, model and
  * outcome answer the operational questions without becoming that store.
  *
- * @see src/lib/agent/client.js — the wrapper that feeds this
+ * @see src/lib/agent/client.js, the wrapper that feeds this
  * @see scripts/tests/agentLedger.test.mjs
  */
 import { promises as fs } from 'node:fs';
@@ -91,7 +91,7 @@ export function _resetSinkForTests() {
 /**
  * Test seam: supply the Prisma client instead of importing it.
  *
- * Needed because the PRISMA branch is otherwise unreachable under `node --test` —
+ * Needed because the PRISMA branch is otherwise unreachable under `node --test`
  * `loadPrisma()` resolves `@/lib/db`, and the `@` alias is a bundler feature the
  * test runner cannot resolve, so it always returns null. Without this, the test
  * for "a failing table write must not fail the call" silently exercised the file
@@ -107,7 +107,7 @@ let injected = null;
  * Record one model call.
  *
  * Never throws, and never rejects. A ledger write failing must not take down the
- * feature it was observing — that would make adding observability a net
+ * feature it was observing, that would make adding observability a net
  * reliability loss, which is how observability gets removed.
  *
  * @param {object} run
@@ -143,7 +143,7 @@ export async function recordRun(run) {
     const prismaClient = await loadPrisma();
     let sink = resolveSink(prismaClient);
 
-    // The sink is memoised, but the client is resolved per call — and those two
+    // The sink is memoised, but the client is resolved per call, and those two
     // can disagree. A caller that reached the PRISMA branch once and then hits a
     // context where `@/lib/db` will not resolve (a script, a test) would otherwise
     // dereference null and lose the entry to the catch below, which reads in the
@@ -160,12 +160,12 @@ export async function recordRun(run) {
     } else if (!warned) {
       warned = true;
       console.warn(
-        '[agent/ledger] No AgentRun table and file logging is off in production — ' +
+        '[agent/ledger] No AgentRun table and file logging is off in production, ' +
         'model calls are running UNRECORDED. Push the AgentRun model to restore the ledger.'
       );
     }
   } catch (err) {
-    console.error('[agent/ledger] failed to record a run — the call itself still happened:', err?.message || err);
+    console.error('[agent/ledger] failed to record a run, the call itself still happened:', err?.message || err);
   }
 }
 
@@ -176,7 +176,7 @@ export async function recordRun(run) {
  * the JSONL names (task / durationMs / at / error), the table uses the review
  * layer's names (taskType / latencyMs / createdAt / errorMessage), and taskType
  * is REQUIRED. So every production write failed validation, got swallowed by the
- * catch above -- exactly as designed, the parse kept working -- and the ledger
+ * catch above, exactly as designed, the parse kept working, and the ledger
  * silently recorded nothing while the dev JSONL sink looked perfectly healthy.
  * Found 2026-08-25 in the dev log of a live intake parse.
  *
@@ -229,7 +229,7 @@ export async function readLedgerTail(limit = 100) {
 }
 
 /**
- * Roll the ledger up by task — the shape every operational question wants.
+ * Roll the ledger up by task, the shape every operational question wants.
  * Kept here rather than in a route so the nightly checks (Slice 5) and any
  * future dashboard read the same aggregation.
  */

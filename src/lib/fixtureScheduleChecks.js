@@ -97,11 +97,11 @@ export function checkWattageMissing(items) {
     status:   flagged.length === 0 ? 'PASS' : 'FLAG',
     summary:  flagged.length === 0
       ? 'All fixture types have wattage specified'
-      : `${flagged.length} fixture type${flagged.length !== 1 ? 's' : ''} missing wattage — LPD cannot be verified`,
+      : `${flagged.length} fixture type${flagged.length !== 1 ? 's' : ''} missing wattage, LPD cannot be verified`,
     items: flagged.map(i => ({
       type:    i.type || '(no type)',
       detail:  i.description || '',
-      message: 'No wattage — LPD and compliance checks blocked for this type',
+      message: 'No wattage: LPD and compliance checks blocked for this type',
     })),
   };
 }
@@ -132,7 +132,7 @@ export function checkDimmingAnnotation(items) {
     items: flagged.map(i => ({
       type:    i.type || '(no type)',
       detail:  i.description || '',
-      message: 'No dimming protocol specified — required for most interior spaces under ASHRAE §9.4.1 automatic shutoff',
+      message: 'No dimming protocol specified, required for most interior spaces under ASHRAE §9.4.1 automatic shutoff',
     })),
   };
 }
@@ -143,7 +143,7 @@ export function checkExitSignCompliance(items) {
     return {
       id: 'exit-sign-wattage', title: 'Exit sign compliance', code: 'IFC 2021 §1013',
       category: 'Life Safety', severity: 'VERIFY', status: 'SKIP',
-      summary: 'No exit sign fixture types identified in schedule — verify schedule is complete',
+      summary: 'No exit sign fixture types identified in schedule, verify schedule is complete',
       items: [],
     };
   }
@@ -169,9 +169,9 @@ export function checkExitSignCompliance(items) {
     status,
     summary:
       flagged.length > 0
-        ? `${flagged.length} exit sign type${flagged.length !== 1 ? 's' : ''} exceed 5W — IFC §1013 limit for internally illuminated signs`
+        ? `${flagged.length} exit sign type${flagged.length !== 1 ? 's' : ''} exceed 5W, the IFC §1013 limit for internally illuminated signs`
         : noWattage.length > 0
-          ? `${exitItems.length} exit sign type${exitItems.length !== 1 ? 's' : ''} identified — verify wattage ≤ 5W`
+          ? `${exitItems.length} exit sign type${exitItems.length !== 1 ? 's' : ''} identified, verify wattage ≤ 5W`
           : `${exitItems.length} exit sign type${exitItems.length !== 1 ? 's' : ''} comply with 5W limit`,
     items: [
       ...flagged.map(i => ({
@@ -180,7 +180,7 @@ export function checkExitSignCompliance(items) {
       })),
       ...noWattage.map(i => ({
         type: i.type || '(no type)', detail: i.description || '',
-        message: 'No wattage specified — cannot verify 5W compliance',
+        message: 'No wattage specified, cannot verify 5W compliance',
       })),
     ],
   };
@@ -193,7 +193,7 @@ export function checkEmergencyFixtures(items) {
     return {
       id: 'emergency-circuit', title: 'Emergency circuit fixtures', code: 'IFC 2021 §1008',
       category: 'Life Safety', severity: 'VERIFY', status: 'SKIP',
-      summary: 'No emergency/egress fixture types identified — verify egress path lighting is on schedule',
+      summary: 'No emergency/egress fixture types identified, verify egress path lighting is on schedule',
       items: [],
     };
   }
@@ -205,18 +205,18 @@ export function checkEmergencyFixtures(items) {
 
   return {
     id:       'emergency-circuit',
-    title:    'Emergency fixtures — 90-min backup',
+    title:    'Emergency fixtures: 90-min backup',
     code:     'IFC 2021 §1008',
     category: 'Life Safety',
     severity: 'VERIFY',
     status:   noEmDriver.length > 0 ? 'VERIFY' : 'PASS',
     summary:  noEmDriver.length > 0
-      ? `${noEmDriver.length} emergency fixture type${noEmDriver.length !== 1 ? 's' : ''} — verify EM driver or unit equipment specified for 90-min backup`
-      : `${emItems.length} emergency fixture type${emItems.length !== 1 ? 's' : ''} — backup power specified`,
+      ? `${noEmDriver.length} emergency fixture type${noEmDriver.length !== 1 ? 's' : ''}, verify EM driver or unit equipment specified for 90-min backup`
+      : `${emItems.length} emergency fixture type${emItems.length !== 1 ? 's' : ''}, backup power specified`,
     items: noEmDriver.map(i => ({
       type:    i.type || '(no type)',
       detail:  i.description || '',
-      message: 'EM driver or battery backup not explicitly noted — IFC §1008 requires 90-min emergency power',
+      message: 'EM driver or battery backup not explicitly noted. IFC §1008 requires 90-min emergency power',
     })),
   };
 }
@@ -232,14 +232,14 @@ export function checkWetDampLocation(items) {
       issues.push({
         type:    item.type || '(no type)',
         detail:  item.description || '',
-        message: `Location "${item.location}" suggests wet environment — verify fixture is UL listed for Wet Location (NEC §410.10(A))`,
+        message: `Location "${item.location}" suggests wet environment, verify fixture is UL listed for Wet Location (NEC §410.10(A))`,
         level:   'FLAG',
       });
     } else if (c.locationDamp && !c.isDampLocation && !c.isWetLocation) {
       issues.push({
         type:    item.type || '(no type)',
         detail:  item.description || '',
-        message: `Location "${item.location}" suggests damp environment — verify fixture is listed for Damp or Wet Location`,
+        message: `Location "${item.location}" suggests damp environment, verify fixture is listed for Damp or Wet Location`,
         level:   'VERIFY',
       });
     }
@@ -288,11 +288,11 @@ export function checkLPDCompliance(items, takeoffData, projectData) {
     if (!limit) continue;
     const sf = getAreaSf(slug, projectData);
     if (!sf || sf <= 0) {
-      results.push({ slug, label: slug, status: 'VERIFY', watts: data.watts, sf: null, lpd: null, limit, message: `Area SF not set — enter in Project Data to verify LPD ≤ ${limit} W/ft²` });
+      results.push({ slug, label: slug, status: 'VERIFY', watts: data.watts, sf: null, lpd: null, limit, message: `Area SF not set, enter in Project Data to verify LPD ≤ ${limit} W/ft²` });
       continue;
     }
     if (!data.complete) {
-      results.push({ slug, label: slug, status: 'VERIFY', watts: null, sf, lpd: null, limit, message: `Some fixture quantities unknown — upload a takeoff to verify LPD ≤ ${limit} W/ft²` });
+      results.push({ slug, label: slug, status: 'VERIFY', watts: null, sf, lpd: null, limit, message: `Some fixture quantities unknown, upload a takeoff to verify LPD ≤ ${limit} W/ft²` });
       continue;
     }
     const lpd = data.watts / sf;
@@ -314,7 +314,7 @@ export function checkLPDCompliance(items, takeoffData, projectData) {
     severity: 'FLAG',
     status,
     summary:  results.length === 0
-      ? 'No LPD-applicable spaces found — add fixture schedule with wattage and location tags'
+      ? 'No LPD-applicable spaces found, add fixture schedule with wattage and location tags'
       : flags.length > 0
         ? `${flags.length} space${flags.length !== 1 ? 's' : ''} exceed ASHRAE 90.1 LPD limits`
         : verifies.length > 0

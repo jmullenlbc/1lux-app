@@ -1,6 +1,6 @@
 /**
  * Shared helper: get project budget rates for CO footer calculations.
- * Reads from projectData — same source as the budget module.
+ * Reads from projectData, same source as the budget module.
  */
 import { prisma } from '@/lib/db';
 
@@ -15,7 +15,7 @@ export async function getProjectRates(projectId) {
 }
 
 /**
- * Get the effective line items for a group — resolves option groups so only
+ * Get the effective line items for a group, resolves option groups so only
  * the selected option per group counts, plus all standalone items.
  */
 export function resolveLineItems(lineItems) {

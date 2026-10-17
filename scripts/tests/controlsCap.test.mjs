@@ -4,7 +4,7 @@
  * The pricing sheet carries a per-building-type cap (garden $65K, wrap $110K,
  * high-rise $190K …) AND a sheet-wide "controls never exceed $180K". The engine
  * used to let the sheet-wide cap REPLACE the type cap whenever it was present,
- * which is every project created after the global cap was added — and, once the
+ * which is every project created after the global cap was added, and, once the
  * snapshot-fill fix landed, every older project too (Fulshear garden jumped
  * $65,000 → $77,900; Broadstone wrap $110,000 → $180,000).
  *
@@ -29,7 +29,7 @@ test('wrap: $110K type cap holds', () => {
   assert.equal(b.controls, 110_000);
 });
 
-test('high-rise: capped at $190K (Mike 2026-09-24 — the sheet-wide cap was $180K)', () => {
+test('high-rise: capped at $190K (Mike 2026-09-24, the sheet-wide cap was $180K)', () => {
   const b = calculateBudget(big('highRise', 800_000), SECTIONS); // 800,000 × 0.50 = 400,000 uncapped
   assert.equal(PRICING.controls.cap, 190_000);
   assert.equal(b.controls, Math.min(PRICING.controls.rates.highRise.cap, PRICING.controls.cap));

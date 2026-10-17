@@ -1,5 +1,5 @@
 /**
- * Which read wins — and the rule that the site read now ALWAYS runs.
+ * Which read wins, and the rule that the site read now ALWAYS runs.
  *
  * These pin the 2026-08-31 change: the vision site read used to be a fallback
  * for matrix-less sets, which meant every matrix-successful project arrived
@@ -13,7 +13,7 @@ import {
   needsSiteRead, combineIntakeResult, siteHasNumbers, matrixHasTypes, SITE_NUMBER_KEYS,
 } from '../../src/lib/intake/combineResult.js';
 
-test('the site read always runs — even when the matrix parsed cleanly', () => {
+test('the site read always runs, even when the matrix parsed cleanly', () => {
   assert.equal(needsSiteRead({ hasText: true, matrix: { unitTypes: [{ code: 'A1', qty: 10 }] } }), true);
   assert.equal(needsSiteRead({ hasText: true, matrix: null }), true);
   assert.equal(needsSiteRead({ hasText: false, matrix: null }), true);

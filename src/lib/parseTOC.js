@@ -6,7 +6,7 @@ import { loadPdfjs } from './pdfjsNode.js';
  * Parses a submittal PDF to extract fixture type codes + descriptions.
  * Handles two common formats:
  *   1. "TypeCode  Description" with whitespace/separator between columns
- *   2. "TypeCode\tManufacturer\tModel\tPage" — tab-separated rows produced
+ *   2. "TypeCode\tManufacturer\tModel\tPage", tab-separated rows produced
  *      by the Y-position-aware extractor (parseTOCFromBuffer)
  *
  * Returns an array of { typeCode, description } objects.
@@ -24,7 +24,7 @@ const TYPE_RE      = new RegExp(`^(${CODE_PAT})\\s*[-–—:|]\\s*(.+)`);
 // Pattern 2: TypeCode + 2+ spaces (column-aligned plain text)
 const TYPE_RE2     = new RegExp(`^(${CODE_PAT})\\s{2,}(.+)`);
 
-// Pattern 3: Tab-separated — TypeCode TAB Manufacturer (TAB more columns...)
+// Pattern 3: Tab-separated, TypeCode TAB Manufacturer (TAB more columns...)
 // Used when parseTOCFromBuffer reconstructs rows using Y-position grouping.
 // Description = manufacturer name (first column after type code).
 const TYPE_RE_TAB  = new RegExp(`^(${CODE_PAT})\t([^\t\\d][^\t]*)`);
@@ -60,14 +60,14 @@ export function parseTOCFromText(text) {
   const seen   = new Set();
 
   for (const line of lines) {
-    // Stop when we hit the Notes Summary or raw datasheet content — past the TOC
+    // Stop when we hit the Notes Summary or raw datasheet content, past the TOC
     if (/^notes?\s+summary$/i.test(line)) break;
 
     if (isNoise(line)) continue;
 
     let code = null, desc = null;
 
-    // Tab-separated first (strongest signal — from Y-position extraction)
+    // Tab-separated first (strongest signal, from Y-position extraction)
     let m = line.match(TYPE_RE_TAB);
     if (m) {
       code = m[1];
@@ -112,7 +112,7 @@ export function parseTOCFromText(text) {
 
 /**
  * Extract text from PDF buffer using Y-position-aware grouping so that
- * table rows come out as tab-separated strings on individual lines —
+ * table rows come out as tab-separated strings on individual lines
  * rather than the naive join(' ') which smashes everything onto one line.
  *
  * @param {Buffer} buffer

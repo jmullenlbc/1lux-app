@@ -1,4 +1,4 @@
-// Bot Knowledge — the pure pieces.
+// Bot Knowledge, the pure pieces.
 //
 // Only zip.js and text.js are tested here, and that is on purpose: they are the
 // two files with no Prisma, no pdfjs and no `@/` alias, so the test runner can
@@ -254,7 +254,7 @@ test('excerpt: empty body is an empty string', () => {
 // Mike, 2026-09-08: "We need every character or everything we upload to do that."
 // These pin that promise. The bug they exist to prevent is the one that has now
 // happened twice on this feature: the library quietly shrinking on its way to
-// the bot — first to the five oldest entries, then to five short excerpts.
+// the bot, first to the five oldest entries, then to five short excerpts.
 
 test('packing: everything fits, so everything goes, whole and unmarked', () => {
   const items = [
@@ -272,14 +272,14 @@ test('packing: everything fits, so everything goes, whole and unmarked', () => {
   assert.ok(out.packed.every(p => p.truncated === false));
 });
 
-test('packing: a long document is NOT excerpted — every character goes', () => {
+test('packing: a long document is NOT excerpted, every character goes', () => {
   const body = `${'word '.repeat(40_000)}THE LAST WORD`;   // ~200k chars
   const out  = packKnowledge([{ id: 'big', text: body }]);
 
   assert.equal(out.packed.length, 1);
   assert.equal(out.complete, true);
   assert.ok(out.packed[0].text.endsWith('THE LAST WORD'),
-    'the end of the document must survive — an excerpt would have stopped long before here');
+    'the end of the document must survive, an excerpt would have stopped long before here');
   assert.ok(out.usedChars > 150_000, 'the whole thing counted against the budget');
 });
 
@@ -336,7 +336,7 @@ test('packing: a document that read as nothing is skipped, not counted as droppe
 test('packing: the budget leaves real room under a 200k-token window', () => {
   // Roughly four characters to the token. The follow-up drafter runs on a model
   // with a 200,000-token window, and the knowledge block is not the only thing
-  // in the prompt — if this ever creeps up to the window, the API rejects the
+  // in the prompt, if this ever creeps up to the window, the API rejects the
   // call and the bot writes nothing at all.
   assert.ok(KNOWLEDGE_CHAR_BUDGET / 4 < 200_000 * 0.6,
     'the knowledge block must stay well under the context window');

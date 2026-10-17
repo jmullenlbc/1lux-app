@@ -1,5 +1,5 @@
 // Unit tests for the redaction boundary (src/lib/redact.js).
-// Pure — no server, no DB — so this runs in the static `npm run verify` gate.
+// Pure, no server, no DB, so this runs in the static `npm run verify` gate.
 //
 // The two bugs that motivated the module are pinned as regression tests below:
 // the CO PDF route that never checked its auth error, and the CO share route
@@ -27,7 +27,7 @@ const coPayload = () => ({
   rates: { salesTaxPct: 0.0815, freightPct: 0.06, warehousingPct: 0.03, marginPct: 0.23 },
 });
 
-test('ILC audience is a pass-through — internal screens keep every field', () => {
+test('ILC audience is a pass-through: internal screens keep every field', () => {
   const input = coPayload();
   const out   = redact(input, AUDIENCE.ILC);
   assert.equal(out, input, 'ILC should get the identical object back, not a copy');
@@ -46,7 +46,7 @@ test('PUBLIC audience strips buy price at every nesting depth', () => {
   assert.equal(out.co.project.name, 'The Approach');
 });
 
-test('REGRESSION: marginPct is stripped — publishing it publishes the buy price', () => {
+test('REGRESSION: marginPct is stripped. Publishing it publishes the buy price', () => {
   // cn = dn / (1 - marginPct)  ⟹  dn = cn × (1 - marginPct).
   // The old share route dropped originalDN and then handed over marginPct,
   // so 100 × (1 - 0.23) = 77 recovered the DN exactly. Verify the arithmetic
@@ -71,7 +71,7 @@ test('CLIENT audience is stripped the same as PUBLIC', () => {
   );
 });
 
-test('redaction never mutates its input — footers are computed before transport', () => {
+test('redaction never mutates its input: footers are computed before transport', () => {
   const input = coPayload();
   redact(input, AUDIENCE.PUBLIC);
   assert.equal(input.rates.marginPct, 0.23, 'input was mutated');
@@ -84,7 +84,7 @@ test('every ILC-only field name is actually stripped', () => {
   assert.deepStrictEqual(findIlcOnly(out), []);
 });
 
-test('audience is required — a forgotten argument throws instead of picking a policy', () => {
+test('audience is required: a forgotten argument throws instead of picking a policy', () => {
   assert.throws(() => redact({}, undefined), /audience must be one of/);
   assert.throws(() => redact({}, 'internal'), /audience must be one of/);
   assert.throws(() => redact({}, true), /audience must be one of/);
@@ -135,7 +135,7 @@ test('audienceForRole agrees with isClientViewer() in src/lib/auth.js', async ()
   const { readFileSync } = await import('node:fs');
   const authSrc = readFileSync(new URL('../../src/lib/auth.js', import.meta.url), 'utf8');
   const match   = authSrc.match(/export function isClientViewer\(role\)\s*\{\s*return role === '([A-Z_]+)'/);
-  assert.ok(match, 'could not locate isClientViewer() in src/lib/auth.js — update this test');
+  assert.ok(match, 'could not locate isClientViewer() in src/lib/auth.js, update this test');
   assert.equal(audienceForRole(match[1]), AUDIENCE.CLIENT,
     `auth.js treats '${match[1]}' as a client viewer but redact.js does not`);
 });

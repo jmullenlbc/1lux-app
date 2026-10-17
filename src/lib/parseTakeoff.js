@@ -3,7 +3,7 @@ const require = createRequire(import.meta.url);
 
 // Building-data takeoff categories (drawing takeoffs Phase 1, 2026-08-12).
 // The Takeoffs tab renders whatever keys exist in a file's takeoffData, so
-// no UI change is needed to hold these — this constant exists so the Phase 2
+// no UI change is needed to hold these, this constant exists so the Phase 2
 // drawing parser (and anything comparing sets) writes the SAME key names
 // every time. The values appear verbatim in the Fixture Count Comparison
 // table's Type column, so they're human-readable labels, not code keys.
@@ -28,7 +28,7 @@ export function parseTakeoffBuffer(buffer) {
   const ws = wb.Sheets[wb.SheetNames[wb.SheetNames.length - 1]];
   const data = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
 
-  // Format 3: simple two-column summary sheet [fixtureType, qty] — no Count/Total headers.
+  // Format 3: simple two-column summary sheet [fixtureType, qty], no Count/Total headers.
   // Detected when the first non-empty row has a string in col 0 and a number in col 1.
   const firstDataRow = data.find(row => String(row[0]).trim() !== '');
   const looksLikeSummary = firstDataRow

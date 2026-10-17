@@ -11,39 +11,39 @@ import { runParkedJob, readJobRequest, jobError } from '@/lib/parkedJob';
 
 const anthropic = new Anthropic({ apiKey: getAnthropicKey() });
 
-// `ctx` carries the project and user this run was for — the module-level client
+// `ctx` carries the project and user this run was for, the module-level client
 // cannot know either, and a ledger entry without them cannot answer "what did we
 // spend on this project".
 async function extractTOCWithAI(text, ctx = {}) {
   const prompt = `You are reading a lighting fixture submittal package. The Table of Contents (TOC) lists every fixture type that was submitted.
 
-Return ONLY a valid JSON array — no markdown, no explanation:
+Return ONLY a valid JSON array, no markdown, no explanation:
 [{"typeCode":"SP1","description":"HOLOPHANE"}, ...]
 
-SUBMITTAL TOC FORMATS — the text may appear in any of these formats:
+SUBMITTAL TOC FORMATS: the text may appear in any of these formats:
 
 Format A (tab/column-aligned rows):
   SP1   HOLOPHANE   WFCL3 P40 30K MVOLT...   2
   D1    NORA LIGHTING   NIO-4RNDC30X...   63
 
-Format B (flat/space-joined — all tokens on one or a few lines):
+Format B (flat/space-joined, all tokens on one or a few lines):
   ... SP1 HOLOPHANE WFCL3 P40 30K MVOLT FC5 BK SK PR7 AO PCLL L30 2 SP1 HOLOPHANE NYA 14 F5J 17S C03 BK DBB 10 A3 PRUDENTIAL BPRO2-LIN...
 
 In Format B, find the repeating pattern: [TypeCode] [MANUFACTURER NAME] [model-number] [page-number]
 
 RULES:
 - Type codes: short alphanumeric identifiers like SP1, D1, EL1-P, V2-L, W10, A3, PS1, EB1, EW4, etc.
-  They are 1–6 chars: letters + optional digits + optional dash-suffix (e.g. -P, -L, -P2)
+  They are 1 to 6 chars: letters + optional digits + optional dash-suffix (e.g. -P, -L, -P2)
 - Use the MANUFACTURER NAME as the description (e.g. "HOLOPHANE", "NORA LIGHTING", "ELUMA")
   If no manufacturer is clear, use the fixture category (e.g. "Pendant", "Sconce")
 - Do NOT use: spec section numbers (16500, 265100), page numbers, or dates as type codes
 - Do NOT use: "Type", "Manufacturer", "Model", "Page", "RESUBMIT", "APPROVED" as type codes
 - If a type code appears more than once (e.g. in RESUBMIT and APPROVED sections), include it only ONCE
-- Include ALL fixture types — do NOT truncate
+- Include ALL fixture types. Do NOT truncate
 - Return [] only if no fixture types exist at all`;
 
   // The submittal package is the contractor's document. Fenced rather than
-  // appended after a "Text:" label — see src/lib/agent/untrusted.js.
+  // appended after a "Text:" label, see src/lib/agent/untrusted.js.
   const sealed = buildUntrustedPrompt({
     instructions: prompt,
     documents:    [{ text, descriptor: 'submittal TOC', maxChars: 10000 }],
@@ -76,7 +76,7 @@ RULES:
 }
 
 // POST /api/projects/[id]/tracker/import-toc
-// Body: { fileId } — ID of a ProjectFile in the submittals tab
+// Body: { fileId }, ID of a ProjectFile in the submittals tab
 // Parses its TOC and bulk-creates SubmittalItems on the tracker.
 // Park-and-poll (src/lib/parkedJob.js). The regex read is instant; the model
 // fallback on an odd TOC is not, and one request holding both can run past
@@ -193,7 +193,7 @@ async function importToc({ fileId }, { projectId, user }) {
   };
 }
 
-// GET /api/projects/[id]/tracker/import-toc?fileId=xxx — preview without creating
+// GET /api/projects/[id]/tracker/import-toc?fileId=xxx, preview without creating
 export async function GET(request, { params }) {
   const { user, error } = await requireAuth();
   if (error) return error;

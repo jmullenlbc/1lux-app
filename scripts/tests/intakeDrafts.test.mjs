@@ -1,4 +1,4 @@
-// Unfinished public budgets (migration 0087) — the pure pack/unpack layer.
+// Unfinished public budgets (migration 0087), the pure pack/unpack layer.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { packDraft, unpackDraft, diffFields, draftStage, reachedLabel, MAX_DRAWINGS_CHARS } from '../../src/lib/intake/drafts.js';
@@ -80,7 +80,7 @@ test('unpackDraft never carries a price and survives bad JSON', () => {
   assert.equal('budget' in d, false);
 });
 
-test('diffFields sets what arrived and blanks what stopped arriving — never deletes', () => {
+test('diffFields sets what arrived and blanks what stopped arriving, never deletes', () => {
   const existing = [
     { kind: 'figure', key: 'figureTotalUnits', value: '100' },
     { kind: 'answer', key: 'undercabinet', value: '120v' },

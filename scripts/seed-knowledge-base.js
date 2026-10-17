@@ -9,11 +9,11 @@ const STANDARDS = [
     tags: JSON.stringify(['disk', 'fixture-spec', 'units']) },
 
   { category: 'UNIT', severity: 'REQUIRED',    title: 'Spacing With Under-Cabinet Lighting',
-    content: 'With under-cabinet lighting present: space disk fixtures 6–7\' apart.',
+    content: 'With under-cabinet lighting present: space disk fixtures 6 to 7\' apart.',
     tags: JSON.stringify(['spacing', 'under-cabinet']) },
 
   { category: 'UNIT', severity: 'REQUIRED',    title: 'Spacing Without Under-Cabinet Lighting',
-    content: 'Without under-cabinet lighting: space disk fixtures 4–5\' apart.',
+    content: 'Without under-cabinet lighting: space disk fixtures 4 to 5\' apart.',
     tags: JSON.stringify(['spacing', 'under-cabinet']) },
 
   { category: 'UNIT', severity: 'NOTE',        title: 'Washer/Dryer Calc Procedure',
@@ -38,7 +38,7 @@ const STANDARDS = [
     tags: JSON.stringify(['intersection', 'centering', 'spacing']) },
 
   { category: 'CORRIDOR', severity: 'REQUIRED', title: 'Ceiling Height Drives Spacing',
-    content: 'Use ILC standard photometrics to determine fixture diameter and spacing based on the corridor ceiling height. Do not use a fixed rule — run the calc for each ceiling height variant.',
+    content: 'Use ILC standard photometrics to determine fixture diameter and spacing based on the corridor ceiling height. Do not use a fixed rule. Run the calc for each ceiling height variant.',
     tags: JSON.stringify(['photometrics', 'ceiling-height', 'spacing']) },
 
   // ── BOH ───────────────────────────────────────────────────────────────────
@@ -51,7 +51,7 @@ const STANDARDS = [
     tags: JSON.stringify(['spacing', 'strip', 'standard']) },
 
   { category: 'BOH', severity: 'REQUIRED', title: 'Narrow Long Room Layout',
-    content: 'For narrow but long rooms: locate end fixtures 5\' from the walls and space remaining fixtures to achieve 8–12\' spacing throughout.',
+    content: 'For narrow but long rooms: locate end fixtures 5\' from the walls and space remaining fixtures to achieve 8 to 12\' spacing throughout.',
     tags: JSON.stringify(['narrow', 'long-room', 'spacing']) },
 
   { category: 'BOH', severity: 'REQUIRED', title: 'Sensor Control by Room Type',
@@ -60,7 +60,7 @@ const STANDARDS = [
 
   // ── GARAGE ────────────────────────────────────────────────────────────────
   { category: 'GARAGE', severity: 'REQUIRED', title: 'Standard Spacing Rule',
-    content: 'ILC standard garage fixture: ~25\'–30\' on-center at 8\'–9\' mounting height. All garages must be calculated — use this as the starting layout, not a final answer.',
+    content: 'ILC standard garage fixture: ~25\' to 30\' on-center at 8\' to 9\' mounting height. All garages must be calculated. Use this as the starting layout, not a final answer.',
     tags: JSON.stringify(['spacing', 'mounting-height', 'standard']) },
 
   { category: 'GARAGE', severity: 'REQUIRED', title: 'Wall Clearance',
@@ -72,7 +72,7 @@ const STANDARDS = [
     tags: JSON.stringify(['open-garage', 'glare', 'fixture-spec', 'acuity']) },
 
   { category: 'GARAGE', severity: 'RECOMMENDED', title: 'High Ceiling Spacing Adjustment',
-    content: 'Higher mounting heights allow wider fixture spacing — up to 33\'×35\' or more. Always confirm with photometric calculations.',
+    content: 'Higher mounting heights allow wider fixture spacing, up to 33\'×35\' or more. Always confirm with photometric calculations.',
     tags: JSON.stringify(['ceiling-height', 'spacing', 'photometrics']) },
 
   { category: 'GARAGE', severity: 'REQUIRED', title: 'ACT / Grid Ceiling Garages',
@@ -110,7 +110,7 @@ const STANDARDS = [
     tags: JSON.stringify(['photometrics', 'reflectance', 'calculation']) },
 
   { category: 'EXTERIOR', severity: 'RECOMMENDED', title: 'Standard Area Lighting',
-    content: 'Standard area lighting: Acuity RSX / DSX. Mounting height: 12\' for pedestrian scale; 20–24\' for general area lighting. Verify against city requirements.',
+    content: 'Standard area lighting: Acuity RSX / DSX. Mounting height: 12\' for pedestrian scale; 20 to 24\' for general area lighting. Verify against city requirements.',
     tags: JSON.stringify(['area-lighting', 'acuity', 'mounting-height', 'fixture-spec']) },
 
   { category: 'EXTERIOR', severity: 'RECOMMENDED', title: 'Standard Wall Pack',
@@ -158,7 +158,7 @@ async function main() {
   const admin = await prisma.user.findFirst({
     where: { role: { in: ['SUPER_ADMIN', 'ILC_ADMIN'] } },
   });
-  if (!admin) { console.error('No admin user found — run the main seed first.'); process.exit(1); }
+  if (!admin) { console.error('No admin user found. Run the main seed first.'); process.exit(1); }
 
   // Clear existing standards (clean slate)
   await prisma.designStandard.deleteMany({});
@@ -182,7 +182,7 @@ async function main() {
     console.log(`  ✓ [${std.category}] ${std.title}`);
   }
 
-  console.log(`\nDone — seeded ${created} standards.`);
+  console.log(`\nDone, seeded ${created} standards.`);
 }
 
 main().catch(e => { console.error(e); process.exit(1); }).finally(() => prisma.$disconnect());

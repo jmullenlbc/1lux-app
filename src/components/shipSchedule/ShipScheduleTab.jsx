@@ -422,7 +422,7 @@ export default function ShipScheduleTab({ projectId }) {
     URL.revokeObjectURL(url);
   }
 
-  // Load all line items — now includes deliveryEvents, releases, and derived qty fields
+  // Load all line items, now includes deliveryEvents, releases, and derived qty fields
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -635,7 +635,7 @@ export default function ShipScheduleTab({ projectId }) {
         })}
       </tr>
 
-      {/* Expander row — deliveries + releases */}
+      {/* Expander row, deliveries + releases */}
       {isExpanded && (
         <tr key={`${item.id}-expand`} className="border-b border-slate-100 bg-slate-50/60">
           <td colSpan={colCount} className="px-4 py-3">

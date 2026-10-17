@@ -2,11 +2,11 @@ import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
-// POST /api/alerts/mute — "stop sending me this kind" / "start again".
+// POST /api/alerts/mute, "stop sending me this kind" / "start again".
 // Body: { alertType, muted: boolean }
 //
 // Per person, per kind. Nothing is deleted from anyone else's bell, and nothing
-// stops being recorded — only this one person stops being told.
+// stops being recorded, only this one person stops being told.
 export async function POST(request) {
   const { user, error } = await requireAuth(request);
   if (error) return error;
@@ -23,12 +23,12 @@ export async function POST(request) {
   try {
     await prisma.alertMute.create({ data: { userId: user.id, alertType } });
   } catch (err) {
-    if (err?.code !== 'P2002') throw err;   // already off — nothing to do
+    if (err?.code !== 'P2002') throw err;   // already off, nothing to do
   }
   return NextResponse.json({ ok: true, alertType, muted: true });
 }
 
-// GET /api/alerts/mute — the kinds this person has turned off.
+// GET /api/alerts/mute, the kinds this person has turned off.
 export async function GET(request) {
   const { user, error } = await requireAuth(request);
   if (error) return error;

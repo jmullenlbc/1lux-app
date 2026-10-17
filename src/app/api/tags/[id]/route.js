@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
-// PATCH /api/tags/[id] — rename. One row, so the new name shows on every
+// PATCH /api/tags/[id], rename. One row, so the new name shows on every
 // client already carrying the tag.
 export async function PATCH(request, { params }) {
   const { error } = await requireAuth();
@@ -23,7 +23,7 @@ export async function PATCH(request, { params }) {
   return NextResponse.json({ tag: updated });
 }
 
-// DELETE /api/tags/[id] — removes the tag and, through the cascade on
+// DELETE /api/tags/[id], removes the tag and, through the cascade on
 // ClientTagLink, un-tags every client that had it.
 export async function DELETE(request, { params }) {
   const { error } = await requireAuth();

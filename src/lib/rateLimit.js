@@ -10,7 +10,7 @@
  * State lives in module memory. On Amplify's SSR Lambda that means the counter
  * is PER WARM INSTANCE, not global: N concurrent instances allow roughly N×
  * the limit, and a cold start resets the window. This is a speed bump that
- * stops casual abuse and accidental double-submits — it is NOT a defense
+ * stops casual abuse and accidental double-submits, it is NOT a defense
  * against a determined attacker.
  *
  * The durable fix is a shared store (a DB table keyed by IP+window, or a

@@ -1,10 +1,10 @@
 // Who can open which job.
 //
-// ILC staff see every job (Mike, 2026-07 — "open data for now"). A Client
+// ILC staff see every job (Mike, 2026-07, "open data for now"). A Client
 // Viewer is an outside contractor and sees only what they were handed.
 //
 // Before this file, "what they were handed" meant nothing but jobs they had
-// created themselves — and a Client Viewer cannot create a job, so the answer
+// created themselves, and a Client Viewer cannot create a job, so the answer
 // was always an empty list. `ProjectAccess` has sat in the database since the
 // first migration with no code anywhere near it. This file is that code: an
 // admin ticks the jobs on the Users screen and the rows land in ProjectAccess.
@@ -22,7 +22,7 @@ function isViewer(user) {
 
 /**
  * The `where` fragment for any "list the jobs this person may see" query.
- * Returns `{}` for staff — deliberately, and never widen that to a viewer.
+ * Returns `{}` for staff, deliberately, and never widen that to a viewer.
  */
 export function projectScopeWhere(user) {
   if (!isViewer(user)) return {};
@@ -64,7 +64,7 @@ export async function grantedProjectIds(db, userId) {
 
 /**
  * Replace one person's whole list of handed-out jobs. Returns what changed so
- * the caller can write an access-history line — a silent grant is the kind of
+ * the caller can write an access-history line, a silent grant is the kind of
  * thing nobody notices until it matters.
  */
 export async function setProjectAccess(db, userId, projectIds) {

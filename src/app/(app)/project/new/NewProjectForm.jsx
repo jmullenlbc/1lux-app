@@ -15,7 +15,7 @@ const BUDGET_TYPES = [
 ];
 
 function NewClientModal({ onClose, onCreated }) {
-  // Client Type is a multi-select — one company can be both a developer and a
+  // Client Type is a multi-select, one company can be both a developer and a
   // self-performing GC. The API derives the legacy single `type` from the first
   // tick, so nothing downstream has to change.
   const [form,    setForm]    = useState({ name: '', orgTypes: [], locationType: 'standalone', notes: '' });
@@ -322,7 +322,7 @@ export default function NewProjectForm({ existingProjects = [], clients: initial
               )}
             </div>
 
-            {/* Project Type — what kind of community this is. Building Type
+            {/* Project Type, what kind of community this is. Building Type
                 below is the construction shape (garden, podium, high-rise…). */}
             <Select label="Project Type" value={form.projectType} onChange={set('projectType')}>
               <option value="">Select project type...</option>

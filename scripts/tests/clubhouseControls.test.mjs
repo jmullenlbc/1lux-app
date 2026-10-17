@@ -1,7 +1,7 @@
 /**
  * Clubhouse-only controls for town houses / single family (Mike 2026-09-15).
  *
- * Those two types carry a $0/SF controls rate — the homes have no common-area
+ * Those two types carry a $0/SF controls rate, the homes have no common-area
  * controls. The clubhouse does: "Charge $5/SF and make that editable in master
  * pricing." So on a $0-rate type with clubhouse SF, controls = clubhouse SF ×
  * PRICING.controls.clubhousePerSf. No clubhouse = $0, as before. The caps, the

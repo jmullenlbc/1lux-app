@@ -4,7 +4,7 @@ import { prisma } from '@/lib/db';
 import { INCLUDE_ARCHIVED } from '@/lib/archive';
 
 // PATCH /api/projects/[id]/fixture-schedule/versions/[versionId]
-// Rename a published fixture schedule version (submissionTag only — state/version are immutable)
+// Rename a published fixture schedule version (submissionTag only, state/version are immutable)
 export async function PATCH(req, { params }) {
   const { user, error } = await requireAuth();
   if (error) return error;
@@ -34,7 +34,7 @@ export async function DELETE(req, { params }) {
   if (!schedule || schedule.projectId !== params.id)
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   if (schedule.state === 'DRAFT')
-    return NextResponse.json({ error: 'Cannot delete the draft — clear it instead' }, { status: 400 });
+    return NextResponse.json({ error: 'Cannot delete the draft, clear it instead' }, { status: 400 });
 
   // Delete cascade handles FixtureScheduleItems
   // Deleting a schedule version took every budget version built from it with

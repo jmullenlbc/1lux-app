@@ -18,7 +18,7 @@ import { stoppedAtTheSamePlace, describeDrop, materialize } from '../../src/lib/
 
 const MB = 1024 * 1024;
 
-test('one attempt proves nothing — never call it a wall on a single sample', () => {
+test('one attempt proves nothing, never call it a wall on a single sample', () => {
   assert.equal(stoppedAtTheSamePlace([1.2 * MB]), false);
   assert.equal(stoppedAtTheSamePlace([]), false);
 });
@@ -32,7 +32,7 @@ test('stopping somewhere different each time is a weak signal', () => {
   assert.equal(stoppedAtTheSamePlace([0.4 * MB, 3.1 * MB, 1.8 * MB]), false);
 });
 
-test('failing before a single byte moved is not a wall — it never got started', () => {
+test('failing before a single byte moved is not a wall: it never got started', () => {
   // Nothing sent at all is a reachability problem (the bucket unreachable on an
   // IPv6-only carrier looked exactly like this), and 0 vs 0 would otherwise
   // divide by zero and read as a perfect match.
@@ -93,7 +93,7 @@ test('a readable file comes back as its exact bytes, from memory', async () => {
 });
 
 test('a file past the memory ceiling is passed through untouched', async () => {
-  // Never pull 400 MB into a phone's memory — that trades a broken upload for
+  // Never pull 400 MB into a phone's memory, that trades a broken upload for
   // a crashed tab. Past the ceiling the stream-from-disk path stays.
   const big = { size: 300 * 1024 * 1024, arrayBuffer: () => { throw new Error('must not be called'); } };
   assert.equal(await materialize(big), big);

@@ -4,7 +4,7 @@ import { prisma } from '@/lib/db';
 import { clientTypeKeyFromLabel } from '@/lib/utils';
 import { deriveClientTypeKey } from '@/lib/crmClient';
 
-// The project fields the deal counters need. Kept tiny on purpose — the clients
+// The project fields the deal counters need. Kept tiny on purpose, the clients
 // list loads every client, so we only pull the four columns the counting rule
 // reads (see dealCounts in src/lib/crmClient.js).
 const DEAL_COUNT_PROJECT_SELECT = {
@@ -13,7 +13,7 @@ const DEAL_COUNT_PROJECT_SELECT = {
   designStatus: true, designStatusReason: true,
 };
 
-// GET /api/clients — every ILC staff account sees every client.
+// GET /api/clients, every ILC staff account sees every client.
 export async function GET() {
   const { user, error } = await requireAuth();
   if (error) return error;
@@ -34,7 +34,7 @@ export async function GET() {
   return NextResponse.json({ clients });
 }
 
-// POST /api/clients — create a client
+// POST /api/clients, create a client
 export async function POST(request) {
   const { user, error } = await requireAuth();
   if (error) return error;

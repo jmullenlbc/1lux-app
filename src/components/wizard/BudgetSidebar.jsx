@@ -226,7 +226,7 @@ export default function BudgetSidebar({ budget, projectData, currentStep, range 
             <PlainRow label="TOTAL W/ CONTROLS" value={totalWithControls || 0} bold />
 
             <p className="text-xs text-slate-300 mt-2 leading-snug">
-              Hover any line for breakdown. Conceptual estimate only.
+              Hover any line for breakdown. Conceptual budget only.
             </p>
           </>
         )}

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireAuth, requirePermission, isClientViewer } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
-// GET — get existing share link
+// GET, get existing share link
 export async function GET(req, { params }) {
   const { user, error } = await requireAuth();
   if (error) return error;
@@ -15,7 +15,7 @@ export async function GET(req, { params }) {
   return NextResponse.json({ share: share || null });
 }
 
-// POST — create or regenerate share link
+// POST, create or regenerate share link
 export async function POST(req, { params }) {
   // Change orders are job money: Construction, Operations, Finance and admins.
   const { user, error } = await requirePermission(req, 'editJobMoney');
@@ -37,7 +37,7 @@ export async function POST(req, { params }) {
   return NextResponse.json({ share });
 }
 
-// DELETE — revoke share link
+// DELETE, revoke share link
 export async function DELETE(req, { params }) {
   const { error } = await requirePermission(req, 'editJobMoney');
   if (error) return error;

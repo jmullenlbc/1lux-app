@@ -1,6 +1,6 @@
 // Where Bot Knowledge files live.
 //
-// Same shape as projectFileStorage.js — S3 in prod, the local uploads folder in
+// Same shape as projectFileStorage.js, S3 in prod, the local uploads folder in
 // dev so nobody needs AWS credentials to work on this. The prefix is its own
 // (`bot-knowledge/`) so the bucket's lifecycle rule, which sweeps the transient
 // `uploads/` prefix, never touches these. They are meant to be kept.
@@ -74,7 +74,7 @@ export async function getKnowledgeFileBuffer(storedPath) {
   } catch { return null; }
 }
 
-// Best effort — the DB row is deleted either way. An orphaned blob is harmless;
+// Best effort, the DB row is deleted either way. An orphaned blob is harmless;
 // a row pointing at a file nobody can find is not.
 export async function deleteKnowledgeFile(storedPath) {
   if (!storedPath) return true;

@@ -1,16 +1,16 @@
 /**
- * The object-aware redactor — an allowlist, not a denylist.
+ * The object-aware redactor, an allowlist, not a denylist.
  *
  * This is the counterpart to src/lib/redact.js, and the difference between them
  * is the whole design, so it is worth being explicit:
  *
  *   src/lib/redact.js       DENYLIST, by field name, over arbitrary nested JSON.
  *                           Used on transport payloads whose shape we do not
- *                           know statically — a share response, a PDF view
+ *                           know statically, a share response, a PDF view
  *                           model. Fails OPEN for a field nobody has named yet.
  *
  *   this file               ALLOWLIST, by declared property, on a known object.
- *                           Used wherever we know which object we are holding —
+ *                           Used wherever we know which object we are holding
  *                           every MCP read. Fails CLOSED: a column added to
  *                           schema.prisma tomorrow is absent from a non-ILC
  *                           response until someone declares it.
@@ -32,13 +32,13 @@ import { canSee, isNeverReadable, DEFAULT_SENSITIVITY } from './sensitivity.js';
 /**
  * Can this audience reach this object at all?
  *
- * ILC callers may read any allowlisted model, registered or not — they are
+ * ILC callers may read any allowlisted model, registered or not, they are
  * cleared for everything, and requiring an ontology entry for all 116 models
  * before an admin can query one would make the server useless on day one.
  *
  * Non-ILC callers may only reach objects that have an explicit registry entry,
  * because only those have per-property sensitivity to enforce. No declaration,
- * no access — that is what makes "fail closed" true rather than aspirational.
+ * no access, that is what makes "fail closed" true rather than aspirational.
  */
 export function canReadObject(objectKeyOrModel, audience) {
   if (audience === 'ilc') return true;
@@ -62,7 +62,7 @@ export function redactObject(objectKeyOrModel, record, audience) {
 
   if (!obj) {
     // ILC gets the row with only the never-readable fields removed. Anyone else
-    // gets an error rather than a guess — silently returning {} would look like
+    // gets an error rather than a guess, silently returning {} would look like
     // "no data" and send someone debugging in the wrong direction.
     if (audience === 'ilc') return stripNeverReadable(record);
     throw new Error(
@@ -80,7 +80,7 @@ export function redactObject(objectKeyOrModel, record, audience) {
     out[prop] = record[prop];
   }
 
-  // Included relations. Each is redacted as ITS own object — a client reading a
+  // Included relations. Each is redacted as ITS own object, a client reading a
   // change order with `include: { optionGroups: { include: { lineItems: true } } }`
   // must not pick up originalDN two levels down.
   for (const [linkName, link] of Object.entries(obj.links || {})) {
@@ -95,7 +95,7 @@ export function redactObject(objectKeyOrModel, record, audience) {
 
   // ILC keeps anything the registry has not caught up with yet (new columns,
   // ad-hoc aggregates like _count) so the internal tools never go blind on a
-  // fresh migration. Non-ILC callers never reach this branch — that asymmetry
+  // fresh migration. Non-ILC callers never reach this branch, that asymmetry
   // IS the fail-closed guarantee.
   if (audience === 'ilc') {
     for (const key of Object.keys(record)) {
@@ -124,7 +124,7 @@ export function stripNeverReadable(value) {
 
 /**
  * The property names an audience may reference in a `select`, `where` or
- * `orderBy`. Used to reject a query BEFORE it reaches Prisma — filtering on a
+ * `orderBy`. Used to reject a query BEFORE it reaches Prisma, filtering on a
  * field you cannot see is a working oracle for its value. `where: { dnPerUnit:
  * { gt: 100 } }` leaks the buy price one comparison at a time even if the
  * response never contains the column.
@@ -147,7 +147,7 @@ export function readableProps(objectKeyOrModel, audience) {
 /**
  * The introspection view of an object for a given audience: description, links,
  * actions, and only the properties that audience could actually retrieve.
- * An `ilc_only` property is not listed as "redacted" for a client — it is
+ * An `ilc_only` property is not listed as "redacted" for a client, it is
  * absent. Telling a contractor "there is a field here called dnPerUnit that you
  * may not see" is itself a disclosure.
  */
@@ -190,14 +190,14 @@ export function describeForAudience(objectKeyOrModel, audience) {
  *
  * Suppressing a field from `properties` is not enough on its own: these
  * descriptions are written for ILC and several of them explain the sensitive
- * fields by name — ChangeOrderLineItem's says outright that `originalDN` is what
+ * fields by name, ChangeOrderLineItem's says outright that `originalDN` is what
  * ILC pays the manufacturer. Shipping that to a contractor discloses the field,
  * its meaning, and the fact that a buy price is stored, which is most of what
  * the property-level redaction just withheld.
  *
  * So: an object may declare `clientDescription` for the non-ILC view. If it does
  * not, and its description names a field this audience cannot read, the
- * description is dropped rather than guessed at — the same fail-closed default
+ * description is dropped rather than guessed at, the same fail-closed default
  * as the rest of this file. Losing a sentence of help costs an agent one extra
  * call; leaking it costs the DN rule.
  */

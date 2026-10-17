@@ -5,7 +5,7 @@ import { getProjectFileBuffer } from '@/lib/projectFileStorage';
 import { logActivity, TAB_LABELS } from '@/lib/activity';
 import { archiveData, readArchivedFlag, deleteRefused, ARCHIVED_FLAG_HELP } from '@/lib/archive';
 
-// GET — serve the file inline (for PDF viewer)
+// GET, serve the file inline (for PDF viewer)
 export async function GET(request, { params }) {
   const { user, error } = await requireAuth();
   if (error) return error;

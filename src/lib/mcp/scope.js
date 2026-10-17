@@ -1,21 +1,21 @@
 /**
- * Row scoping — WHICH ROWS a non-ILC caller may reach.
+ * Row scoping, WHICH ROWS a non-ILC caller may reach.
  *
  * The rest of this directory answers a different question. `redactObject` decides
  * which FIELDS come back; `checkModel` decides which OBJECTS are addressable.
  * Neither one limits which ROWS. Without this file, a logged-in CLIENT_VIEWER can
  * send `{"tool":"query_records","params":{"model":"Project"}}` and get every
- * project in the business back — correctly redacted, and completely enumerated.
+ * project in the business back, correctly redacted, and completely enumerated.
  * Names, numbers, statuses, the client list. Field redaction is not row security
  * and was never meant to be.
  *
  * The app already has the rule. src/app/api/projects/route.js:
  *
  *     // Projects are visible to all ILC staff (Mike, 2026-07). External Client
- *     // Viewers stay scoped to their own — never widen this to CLIENT_VIEWER.
+ *     // Viewers stay scoped to their own, never widen this to CLIENT_VIEWER.
  *     const where = isClientViewer(user.role) ? { createdById: user.id } : {};
  *
- * So this is not a new access model, and deliberately so — a second, differently
+ * So this is not a new access model, and deliberately so, a second, differently
  * shaped notion of "your projects" is how two surfaces end up disagreeing about
  * who can see what. It is the same predicate, reached from every registered
  * object by its relation path.
@@ -70,9 +70,9 @@ const SCOPES = Object.freeze({
  * @param {string} objectKey  ontology key, e.g. 'ChangeOrderLineItem'
  * @param {object} caller     from resolveCaller()
  * @returns {null | object | typeof DENY}
- *   null   — no restriction (ILC)
- *   object — a Prisma where fragment to AND into the query
- *   DENY   — this caller may not reach this object at all
+ *   null, no restriction (ILC)
+ *   object, a Prisma where fragment to AND into the query
+ *   DENY, this caller may not reach this object at all
  */
 export function rowScope(objectKey, caller) {
   if (caller?.audience === 'ilc') return null;

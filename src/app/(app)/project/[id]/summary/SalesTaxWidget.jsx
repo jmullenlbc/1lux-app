@@ -5,13 +5,13 @@
  * Mike 2026-09-05: "add a sales tax field to the final summary page to allow the
  * user to add it in manually."
  *
- * The rate lives on ProjectData.salesTaxPct as a DECIMAL (0.0825 = 8.25%) — the
+ * The rate lives on ProjectData.salesTaxPct as a DECIMAL (0.0825 = 8.25%), the
  * same field the Project Data step and the peer-review matrix already read, so
  * setting it here changes the budget everywhere. The engine applies it to the
  * lighting and controls product subtotals (never to freight/warehousing).
  *
  * Manual entry only. A look-up-by-ZIP helper was built and then pulled the same
- * day (Mike: "Forget the sales tax lookup for now. Put in the roadmap.") — see
+ * day (Mike: "Forget the sales tax lookup for now. Put in the roadmap."), see
  * ROADMAP.md → Budget Summary → Sales Tax Rate Lookup.
  */
 import { useState } from 'react';

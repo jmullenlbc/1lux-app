@@ -3,7 +3,7 @@
  *
  * SUPER_ADMIN only. A key grants its owner's whole view of the data over an API
  * with no screen in front of it, so handing them out is an admin act, not a
- * self-service one — and issuing a key to somebody else is the same act as
+ * self-service one, and issuing a key to somebody else is the same act as
  * giving them their password, which is why the person doing it has to be the
  * person who can already do anything.
  *
@@ -20,12 +20,12 @@ export const dynamic = 'force-dynamic';
 /** The same words in both handlers, so a missing migration reads the same way twice. */
 function notMigrated() {
   return NextResponse.json(
-    { error: 'MCP keys are not available yet — migration 0094 has not been applied to this database.' },
+    { error: 'MCP keys are not available yet: migration 0094 has not been applied to this database.' },
     { status: 503 },
   );
 }
 
-// GET /api/admin/mcp-keys — every key ever issued, live ones first.
+// GET /api/admin/mcp-keys, every key ever issued, live ones first.
 export async function GET(request) {
   const { error } = await requireSuperAdmin(request);
   if (error) return error;
@@ -44,7 +44,7 @@ export async function GET(request) {
   return NextResponse.json({ keys });
 }
 
-// POST /api/admin/mcp-keys — mint one. Body: { name, userId }
+// POST /api/admin/mcp-keys, mint one. Body: { name, userId }
 export async function POST(request) {
   const { user: admin, error } = await requireSuperAdmin(request);
   if (error) return error;

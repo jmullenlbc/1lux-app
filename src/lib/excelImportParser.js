@@ -205,7 +205,7 @@ export function parseConceptualBudgetXlsx(XLSX, buffer) {
     if (cfNameRow) projectName = str(cfNameRow[0]).replace(/^PROJECT\s*:\s*/i, '');
   }
 
-  if (!projectName) warnings.push('Could not find project name — please enter it manually');
+  if (!projectName) warnings.push('Could not find project name, please enter it manually');
 
   const buildingType = mapBuildingType(buildingTypeRaw);
 
@@ -262,7 +262,7 @@ export function parseConceptualBudgetXlsx(XLSX, buffer) {
   const lotSf               = pdNum(/^LOT\s*SIZE\s*GROSS/i,                  2);
   const buildingFootprintSf = pdNum(/^BUILDING\s*FOOTPRINT/i,                2);
 
-  // Individual area SF — these rows have SF in col[1]
+  // Individual area SF, these rows have SF in col[1]
   const unitsSf           = pdNum(/^UNITS$/i,            1);
   const garageSf          = pdNum(/^GARAGE$/i,           1);
   const bohSf             = pdNum(/^BOH/i,               1);

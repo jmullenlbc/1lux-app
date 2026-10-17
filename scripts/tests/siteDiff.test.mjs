@@ -45,7 +45,7 @@ test('an edited number is reported with both values', () => {
 
 test('THE CASE THIS FILE EXISTS FOR: unticking a field is a rejection', () => {
   // The reviewer did not trust the converted acreage and left it out. Nothing in
-  // the written record shows that — only this diff does.
+  // the written record shows that, only this diff does.
   const { lotSf, ...rest } = APPLIED_AS_READ;
   const d = describeSiteCorrection(VISION, rest);
   assert.equal(d.changed, true, 'a dropped field must not read as an accepted extraction');
@@ -106,7 +106,7 @@ test('a missing or malformed run output does not throw', () => {
   assert.equal(describeSiteCorrection(undefined, undefined).changed, false);
 });
 
-// ── building type — the one non-numeric field ─────────────────────────────────
+// ── building type, the one non-numeric field ─────────────────────────────────
 
 test('a changed building type is an edit, reported by label', () => {
   const d = describeSiteCorrection({ buildingType: 'garden', lotSf: 100000 }, { buildingType: 'podium', lotSf: 100000 });

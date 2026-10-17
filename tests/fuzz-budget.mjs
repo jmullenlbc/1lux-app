@@ -18,7 +18,7 @@ function fail(inv, detail, scenario) {
 }
 function check(cond, inv, detail, scenario) { checks++; if (!cond) fail(inv, detail, scenario); }
 
-// Seeded RNG (mulberry32) so fuzz runs are deterministic & reproducible — a
+// Seeded RNG (mulberry32) so fuzz runs are deterministic & reproducible, a
 // failure can be re-run identically instead of being flaky. Change the seed to
 // explore a different input space.
 function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}

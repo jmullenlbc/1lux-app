@@ -3,10 +3,10 @@
  *
  * Two promises pinned here:
  *   1. The PDF prices from the same function as the live estimate
- *      (computeIntakeEstimate), from the visitor's inputs — never from a
+ *      (computeIntakeEstimate), from the visitor's inputs, never from a
  *      number the browser sends.
  *   2. The PDF shows nothing the on-screen summary doesn't. "DN / buy price
- *      is never shown to contractors — not in PDFs", and marginPct is
+ *      is never shown to contractors, not in PDFs", and marginPct is
  *      internal only. Internal fields planted on the budget must not surface.
  */
 import test from 'node:test';
@@ -38,7 +38,7 @@ const render = (budget, extra = {}) => buildIntakePdfHtml({
   ...extra,
 });
 
-/** What a reader of the PDF actually sees — styles and tags gone. */
+/** What a reader of the PDF actually sees, styles and tags gone. */
 const visibleText = html => html
   .replace(/<style[\s\S]*?<\/style>/gi, ' ')
   .replace(/<[^>]*>/g, ' ')
@@ -81,7 +81,7 @@ test('the PDF carries the summary figures exactly as the screen formats them', (
                    INTAKE_PDF_DISCLAIMER, INTAKE_PDF_CONTACT, 'Total Gross SF', '250,000']) {
     assert.ok(text.includes(s), s);
   }
-  // No tax at intake, and no contingency picked — so no such rows.
+  // No tax at intake, and no contingency picked, so no such rows.
   assert.ok(text.includes('Does not include sales tax.'));
   assert.ok(!text.includes('Sales Tax ('));
   assert.ok(!text.includes('Contingency'));
@@ -91,7 +91,7 @@ test('no DN, buy, margin or cost field ever reaches the PDF', () => {
   const { budget } = estimate();
   const SENTINEL = 97531.86;
   // Plant every ILC-only field name, plus the obvious ones, at the top and
-  // nested inside a section — the builder must not pick any of them up.
+  // nested inside a section, the builder must not pick any of them up.
   const plant = { dn: SENTINEL, DN: SENTINEL, buyPrice: SENTINEL, buy: SENTINEL, cost: SENTINEL,
                   unitCost: SENTINEL, marginPct: 0.4321, margin: SENTINEL };
   for (const name of ILC_ONLY_FIELDS) plant[name] = SENTINEL;
@@ -121,7 +121,7 @@ test('no DN, buy, margin or cost field ever reaches the PDF', () => {
 });
 
 test('the pricing model never ships to the public page', () => {
-  // IntakeClient is a client component — it must reach prices only through
+  // IntakeClient is a client component, it must reach prices only through
   // /api/intake/*. pdfHtml stays free of the engine too.
   const client = fs.readFileSync(new URL('../../src/app/conceptual_budget/IntakeClient.jsx', import.meta.url), 'utf8');
   for (const mod of ['lib/calculations', 'lib/pricing', 'lib/pricingLoader', 'intake/estimate', 'intake/pdfHtml',
@@ -144,7 +144,7 @@ test("the PDF ends with the visitor's design choices and the controls $/SF line"
   assert.match(html, /<strong>Controls:<\/strong> \$[\d.]+\/SF × /);
 });
 
-test('the project name is escaped — the PDF renderer is a real browser on our server', () => {
+test('the project name is escaped, the PDF renderer is a real browser on our server', () => {
   const { budget } = estimate();
   const html = render(budget, { projectName: '<img src="http://169.254.169.254/latest">Tower' });
   assert.ok(!html.includes('<img src="http://169'));

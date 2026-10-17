@@ -3,7 +3,7 @@
  * points, save both. Shared by the note's Prep tab and the before-the-meeting
  * sweep (/api/cron/meeting-prep), so a brief is waiting before the meeting.
  *
- * @returns { briefId } or { error, status } — error words are safe to show.
+ * @returns { briefId } or { error, status }, error words are safe to show.
  */
 import { gatherMeetingFacts } from '@/lib/meetingPrep/gather';
 import { buildFactBlocks } from '@/lib/meetingPrep/brief';
@@ -16,7 +16,7 @@ export async function buildMeetingBrief(prisma, note, { userId = null } = {}) {
     raw = await gatherMeetingFacts(prisma, note.id, new Date(), { budgetFor: budgetTotals });
   } catch (e) {
     console.error('[meeting-prep] gather failed:', e?.message ?? e);
-    return { error: 'Could not read the CRM just now — try again in a minute.', status: 503 };
+    return { error: 'Could not read the CRM just now, try again in a minute.', status: 503 };
   }
   if (!raw || raw.empty) {
     return { error: 'Link a company, project or person to this note first, so there is something to prep from.', status: 400 };

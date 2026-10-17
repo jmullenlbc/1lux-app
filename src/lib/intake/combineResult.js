@@ -2,9 +2,9 @@
  * Which read wins, and what the answer looks like.
  *
  * A drawing set is read two ways. The TEXT read pulls a unit matrix off the
- * text layer -- exact, cheap, and the right answer whenever there is a matrix
+ * text layer, exact, cheap, and the right answer whenever there is a matrix
  * to find. The VISION read looks at the rendered site plan and reads the
- * summary block -- lot acres, unit count, parking counts -- which is what a
+ * summary block, lot acres, unit count, parking counts, which is what a
  * vector site plan carries instead of a matrix. Neither is a fallback for the
  * other in general; each is right about different sheets.
  *
@@ -14,7 +14,7 @@
  * BROWSER drives them, which means the browser is the thing holding both
  * answers when the last one lands.
  *
- * The obvious move -- let the page decide -- would put this rule in two places
+ * The obvious move, let the page decide, would put this rule in two places
  * at once, because the all-in-one path still exists for local dev and small
  * files. Two copies of a precedence rule drift, and the drift would show up as
  * "the live site and my laptop disagree about the same PDF", which is a
@@ -60,8 +60,8 @@ export function matrixHasTypes(matrix) {
  *
  * Always. The vision read used to be a fallback for when the text read found
  * no matrix, but it is now the ONLY source of the site figures the quantity
- * takeoff runs on -- stories, stairwells, exit doors, parking, lot size,
- * footprint -- and a clean matrix answers none of those. Skipping it on
+ * takeoff runs on, stories, stairwells, exit doors, parking, lot size,
+ * footprint, and a clean matrix answers none of those. Skipping it on
  * matrix-successful sets meant every such project arrived with an empty
  * takeoff.
  *

@@ -4,7 +4,7 @@ import { formatCurrency } from '@/lib/format';
 
 /**
  * A row that shows a hover tooltip with a cost breakdown.
- * `details` = [{ label, value }] — zero-value rows are hidden.
+ * `details` = [{ label, value }], zero-value rows are hidden.
  */
 export function TooltipBudgetRow({ label, value, details = [], className = '', bold = false, highlight = false, zeroColor = 'text-slate-300' }) {
   const [show, setShow] = useState(false);

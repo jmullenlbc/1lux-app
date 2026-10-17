@@ -37,7 +37,7 @@ test('a procurement-only job counts once, on the procurement board', () => {
   assert.equal(c.open, 1);
 });
 
-test('a design job counts twice — once per board — with its own status each', () => {
+test('a design job counts twice, once per board, with its own status each', () => {
   const c = dealCounts([
     { serviceType: 'fullDesign', procurementStatus: 'OPEN', designStatus: 'WON' },
   ]);
@@ -139,7 +139,7 @@ test('a person is counted from the projects they are attached to, one per projec
       { isLead: true, project: null },
     ],
   };
-  // One job they are on, so one open deal against their name — not two.
+  // One job they are on, so one open deal against their name, not two.
   assert.equal(contactDealCounts(contact).open, 1);
   assert.equal(contactDealCounts(contact).total, 1);
   assert.deepEqual(contactDealCounts({}), EMPTY_DEAL_COUNTS);
@@ -151,7 +151,7 @@ test('the jobs behind a person’s numbers are the same jobs the numbers counted
       { isLead: true,  project: { id: 'a', name: 'Trailhead', serviceType: 'bid',        procurementStatus: 'OPEN' } },
       { isLead: true,  project: { id: 'b', name: 'Creekside', serviceType: 'fullDesign', procurementStatus: 'WON',  designStatus: 'OPEN' } },
       { isLead: true,  project: { id: 'c', name: 'Shelved',   serviceType: 'bid',        procurementStatus: 'ABANDONED' } },
-      // Copied onto the job, not responsible for it — never counted, never listed.
+      // Copied onto the job, not responsible for it, never counted, never listed.
       { isLead: false, project: { id: 'd', name: 'Not theirs', serviceType: 'bid',       procurementStatus: 'WON' } },
       { isLead: true,  project: null },
     ],

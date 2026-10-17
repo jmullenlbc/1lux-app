@@ -1,19 +1,19 @@
 import './pdfPolyfill.js';
 import { loadPdfjs } from './pdfjsNode.js';
 /**
- * scheduleExtract.js — robust construction-schedule milestone extraction.
+ * scheduleExtract.js, robust construction-schedule milestone extraction.
  *
  * Built for large, multi-building MS Project / P6 exports (e.g. Zenith on 25th:
  * 96 pages, 1,800+ rows, 5 buildings, the full sequence repeated per building
  * with the final Turnover/TCO ~130k chars deep).
  *
  * Three improvements over the old inline parser:
- *  1. ROW-STRUCTURED text — group PDF text items by Y position so each schedule
+ *  1. ROW-STRUCTURED text, group PDF text items by Y position so each schedule
  *     row ("108 Meps trades 10 days Tue 1/12/27 ...") is one clean line, instead
  *     of a run-on blob. Far more reliable for both the AI and the fallback.
- *  2. WHOLE document — read all pages and send the full row text (Haiku's 200k
+ *  2. WHOLE document, read all pages and send the full row text (Haiku's 200k
  *     context easily fits ~160k chars), so project-level start/end aren't cut off.
- *  3. DETERMINISTIC FALLBACK — if the AI returns nothing, a keyword+date scanner
+ *  3. DETERMINISTIC FALLBACK, if the AI returns nothing, a keyword+date scanner
  *     still pulls the core milestones, so a recognizable schedule never yields [].
  */
 import { getAnthropicKey } from './anthropicKey.js';
@@ -89,14 +89,14 @@ const MONTHS = { jan:1, feb:2, mar:3, apr:4, may:5, jun:6, jul:7, aug:8, sep:9, 
 
 /**
  * Two date shapes, because GCs export from two different tools:
- *   M/D/YY      — MS Project / Excel exports
- *   DD-Mon-YY   — Primavera P6, which is what most large GCs actually send
- *                 ("07-Oct-24 A", "26-Aug-27*" — the A and asterisk are P6's
+ *   M/D/YY, MS Project / Excel exports
+ *   DD-Mon-YY, Primavera P6, which is what most large GCs actually send
+ *                 ("07-Oct-24 A", "26-Aug-27*", the A and asterisk are P6's
  *                 actual/constraint markers, not part of the date)
  *
  * Only the slash form was matched until 2026-08-19, so on a P6 schedule this
  * pass found its keyword rows, found no date on them, and returned zero
- * milestones. It is meant to be the floor that survives an AI timeout — on the
+ * milestones. It is meant to be the floor that survives an AI timeout, on the
  * commonest schedule format the floor was nothing.
  *
  * One regex with an alternation, scanned left to right, so results stay in
@@ -123,7 +123,7 @@ function datesInRow(row) {
 // Light fixtures, final inspection and TCO are per-BUILDING facts, not
 // per-project ones. On Marmalade the buildings turn over roughly six months
 // apart, so a single "light fixtures: 2026-02-26" line answers the question for
-// Bldg A and quietly gives the wrong answer for B, C and D — and the fixture
+// Bldg A and quietly gives the wrong answer for B, C and D, and the fixture
 // install date is the date material has to be on site, so being wrong about it
 // by six months is the difference between a delivery that lands and one that
 // misses. Site lighting stays single because a site is a site.
@@ -142,8 +142,8 @@ const MULTI_RE = new RegExp(`^(${PER_BUILDING.join('|')})(-\\d+)?$`);
 //
 // Both of these exist because of one bug. The old pass sent Haiku the first
 // 180,000 characters of the row text. Mike's real Modera Marmalade schedule is
-// 309,972 characters, so 42% of it — including every "Set Light Fixtures" row
-// for the last building — was never read at all. Fable 5 takes a 1,000,000-token
+// 309,972 characters, so 42% of it, including every "Set Light Fixtures" row
+// for the last building, was never read at all. Fable 5 takes a 1,000,000-token
 // input window, which is roughly 3.5 million characters; the reader's own
 // 120-page ceiling tops out near 450,000, so at 600,000 the cut can no longer
 // bind on any schedule this app is able to read in the first place.
@@ -159,39 +159,39 @@ const MULTI_RE = new RegExp(`^(${PER_BUILDING.join('|')})(-\\d+)?$`);
 // ceiling was sized for Haiku on a third of the text and would now kill every
 // large read on the way to the answer. The routes that call this set
 // maxDuration well above it, so the ceiling is a backstop, not the binding
-// constraint — but it still exists so a hung call cannot hold a Lambda open.
+// constraint, but it still exists so a hung call cannot hold a Lambda open.
 const AI_TIMEOUT_MS      = 90000;
 const MAX_SCHEDULE_CHARS = 600000;
 
 const PROMPT_HEAD = `You are reading a construction schedule (Primavera P6, MS Project, Excel, or similar Gantt export). It may be a MULTI-BUILDING / multi-phase schedule where the same sequence repeats per building or tower.
 
-Extract milestone dates and return ONLY a valid JSON array — no markdown, no explanation.
+Extract milestone dates and return ONLY a valid JSON array, no markdown, no explanation.
 Return format: [{"id":"milestone-id","label":"Milestone Label","date":"YYYY-MM-DD"}, ...]
 
 Milestone types:
 
-• "construction-start" — the EARLIEST project start: NTP, Notice to Proceed, Mobilization, project start, first day of construction. ONE entry, the earliest date. "A" (Actual) dates count.
+• "construction-start": the EARLIEST project start: NTP, Notice to Proceed, Mobilization, project start, first day of construction. ONE entry, the earliest date. "A" (Actual) dates count.
 
-• "electrical-rough-1","electrical-rough-2",... — Electrical rough-in / overhead electrical / in-wall electrical, per building or floor. Use the EARLIEST start for each. Sort ascending, number sequentially, label with the building/floor (e.g. "Electrical Rough-In — Bldg A"). Exclude switchgear, panelboard, fire alarm, underground/conduit, transformers.
+• "electrical-rough-1","electrical-rough-2",...: Electrical rough-in / overhead electrical / in-wall electrical, per building or floor. Use the EARLIEST start for each. Sort ascending, number sequentially, label with the building/floor (e.g. "Electrical Rough-In: Bldg A"). Exclude switchgear, panelboard, fire alarm, underground/conduit, transformers.
 
-• "mep-rough-1","mep-rough-2",... — MEP rough-in. In this schedule MEP rough is often named "Meps trades", "Meps Trades First floor", "Meps trades second/third floor". Treat all of those as MEP rough-in. One entry per building/floor grouping, earliest start, numbered ascending, labelled with the building/floor.
+• "mep-rough-1","mep-rough-2",...: MEP rough-in. In this schedule MEP rough is often named "Meps trades", "Meps Trades First floor", "Meps trades second/third floor". Treat all of those as MEP rough-in. One entry per building/floor grouping, earliest start, numbered ascending, labelled with the building/floor.
 
-• "light-fixtures-1","light-fixtures-2",... — rows where interior light fixtures are actually INSTALLED: "Set Light Fixtures", "Install Light Fixtures", "Finish Electrical (Light Fixtures)", "Lighting Install". ONE ENTRY PER BUILDING (or per tower/phase), using the EARLIEST true install for that building — this is the date material must be on site there. Number ascending by date and label with the building (e.g. "Light Fixtures — Bldg B"). Exclude submittal, procurement, delivery, rough-in and site/exterior lighting.
+• "light-fixtures-1","light-fixtures-2",...: rows where interior light fixtures are actually INSTALLED: "Set Light Fixtures", "Install Light Fixtures", "Finish Electrical (Light Fixtures)", "Lighting Install". ONE ENTRY PER BUILDING (or per tower/phase), using the EARLIEST true install for that building. This is the date material must be on site there. Number ascending by date and label with the building (e.g. "Light Fixtures: Bldg B"). Exclude submittal, procurement, delivery, rough-in and site/exterior lighting.
 
-• "site-lighting" — the EARLIEST row where site/exterior/parking-lot lighting or bollards are actually SET or TERMINATED ("Install Site Lighting", "Set Site Light Poles", "Term Out Site Lighting"). Exclude the trenching that precedes it — "Excavate for Site Lighting", ductbank, conduit, bases and pours are NOT this milestone. ONE entry — the site is shared by all buildings.
+• "site-lighting": the EARLIEST row where site/exterior/parking-lot lighting or bollards are actually SET or TERMINATED ("Install Site Lighting", "Set Site Light Poles", "Term Out Site Lighting"). Exclude the trenching that precedes it: "Excavate for Site Lighting", ductbank, conduit, bases and pours are NOT this milestone. ONE entry: the site is shared by all buildings.
 
-• "electrical-devicing" — electrical devicing / electrical trim / device trim-out. Exclude door trim, MEP trim, plumbing trim and fire-protection trim. ONE entry, earliest.
+• "electrical-devicing": electrical devicing / electrical trim / device trim-out. Exclude door trim, MEP trim, plumbing trim and fire-protection trim. ONE entry, earliest.
 
-• "final-inspection-1","final-inspection-2",... — the AHJ / city FINAL inspection: "Final Inspection", "Final Electrical Inspection", "Final Building Inspection", "Final Life Safety Inspection". ONE ENTRY PER BUILDING, using that building's final-inspection finish. Number ascending by date and label with the building. Exclude rough / in-wall / above-ceiling inspections, and exclude the contractor's own punch walk. Omit entirely if the schedule has no final-inspection rows.
+• "final-inspection-1","final-inspection-2",...: the AHJ / city FINAL inspection: "Final Inspection", "Final Electrical Inspection", "Final Building Inspection", "Final Life Safety Inspection". ONE ENTRY PER BUILDING, using that building's final-inspection finish. Number ascending by date and label with the building. Exclude rough / in-wall / above-ceiling inspections, and exclude the contractor's own punch walk. Omit entirely if the schedule has no final-inspection rows.
 
-• "tco-1","tco-2",... — Temporary Certificate of Occupancy ("TCO release", "Temp C/O"). ONE ENTRY PER BUILDING, using that building's TCO finish. Number ascending by date and label with the building (e.g. "TCO — Bldg C").
+• "tco-1","tco-2",...: Temporary Certificate of Occupancy ("TCO release", "Temp C/O"). ONE ENTRY PER BUILDING, using that building's TCO finish. Number ascending by date and label with the building (e.g. "TCO: Bldg C").
 
-• "construction-end" — project completion: "Turnover Keys", "Owners Walk", Final Completion, Substantial Completion, owner move-in, closeout. For a multi-building schedule use the LATEST finish across ALL buildings. ONE entry.
+• "construction-end": project completion: "Turnover Keys", "Owners Walk", Final Completion, Substantial Completion, owner move-in, closeout. For a multi-building schedule use the LATEST finish across ALL buildings. ONE entry.
 
 Rules:
-- Only milestones explicitly in the schedule — never invent dates.
+- Only milestones explicitly in the schedule, never invent dates.
 - The numbered families (electrical-rough, mep-rough, light-fixtures, final-inspection, tco) are ONE ENTRY PER BUILDING. If the schedule covers a single building, still return a single numbered entry ("tco-1"). Never merge two buildings into one entry, and never split one building into two.
-- Use the SAME building names across families, exactly as the schedule writes them, so "Light Fixtures — Bldg B" and "TCO — Bldg B" line up.
+- Use the SAME building names across families, exactly as the schedule writes them, so "Light Fixtures: Bldg B" and "TCO: Bldg B" line up.
 - Dates are usually "Day M/D/YY"; the FIRST date in a row is its start, the second is its finish. Use the start for start-type milestones and the finish for completion-type (tco, construction-end).
 - Return [] only if there are truly no recognizable milestones.
 `;
@@ -200,7 +200,7 @@ export async function aiExtractMilestones(text, anthropic, ctx = {}) {
   if (!text) return [];
 
   // The rows are the GC's schedule export. They used to be concatenated onto the
-  // end of PROMPT_HEAD under a "Schedule rows:" label — one string, two authors.
+  // end of PROMPT_HEAD under a "Schedule rows:" label, one string, two authors.
   // See src/lib/agent/untrusted.js. 180k chars is a lot of stranger-written text
   // to hand a model, which is exactly why it needs the fence rather than despite it.
   const sealed = buildUntrustedPrompt({
@@ -231,7 +231,7 @@ export async function aiExtractMilestones(text, anthropic, ctx = {}) {
 const KW = {
   start: [/\bNTP\b/i, /notice to proceed/i, /mobiliz/i, /construction start/i],
   // Both orders: schedules write "MEP Rough-In" and "Rough-In MEP" about equally.
-  // Deliberately still requires the word "rough" — matching bare "Electrical"
+  // Deliberately still requires the word "rough", matching bare "Electrical"
   // would sweep up "Trench For Electrical" and "Submittals - Electrical Gear",
   // which are not rough-ins.
   mep:   [/meps?\s+trades/i, /\bMEP\b[\s-]*rough/i, /rough[\s-]*in\s+meps?\b/i, /mechanical rough/i, /overhead mechanical/i],
@@ -240,13 +240,13 @@ const KW = {
   end:   [/turnover keys/i, /owners?\s+walk/i, /final completion/i, /substantial completion/i, /owner move/i],
   // Added 2026-08-19 alongside the per-building work. Without these two, a
   // schedule whose AI read times out comes back with rough-ins and nothing else
-  // — no fixture date at all, which is the one date this company plans around.
+  // no fixture date at all, which is the one date this company plans around.
   fixtures:  [/\b(set|install|hang)\b[^\n]{0,24}\blight(?:ing)?\s+fixtures?/i, /\blight(?:ing)?\s+fixtures?\b[^\n]{0,12}\binstall/i, /finish electrical[^\n]{0,30}light/i, /\blighting\s+install\b/i],
   finalInsp: [/\bfinal\b[\s-]*(?:electrical\s+|building\s+|life\s+safety\s+|mep\s+|elec\s+)?inspect/i, /\binspection\s*[-–]\s*final\b/i],
 };
 // For these two the exclusions carry more weight than the matches. A schedule
-// names light fixtures a dozen times before one is ever hung — submittal,
-// procurement, delivery — and "Set Site Light Poles" is site lighting, a
+// names light fixtures a dozen times before one is ever hung, submittal,
+// procurement, delivery, and "Set Site Light Poles" is site lighting, a
 // different milestone with a different date.
 const FIXTURE_EXCLUDE    = /submittal|procure|purchase|deliver|\border\b|release|rough|\bsite\b|exterior|parking|\bpole|bollard|landscape/i;
 // "Rough Inspection" and "Pre-Final Inspection" are not the AHJ final.
@@ -269,7 +269,7 @@ export function keywordExtractMilestones(text) {
     if (matches(row, KW.end))   endDs.push(ds[ds.length - 1]); // finish
   }
   const start = startDs.length ? startDs.sort()[0] : null;
-  // Everything downstream must fall on/after construction start — drops
+  // Everything downstream must fall on/after construction start, drops
   // design/submittal-phase "MEP"/"electrical" references (e.g. 2025 utility
   // design rows).
   const floor = start || '2020-01-01';
@@ -279,7 +279,7 @@ export function keywordExtractMilestones(text) {
   if (start) out.push({ id: 'construction-start', label: 'Construction Start', date: start });
 
   // One numbered entry per distinct date. This pass cannot read a building name
-  // off a row — it only knows "this happened five times on five dates" — so it
+  // off a row, it only knows "this happened five times on five dates", so it
   // numbers what it finds and the AI's labelled version replaces the whole
   // family whenever the AI ran at all (see mergeMilestones).
   const perBuilding = (ds, id, label) => afterStart(ds).slice(0, 15)
@@ -334,7 +334,7 @@ async function milestonesFromText(text, anthropic, { aiTimeoutMs = AI_TIMEOUT_MS
   // The whole point of the 2026-08-19 fix was that this used to be silently true
   // on real schedules. If it is ever true again we want to see it in the record.
   diag.truncated = text.length > MAX_SCHEDULE_CHARS;
-  if (diag.truncated) console.warn(`[extractScheduleMilestones] text ${text.length} chars exceeds ${MAX_SCHEDULE_CHARS} — tail not read`);
+  if (diag.truncated) console.warn(`[extractScheduleMilestones] text ${text.length} chars exceeds ${MAX_SCHEDULE_CHARS}, tail not read`);
 
   const keyword = keywordExtractMilestones(text);
 
@@ -357,7 +357,7 @@ async function milestonesFromText(text, anthropic, { aiTimeoutMs = AI_TIMEOUT_MS
  * and is exactly backwards: the keyword scan pads itself out to 15 electrical
  * plus 15 MEP rough-ins, so on a big schedule it wins on COUNT while being worse
  * on SUBSTANCE. On Mike's Marmalade schedule the keyword scan returned 19 rows
- * and the AI returned 16 — so the AI lost, and with it went the light-fixture
+ * and the AI returned 16, so the AI lost, and with it went the light-fixture
  * and site-lighting dates, which are the two a lighting company actually plans
  * around. Worse, the AI's count varies run to run, so the same file could land
  * on the good answer or the bad one depending on the day.
@@ -368,10 +368,10 @@ async function milestonesFromText(text, anthropic, { aiTimeoutMs = AI_TIMEOUT_MS
  *
  * The per-building families (rough-ins, light fixtures, final inspection, TCO)
  * are merged by FAMILY, not by individual id. The AI numbers them per building
- * ("light-fixtures-1..4" = Bldgs A–D, labelled with the building name); the
+ * ("light-fixtures-1..4" = Bldgs A, D, labelled with the building name); the
  * keyword scan numbers them by whatever order dates appeared, with no idea which
  * building is which. Filling gaps id-by-id would interleave two incompatible
- * numbering schemes and invent buildings that do not exist — so if the AI
+ * numbering schemes and invent buildings that do not exist, so if the AI
  * produced any member of a family, that family is the AI's entirely.
  */
 export function mergeMilestones(ai = [], keyword = []) {

@@ -54,7 +54,7 @@
 
   body { background: white !important; }
 
-  /* Page 2 break — before questionnaire responses */
+  /* Page 2 break, before questionnaire responses */
   .print-page-2 {
     page-break-before: always;
     break-before: page;

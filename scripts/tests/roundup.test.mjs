@@ -8,7 +8,7 @@
  *      somebody else's deals is not a summary, it is an accusation, and the
  *      only defence against it is that every filter is an ownership filter.
  *   2. Arriving when there is nothing to say. "Nothing this week" every week
- *      trains people to dismiss the bell unread — including the week it
+ *      trains people to dismiss the bell unread, including the week it
  *      mattered. No sections must mean no alert.
  */
 import { test } from 'node:test';

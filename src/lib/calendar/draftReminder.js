@@ -1,5 +1,5 @@
 /**
- * draftReminder.js — the reminder about unpublished calendar notes.
+ * draftReminder.js, the reminder about unpublished calendar notes.
  *
  * Mike, 2026-09-15: calendar drafts never expire, and "there should be a
  * reminder that never leaves". Every synced meeting becomes a DRAFT note, and

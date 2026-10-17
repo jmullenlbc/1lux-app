@@ -3,15 +3,15 @@
 //
 // Found in production 2026-08-25, in the dev log of a live intake parse:
 //
-//   [agent/ledger] failed to record a run — the call itself still happened:
+//   [agent/ledger] failed to record a run, the call itself still happened:
 //   Invalid `prisma.agentRun.create()` invocation:
 //     { at, task, model, status, durationMs, ... + taskType: String }
 //     Argument `taskType` is missing.
 //
 // The entry object used the JSONL names (task / durationMs / at / error); the
 // table uses the review layer's names (taskType / latencyMs / createdAt /
-// errorMessage). recordRun swallows its own failures BY DESIGN — a ledger must
-// never take down the feature it observes — so this never surfaced as an error
+// errorMessage). recordRun swallows its own failures BY DESIGN, a ledger must
+// never take down the feature it observes, so this never surfaced as an error
 // anywhere a test or a user would see. The dev JSONL sink looked perfectly
 // healthy the whole time, because the JSONL sink was the shape that matched.
 //
@@ -23,7 +23,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { recordRun, _setPrismaForTests } from '../../src/lib/agent/ledger.js';
 
-/** Field names declared on a model in schema.prisma — the source of truth. */
+/** Field names declared on a model in schema.prisma, the source of truth. */
 function schemaFields(model) {
   const schema = readFileSync(path.join(process.cwd(), 'prisma', 'schema.prisma'), 'utf8');
   const body = schema.match(new RegExp(`^model ${model} \\{([\\s\\S]*?)^\\}`, 'm'))?.[1];
@@ -71,7 +71,7 @@ test('every key the ledger writes is a real AgentRun column', async () => {
   const fields = schemaFields('AgentRun');
   const unknown = Object.keys(data).filter(k => !fields.has(k));
   assert.deepStrictEqual(unknown, [],
-    'the ledger is writing columns that do not exist — prisma rejects the whole row, ' +
+    'the ledger is writing columns that do not exist, prisma rejects the whole row, ' +
     'and recordRun swallows the error, so the ledger records NOTHING');
 });
 
@@ -85,7 +85,7 @@ test('every required AgentRun column is supplied', async () => {
     .filter(name => data[name] === undefined || data[name] === null);
 
   assert.deepStrictEqual(missing, [],
-    'a required column has no value — this is the exact shape of the 2026-08-25 bug');
+    'a required column has no value, this is the exact shape of the 2026-08-25 bug');
 });
 
 test('the run actually survives the trip: values land, not just keys', async () => {

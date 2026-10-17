@@ -25,7 +25,7 @@ export default function DesignWizardClient({ project, projectData, initialSectio
 
   // Guard: reset to 'project-data' if:
   // - stored step isn't a valid design step (set by old WizardClient), OR
-  // - grossSf is missing (project data was never entered — happens when
+  // - grossSf is missing (project data was never entered, happens when
   //   a project is switched to design mode without going through the wizard).
   const hasProjectData = (projectData?.grossSf ?? 0) > 0;
   const validDesignStep = hasProjectData && DESIGN_WIZARD_STEPS.some(s => s.id === project.currentStep);
@@ -95,7 +95,7 @@ export default function DesignWizardClient({ project, projectData, initialSectio
   }
 
   // A drawing upload committed to Project Info. The commit route returns the
-  // fresh ProjectData row, so the form and the live budget pick it up here —
+  // fresh ProjectData row, so the form and the live budget pick it up here
   // no reload, and no second fetch.
   // A drawing read just landed, so small vs long breezeway can now be asked.
   const [hasDrawings, setHasDrawings] = useState(initialHasDrawings);
@@ -162,7 +162,7 @@ export default function DesignWizardClient({ project, projectData, initialSectio
   // getDesignNextStep('controls') returns 'summary' (a real entry in
   // DESIGN_WIZARD_STEPS), so goToNext sets currentStep='summary' rather than
   // hitting its router.push fallback. Without this effect the wizard renders the
-  // "Redirecting to summary..." interstitial forever and never navigates — and
+  // "Redirecting to summary..." interstitial forever and never navigates, and
   // because 'summary' gets persisted to the DB, a reload stays stuck too.
   // Mirror of the redirect in WizardClient.
   useEffect(() => {

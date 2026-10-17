@@ -3,8 +3,8 @@
  * Read the site data block off a site plan and apply it to Project Info.
  *
  * ── Why this panel looks the way it does ─────────────────────────────────────
- * Three of the fields it fills — lot SF, surface parking stalls, exterior
- * amenity SF — are on `projectInputChecks.js`'s critical list, meaning the
+ * Three of the fields it fills, lot SF, surface parking stalls, exterior
+ * amenity SF, are on `projectInputChecks.js`'s critical list, meaning the
  * budget engine reads them as zero when blank and prices whole sections at $0
  * without saying so. Filling them from the drawing is the point of this panel.
  * That also sets the design constraint: a wrong number here is worse than a
@@ -15,11 +15,11 @@
  * reviewer has to leave on, every value is editable in place, and a field that
  * would REPLACE a number somebody already entered is called out rather than
  * silently overwriting it. Pressing Apply is the write, and it is also the
- * verdict — the server diffs what was applied against what the model read.
+ * verdict, the server diffs what was applied against what the model read.
  *
- * @see src/lib/siteFields.js       — the translation and the writable allowlist
- * @see src/lib/agent/autoChecks.js — the arithmetic shown in CheckList
- * @see src/lib/agent/siteDiff.js   — what Apply records
+ * @see src/lib/siteFields.js, the translation and the writable allowlist
+ * @see src/lib/agent/autoChecks.js, the arithmetic shown in CheckList
+ * @see src/lib/agent/siteDiff.js, what Apply records
  */
 import { useState, useRef, useCallback } from 'react';
 import { oversizeMessage, uploadErrorMessage, uploadThrowMessage } from '@/lib/uploadErrorMessage';
@@ -136,7 +136,7 @@ function FieldRow({ row, checked, value, onToggle, onChange }) {
             <option value="long">Long breezeway</option>
           </select>
         ) : row.unit === 'type' ? (
-          // The building type is a pick from the engine's list, not a number —
+          // The building type is a pick from the engine's list, not a number
           // the reader's pick is pre-selected and the reviewer can change it.
           <select
             value={value ?? ''}
@@ -145,7 +145,7 @@ function FieldRow({ row, checked, value, onToggle, onChange }) {
             className="w-56 bg-white border border-slate-300 rounded-lg px-2 py-1 text-sm outline-none focus:border-orange-500 focus:ring-2 focus:ring-orange-500 disabled:bg-slate-50 disabled:text-slate-400"
             aria-label="Building type"
           >
-            <option value="">— not set —</option>
+            <option value="">Not set</option>
             {BUILDING_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
           </select>
         ) : (
@@ -170,7 +170,7 @@ function FieldRow({ row, checked, value, onToggle, onChange }) {
 // The unit count is the reason this extraction is worth governing, and it is
 // deliberately read-only: the unit matrix owns that field and a person already
 // signed off on it. Showing it as evidence and refusing to write it is the
-// whole point — two extractors racing for one number is how an accepted value
+// whole point, two extractors racing for one number is how an accepted value
 // gets silently overwritten by a less careful read.
 function ReadOnlyEvidence({ site }) {
   const bits = [
@@ -236,7 +236,7 @@ export default function SiteDataUpload({ projectId, onCommitted }) {
     setState('uploading');
     setErrMsg('');
 
-    // Check the size before sending — a 4 MB+ body is rejected by the host before
+    // Check the size before sending, a 4 MB+ body is rejected by the host before
     // it ever reaches us, and "Upload failed, please try again" is a lie there:
     // retrying the same file never works.
     const tooBig = oversizeMessage(file);
@@ -250,7 +250,7 @@ export default function SiteDataUpload({ projectId, onCommitted }) {
 
     let fileId;
     try {
-      // Straight to S3 for PDFs — site plans are routinely over the 4 MB
+      // Straight to S3 for PDFs, site plans are routinely over the 4 MB
       // front-door cap.
       await appendUpload(formData, file, { scope: 'project' });
       const r = await fetch(`/api/projects/${projectId}/files`, { method: 'POST', body: formData });
@@ -279,7 +279,7 @@ export default function SiteDataUpload({ projectId, onCommitted }) {
 
       setParsed(d);
       // Everything starts ticked ON, because the reviewer is here to say no to
-      // specific fields, not to re-enter them all. What starts OFF is nothing —
+      // specific fields, not to re-enter them all. What starts OFF is nothing
       // an unticked default would make ignoring the panel the easy path.
       setPicked(Object.fromEntries(d.proposal.map(r2 => [r2.key, { on: true, value: r2.value }])));
       setState('reviewing');

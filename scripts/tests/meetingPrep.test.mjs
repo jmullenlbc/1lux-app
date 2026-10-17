@@ -1,4 +1,4 @@
-// Meeting Prep (sales notes) — the pure fact builder and reply checker.
+// Meeting Prep (sales notes), the pure fact builder and reply checker.
 // Run: node --test scripts/tests/meetingPrep.test.mjs
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -57,7 +57,7 @@ test('facts are numbered F1… in block order', () => {
   assert.deepEqual(seen, [...seen].sort((a, b) => a - b));
 });
 
-test('sell figures show — budget, product sale, design fee', () => {
+test('sell figures show: budget, product sale, design fee', () => {
   const deals = buildFactBlocks(raw(), NOW).filter(f => f.block === 'deals').map(f => f.text);
   const lt = deals.find(t => t.startsWith('Lone Tree Ranch'));
   assert.match(lt, /Budget \$812,346 \(Bid Matrix\); product sale \$250,000; design fee \$40,000\./);
@@ -80,7 +80,7 @@ test('DN, buy price and margin never show', () => {
 
 test('people on the meeting come first, with their last in-person date', () => {
   const people = buildFactBlocks(raw(), NOW).filter(f => f.block === 'people');
-  assert.match(people[0].text, /^Jane Roe, VP Development \(Acme Dev\) — on this meeting/);
+  assert.match(people[0].text, /^Jane Roe, VP Development \(Acme Dev\), on this meeting/);
   assert.match(people[0].text, /43 days ago/);
   assert.match(people[0].text, /Last email to them Sep 9, 2026\./);
   assert.match(people[1].text, /No in-person meeting on file/);
@@ -91,14 +91,14 @@ test('work history reads as years at each place', () => {
   assert.equal(wh.length, 1, 'Bob has none on file, so he gets no line');
   assert.equal(wh[0].sourceId, 'p1');
   assert.equal(wh[0].text,
-    'Jane Roe — Acme Dev, VP Development, Mar 2019 – now (7 yrs 7 mos); Brick Co, Project Manager, 2014 – 2019 (about 5 yrs).');
+    'Jane Roe: Acme Dev, VP Development, Mar 2019 to now (7 yrs 7 mos); Brick Co, Project Manager, 2014 to 2019 (about 5 yrs).');
 });
 
 test('jobs with them: count, lead, boards and stages, budgets', () => {
   const jobs = buildFactBlocks(raw(), NOW).filter(f => f.block === 'jobs');
   assert.equal(jobs.length, 1);
   const t = jobs[0].text;
-  assert.match(t, /^Jane Roe — on 2 jobs with us \(lead on 1\)\./, 'an archived or unknown job is not counted');
+  assert.match(t, /^Jane Roe, on 2 jobs with us \(lead on 1\)\./, 'an archived or unknown job is not counted');
   assert.match(t, /Procurement: 1 open \(.+ 1\), 1 won/);
   assert.match(t, /Design: 1 won/);
   assert.match(t, /Budgets on those jobs total \$812,346\./);

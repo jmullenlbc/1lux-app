@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
-// GET — one document, including the extracted text so a human can check what
+// GET, one document, including the extracted text so a human can check what
 // the bot is actually reading. That check matters: a scanned PDF can come back
 // with plausible-looking OCR nonsense, and the only way to catch it is to look.
 export async function GET(request, { params }) {
@@ -18,7 +18,7 @@ export async function GET(request, { params }) {
   return NextResponse.json({ doc });
 }
 
-// PATCH — title, description, category, active flag. The extracted text is not
+// PATCH, title, description, category, active flag. The extracted text is not
 // editable here on purpose; it is a record of what was read out of the file.
 export async function PATCH(request, { params }) {
   const { user, error } = await requireAuth();
@@ -66,7 +66,7 @@ export async function DELETE() {
   if (error) return error;
 
   return NextResponse.json({
-    error: 'Files in the bot library are archived, never deleted. Archive it instead — that takes it out of the bot and keeps the file.',
+    error: 'Files in the bot library are archived, never deleted. Archive it instead. That takes it out of the bot and keeps the file.',
   }, { status: 405 });
 }
 

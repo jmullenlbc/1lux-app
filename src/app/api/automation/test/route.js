@@ -6,7 +6,7 @@ import { normalizeEmail, normalizeCalendarEvent } from '@/lib/bot/intake';
 export const dynamic = 'force-dynamic';
 
 // Simulate a trigger to test your rules without M365. Dry run by default
-// (evaluates + reports, mutates nothing). { run: true } actually fires — any
+// (evaluates + reports, mutates nothing). { run: true } actually fires, any
 // resulting drafts land in the caller's Bot Queue.
 export async function POST(req) {
   const { user, error } = await requireSalesAdmin();

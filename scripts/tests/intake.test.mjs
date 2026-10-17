@@ -1,6 +1,6 @@
 /**
  * Unit tests for the public conceptual-budget intake helpers.
- * Zero dependencies — node:test only. Run: npm run test:intake
+ * Zero dependencies, node:test only. Run: npm run test:intake
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -87,7 +87,7 @@ test('website match is returned as a LOW confidence suggestion, not an assignmen
   const r = resolveClientByDomain('acmebuilders.com', CLIENTS);
   assert.equal(r.clientId, 'c3');
   assert.equal(r.matchType, 'website');
-  assert.equal(r.confidence, 'low', 'website is free text — must not auto-assign');
+  assert.equal(r.confidence, 'low', 'website is free text, must not auto-assign');
 });
 
 test('explicit domain beats website when both could match', () => {

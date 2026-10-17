@@ -13,6 +13,7 @@ import { controlsMathWords } from '@/lib/intake/controlsWords';
 import { formatCurrency } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import AlertMark from '@/components/ui/AlertMark';
+import { PublicBugLink } from '@/components/public/PublicBugButton';
 import { CARD, CARD_PADDED, CARD_TITLE, BTN_PRIMARY, BTN_SECONDARY, BTN_GHOST, BTN_COMPACT, H1, INPUT, LABEL, HELPER } from '@/components/ui/tokens';
 
 /**
@@ -280,8 +281,8 @@ const MANUAL_FIELDS = [
 ];
 
 /**
- * A figure box in a grid. CSS subgrid gives every cell the same three rows , 
- * label/hint, box, estimate note, so the boxes across a row sit on one line
+ * A figure box in a grid. CSS subgrid gives every cell the same three rows
+ * (label and hint, box, note), so the boxes across a row sit on one line
  * even when a neighbour's tag or hint wraps. Where subgrid isn't supported it
  * falls back to a plain stacked field.
  */
@@ -426,8 +427,9 @@ function PublicSectionNav({ steps = STEPS, currentStep, completedSteps, canNavig
         })}
       </nav>
 
-      <div className="px-4 py-3 border-t border-slate-100">
+      <div className="px-4 py-3 border-t border-slate-100 flex flex-col items-start gap-2">
         <Link href={portalHref(email)} className="text-xs font-semibold text-orange-600 hover:text-orange-700">My company&apos;s budgets</Link>
+        <PublicBugLink />
       </div>
       <div className="px-4 py-3 border-t border-slate-100">
         <p className="text-[11px] text-slate-500 leading-relaxed">{CONFIRM_NOTE}</p>
@@ -636,6 +638,16 @@ export default function IntakeClient() {
     : steps.findIndex(s => s.id === (stepId === 'figures' ? 'drawings' : 'amenities')));
   const step      = steps[stepIndex];
   const homeType  = isHomeProjectType(answers.projectType);
+
+  // Handed to "Report a bug" so the report links straight to this budget.
+  useEffect(() => {
+    window.__ilcIntake = {
+      draftId,
+      stepLabel:   submitted ? 'Sent' : step?.label,
+      projectName: [project, budgetName].map(s => String(s ?? '').trim()).filter(Boolean).join(', '),
+    };
+    return () => { delete window.__ilcIntake; };
+  }, [draftId, submitted, step?.label, project, budgetName]);
 
   const emailCheck = email ? classifyIntakeEmail(email) : null;
   // Once the work email is good, fetch the company's project names for the
@@ -1273,7 +1285,10 @@ export default function IntakeClient() {
           <div className="flex-1">
             <div className="text-base font-semibold text-slate-900 leading-tight">ILC Studios</div>
             <div className="text-xs text-slate-500">Conceptual Lighting Budget</div>
-            <Link href={portalHref(email)} className="text-xs font-semibold text-orange-600 hover:text-orange-700">My company&apos;s budgets</Link>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+              <Link href={portalHref(email)} className="text-xs font-semibold text-orange-600 hover:text-orange-700">My company&apos;s budgets</Link>
+              <PublicBugLink />
+            </div>
           </div>
           {hasEstimate && !submitted && (
             <div className="text-right">
@@ -1358,11 +1373,21 @@ export default function IntakeClient() {
               <section className={CARD_PADDED}>
                 <div className="rounded-lg bg-green-50 border border-green-200 px-4 py-4">
                   <p className="text-sm text-green-800 font-semibold">Request received, thanks!</p>
-                  <p className="text-xs text-green-700 mt-1">{CONFIRM_NOTE}</p>
-                  <p className="text-xs text-green-700 mt-2">
-                    An ILC Studios team member will review your submission. If your project is a fit,
-                    you&apos;ll receive a secure link to the ILC client portal to view your conceptual budget.
+                  {/* Mike's exact words, 10-17. */}
+                  <p className="text-sm text-green-800 mt-2 leading-relaxed">
+                    As we are beta testing our budgeting tool, we want to ensure your budget is 100% correct.
+                    In turn, we want one of our incredible pre-con team members to confirm all numbers are
+                    correct and send you a confirmed budget within 48hrs.
                   </p>
+                </div>
+                <p className="text-sm text-slate-600 mt-4">
+                  Want to see all of your company&apos;s budgets?{' '}
+                  <Link href={portalHref(email)} className="font-semibold text-orange-600 hover:text-orange-700">
+                    Go back to your company budget dashboard
+                  </Link>
+                </p>
+                <div className="mt-3">
+                  <PublicBugLink />
                 </div>
               </section>
             ) : (
@@ -1434,11 +1459,19 @@ export default function IntakeClient() {
                         <input className={inputCls} value={lastName} onChange={e => setLastName(e.target.value)} placeholder="Doe" />
                       </Field>
 
-                      <div className="sm:col-span-2">
-                        <Field
+                      {/* Mike 10-17: email and company share a row, project
+                          name and budget description share a row. Subgrid
+                          keeps each pair's boxes on one line however the
+                          hints wrap. */}
+                      <div className="sm:col-span-2 grid sm:grid-cols-2 gap-4">
+                        <FigureField
                           label="Work email"
-                          hint="We use your company domain to connect this to the right account, so personal addresses won't work."
-                          error={emailError}
+                          hint="Your company email. Personal addresses won't work."
+                          note={emailError
+                            ? <p className="text-xs text-red-600">{emailError}</p>
+                            : emailCheck?.ok
+                              ? <p className="text-xs text-green-600">Work email accepted · {emailCheck.domain}</p>
+                              : null}
                         >
                           <input
                             className={inputCls}
@@ -1448,26 +1481,23 @@ export default function IntakeClient() {
                             onBlur={() => setTouchedEmail(true)}
                             placeholder="jane@yourcompany.com"
                           />
-                        </Field>
-                        {emailCheck?.ok && (
-                          <p className="text-xs text-green-600 mt-1">Work email accepted · {emailCheck.domain}</p>
-                        )}
-                      </div>
+                        </FigureField>
+                        <FigureField label="Company" labelRight="Optional">
+                          <input className={inputCls} value={company} onChange={e => setCompany(e.target.value)} placeholder="Your company" />
+                        </FigureField>
 
-                      <Field label="Company" labelRight="Optional">
-                        <input className={inputCls} value={company} onChange={e => setCompany(e.target.value)} placeholder="Your company" />
-                      </Field>
-                      <Field label="Project name" hint={companyProjects.length ? 'Pick one your company already used, or type a new one.' : undefined}>
-                        <input className={inputCls} value={project} onChange={e => setProject(e.target.value)} placeholder="Lincoln Avenue Phase 2" list="company-project-names" autoComplete="off" />
-                        {companyProjects.length > 0 && (
-                          <datalist id="company-project-names">
-                            {companyProjects.map(p => <option key={p.name} value={p.name}>{[p.city, p.state].filter(Boolean).join(', ')}</option>)}
-                          </datalist>
-                        )}
-                      </Field>
-                      <Field label="Budget description" labelRight="Optional" hint="Which budget this is for the project, for example 100% DD or Alt 2 with pool.">
-                        <input className={inputCls} value={budgetName} onChange={e => setBudgetName(e.target.value)} placeholder="100% DD" />
-                      </Field>
+                        <FigureField label="Project name" hint={companyProjects.length ? 'Pick one your company already used, or type a new one.' : undefined}>
+                          <input className={inputCls} value={project} onChange={e => setProject(e.target.value)} placeholder="Lincoln Avenue Phase 2" list="company-project-names" autoComplete="off" />
+                          {companyProjects.length > 0 && (
+                            <datalist id="company-project-names">
+                              {companyProjects.map(p => <option key={p.name} value={p.name}>{[p.city, p.state].filter(Boolean).join(', ')}</option>)}
+                            </datalist>
+                          )}
+                        </FigureField>
+                        <FigureField label="Budget description" labelRight="Optional" hint="Which budget this is, for example 100% DD or Alt 2 with pool.">
+                          <input className={inputCls} value={budgetName} onChange={e => setBudgetName(e.target.value)} placeholder="100% DD" />
+                        </FigureField>
+                      </div>
 
                       {/* Where the project is. City takes the room; State fits
                           "District of Columbia"; Zip fits ZIP+4. */}

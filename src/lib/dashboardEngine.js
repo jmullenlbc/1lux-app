@@ -1,5 +1,5 @@
 /**
- * Dashboard query engine — native JS dates only, no date library.
+ * Dashboard query engine, native JS dates only, no date library.
  * Translates a DashboardWidget config into Prisma queries and returns chart-ready data.
  */
 
@@ -182,7 +182,7 @@ const LEGACY_SERVICE_TYPE = {
 // them on that board. This filter was being thrown away, which is why the seeded
 // "Design Fee Forecast" was quietly charting every job in the company.
 //
-// This is only a head start for the database — it fetches no more jobs than the
+// This is only a head start for the database, it fetches no more jobs than the
 // chart could possibly need. The actual narrowing to one board happens in
 // rowPassesFilters() after each job has been split into its rows, which is the
 // only place that can tell a job's Design row from its Procurement row.
@@ -197,7 +197,7 @@ function pipelineWhere(rule) {
       { serviceType: { in: FEE_OPTIONAL_DESIGN_TYPES }, designContractValue: { gt: 0 } },
     ] };
   }
-  return {}; // Procurement (or both) — no narrowing, every project is on that board
+  return {}; // Procurement (or both), no narrowing, every project is on that board
 }
 
 function filterToWhere(rule) {
@@ -259,19 +259,19 @@ export function filtersToWhere(filters) {
 // ── Grouping helpers ───────────────────────────────────────────────────────
 
 function probabilityTier(p) {
-  if (p >= 80) return '80–100%';
-  if (p >= 50) return '50–79%';
-  if (p >= 25) return '25–49%';
-  return '0–24%';
+  if (p >= 80) return '80 to 100%';
+  if (p >= 50) return '50 to 79%';
+  if (p >= 25) return '25 to 49%';
+  return '0 to 24%';
 }
 
-const PROB_TIER_ORDER = ['80–100%', '50–79%', '25–49%', '0–24%'];
+const PROB_TIER_ORDER = ['80 to 100%', '50 to 79%', '25 to 49%', '0 to 24%'];
 
 // Every bar, slice and legend entry reads in plain English. These used to come
 // back as the stored value, so a chart grouped by stage said "PRECONSTRUCTION"
 // and one grouped by service type said "fullDesign". The names come from the
 // same vocabulary the boards use (pipeline.js), so a rename lands on the charts
-// too — this file used to keep its own copy of the board names.
+// too, this file used to keep its own copy of the board names.
 
 function getDealKey(deal, viewBy) {
   switch (viewBy) {
@@ -283,7 +283,7 @@ function getDealKey(deal, viewBy) {
     case 'projectType':     return deal.projectType ? projectTypeLabel(deal.projectType) : 'Unknown';
     case 'serviceType':     return deal.serviceType ? serviceTypeLabel(deal.serviceType) : 'Unknown';
     // Splitting a chart by Deal Status was landing every deal in one "Unknown"
-    // bucket — the status was never read here at all.
+    // bucket, the status was never read here at all.
     case 'dealStatus':      return STATUS_LABEL[deal.dealStatus] || deal.dealStatus || 'Unknown';
     case 'probabilityTier': return probabilityTier(deal.probability);
     case 'state':           return deal.state        || 'Unknown';
@@ -383,7 +383,7 @@ export async function runWidget(widget, db) {
         revenue:         row.revenue,            // this board's money, and only this board's
         totalRevenue:    p.contractValue,        // product sales on the whole job
         designFeeTotal:  p.designContractValue,  // design fee on the whole job
-        combinedRevenue: combinedRevenue(p),     // Mike's item 3 — the two added up
+        combinedRevenue: combinedRevenue(p),     // Mike's item 3, the two added up
         lostReason:      null,
       });
     }
@@ -496,7 +496,7 @@ export async function runWidget(widget, db) {
         dealCount: deals.length, jobCount: countJobs(deals) } };
   }
 
-  // DURATION — how long a deal took, board by board
+  // DURATION, how long a deal took, board by board
   //
   // This chart was always empty: it read deal.wonAt / deal.lostAt, and neither
   // column has ever existed. The dates now come from ProjectStatusEvent, which
@@ -504,7 +504,7 @@ export async function runWidget(widget, db) {
   //
   // Rows the 0069 backfill had to invent from updatedAt are marked approximated
   // and are excluded here on purpose. The 0061 lesson is that a guessed date,
-  // once stored, is indistinguishable from a real one — so rather than publish
+  // once stored, is indistinguishable from a real one, so rather than publish
   // an average built on the day somebody last edited a record, the chart says
   // how many closed deals it had to leave out.
   if (category === 'DURATION') {
@@ -524,7 +524,7 @@ export async function runWidget(widget, db) {
     let closedWithoutDate = 0;
     let measured = 0;
     for (const deal of deals) {
-      if (!DECIDED_STATUSES.includes(deal.dealStatus)) continue;   // still open — no duration yet
+      if (!DECIDED_STATUSES.includes(deal.dealStatus)) continue;   // still open, no duration yet
       const board   = history.get(`${deal.id}|${deal.pipeline}`) || [];
       const closing = [...board].reverse().find(e => DECIDED_STATUSES.includes(e.toStatus));
       if (!closing) { closedWithoutDate++; continue; }
@@ -573,7 +573,7 @@ function timeLabelsFromDates(dates, viewBy) {
   return eachMonth(min, max).map(fmtMonthYear);
 }
 
-// ── SALES_ACTIVITY — counts sales Note rows (meetings, in-person, unique clients) ──
+// ── SALES_ACTIVITY, counts sales Note rows (meetings, in-person, unique clients) ──
 
 async function runSalesActivity(widget, db, filters) {
   const { metric, viewBy } = widget;
@@ -642,7 +642,7 @@ async function runSalesActivity(widget, db, filters) {
   };
 }
 
-// ── PROPOSALS — counts/sums Proposal rows (sent, accepted, value, acceptance rate) ──
+// ── PROPOSALS, counts/sums Proposal rows (sent, accepted, value, acceptance rate) ──
 
 async function runProposals(widget, db, filters) {
   const { metric, viewBy } = widget;

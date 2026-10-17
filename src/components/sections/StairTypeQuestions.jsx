@@ -5,9 +5,9 @@ import { STAIR_TYPES, BREEZEWAY_STYLES, stairTypeFor, breezewayMultiplier } from
 
 /**
  * The stair questions on both Corridors screens (Mike 2026-09-14):
- *  1. Interior corridors + stairwells, or exterior breezeways — one dropdown,
+ *  1. Interior corridors + stairwells, or exterior breezeways, one dropdown,
  *     following the building type until someone answers it.
- *  2. Small vs long breezeway — only when the project has drawings to judge
+ *  2. Small vs long breezeway, only when the project has drawings to judge
  *     from ("No one will know what that means" otherwise). Without drawings a
  *     breezeway landing prices at the average of the two.
  */

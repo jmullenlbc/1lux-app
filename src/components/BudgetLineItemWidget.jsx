@@ -29,7 +29,7 @@ export default function BudgetLineItemWidget({ files = [] }) {
             </svg>
           </div>
           <div>
-            <h3 className="font-semibold text-slate-800">Top 10 Line Items — CN Price</h3>
+            <h3 className="font-semibold text-slate-800">Top 10 Line Items: CN Price</h3>
             <p className="text-xs text-slate-400 mt-0.5">Extracted from latest uploaded budget PDF</p>
           </div>
         </div>
@@ -65,7 +65,7 @@ export default function BudgetLineItemWidget({ files = [] }) {
             </svg>
           </div>
           <div>
-            <h3 className="font-semibold text-slate-800">Top 10 Line Items — CN Price</h3>
+            <h3 className="font-semibold text-slate-800">Top 10 Line Items: CN Price</h3>
             <div className="flex items-center gap-2 mt-0.5">
               <p className="text-xs text-slate-400 truncate max-w-xs">{latestFile.originalName}</p>
               {tags.map(t => (
@@ -136,7 +136,7 @@ export default function BudgetLineItemWidget({ files = [] }) {
       {/* Footer */}
       <div className="px-5 py-3 bg-slate-50 border-t border-slate-100">
         <p className="text-[11px] text-slate-400 leading-relaxed">
-          Extracted from PDF text — best effort. Accuracy depends on PDF structure. Manufacturer and Part # columns require the PDF to use a structured table format.
+          Extracted from PDF text, best effort. Accuracy depends on PDF structure. Manufacturer and Part # columns require the PDF to use a structured table format.
           Once native budgets are built in-system, this will populate automatically and precisely.
         </p>
       </div>

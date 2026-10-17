@@ -41,7 +41,7 @@ export async function PATCH(request, { params }) {
   return NextResponse.json({ note: toMeetingNote(updated) });
 }
 
-// DELETE — refused. Meeting notes are archived, never deleted (Mike, 2026-09-11).
+// DELETE, refused. Meeting notes are archived, never deleted (Mike, 2026-09-11).
 export async function DELETE() {
   return NextResponse.json({ error: deleteRefused('Notes') }, { status: 405 });
 }

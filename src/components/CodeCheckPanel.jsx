@@ -8,7 +8,7 @@ function buildCheckContent(check) {
   if (check.summary) parts.push(`<p>${check.summary}</p>`);
   if (check.items?.length) {
     parts.push('<ul>' + check.items.map(it =>
-      `<li><strong>${it.type || ''}</strong>${it.message ? ' — ' + it.message : ''}${it.detail ? ' (' + it.detail + ')' : ''}</li>`
+      `<li><strong>${it.type || ''}</strong>${it.message ? ': ' + it.message : ''}${it.detail ? ' (' + it.detail + ')' : ''}</li>`
     ).join('') + '</ul>');
   }
   if (check.code) parts.push(`<p><em>Reference: ${check.code}</em></p>`);
@@ -84,7 +84,7 @@ function CheckCard({ check, defaultOpen }) {
                   </span>
                   <div>
                     <span className="font-semibold text-slate-700">{item.type}</span>
-                    {item.detail && <span className="text-slate-400 ml-1">— {item.detail}</span>}
+                    {item.detail && <span className="text-slate-400 ml-1">· {item.detail}</span>}
                     <p className="text-slate-500 mt-0.5 leading-relaxed">{item.message}</p>
                   </div>
                 </div>
@@ -219,7 +219,7 @@ export default function CodeCheckPanel({ projectId }) {
             </svg>
           </div>
           <div>
-            <p className="text-sm font-semibold text-slate-800">Code Check — Fixture Schedule</p>
+            <p className="text-sm font-semibold text-slate-800">Code Check: Fixture Schedule</p>
             <p className="text-xs text-slate-400 mt-0.5">ASHRAE 90.1 · IFC · NEC · IECC</p>
           </div>
         </div>
@@ -261,7 +261,7 @@ export default function CodeCheckPanel({ projectId }) {
                 </span>
                 <span className={`flex items-center gap-1 ${data.hasTakeoff ? 'text-green-600' : 'text-amber-500'}`}>
                   <span className={`w-1.5 h-1.5 rounded-full ${data.hasTakeoff ? 'bg-green-500' : 'bg-amber-400'}`} />
-                  {data.hasTakeoff ? `Takeoff: ${data.takeoffFile?.name}` : 'No takeoff — LPD checks partial'}
+                  {data.hasTakeoff ? `Takeoff: ${data.takeoffFile?.name}` : 'No takeoff, LPD checks partial'}
                 </span>
                 <button onClick={load} className="ml-auto text-slate-400 hover:text-slate-600 flex items-center gap-1 transition-colors">
                   <svg viewBox="0 0 20 20" fill="currentColor" className="w-3.5 h-3.5">

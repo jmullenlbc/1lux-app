@@ -48,11 +48,11 @@ async function main() {
 
   for (const deal of designDeals) {
     const p = deal.linkedProject;
-    if (!p) { console.log(`  ⚠ SKIP deal #${deal.dealNumber} — no linked project found`); skipped++; continue; }
+    if (!p) { console.log(`  ⚠ SKIP deal #${deal.dealNumber}, no linked project found`); skipped++; continue; }
 
     // Only process Full Design / Design Assist
     if (!DESIGN_SERVICE_TYPES.includes(p.serviceType)) {
-      console.log(`  ⚠ SKIP deal #${deal.dealNumber} ${p.name} — serviceType is "${p.serviceType}", not a dual-pipeline type`);
+      console.log(`  ⚠ SKIP deal #${deal.dealNumber} ${p.name}, serviceType is "${p.serviceType}", not a dual-pipeline type`);
       skipped++;
       continue;
     }
@@ -62,7 +62,7 @@ async function main() {
       where: { linkedProjectId: p.id, pipeline: 'PROCUREMENT' },
     });
     if (existingProcurement) {
-      console.log(`  ⚠ SKIP ${p.name} — PROCUREMENT deal already exists (#${existingProcurement.dealNumber})`);
+      console.log(`  ⚠ SKIP ${p.name}, PROCUREMENT deal already exists (#${existingProcurement.dealNumber})`);
       skipped++;
       continue;
     }
@@ -95,7 +95,7 @@ async function main() {
         linkedProjectId: p.id,
         linkedDealId:    deal.id,       // ← links to DESIGN deal
         createdById:     deal.createdById,
-        notes: `Procurement side of dual-pipeline deal — migrated from PRJ on ${today}`,
+        notes: `Procurement side of dual-pipeline deal, migrated from PRJ on ${today}`,
       },
     });
 

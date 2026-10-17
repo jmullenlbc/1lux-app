@@ -63,7 +63,7 @@ export async function GET(req, { params }) {
   });
 }
 
-// POST /api/projects/[id]/estimate/apply — write wizard counts back to projectData
+// POST /api/projects/[id]/estimate/apply, write wizard counts back to projectData
 export async function POST(req, { params }) {
   const { user, error } = await requireAuth(req);
   if (error) return error;

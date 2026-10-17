@@ -18,7 +18,7 @@ async function authorize(clientId) {
   return { user, client };
 }
 
-// POST — get-or-create the persistent, live-updating standards share link for this client
+// POST, get-or-create the persistent, live-updating standards share link for this client
 export async function POST(request, { params }) {
   const { user, error } = await authorize(params.id);
   if (error) return error;
@@ -33,7 +33,7 @@ export async function POST(request, { params }) {
   return NextResponse.json({ share, shareUrl: shareUrlFor(share.token) }, { status: 200 });
 }
 
-// GET — return the existing link (if any) without creating one
+// GET, return the existing link (if any) without creating one
 export async function GET(request, { params }) {
   const { error } = await authorize(params.id);
   if (error) return error;
@@ -42,7 +42,7 @@ export async function GET(request, { params }) {
   return NextResponse.json({ share, shareUrl: share ? shareUrlFor(share.token) : null });
 }
 
-// DELETE — revoke the link (rotates by removing it; a new POST mints a fresh token)
+// DELETE, revoke the link (rotates by removing it; a new POST mints a fresh token)
 export async function DELETE(request, { params }) {
   const { error } = await authorize(params.id);
   if (error) return error;

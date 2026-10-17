@@ -52,7 +52,7 @@ test('a conceptual price below the credit never goes negative', () => {
 test('a blank conceptualPerFan on an old frozen sheet falls back to the legacy net adder', () => {
   // Projects frozen before this key existed have it filled in by
   // fillPricingDefaults; a sheet that explicitly zeroes it should not price
-  // fans at $0 — it falls to the legacy net adder instead (no credit taken:
+  // fans at $0, it falls to the legacy net adder instead (no credit taken:
   // that number is already net).
   const frozen = { ...PRICING, fans: { ...PRICING.fans, conceptualPerFan: 0 } };
   assert.equal(fans({ units: { fans: 'masterOnly' } }, frozen), 100 * PRICING.fans.adderPerFan);
@@ -91,7 +91,7 @@ test('conceptual budget: a studio building with "Master bed + Living room" gets 
   assert.equal(budget.fanCount, 40);
 });
 
-test('migration 0088 sets the SAVED master sheet to $175 — a saved 180 would otherwise beat the code default', async () => {
+test('migration 0088 sets the SAVED master sheet to $175, a saved 180 would otherwise beat the code default', async () => {
   const { readFile } = await import('node:fs/promises');
   const sql = await readFile(new URL('../../prisma/migrations/0088_fan_conceptual_175/migration.sql', import.meta.url), 'utf8');
   assert.match(sql, /conceptualPerFan/);

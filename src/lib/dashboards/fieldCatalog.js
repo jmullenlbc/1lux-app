@@ -1,5 +1,5 @@
 // Curated, layman-labeled field catalog per dashboard section.
-// The picker only ever offers these — never raw schema columns.
+// The picker only ever offers these, never raw schema columns.
 //
 // `tier` feeds the future MCP redact() layer (ilc_only | client_ok | public).
 // Dashboards are internal-only, so the engine reads everything untiered today;
@@ -44,7 +44,7 @@ export const FIELD_CATALOG = {
     { key: 'probabilityToMoveForward', label: 'Probability to Move Forward', type: 'number', unit: '%', tier: 'ilc_only', source: 'probabilityToMoveForward' },
     { key: 'averageProbability', label: WEIGHTED_PROBABILITY_LABEL, type: 'number', unit: '%', tier: 'ilc_only', source: 'averageProbability',
       description: 'Probability to Win and Probability to Move Forward, averaged.' },
-    // Maram 9-17 — weighted money, On Hold money, and the buyout tracker.
+    // Maram 9-17, weighted money, On Hold money, and the buyout tracker.
     { key: 'weightedRevenue',    label: `${WEIGHTED_REVENUE_LABEL} (product)`, type: 'number', unit: '$', tier: 'ilc_only', source: 'weightedRevenue',
       description: 'Product sale × Weighted Probability %, per project.' },
     { key: 'weightedDesignFee',  label: `${WEIGHTED_REVENUE_LABEL} (design fee)`, type: 'number', unit: '$', tier: 'ilc_only', source: 'weightedDesignFee',
@@ -55,9 +55,9 @@ export const FIELD_CATALOG = {
       description: 'Design fee on projects whose design status is On Hold.' },
     { key: 'buyoutDays',         label: 'Buyout Duration (days)', type: 'number', unit: 'days', tier: 'ilc_only', source: 'buyoutDays',
       description: 'Days from the job entering Buyout to the day it entered CA / Procurement, read from the stage history. Blank until both moves have happened.' },
-    // status-conditional counts — power win rate & loss analysis
+    // status-conditional counts, power win rate & loss analysis
     { key: 'wonCount',           label: 'Won',                 type: 'number', unit: 'count', tier: 'ilc_only', source: '_count', where: { source: 'procurementStatus', op: 'in', value: WON_STATUSES },
-      description: 'Projects won (includes Completed — a completed job was won).' },
+      description: 'Projects won (includes Completed: a completed job was won).' },
     { key: 'lostCount',          label: 'Lost',                type: 'number', unit: 'count', tier: 'ilc_only', source: '_count', where: { source: 'procurementStatus', op: 'in', value: ['LOST'] } },
     { key: 'abandonedCount',     label: 'Abandoned',           type: 'number', unit: 'count', tier: 'ilc_only', source: '_count', where: { source: 'procurementStatus', op: 'in', value: ['ABANDONED'] } },
     { key: 'lostAbandonedCount', label: 'Lost + Abandoned',    type: 'number', unit: 'count', tier: 'ilc_only', source: '_count', where: { source: 'procurementStatus', op: 'in', value: ['LOST', 'ABANDONED'] } },
@@ -77,7 +77,7 @@ export const FIELD_CATALOG = {
     { key: 'hasPurchaseOrder',   label: 'Has Purchase Order',  type: 'dimension', source: 'hasPurchaseOrder',
       description: 'Yes once the project has at least one shipment (a placed purchase order).' },
     { key: 'probabilityTier',    label: 'Probability Tier',    type: 'bucket',    source: 'averageProbability',
-      buckets: [ { max: 24, label: '0–24%' }, { max: 49, label: '25–49%' }, { max: 79, label: '50–79%' }, { max: 100, label: '80–100%' } ] },
+      buckets: [ { max: 24, label: '0 to 24%' }, { max: 49, label: '25 to 49%' }, { max: 79, label: '50 to 79%' }, { max: 100, label: '80 to 100%' } ] },
     // time
     { key: 'expectedContractExecutionDate', label: 'Expected Contract Execution Date', type: 'date', source: 'expectedContractExecutionDate' },
     { key: 'expectedOrderDate',  label: 'Expected Order Date', type: 'date', source: 'expectedOrderDate' },
@@ -106,7 +106,7 @@ export const FIELD_CATALOG = {
     { key: 'productSaleTotal',   label: 'Product Sale Total',  type: 'number', unit: '$',     tier: 'ilc_only', source: 'contractValue' },
     { key: 'designFeeTotal',     label: 'Design Fee Total',    type: 'number', unit: '$',     tier: 'ilc_only', source: 'designContractValue' },
     { key: 'wonCount',           label: 'Won',                 type: 'number', unit: 'count', tier: 'ilc_only', source: '_count', where: { source: 'procurementStatus', op: 'in', value: WON_STATUSES },
-      description: 'Projects won (includes Completed — a completed job was won).' },
+      description: 'Projects won (includes Completed: a completed job was won).' },
     { key: 'decidedCount',       label: 'Past Open (decided)', type: 'number', unit: 'count', tier: 'ilc_only', source: '_count', where: { source: 'procurementStatus', op: 'in', value: DECIDED_STATUSES },
       description: 'Every project that has moved past Open: won, completed, lost or abandoned.' },
     // dimensions

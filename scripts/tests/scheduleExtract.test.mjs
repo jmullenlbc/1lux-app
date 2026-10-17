@@ -4,7 +4,7 @@
  * These exist because of a real miss found 2026-08-19 on the Marmalade
  * schedule: the deterministic pass only understood M/D/YY dates, but most GCs
  * export from Primavera P6, which writes DD-Mon-YY. On a P6 schedule it found
- * its keyword rows, found no date on them, and returned nothing — and that
+ * its keyword rows, found no date on them, and returned nothing, and that
  * pass is the floor that is supposed to survive an AI timeout.
  *
  * Run: node --test scripts/tests/scheduleExtract.test.mjs
@@ -15,7 +15,7 @@ import { keywordExtractMilestones, mergeMilestones } from '../../src/lib/schedul
 
 const byId = (ms, id) => ms.find(m => m.id === id);
 
-test('reads Primavera P6 dates (DD-Mon-YY) — the format that used to return nothing', () => {
+test('reads Primavera P6 dates (DD-Mon-YY), the format that used to return nothing', () => {
   const ms = keywordExtractMilestones([
     'MM2270 NTP / Start Construction 100% 0 0 27-Jan-25 A',
     'MM61860 TCO Phase #3 0% 1 1 16-Aug-27 17-Aug-27',
@@ -39,7 +39,7 @@ test('still reads MS Project / Excel dates (M/D/YY)', () => {
   assert.equal(byId(ms, 'construction-end').date,   '2027-06-30');
 });
 
-test('a row with both formats keeps column order — first date is the start', () => {
+test('a row with both formats keeps column order: first date is the start', () => {
   const ms = keywordExtractMilestones('Mobilization 1/2/25 15-Mar-25');
   assert.equal(byId(ms, 'construction-start').date, '2025-01-02');
 });
@@ -55,7 +55,7 @@ test('a three-letter word that is not a month is not a date', () => {
   assert.equal(ms.length, 0);
 });
 
-test('years outside 2020–2040 are rejected', () => {
+test('years outside 2020 to 2040 are rejected', () => {
   assert.equal(keywordExtractMilestones('NTP 27-Jan-99').length, 0);
   assert.equal(keywordExtractMilestones('NTP 27-Jan-1999').length, 0);
 });
@@ -67,7 +67,7 @@ test('rough-in rows match in either word order', () => {
   assert.equal(byId(rev, 'mep-rough-1').date, '2026-02-05');
 });
 
-test('bare "Electrical" is NOT a rough-in — the keyword still requires "rough"', () => {
+test('bare "Electrical" is NOT a rough-in: the keyword still requires "rough"', () => {
   // These rows exist in every schedule and are not rough-ins. Matching them
   // would put procurement and trenching dates on a lighting timeline.
   const ms = keywordExtractMilestones([
@@ -98,12 +98,12 @@ test('empty or dateless input returns an empty list, never throws', () => {
 
 
 /**
- * mergeMilestones — the 2026-08-19 fix.
+ * mergeMilestones, the 2026-08-19 fix.
  *
  * The old code picked whichever pass returned MORE rows. The keyword scan pads
  * itself to 15 electrical + 15 MEP rough-ins, so on Mike's real Marmalade
  * schedule it returned 19 rows against the AI's 16, won on count, and threw away
- * the light-fixture and site-lighting dates — the two a lighting company plans
+ * the light-fixture and site-lighting dates, the two a lighting company plans
  * around. These lock the union behaviour in.
  */
 const ai = (id, date, label = id) => ({ id, label, date });
@@ -123,12 +123,12 @@ test("the AI's answer is never discarded just because the keyword scan is longer
 
 test('the AI wins on any id both passes found', () => {
   const out = mergeMilestones(
-    [ai('tco', '2027-08-18', 'TCO — Building C (Phase 3, Final)')],
+    [ai('tco', '2027-08-18', 'TCO: Building C (Phase 3, Final)')],
     [ai('tco', '2027-01-06', 'TCO')],
   );
   assert.equal(out.length, 1);
   assert.equal(out[0].date,  '2027-08-18');
-  assert.equal(out[0].label, 'TCO — Building C (Phase 3, Final)');
+  assert.equal(out[0].label, 'TCO: Building C (Phase 3, Final)');
 });
 
 test('rough-ins merge by family, so two numbering schemes never interleave', () => {
@@ -175,14 +175,14 @@ test('output is in job order, with rough-ins ascending inside their block', () =
 
 
 /**
- * Per-building light fixtures, final inspection and TCO — 2026-08-19.
+ * Per-building light fixtures, final inspection and TCO, 2026-08-19.
  *
  * Mike: "yes do it 1 per bldg. that is a big deal. do final inspection or tco
  * per bldg too." On a four-building job the fixtures go in six months apart, so
- * a single project-level fixture date is wrong for three of the four buildings —
+ * a single project-level fixture date is wrong for three of the four buildings
  * and that date is when material has to be on site.
  *
- * The AI does the labelling ("Light Fixtures — Bldg B"); these lock down the
+ * The AI does the labelling ("Light Fixtures, Bldg B"); these lock down the
  * deterministic floor, which has to hold up when the AI call times out.
  */
 
@@ -234,7 +234,7 @@ test('every building gets its own TCO instead of only the last one', () => {
   );
 });
 
-test('site lighting and final completion stay single — one site, one handover', () => {
+test('site lighting and final completion stay single: one site, one handover', () => {
   const ms = keywordExtractMilestones([
     'MM100 NTP / Start Construction 06-Jan-25',
     'MM200 Turnover Keys Bldg A 01-Nov-25 05-Nov-25',
@@ -248,16 +248,16 @@ test('the AI owns a whole per-building family, so the two numberings never mix',
   // AI read three buildings and named them; the keyword floor found five dates
   // it cannot attribute. Taking the extra two would invent Bldg D and E.
   const out = mergeMilestones(
-    [ai('light-fixtures-1', '2026-02-26', 'Light Fixtures — Bldg A'),
-     ai('light-fixtures-2', '2026-05-14', 'Light Fixtures — Bldg B'),
-     ai('light-fixtures-3', '2026-09-02', 'Light Fixtures — Bldg C')],
+    [ai('light-fixtures-1', '2026-02-26', 'Light Fixtures: Bldg A'),
+     ai('light-fixtures-2', '2026-05-14', 'Light Fixtures: Bldg B'),
+     ai('light-fixtures-3', '2026-09-02', 'Light Fixtures: Bldg C')],
     [ai('light-fixtures-1', '2026-01-05'), ai('light-fixtures-2', '2026-02-26'),
      ai('light-fixtures-3', '2026-05-14'), ai('light-fixtures-4', '2026-09-02'),
      ai('light-fixtures-5', '2026-11-30')],
   );
   assert.equal(out.length, 3);
   assert.deepEqual(out.map(m => m.label),
-    ['Light Fixtures — Bldg A', 'Light Fixtures — Bldg B', 'Light Fixtures — Bldg C']);
+    ['Light Fixtures: Bldg A', 'Light Fixtures: Bldg B', 'Light Fixtures: Bldg C']);
 });
 
 test('a bare "tco" from a schedule parsed before today still merges and sorts', () => {

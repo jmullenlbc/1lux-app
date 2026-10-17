@@ -1,9 +1,9 @@
 /**
- * Unit tests for the ontology layer — the fail-closed half of the redaction
+ * Unit tests for the ontology layer, the fail-closed half of the redaction
  * boundary.
  *
  * The bar these tests are trying to clear: the interesting failure of an
- * allowlist is not "it blocked something" — it is "a field slipped through
+ * allowlist is not "it blocked something", it is "a field slipped through
  * because nobody declared it." So most of what follows checks the DEFAULT, not
  * the declaration. A field nobody has thought about must be absent.
  *
@@ -59,7 +59,7 @@ test('lookup is case-insensitive but never invents an object', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Fail-closed defaults — the part that matters
+// Fail-closed defaults, the part that matters
 // ─────────────────────────────────────────────────────────────────────────────
 
 test('an undeclared property defaults to ilc_only', () => {
@@ -100,7 +100,7 @@ test('the clearance table is exactly the addendum table', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// NEVER_READABLE — above the audience axis entirely
+// NEVER_READABLE, above the audience axis entirely
 // ─────────────────────────────────────────────────────────────────────────────
 
 test('credentials and share tokens are blocked for EVERY audience, including ILC', () => {
@@ -154,7 +154,7 @@ test('an UNREGISTERED object is unreachable to non-ILC callers', () => {
   assert.equal(canReadObject('emailAccount', 'public'), false);
   assert.equal(canReadObject('manufacturerProduct', 'client'), false);
   assert.equal(canReadObject('somethingAddedNextWeek', 'client'), false);
-  // ILC is cleared for everything — that asymmetry IS the fail-closed guarantee.
+  // ILC is cleared for everything, that asymmetry IS the fail-closed guarantee.
   assert.equal(canReadObject('emailAccount', 'ilc'), true);
 });
 
@@ -170,7 +170,7 @@ test('redactObject THROWS for a non-ILC caller on an unregistered object', () =>
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Redaction — the buy-price boundary
+// Redaction, the buy-price boundary
 // ─────────────────────────────────────────────────────────────────────────────
 
 const LINE_ITEM = {
@@ -192,7 +192,7 @@ test('a client never sees originalDN, but still sees the price they were quoted'
   assert.equal(out.qty, 10);
 });
 
-test('the allowlist drops UNDECLARED fields for non-ILC — new columns are invisible', () => {
+test('the allowlist drops UNDECLARED fields for non-ILC: new columns are invisible', () => {
   const withNewColumn = { ...LINE_ITEM, secretNewMarginColumn: 0.23, anotherOne: 'x' };
   const client = redactObject('ChangeOrderLineItem', withNewColumn, 'client');
   assert.ok(!('secretNewMarginColumn' in client), 'undeclared field reached a client');
@@ -229,16 +229,16 @@ test('the ontology "public" tier is NARROWER than the transport redactor\'s PUBL
   // thing. Writing it down here because the difference is a leak waiting to
   // happen if someone unifies them by reflex:
   //
-  //   src/lib/redact.js  AUDIENCE.PUBLIC — "this payload is leaving the ILC
+  //   src/lib/redact.js  AUDIENCE.PUBLIC, "this payload is leaving the ILC
   //     boundary." A share-link holder gets the full quote minus buy price,
   //     which is the whole point of a share link.
   //
-  //   ontology 'public' — "this caller presented no credential at all."
+  //   ontology 'public', "this caller presented no credential at all."
   //     Nothing in the registry is classified `public` today, so such a caller
   //     gets identity and structure and no content. That is correct for a
   //     general-purpose read API reachable over HTTP.
   //
-  // A share-token holder is therefore `client` in ontology terms — possession of
+  // A share-token holder is therefore `client` in ontology terms, possession of
   // the token IS the authorization. Mapping one to `public` would blank the
   // contractor's own quote; mapping the other to `client` would hand an
   // anonymous caller real data. Keep them distinct.
@@ -257,7 +257,7 @@ test('the ontology "public" tier is NARROWER than the transport redactor\'s PUBL
       if (def.sensitivity === SENSITIVITY.PUBLIC) publicProps.push(`${key}.${prop}`);
     }
   }
-  assert.deepEqual(publicProps, [], `newly public: ${publicProps.join(', ')} — was that deliberate?`);
+  assert.deepEqual(publicProps, [], `newly public: ${publicProps.join(', ')}. Was that deliberate?`);
 });
 
 test('a link branch whose target is unreadable is dropped, not half-redacted', () => {
@@ -295,7 +295,7 @@ test('a null link value is preserved rather than recursed into', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// readableProps — the query-oracle defence
+// readableProps, the query-oracle defence
 // ─────────────────────────────────────────────────────────────────────────────
 
 test('readableProps refuses the fields a where-clause could use as an oracle', () => {
@@ -323,7 +323,7 @@ test('readableProps includes link names only when the target is readable', () =>
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// describeForAudience — introspection must not itself be a disclosure
+// describeForAudience, introspection must not itself be a disclosure
 // ─────────────────────────────────────────────────────────────────────────────
 
 test('introspection OMITS ilc_only fields for a client rather than marking them redacted', () => {
@@ -356,13 +356,13 @@ test('globalDeny names are ilc_only on EVERY object that declares them', () => {
       if (!global.has(prop)) continue;
       assert.equal(
         def.sensitivity, SENSITIVITY.ILC_ONLY,
-        `${key}.${prop} is "${def.sensitivity}" but the name is stripped globally — one of the two is wrong`,
+        `${key}.${prop} is "${def.sensitivity}" but the name is stripped globally. One of the two is wrong`,
       );
     }
   }
 });
 
-test('src/lib/redact.js consumes the ontology — there is no second hand-written list', () => {
+test('src/lib/redact.js consumes the ontology: there is no second hand-written list', () => {
   const derived = globalDenyFieldNames();
   assert.deepEqual([...ILC_ONLY_FIELDS].sort(), [...derived].sort());
 });

@@ -87,7 +87,7 @@ export default function TemplateTextarea({ value, onChange, rows = 5, placeholde
             {`{{${t.token}}}`}
           </button>
         ))}
-        <span className="text-[11px] text-slate-500">— or type <span className="font-mono">{'{'}</span></span>
+        <span className="text-[11px] text-slate-500">or type <span className="font-mono">{'{'}</span></span>
       </div>
     </div>
   );

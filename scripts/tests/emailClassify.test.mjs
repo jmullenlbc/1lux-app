@@ -5,7 +5,7 @@
  * them." His People spec: the two Last Email fields "must be able to filter out
  * mass emails and calendar invites and replies."
  *
- * These run against pure functions — no database, no network, no Microsoft.
+ * These run against pure functions, no database, no network, no Microsoft.
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -85,7 +85,7 @@ test('a reply is caught by the header even when the subject was rewritten', () =
 });
 
 test('a long Microsoft conversation index means the message is down a thread', () => {
-  const first = 'A'.repeat(32);        // 22 bytes base64 — the first message
+  const first = 'A'.repeat(32);        // 22 bytes base64, the first message
   const later = 'A'.repeat(44);        // grown by a reply
   assert.equal(isReply({ subject: 'Trailhead budget', conversationIndex: first }), false);
   assert.equal(isReply({ subject: 'Trailhead budget', conversationIndex: later }), true);
@@ -140,7 +140,7 @@ test('a real one-to-one email counts', () => {
   assert.equal(result.people, 2);
 });
 
-test('a small group email still counts — only 25 or more is too many', () => {
+test('a small group email still counts, only 25 or more is too many', () => {
   const result = classifyEmail({ from: 'mike@ilcstudios.com', to: people(5), subject: 'Trailhead budget' });
   assert.equal(result.counts, true);
   assert.equal(result.people, 6);

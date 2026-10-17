@@ -3,7 +3,7 @@
  * screens, the public intake and the engine all share one copy.
  *
  *  - Bathrooms are never fractions: a 1.5-bath unit is 2 bathrooms. A half
- *    bath lacks a shower, which doesn't matter for lighting — it still has
+ *    bath lacks a shower, which doesn't matter for lighting, it still has
  *    a vanity light.
  *  - A unit has 0 or 1 balcony, never more. Any positive figure on a unit
  *    type (including a balcony SF column misread as a count) means 1.

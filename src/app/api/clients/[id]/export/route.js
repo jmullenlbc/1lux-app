@@ -7,8 +7,8 @@ import { PLAYBOOK_CONTENT, fillClientName } from '@/lib/playbookContent';
 
 // Small label maps mirrored from PlaybookTab (kept local so this server route
 // never imports client-component code).
-const CO_TOLERANCE = { TIGHT: 'Tight — minimize COs', NORMAL: 'Normal process', FLEXIBLE: 'Flexible as needed' };
-const MGMT_STRUCT  = { CENTRAL: 'Centralized — all from HQ', REGIONAL: 'Regional PM has authority', MIXED: 'Mixed — regional design, HQ budget' };
+const CO_TOLERANCE = { TIGHT: 'Tight, minimize COs', NORMAL: 'Normal process', FLEXIBLE: 'Flexible as needed' };
+const MGMT_STRUCT  = { CENTRAL: 'Centralized, all from HQ', REGIONAL: 'Regional PM has authority', MIXED: 'Mixed: regional design, HQ budget' };
 
 const PLAYBOOK_SECTIONS = [
   { id: 'general',    label: 'General / Cadence' },
@@ -22,7 +22,7 @@ const PLAYBOOK_SECTIONS = [
   { id: 'rfis',       label: "RFI's + Change Orders" },
 ];
 
-// GET /api/clients/[id]/export — workbook with Standards + Playbook tabs
+// GET /api/clients/[id]/export, workbook with Standards + Playbook tabs
 export async function GET(request, { params }) {
   const { user, error } = await requireAuth();
   if (error) return error;
@@ -70,7 +70,7 @@ export async function GET(request, { params }) {
 
   // ── Playbook sheet ──
   const pbRows = [
-    ['CLIENT PLAYBOOK — HOW WE WORK TOGETHER'],
+    ['CLIENT PLAYBOOK: HOW WE WORK TOGETHER'],
     [client.name],
     [],
     ['Section', 'Item', 'Detail'],
@@ -117,7 +117,7 @@ export async function GET(request, { params }) {
     const content = PLAYBOOK_CONTENT[sec.id];
     if (content?.items?.length) {
       // If form rows already used the section label, start content rows without repeating it.
-      if (wrote) { pbRows.push(['', '— Standard process —', '']); flatten('', content.items, 0); }
+      if (wrote) { pbRows.push(['', 'Standard process', '']); flatten('', content.items, 0); }
       else flatten(sec.label, content.items, 0);
     }
 

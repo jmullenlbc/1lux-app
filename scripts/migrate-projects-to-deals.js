@@ -5,11 +5,11 @@
  * that doesn't already have one linked to it.
  *
  * Inference rules:
- *   pipeline   — serviceType fullDesign/designAssist → DESIGN, else PROCUREMENT
- *   stage      — phase closeout → COMPLETED, else CONSTRUCTION
- *   revenue    — contractValue (PROCUREMENT) or designContractValue (DESIGN)
- *   dealStatus — WON (all existing projects are won jobs)
- *   probability — 100
+ *   pipeline, serviceType fullDesign/designAssist → DESIGN, else PROCUREMENT
+ *   stage, phase closeout → COMPLETED, else CONSTRUCTION
+ *   revenue, contractValue (PROCUREMENT) or designContractValue (DESIGN)
+ *   dealStatus, WON (all existing projects are won jobs)
+ *   probability, 100
  */
 
 const { PrismaClient } = require('@prisma/client');
@@ -53,7 +53,7 @@ async function main() {
   console.log(`To migrate:           ${toMigrate.length}\n`);
 
   if (toMigrate.length === 0) {
-    console.log('Nothing to do — all projects already have deals.');
+    console.log('Nothing to do, all projects already have deals.');
     return;
   }
 
@@ -79,7 +79,7 @@ async function main() {
   for (const p of toMigrate) {
     const createdById = p.createdById || fallbackUser?.id;
     if (!createdById) {
-      console.log(`  ⚠ SKIP  ${p.name} — no createdById and no fallback user`);
+      console.log(`  ⚠ SKIP  ${p.name}, no createdById and no fallback user`);
       skipped++;
       continue;
     }

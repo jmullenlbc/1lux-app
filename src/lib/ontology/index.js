@@ -1,5 +1,5 @@
 /**
- * The ontology registry — the single semantic description of ILC's data.
+ * The ontology registry, the single semantic description of ILC's data.
  *
  * Plain JS objects describing existing Prisma models. No new tables, no engine,
  * no versioning, no lineage graph. We are borrowing Palantir's Object / Link /
@@ -10,7 +10,7 @@
  *   1. An agent introspecting the platform sees "a Change Order has many Option
  *      Groups" rather than a column dump it has to infer relationships from.
  *   2. Field sensitivity is declared exactly once, on the property, and every
- *      consumer inherits it — the MCP read path today, share links and PDFs as
+ *      consumer inherits it, the MCP read path today, share links and PDFs as
  *      they get folded on.
  *   3. Undeclared means `ilc_only`. A column added next week is invisible to
  *      non-ILC callers until somebody deliberately widens it.
@@ -71,7 +71,7 @@ export function sensitivityOf(objectKey, prop) {
  * This is what src/lib/redact.js consumes, so the name-keyed transport-level
  * strip and the object-aware fail-closed strip are driven by the same
  * declarations. Adding `sensitivity: 'ilc_only'` to a property here is what
- * makes the field disappear from share links and PDFs too — there is no second
+ * makes the field disappear from share links and PDFs too, there is no second
  * list to remember.
  */
 export function ilcOnlyFieldNames() {
@@ -86,7 +86,7 @@ export function ilcOnlyFieldNames() {
 
 /**
  * Field names that are safe to strip globally by NAME across arbitrary nested
- * payloads — the set consumed by the transport-level redactor.
+ * payloads, the set consumed by the transport-level redactor.
  *
  * Not every `ilc_only` property qualifies. `notes`, `status` and `createdAt` are
  * `ilc_only` on some objects and `client_ok` on others; stripping them by bare
@@ -111,7 +111,7 @@ export function globallyIlcOnlyFieldNames() {
 /**
  * Buy-price and rate fields on models the registry does not describe yet.
  *
- * These are name-strips only — an interim measure. The real fix for each is an
+ * These are name-strips only, an interim measure. The real fix for each is an
  * object definition, because an undeclared object is unreachable to a non-ILC
  * MCP caller anyway (redactObject throws rather than guessing). This list exists
  * for the OTHER path: hand-assembled transport payloads that never pass through
@@ -124,8 +124,8 @@ export function globallyIlcOnlyFieldNames() {
  * definition instead.
  */
 const UNREGISTERED_GLOBAL_DENY = Object.freeze([
-  'budget_cost',      // ILCSpec — catalog buy cost
-  'rateSnapshot',     // Proposal — frozen rates, same shape as pricingSnapshot
+  'budget_cost',      // ILCSpec, catalog buy cost
+  'rateSnapshot',     // Proposal, frozen rates, same shape as pricingSnapshot
   'adderPct',         // Proposal
   'defaultAdderPct',  // ProposalTemplate
 ]);
@@ -138,7 +138,7 @@ const UNREGISTERED_GLOBAL_DENY = Object.freeze([
  * the bare field NAME is unambiguous across all 116 models, so seeing it in a
  * payload of unknown shape is enough to strip it. `marginPct` qualifies;
  * `notes` never could. src/lib/redact.js consumes exactly this set, so there is
- * no second list to keep in sync — flagging a property here is what makes it
+ * no second list to keep in sync, flagging a property here is what makes it
  * disappear from share links and PDFs.
  */
 export function globalDenyFieldNames() {
@@ -161,7 +161,7 @@ export function ambiguousFieldNames() {
 /**
  * Sanity-check the registry shape. Called by the unit tests and by the
  * coverage gate; cheap enough to also call at server start.
- * Returns an array of human-readable problems — empty means clean.
+ * Returns an array of human-readable problems, empty means clean.
  */
 export function validateRegistry() {
   const problems = [];
@@ -172,7 +172,7 @@ export function validateRegistry() {
   for (const obj of ALL) {
     if (!obj.key)   problems.push(`an object has no key: ${JSON.stringify(obj).slice(0, 80)}`);
     if (!obj.model) problems.push(`${obj.key}: no prisma model name`);
-    if (!obj.description) problems.push(`${obj.key}: no description — introspection needs it to be useful`);
+    if (!obj.description) problems.push(`${obj.key}: no description, introspection needs it to be useful`);
     if (seenKeys.has(obj.key))     problems.push(`duplicate object key: ${obj.key}`);
     if (seenModels.has(obj.model)) problems.push(`duplicate prisma model: ${obj.model}`);
     seenKeys.add(obj.key);
@@ -180,15 +180,15 @@ export function validateRegistry() {
 
     for (const [prop, def] of Object.entries(obj.properties || {})) {
       if (!def.sensitivity) {
-        problems.push(`${obj.key}.${prop}: no sensitivity declared (would default to ilc_only — declare it explicitly)`);
+        problems.push(`${obj.key}.${prop}: no sensitivity declared (would default to ilc_only, declare it explicitly)`);
       } else if (!validLevels.has(def.sensitivity)) {
         problems.push(`${obj.key}.${prop}: unknown sensitivity "${def.sensitivity}"`);
       }
       if (NEVER_READABLE.has(prop)) {
-        problems.push(`${obj.key}.${prop}: declared in the registry but is in NEVER_READABLE — remove it from the object`);
+        problems.push(`${obj.key}.${prop}: declared in the registry but is in NEVER_READABLE, remove it from the object`);
       }
       if (def.globalDeny && def.sensitivity !== SENSITIVITY.ILC_ONLY) {
-        problems.push(`${obj.key}.${prop}: globalDeny is set but sensitivity is "${def.sensitivity}" — globalDeny only makes sense on ilc_only`);
+        problems.push(`${obj.key}.${prop}: globalDeny is set but sensitivity is "${def.sensitivity}", globalDeny only makes sense on ilc_only`);
       }
     }
 
@@ -205,7 +205,7 @@ export function validateRegistry() {
 
   // The globalDeny invariant. A name on the transport denylist is stripped from
   // every payload by bare name, so if any object declares that same name as
-  // client-visible, one of the two declarations is a bug — either a client
+  // client-visible, one of the two declarations is a bug, either a client
   // surface is about to go blank, or a buy price is about to ship. Catch it here
   // rather than in a support ticket.
   const flaggedGlobal = new Set();

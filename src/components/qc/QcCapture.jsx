@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
 import { initQcRecorder } from './qcRecorder';
 import { parseBrowserInfo } from '@/lib/browserInfo';
+import { OPEN_BUG, useHelperEvent } from '@/components/layout/helperEvents';
 
 const MODULES = [
   'Admin / Users', 'Budget / Wizard', 'Change Orders', 'Client Portal',
@@ -33,8 +34,12 @@ export default function QcCapture() {
 
   useEffect(() => { initQcRecorder(); }, []);
 
+  // Opened from the sidebar's Report a bug (no floating button, Mike 10-17).
+  useHelperEvent(OPEN_BUG, () => { if (!open) handleOpen(); });
+
+  // The screenshot is taken before the form opens, so it shows the page and
+  // not the form on top of it.
   async function handleOpen() {
-    setOpen(true);
     setForm(f => ({ ...f, pageUrl: window.location.href }));
     const qc = window.__ilcQc;
     setConsole(qc?.consoleLog || []);
@@ -48,6 +53,7 @@ export default function QcCapture() {
       setSsBlob(null);
       setSsUrl(null);
     }
+    setOpen(true);
   }
 
   function handleClose() {
@@ -101,18 +107,6 @@ export default function QcCapture() {
 
   return (
     <>
-      {/* Floating button */}
-      <button
-        onClick={handleOpen}
-        className="fixed bottom-40 md:bottom-20 right-4 md:right-6 z-30 flex items-center gap-2 px-4 py-2.5 rounded-full bg-orange-500 hover:bg-orange-600 text-white text-sm font-semibold shadow-lg transition-colors print:hidden"
-      >
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <rect x="8" y="6" width="8" height="14" rx="4"/>
-          <path d="M12 6V3M5 9l3 1M19 9l-3 1M4 14h4M16 14h4M6 19l2-1M18 19l-2-1"/>
-        </svg>
-        Report a bug
-      </button>
-
       {/* Modal */}
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
@@ -131,19 +125,19 @@ export default function QcCapture() {
                 <div className="flex items-center justify-between mb-1.5">
                   <span className={labelCls}>Screenshot</span>
                   <span className="text-[11px] font-semibold text-green-600">
-                    {screenshotUrl ? '✓ Captured' : 'Capturing…'}
+                    {screenshotUrl ? '✓ Captured' : 'Not captured'}
                   </span>
                 </div>
                 <div className="rounded-xl border border-slate-200 overflow-hidden bg-slate-50 min-h-[80px] flex items-center justify-center">
                   {screenshotUrl
                     ? <img src={screenshotUrl} alt="Page screenshot" className="w-full max-h-44 object-cover object-top" />
-                    : <span className="text-[11px] text-slate-400">Capturing page…</span>
+                    : <span className="text-[11px] text-slate-400">No screenshot this time</span>
                   }
                 </div>
                 <div className="text-[11px] text-slate-400 mt-1">Snapshot of the current page taken automatically.</div>
               </div>
 
-              {/* Screen recording — v1.1 */}
+              {/* Screen recording, v1.1 */}
               <div className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50 px-3 py-2.5 opacity-50 cursor-not-allowed select-none">
                 <div>
                   <div className="text-sm text-slate-600 font-medium">Add screen recording</div>

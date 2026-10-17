@@ -6,6 +6,7 @@ import { getAnthropicKey } from '@/lib/anthropicKey';
 import { wrapClient } from '@/lib/agent/client';
 import { modelParams, textFrom } from '@/lib/aiModels';
 import { buildUntrustedPrompt, warnOnInjection } from '@/lib/agent/untrusted';
+import { stripDashes } from '@/lib/bot/emailStyle';
 
 // POST /api/projects/[id]/rfis/[rfiId]/generate-draft
 // Assembles context, determines confidence tier, calls Claude, writes draft to DB.
@@ -105,7 +106,7 @@ export async function POST(req, { params }) {
     return NextResponse.json({ ok: true, confidence: 'LOW' });
   }
 
-  // ── STEP 3–4: Claude API Call ───────────────────────────────────────────────
+  // ── STEP 3 to 4: Claude API Call ───────────────────────────────────────────────
   const today = new Date().toLocaleDateString('en-US', { month: '2-digit', day: '2-digit', year: 'numeric' });
   const designerName = rfi.assignedTo?.name ?? 'ILC STUDIOS';
 
@@ -140,7 +141,7 @@ Rules:
 - For CLASH_RELOCATION: write: SEE ATTACHED MARKUP FOR REVISED FIXTURE LOCATIONS.
 - For SUBSTITUTION: acknowledge the alternate, state acceptability clearly, note any conditions.
 - For MULTI_QUESTION: respond to each numbered item separately. Number your responses to match.
-- If information is missing, write [VERIFY: describe what to check] — do not guess.
+- If information is missing, write [VERIFY: describe what to check]. Do not guess.
 Generate ONLY the response text. No preamble. No explanations. No markdown.`;
 
   let draftText = null;
@@ -154,7 +155,7 @@ Generate ONLY the response text. No preamble. No explanations. No markdown.`;
       { projectId: params.id, userId: user?.id || null },
     );
 
-    // The context is ours — project data we assembled. The question is the
+    // The context is ours, project data we assembled. The question is the
     // contractor's, so only it goes inside the fence. This route drafts text
     // that ILC signs and sends, which makes being steered here expensive even
     // though a human clicks send. See src/lib/agent/untrusted.js.
@@ -172,9 +173,9 @@ Generate ONLY the response text. No preamble. No explanations. No markdown.`;
       messages:   [{ role: 'user', content: sealed.content }],
     });
 
-    draftText = textFrom(msg)?.trim() ?? null;
+    draftText = stripDashes(textFrom(msg)?.trim()) ?? null;
 
-    // ── STEP 5: MULTI_QUESTION — parse per-item confidence ──────────────────
+    // ── STEP 5: MULTI_QUESTION, parse per-item confidence ──────────────────
     if (rfi.rfiType === 'MULTI_QUESTION' && draftText) {
       const itemBlocks = draftText.split(/(?=^\d+\.\s)/m).filter(b => /^\d+\./.test(b.trim()));
       if (itemBlocks.length > 1) {

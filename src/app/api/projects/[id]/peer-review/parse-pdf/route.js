@@ -3,7 +3,7 @@ import { loadPdfjs } from '@/lib/pdfjsNode';
 import { NextResponse } from 'next/server';
 import { requireAuth, canSeeAllData } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-// `getAnthropicKey` was used below but never imported — this route threw a
+// `getAnthropicKey` was used below but never imported, this route threw a
 // ReferenceError on every call. Found while wiring the ledger, fixed here.
 import { getAnthropicKey } from '@/lib/anthropicKey';
 import { recordRawCall } from '@/lib/agent/client';
@@ -18,21 +18,21 @@ export const maxDuration = 300;
 
 const SYSTEM_PROMPT = `You are a lighting fixture schedule parser for an electrical engineering firm (ILC Studios). You will receive raw text extracted from a PDF electrical drawing sheet.
 
-IMPORTANT: The document may contain MULTIPLE sections — controls schematics, panel schedules, wiring diagrams, sequence of operations, AND a lighting fixture schedule all on the same sheet. You MUST search the ENTIRE text for any section labeled "LIGHT FIXTURE SCHEDULE", "LUMINAIRE SCHEDULE", "LIGHTING FIXTURE SCHEDULE", or similar, and extract fixtures from that section even if the rest of the document contains unrelated electrical content.
+IMPORTANT: The document may contain MULTIPLE sections: controls schematics, panel schedules, wiring diagrams, sequence of operations, AND a lighting fixture schedule all on the same sheet. You MUST search the ENTIRE text for any section labeled "LIGHT FIXTURE SCHEDULE", "LUMINAIRE SCHEDULE", "LIGHTING FIXTURE SCHEDULE", or similar, and extract fixtures from that section even if the rest of the document contains unrelated electrical content.
 
 Extract all lighting fixture TYPE entries and return them as a JSON array.
 
 Each fixture entry must have:
-- typeCode: string — fixture type identifier (e.g. "A", "A1", "D1", "D1E", "G1", "S4"). Also called "MARK" in some schedules. Strip single quotes ('AA1' → "AA1"). Required.
-- description: string — fixture description (e.g. "3\" RECESSED ADJUSTABLE DOWNLIGHT"). Required.
-- manufacturer: string | null — primary manufacturer name only. Strip "OR EQUAL" and "APPROVED EQUAL" suffixes ("LITHONIA LIGHTING OR EQUAL" → "LITHONIA LIGHTING"). Null if TBD.
-- catalogNumber: string | null — primary catalog/model number. Also called SERIES in some schedules. Null if TBD.
-- watts: number | null — wattage as a decimal number (extract from "14W", "14.00 W", "7.2W/FT", "VA" columns). Null if not determinable.
-- suggestedSection: string — one of: "units" | "corridor" | "garage" | "boh" | "office" | "amenity" | "exterior" | "controls" | "other"
-  - "units": residential unit fixtures — bedrooms, bathrooms, kitchens, vanities, balconies, ceiling fans. Type prefixes: U, CP, R, F, G1
+- typeCode: string, fixture type identifier (e.g. "A", "A1", "D1", "D1E", "G1", "S4"). Also called "MARK" in some schedules. Strip single quotes ('AA1' → "AA1"). Required.
+- description: string, fixture description (e.g. "3\" RECESSED ADJUSTABLE DOWNLIGHT"). Required.
+- manufacturer: string | null, primary manufacturer name only. Strip "OR EQUAL" and "APPROVED EQUAL" suffixes ("LITHONIA LIGHTING OR EQUAL" → "LITHONIA LIGHTING"). Null if TBD.
+- catalogNumber: string | null, primary catalog/model number. Also called SERIES in some schedules. Null if TBD.
+- watts: number | null, wattage as a decimal number (extract from "14W", "14.00 W", "7.2W/FT", "VA" columns). Null if not determinable.
+- suggestedSection: string, one of: "units" | "corridor" | "garage" | "boh" | "office" | "amenity" | "exterior" | "controls" | "other"
+  - "units": residential unit fixtures: bedrooms, bathrooms, kitchens, vanities, balconies, ceiling fans. Type prefixes: U, CP, R, F, G1
   - "corridor": hallways, corridors, stairwells, exit passageways. Type prefixes: C, CL
   - "garage": parking garage, parking level. Type prefixes: G, L (lensed strip)
-  - "boh": back of house — mechanical rooms, utility areas, service corridors, loading dock, storage. Type prefixes: S (strip), BOH
+  - "boh": back of house: mechanical rooms, utility areas, service corridors, loading dock, storage. Type prefixes: S (strip), BOH
   - "office": leasing office, management office, admin spaces. Type prefixes: O, OF
   - "amenity": lobby, fitness, clubhouse, bike room, pool, rooftop, common area amenities. Type prefixes: AA, AD, AL, AP, A
   - "exterior": exterior site, pole lights, bollards, step lights, wall sconces (outdoor), in-grade, pathway. Type prefixes: SP, LB, SW, ST, SU, E
@@ -40,13 +40,13 @@ Each fixture entry must have:
   - "other": anything that doesn't clearly fit the above
 
 CRITICAL RULES:
-1. Emergency VARIANTS (D1E, S4E) are ALWAYS separate entries — never merge with the base type (D1, S4). The "E" suffix means that specific fixture is on an emergency circuit.
+1. Emergency VARIANTS (D1E, S4E) are ALWAYS separate entries. Never merge with the base type (D1, S4). The "E" suffix means that specific fixture is on an emergency circuit.
 2. When multiple manufacturers are listed as alternatives/approved-equals, use ONLY the first/primary one.
 3. SKIP non-fixture rows: standalone exit signs (X, X1, X2), standalone emergency light units (EM1, EM2 described as "EMERGENCY LIGHT UNIT"), exhaust fans (EF-*), water heaters (EWH-*), smoke detectors, CO detectors, fire alarm devices, mechanical equipment, condensing units. Keep D1E / S4E style emergency-circuit fixtures.
 4. Do NOT include section headers, table headers, or general notes as fixture entries.
 5. If the extracted text has very little content (< 200 characters of actual content), it is likely an image-based PDF.
-6. The text extraction may have garbled column order — use context clues to map fields correctly. Column names vary by project: TYPE/MARK = fixture type code; SERIES/MODEL/CATALOG = catalog number; VA = watts in some schedules.
-7. Some schedules use "MARK" instead of "TYPE" for the fixture type code column — treat them the same.
+6. The text extraction may have garbled column order. Use context clues to map fields correctly. Column names vary by project: TYPE/MARK = fixture type code; SERIES/MODEL/CATALOG = catalog number; VA = watts in some schedules.
+7. Some schedules use "MARK" instead of "TYPE" for the fixture type code column. Treat them the same.
 
 Return ONLY a JSON object, no markdown fences, no explanation:
 {"fixtures": [...], "warning": null}
@@ -55,7 +55,7 @@ If no fixture schedule is found anywhere in the document:
 {"fixtures": [], "warning": "No fixture schedule found. The document appears to contain: [briefly describe what you found instead]."}
 
 If image-based PDF (too little text):
-{"fixtures": [], "warning": "This PDF appears to be image-based — text could not be extracted. Please use a text-based PDF or export as a searchable PDF."}`;
+{"fixtures": [], "warning": "This PDF appears to be image-based, so text could not be extracted. Please use a text-based PDF or export as a searchable PDF."}`;
 
 async function extractPdfText(buffer) {
   const pdfjsLib = await loadPdfjs();
@@ -83,7 +83,7 @@ export async function POST(request, { params }) {
   let args = null;
   if (!body.jobKey) {
     if (!formData) return NextResponse.json({ error: 'No file provided' }, { status: 400 });
-    // Bytes may have come through the form or straight to S3 — see uploadIntake.js.
+    // Bytes may have come through the form or straight to S3, see uploadIntake.js.
     const upload = await readUploadedFile(formData);
     if (!upload.ok) return NextResponse.json({ error: upload.message }, { status: upload.status });
     // Not cleaned up here: the poll that runs the read needs the bytes.
@@ -112,7 +112,7 @@ async function parseSheet(args, { projectId, user }) {
   }
 
   // Call Claude to parse. This site talks to the REST endpoint directly rather
-  // than through the SDK, so it is recorded via recordRawCall — otherwise it is
+  // than through the SDK, so it is recorded via recordRawCall, otherwise it is
   // invisible to the ledger and every cost total is quietly short.
   const payload = {
     ...modelParams('peerReview.parsePdf'),
@@ -167,13 +167,13 @@ async function parseSheet(args, { projectId, user }) {
 
     parsed = JSON.parse(clean);
   } catch {
-    // Claude returned prose (no JSON at all) — treat as "no schedule found"
+    // Claude returned prose (no JSON at all), treat as "no schedule found"
     console.warn('Claude returned non-JSON for fixture schedule parse:', raw.slice(0, 300));
     const looksEmpty = extractedText.length < 200;
     parsed = {
       fixtures: [],
       warning: looksEmpty
-        ? 'This PDF appears to be image-based — text could not be extracted. Please use a text-based PDF.'
+        ? 'This PDF appears to be image-based, so text could not be extracted. Please use a text-based PDF.'
         : 'No fixture schedule found in this PDF. This sheet appears to contain electrical details, controls diagrams, or other non-schedule content. Try uploading the E-sheet that shows the Luminaire Schedule or Light Fixture Schedule table.',
     };
   }

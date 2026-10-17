@@ -4,7 +4,7 @@
  * are actually required and which ones can be guessed."
  *
  * Required: project type, total units, and total building SF OR an average
- * unit size. Everything else is estimated — flagged, and only when the
+ * unit size. Everything else is estimated, flagged, and only when the
  * visitor said "no drawings" (a drawing-backed takeoff never guesses).
  */
 import test from 'node:test';
@@ -157,7 +157,7 @@ test('tennis and pickleball courts are one row', () => {
 
 test('back of house is estimated as the type\'s typical share of the building, and flagged', () => {
   // 250,000 SF garden: units 200,000 (÷1.25), no corridors, 3,800 amenity →
-  // 46,200 left over; gardens run ~1% back of house (real budgets 0.7–0.9%).
+  // 46,200 left over; gardens run ~1% back of house (real budgets 0.7 to 0.9%).
   const q = rows({ projectType: GARDEN, figureTotalUnits: '200', figureGrossSf: '250000' });
   assert.equal(q.bohSf.value, 2500);
   assert.equal(q.bohSf.source, 'derived');
@@ -166,7 +166,7 @@ test('back of house is estimated as the type\'s typical share of the building, a
   // From the average unit size too: 200 × 950 = 190,000, × 1.25 = 237,500.
   const a = rows({ projectType: GARDEN, figureTotalUnits: '200', figureAvgUnitSf: '950' });
   assert.equal(a.bohSf.value, Math.round(237500 * 0.01));
-  // A podium runs 2.5%, a high-rise 3.5% — still under the 5% cap.
+  // A podium runs 2.5%, a high-rise 3.5%, still under the 5% cap.
   const p = rows({ projectType: PODIUM, figureTotalUnits: '300', figureGrossSf: '400000' });
   assert.equal(p.bohSf.value, 10000);
 });

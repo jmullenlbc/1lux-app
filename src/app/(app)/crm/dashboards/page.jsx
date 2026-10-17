@@ -6,7 +6,7 @@ import { prisma as db } from '@/lib/db';
 import { DEFAULT_WIDGETS } from '@/lib/defaultDashboard';
 import DashboardsClient from './DashboardsClient';
 
-export const metadata = { title: 'CRM Dashboards — ILC Studios' };
+export const metadata = { title: 'CRM Dashboards: ILC Studios' };
 
 export default async function CRMDashboardsPage() {
   const { user, error } = await requireAuth();

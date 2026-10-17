@@ -6,12 +6,12 @@
  * and then 12 through 16 is a high finish tier."
  *
  * Each dollar amount belongs to exactly one tier. Mike picked the split on
- * 2026-09-11: $4–$8 low, $9–$12 medium, $13–$16 high. The tier edges live here and nowhere
- * else — the internal wizard and the public conceptual budget both read them.
+ * 2026-09-11: $4 to $8 low, $9 to $12 medium, $13 to $16 high. The tier edges live here and nowhere
+ * else, the internal wizard and the public conceptual budget both read them.
  *
  * Pure data: no pricing numbers that matter to DN, safe for the browser.
  * The legacy named levels (low/medium/high in PRICING.interiorAmenities) are
- * untouched — older projects store those words and still price off them.
+ * untouched, older projects store those words and still price off them.
  */
 
 export const INTERIOR_AMENITY_TIERS = [
@@ -24,7 +24,7 @@ export const INTERIOR_AMENITY_TIERS = [
 export const INTERIOR_AMENITY_RATES = INTERIOR_AMENITY_TIERS
   .flatMap(t => Array.from({ length: t.max - t.min + 1 }, (_, i) => t.min + i));
 
-/** The tier a $/SF rate falls in, or null when it is outside $4–$16. */
+/** The tier a $/SF rate falls in, or null when it is outside $4 to $16. */
 export function interiorAmenityTier(rate) {
   const n = Number(rate);
   if (!Number.isFinite(n)) return null;

@@ -54,10 +54,10 @@ const LOCATION_TYPES = [
   { value: 'national',     label: 'National' },
 ];
 
-// Seed departments (creatable — clients can add their own, e.g. a GC differs from a developer)
+// Seed departments (creatable, clients can add their own, e.g. a GC differs from a developer)
 // The department list used to be five words typed out here and offered as
 // suggestions next to a free-text box. It is now the controlled list in
-// src/lib/contactDepartments.js — same eight everywhere, stored as keys.
+// src/lib/contactDepartments.js, same eight everywhere, stored as keys.
 
 const TABS = [
   { id: 'overview',   label: 'Overview'       },
@@ -75,7 +75,7 @@ const TABS = [
 
 function parseJSON(val, fallback = []) {
   if (!val) return fallback;
-  // A field just changed on screen is already a real list — it has not been
+  // A field just changed on screen is already a real list, it has not been
   // round-tripped through the database yet, so don't try to parse it.
   if (Array.isArray(val)) return val;
   try { return JSON.parse(val); } catch { return fallback; }
@@ -233,7 +233,7 @@ const US_STATES = [
 
 // ── Client info, edited in place ──────────────────────────────────────────────
 // Mike, 2026-09-09: no pop-out and no Save button on the client info screen.
-// Click a field, type, click away — it saves itself, the same way the project
+// Click a field, type, click away, it saves itself, the same way the project
 // dashboard and the People tab already work. PersonField further down is the
 // plain-text editor; these are the pickers that go beside it.
 
@@ -365,7 +365,7 @@ function ChoiceChips({ value, options, onSave }) {
 }
 
 // The tag library, edited from here: tick, rename, delete, add. Ticking saves
-// straight away. Rename and delete still ask first — those two reach across
+// straight away. Rename and delete still ask first, those two reach across
 // every client that carries the tag, not just this one.
 function TagPicker({ tagIds, onSave }) {
   const [tags, setTags]     = useState([]);
@@ -453,7 +453,7 @@ function TagPicker({ tagIds, onSave }) {
             Make your own labels. Renaming or deleting one here changes it on every client that has it.
           </p>
           <div className="flex flex-wrap gap-1.5 mb-2.5">
-            {tags.length === 0 && <span className="text-xs text-slate-500">No tags yet — add the first one below.</span>}
+            {tags.length === 0 && <span className="text-xs text-slate-500">No tags yet. Add the first one below.</span>}
             {tags.map(tag => {
               const active = ids.includes(tag.id);
               return (
@@ -571,7 +571,7 @@ function OverviewTab({ client, onPatch }) {
   // it is still one job we did for this client, so it counts once (Mike,
   // 2026-09-06). The pipeline boards themselves still count it on each board.
   const counts     = clientDealCounts(client.projects);
-  // What they actually build, read off their own projects — the auto-populate
+  // What they actually build, read off their own projects, the auto-populate
   // Mike asked for. Shown next to what was ticked by hand.
   const seenTypes  = projectTypesFromProjects(client.projects).map(projectTypeLabel);
 
@@ -596,7 +596,7 @@ function OverviewTab({ client, onPatch }) {
           <span className="font-mono text-xs font-semibold text-slate-400 tracking-wide">
             {client.clientNumber ? `CLT-${String(client.clientNumber).padStart(4, '0')}` : ''}
           </span>
-          <span className="text-[11px] text-slate-500">Click any field to change it — it saves itself</span>
+          <span className="text-[11px] text-slate-500">Click any field to change it. It saves itself</span>
         </div>
 
         {/* Identity row */}
@@ -633,7 +633,7 @@ function OverviewTab({ client, onPatch }) {
           </div>
         </div>
 
-        {/* Project counts — worked out live from this client's projects across
+        {/* Project counts, worked out live from this client's projects across
             both pipelines, so they can never disagree with the boards. */}
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mt-5 pt-5 border-t border-slate-100">
           {[
@@ -699,7 +699,7 @@ function OverviewTab({ client, onPatch }) {
                 value={client.ownerId || ''}
                 onChange={e => onPatch({ ownerId: e.target.value || null })}
                 className="w-full rounded-lg border border-slate-200 px-2 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-orange-500">
-                <option value="">— Unassigned —</option>
+                <option value="">Unassigned</option>
                 {ownerOptions.map(u => <option key={u.id} value={u.id}>{u.name || u.email}</option>)}
               </select>
               <label className="flex items-center gap-2 mt-1.5 text-[11px] text-slate-500">
@@ -735,11 +735,11 @@ function OverviewTab({ client, onPatch }) {
 
             <InfoRow label="Client rating">
               <PersonField value={client.rating} width="w-full" className="text-sm text-slate-600"
-                placeholder="Free text for now — the scoring rule is still to be decided"
+                placeholder="Free text for now, the scoring rule is still to be decided"
                 onSave={v => onPatch({ rating: v })} />
             </InfoRow>
 
-            {/* Pre-construction email — GC clients only, or any client that
+            {/* Pre-construction email, GC clients only, or any client that
                 already has one saved from before. */}
             {(isGC || client.email) && (
               <InfoRow label="Pre-construction email">
@@ -849,10 +849,10 @@ function OverviewTab({ client, onPatch }) {
 
 // ── People Tab ────────────────────────────────────────────────────────────────
 // Rebuilt 2026-09-09 for Mike. Three things he asked for on the call:
-//   1. "that link profile is just making taking one big line" — every person now
+//   1. "that link profile is just making taking one big line", every person now
 //      takes TWO lines instead of one very wide table row, so nothing runs off
 //      the right side of the screen.
-//   2. Every field edits in place. No pop-out panel, no Edit button, no modal —
+//   2. Every field edits in place. No pop-out panel, no Edit button, no modal
 //      click the words, type, click away. It saves itself.
 //   3. The Open / Won / Lost / Abandoned numbers name the jobs behind them:
 //      hover to see the list, click to open it right here on the same screen.
@@ -911,7 +911,7 @@ function DealChips({ contact, onOpenList }) {
               {b.short}{n}
             </button>
 
-            {/* The rollover. Names only — the click is what opens the full list. */}
+            {/* The rollover. Names only, the click is what opens the full list. */}
             {n > 0 && (
               <span className="pointer-events-none absolute z-30 left-1/2 -translate-x-1/2 top-full mt-1 hidden group-hover/chip:block w-56 rounded-lg bg-slate-900 text-white text-[11px] px-3 py-2 shadow-xl">
                 <span className="block font-semibold text-slate-300 mb-1">{b.label} ({n})</span>
@@ -980,7 +980,7 @@ function DealListPopup({ contact, bucket, projects, onClose }) {
  * One field that edits itself in place.
  *
  * Reads as plain text; click it and it becomes a box; leave it and it saves.
- * Escape puts it back. There is no Save button on purpose — Mike asked for the
+ * Escape puts it back. There is no Save button on purpose, Mike asked for the
  * pop-out to go away entirely.
  */
 function PersonField({
@@ -1002,7 +1002,7 @@ function PersonField({
   }
 
   // A controlled list (the department) edits as a dropdown and saves the
-  // moment a choice is made — there is nothing to type, so waiting for a blur
+  // moment a choice is made, there is nothing to type, so waiting for a blur
   // just leaves the menu sitting open.
   if (editing && options) {
     async function choose(next) {
@@ -1213,7 +1213,7 @@ function PeopleTab({ contacts: initial, clientId, onContactsChange }) {
       <div className="divide-y divide-slate-100">
         {contacts.map(c => (
           <div key={c.id} className="group px-5 py-3 hover:bg-slate-50/50 transition-colors">
-            {/* Line 1 — who they are, and how the jobs went. */}
+            {/* Line 1, who they are, and how the jobs went. */}
             <div className="flex items-start justify-between gap-4">
               <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1 min-w-0">
                 <PersonField
@@ -1255,7 +1255,7 @@ function PeopleTab({ contacts: initial, clientId, onContactsChange }) {
               </div>
             </div>
 
-            {/* Line 2 — how to reach them. This is the line that used to run off
+            {/* Line 2, how to reach them. This is the line that used to run off
                 the side of the screen when it was all one row. */}
             <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
               <PersonField
@@ -1300,7 +1300,7 @@ function PeopleTab({ contacts: initial, clientId, onContactsChange }) {
               )}
               {WORK_HISTORY_READY && (
                 <button type="button" onClick={() => setHistoryFor(h => (h === c.id ? null : c.id))}
-                  className="text-slate-400 hover:text-orange-600" title="Where they have worked — paste from LinkedIn or type it in">
+                  className="text-slate-400 hover:text-orange-600" title="Where they have worked: paste from LinkedIn or type it in">
                   {historyFor === c.id ? '▾' : '▸'} Work history
                 </button>
               )}
@@ -1335,7 +1335,7 @@ function PeopleTab({ contacts: initial, clientId, onContactsChange }) {
         ))}
       </div>
 
-      {/* Add a person — still a small form, because a brand new person has no
+      {/* Add a person, still a small form, because a brand new person has no
           row to click on yet. */}
       {addForm !== null && (
         <div className="px-5 py-4 bg-blue-50/30 border-t border-blue-100">
@@ -1463,7 +1463,7 @@ function ProjectsTab({ client, available, related = [], onRefresh }) {
           Jobs this company is ON but did not bring us. Maram, 2026-09-09: "CSI
           for example, they probably won't be bringing us a lot of projects, but
           they might be connected to several others." Kept as its own list on
-          purpose — folding them in above would make an engineering firm look
+          purpose. Folding them in above would make an engineering firm look
           like a big client. */}
       {related.length > 0 && (
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm mt-6">
@@ -1541,7 +1541,7 @@ function buildAnswerMap(answers) {
   return map;
 }
 
-// ── Text answer input — defined outside parent to preserve state across renders ──
+// ── Text answer input, defined outside parent to preserve state across renders ──
 function TextAnswerInput({ question, sectionKey, currentValue: initVal, canEdit, isSav, onSave }) {
   const [localVal, setLocalVal] = useState(initVal || '');
   const timerRef = useRef(null);
@@ -1749,7 +1749,7 @@ function ClientStandardsTab({ clientId, initialAnswers, canEdit }) {
 
         <div>
           <div className={`${LABEL} mb-3`}>
-            Area overrides — set only if different from interior default
+            Area overrides: set only if different from interior default
           </div>
           <div className="grid grid-cols-1 gap-2">
             {CCT_INTERIOR_AREAS.map(area => {
@@ -2020,7 +2020,7 @@ function ClientStandardsTab({ clientId, initialAnswers, canEdit }) {
             <h2 className={`text-sm font-bold ${colors.text}`}>{section?.label}</h2>
             <p className="text-[11px] text-slate-500">
               {section?.isCCT
-                ? 'Color temperature per area — all interior inherits the global default'
+                ? 'Color temperature per area: all interior inherits the global default'
                 : section?.questions?.length > 0
                 ? `${section.questions.length} question${section.questions.length !== 1 ? 's' : ''} · answers auto-save on selection`
                 : 'Questions coming in a future update'}
@@ -2058,7 +2058,7 @@ function ClientStandardsTab({ clientId, initialAnswers, canEdit }) {
             <svg className="w-3.5 h-3.5 shrink-0 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            Showing <strong className="text-slate-700">{PROJECT_TYPES.find(p => p.value === activeProjectType)?.label}</strong> — questions without overrides inherit from Global.
+            Showing <strong className="text-slate-700">{PROJECT_TYPES.find(p => p.value === activeProjectType)?.label}</strong>. Questions without overrides inherit from Global.
           </div>
         )}
 
@@ -2079,7 +2079,7 @@ function ClientStandardsTab({ clientId, initialAnswers, canEdit }) {
         {!section?.isCCT && section?.questions?.length === 0 && (
           section?.subsections?.length > 0 ? (
             <div className="space-y-2">
-              <p className="text-xs text-slate-500 mb-4">Questions coming in a future update — planned subsections:</p>
+              <p className="text-xs text-slate-500 mb-4">Questions coming in a future update. Planned subsections:</p>
               {section.subsections.map(sub => (
                 <div key={sub} className="flex items-center gap-3 px-4 py-3 rounded-lg border border-slate-200 bg-slate-50 text-sm text-slate-500">
                   <span className="w-1.5 h-1.5 rounded-full bg-slate-300 shrink-0" />
@@ -2222,13 +2222,13 @@ export default function ClientDetailClient({ client: initial, availableProjects,
     setClient(data.client);
   }
 
-  // One field at a time, saved the moment it is changed — Mike, 2026-09-09:
+  // One field at a time, saved the moment it is changed, Mike, 2026-09-09:
   // no pop-out and no Save button on the client info screen. The change shows
   // straight away and is put back if the save fails, so the screen never shows
   // something the database does not have.
   //
   // Trap: PATCH /api/clients/[id] returns the client's own columns and its tags
-  // — NOT projects, contacts, owner or createdBy. Dropping the whole response
+  // NOT projects, contacts, owner or createdBy. Dropping the whole response
   // in would wipe those off the screen, so only the columns the server may have
   // worked out for itself are taken back.
   async function patchClient(patch) {
@@ -2268,7 +2268,7 @@ export default function ClientDetailClient({ client: initial, availableProjects,
       return true;
     } catch {
       setClient(previous);
-      setSaveError('That change could not be saved — check the connection.');
+      setSaveError('That change could not be saved. Check the connection.');
       return false;
     }
   }

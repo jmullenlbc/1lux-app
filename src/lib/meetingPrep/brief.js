@@ -1,10 +1,10 @@
 /**
- * Meeting Prep — the pure half (Mike, 2026-09-14: "It's event related, so not
+ * Meeting Prep, the pure half (Mike, 2026-09-14: "It's event related, so not
  * on clients. It's in the sales notes.")
  *
  * gather.js pulls the rows; this file turns them into numbered facts (F1, F2…),
  * writes the prompt, and checks what comes back. No database, no network, no
- * `@/` imports — so the node tests can load it directly.
+ * `@/` imports, so the node tests can load it directly.
  *
  * Two rules hold everywhere in here:
  *   1. Sell figures yes, buy price never (Mike, 2026-09-14: "Budgets of those
@@ -49,7 +49,7 @@ export const BLOCK_LABEL = Object.fromEntries(BLOCKS.map(b => [b.key, b.label]))
 const DN_RE  = /\bDN\b/;
 const BUY_RE = /\bdealer[\s-]?net\b|\bmargins?\b|\bbuy(?:ing)?[\s-]?price|\bnet[\s-](?:price|cost)s?\b|\bour costs?\b|\bcost basis\b|\brebates?\b|\bspiffs?\b/i;
 
-/** True when a line talks about what ILC pays — DN, dealer net, buy price, margin. */
+/** True when a line talks about what ILC pays, DN, dealer net, buy price, margin. */
 export function mentionsBuyPrice(text) {
   const t = String(text ?? '');
   return DN_RE.test(t) || BUY_RE.test(t);
@@ -87,7 +87,7 @@ function ago(d, now) {
 function dueText(d, now) {
   const x = asDate(d);
   if (!x) return '';
-  return `due ${fmtDate(x)}${x.getTime() < now.getTime() - DAY ? ' — overdue' : ''}`;
+  return `due ${fmtDate(x)}${x.getTime() < now.getTime() - DAY ? ', overdue' : ''}`;
 }
 
 function titleCase(key) {
@@ -109,13 +109,13 @@ const budgetOf = p => (p?.budget?.total > 0 ? p.budget.total : 0);
 
 /**
  * One person's jobs with ILC, in one line: how many, where each board stands,
- * and the budgets. "Jane Roe — on 3 jobs with us (lead on 1). Procurement:
+ * and the budgets. "Jane Roe, on 3 jobs with us (lead on 1). Procurement:
  * 1 open (Design / Pre-Con 1), 1 lost; Design: 1 won. Budgets on those jobs
  * total $1,050,000. Jobs: Lone Tree Ranch ($812,346 budget); …"
  *
  * @param {string} name
  * @param {Array<{ projectId, isLead }>} links
- * @param {object} projectById  { id: project } — each project may carry budget
+ * @param {object} projectById  { id: project }, each project may carry budget
  */
 export function describeJobsWith(name, links, projectById) {
   const mine = (links || []).filter(l => projectById[l.projectId]);
@@ -148,7 +148,7 @@ export function describeJobsWith(name, links, projectById) {
   });
 
   const total = jobs.reduce((s, p) => s + budgetOf(p), 0);
-  const parts = [`${name} — on ${plural(jobs.length, 'job')} with us${lead ? ` (lead on ${lead})` : ''}.`];
+  const parts = [`${name}, on ${plural(jobs.length, 'job')} with us${lead ? ` (lead on ${lead})` : ''}.`];
   if (boardText.length) parts.push(`${boardText.join('; ')}.`);
   if (total > 0) parts.push(`Budgets on those jobs total ${fmtMoney(total)}.`);
   parts.push(`Jobs: ${jobs.map(p => `${p.name} (${budgetOf(p) ? `${fmtMoney(budgetOf(p))} budget` : 'no budget yet'})`).join('; ')}.`);
@@ -191,16 +191,16 @@ export function buildFactBlocks(raw = {}, now = new Date()) {
       c.tier ? `tier ${c.tier}` : null,
       c.rating != null && c.rating !== '' ? `rating ${c.rating}` : null,
     ].filter(Boolean);
-    addFact('client', `${c.name}${bits.length ? ` — ${bits.join(', ')}` : ''}.`, 'Client', c.id);
+    addFact('client', `${c.name}${bits.length ? `: ${bits.join(', ')}` : ''}.`, 'Client', c.id);
   }
 
-  // People — the ones on this meeting first, then whoever was in touch last.
+  // People, the ones on this meeting first, then whoever was in touch last.
   const contacts = [...(raw.contacts || [])].sort((a, b) =>
     (b.onNote ? 1 : 0) - (a.onNote ? 1 : 0) || time(b.lastTouchpointAt) - time(a.lastTouchpointAt));
   for (const p of contacts) {
     const who = [p.name, p.title].filter(Boolean).join(', ');
     const co = p.company || clientName[p.clientId];
-    const parts = [`${who}${co ? ` (${co})` : ''}${p.onNote ? ' — on this meeting' : ''}.`];
+    const parts = [`${who}${co ? ` (${co})` : ''}${p.onNote ? ', on this meeting' : ''}.`];
     parts.push(p.lastInPersonAt
       ? `Last in person ${fmtDate(p.lastInPersonAt)}${ago(p.lastInPersonAt, now)}.`
       : 'No in-person meeting on file.');
@@ -212,20 +212,20 @@ export function buildFactBlocks(raw = {}, now = new Date()) {
     addFact('people', parts.join(' '), 'Contact', p.id);
   }
 
-  // Personal — what they mentioned outside work (ContactPersonalFact).
+  // Personal, what they mentioned outside work (ContactPersonalFact).
   const nameOf = Object.fromEntries(contacts.map(p => [p.id, p.name]));
   for (const f of raw.personal || []) {
     const who = nameOf[f.contactId];
     if (who && f.fact) addFact('personal', `${who}: ${String(f.fact).replace(/[.\s]+$/, '')}.`, 'ContactPersonalFact', f.id);
   }
 
-  // Work history — pasted off their LinkedIn or typed in (ContactEmployment).
+  // Work history, pasted off their LinkedIn or typed in (ContactEmployment).
   for (const p of contacts) {
     const text = describeWorkHistory(p.name, p.employment, now);
     if (text) addFact('workHistory', text, 'Contact', p.id);
   }
 
-  // Jobs with them — every job each person is on, by board and stage, with budgets.
+  // Jobs with them, every job each person is on, by board and stage, with budgets.
   const withJobs = contacts
     .map(p => ({ p, n: (p.projectLinks || []).filter(l => projectById[l.projectId]).length }))
     .filter(x => x.n)
@@ -234,7 +234,7 @@ export function buildFactBlocks(raw = {}, now = new Date()) {
     addFact('jobs', describeJobsWith(p.name, p.projectLinks, projectById), 'Contact', p.id);
   }
 
-  // Deals — the track record per company first (every board counted), then
+  // Deals, the track record per company first (every board counted), then
   // the jobs themselves: the ones on this note, then open ones.
   for (const c of clients) {
     const mine = projects.filter(p => p.clientId === c.id);
@@ -251,7 +251,7 @@ export function buildFactBlocks(raw = {}, now = new Date()) {
     }
     const lines = Object.entries(tally).map(([board, t]) =>
       `${PIPELINE_LABEL[board] || board} ${t.won} won, ${t.lost} lost, ${t.abandoned} abandoned, ${t.open} open`);
-    addFact('deals', `${c.name} track record — ${lines.join('; ')}.`, 'Client', c.id);
+    addFact('deals', `${c.name} track record: ${lines.join('; ')}.`, 'Client', c.id);
   }
   const isOpen = p => boardRows(p).some(r => !r.status || r.status === 'OPEN');
   const deals = projects
@@ -262,7 +262,7 @@ export function buildFactBlocks(raw = {}, now = new Date()) {
     const boards = boardRows(p).map(r =>
       `${PIPELINE_LABEL[r.pipeline]}: ${STAGE_LABEL[r.stage] || titleCase(r.stage)} / ${STATUS_LABEL[r.status] || titleCase(r.status)}`);
     const co = companyOf(p);
-    const parts = [`${p.name}${co ? ` (${co})` : ''}${p.linked ? ' — on this meeting' : ''} — ${boards.join('; ')}.`];
+    const parts = [`${p.name}${co ? ` (${co})` : ''}${p.linked ? ', on this meeting' : ''}: ${boards.join('; ')}.`];
     const money = [
       budgetOf(p) ? `budget ${fmtMoney(budgetOf(p))} (${p.budget.source || 'budget'})` : null,
       p.contractValue > 0 ? `product sale ${fmtMoney(p.contractValue)}` : null,
@@ -278,7 +278,7 @@ export function buildFactBlocks(raw = {}, now = new Date()) {
     addFact('deals', parts.join(' '), 'Project', p.id);
   }
 
-  // Open follow-ups from OTHER notes — overdue and soonest first.
+  // Open follow-ups from OTHER notes, overdue and soonest first.
   const followUps = [...(raw.followUps || [])].sort((a, b) =>
     (time(a.dueDate) || Infinity) - (time(b.dueDate) || Infinity));
   for (const f of followUps) {
@@ -302,14 +302,14 @@ export function buildFactBlocks(raw = {}, now = new Date()) {
   for (const co of raw.changeOrders || []) {
     const on = projectName[co.projectId];
     addFact('changeOrders',
-      `Change order ${co.coNumber ?? ''} ${quote(co.title)}${on ? ` on ${on}` : ''} — ${CO_STATUS[co.status] || titleCase(co.status)}${co.date ? `, dated ${fmtDate(co.date)}` : ''}.`.replace(/\s+/g, ' '),
+      `Change order ${co.coNumber ?? ''} ${quote(co.title)}${on ? ` on ${on}` : ''}: ${CO_STATUS[co.status] || titleCase(co.status)}${co.date ? `, dated ${fmtDate(co.date)}` : ''}.`.replace(/\s+/g, ' '),
       'ChangeOrder', co.id);
   }
 
   for (const r of raw.rfis || []) {
     const on = projectName[r.projectId];
     addFact('rfis',
-      `RFI ${r.rfiNumber ? `${r.rfiNumber} ` : ''}${quote(r.subject)}${on ? ` on ${on}` : ''} — ${titleCase(r.status)}${r.dateDue ? `, ${dueText(r.dateDue, now)}` : ''}.`,
+      `RFI ${r.rfiNumber ? `${r.rfiNumber} ` : ''}${quote(r.subject)}${on ? ` on ${on}` : ''}: ${titleCase(r.status)}${r.dateDue ? `, ${dueText(r.dateDue, now)}` : ''}.`,
       'RFI', r.id);
   }
 
@@ -327,8 +327,8 @@ export function buildFactBlocks(raw = {}, now = new Date()) {
   for (const c of clients) {
     const s = standards[c.id];
     addFact('standards', s?.count
-      ? `${c.name} — ${s.count} client standards answer${s.count === 1 ? '' : 's'} on file${s.lastAnsweredAt ? `, last updated ${fmtDate(s.lastAnsweredAt)}` : ''}.`
-      : `${c.name} — no client standards on file yet.`, 'Client', c.id);
+      ? `${c.name}: ${s.count} client standards answer${s.count === 1 ? '' : 's'} on file${s.lastAnsweredAt ? `, last updated ${fmtDate(s.lastAnsweredAt)}` : ''}.`
+      : `${c.name}: no client standards on file yet.`, 'Client', c.id);
   }
 
   const history = [...(raw.history || [])].sort((a, b) =>

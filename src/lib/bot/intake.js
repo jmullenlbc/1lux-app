@@ -1,5 +1,5 @@
 /**
- * intake.js — the app side of email/calendar sync.
+ * intake.js, the app side of email/calendar sync.
  *
  * This is the stable boundary the Microsoft 365 sync (Graph webhooks / delta
  * polling) will call once it's connected. It also backs the Test panel and the
@@ -75,7 +75,7 @@ export async function ingestEmail(raw, opts = {}) {
  * Microsoft, and src/lib/calendar/inPerson.js decides in person vs not from the
  * title and the location. This function now just names what a rule can test.
  *
- * `classification` is optional — pass it when you have already classified the
+ * `classification` is optional, pass it when you have already classified the
  * event so it is not worked out twice.
  */
 export function normalizeCalendarEvent(raw = {}, classification = null) {
@@ -98,14 +98,14 @@ export function normalizeCalendarEvent(raw = {}, classification = null) {
  *
  * What happens to one event, in order:
  *   1. It is turned into the neutral shape (Graph or anything else).
- *   2. It is classified — your rules first, then the title and location
+ *   2. It is classified, your rules first, then the title and location
  *      keywords, then the AI. This is Mike's "know it's in person through a
  *      title or location", 2026-09-07.
  *   3. It becomes a DRAFT sales note, unless it classified as not worth one.
  *      Publishing the note is still a person's decision, and publishing is what
  *      sets off the AI action items, the bot drafts and the Last In Person date.
  *   4. The CALENDAR_EVENT_CREATED trigger fires, so any rule Mike built on the
- *      automation screen runs — but only when the sales person ACCEPTED the
+ *      automation screen runs, but only when the sales person ACCEPTED the
  *      invite (Mike 9-19: "it should only trigger when the sales person has
  *      accepted that invite"). Declined, unanswered and tentative invites
  *      write no note and fire no rule; the owner's own events and events
@@ -126,7 +126,7 @@ export async function ingestCalendarEvent(raw, opts = {}) {
   ]);
   const ownerUserId = ownerUserIds[0] || null;
 
-  let note = { noteId: null, status: 'skipped', reason: 'dry run — no note written' };
+  let note = { noteId: null, status: 'skipped', reason: 'dry run, no note written' };
   if (!opts.dryRun && opts.createNote !== false) {
     try {
       note = await recordCalendarEvent(prisma, event, {
@@ -146,7 +146,7 @@ export async function ingestCalendarEvent(raw, opts = {}) {
   const notAccepted = notAcceptedReason(event);
   if (notAccepted) {
     return { triggerType: 'CALENDAR_EVENT_CREATED', dryRun: !!opts.dryRun, baseline: null, fired: [], matched: [], ruleCount: 0,
-             skipped: true, reason: `not accepted — ${notAccepted}`, classification, note };
+             skipped: true, reason: `not accepted: ${notAccepted}`, classification, note };
   }
 
   const payload = normalizeCalendarEvent(event, classification);

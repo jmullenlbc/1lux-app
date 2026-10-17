@@ -2,7 +2,7 @@
  * Sales-note links (companies, projects, people) and the "last met" dates.
  *
  * Links are added without `skipDuplicates` (Postgres-only; it throws on the
- * local SQLite) — existing links are looked up and skipped instead.
+ * local SQLite), existing links are looked up and skipped instead.
  */
 
 // Shared by the list page, GET/PATCH and create, so every screen sees people.
@@ -42,7 +42,7 @@ export async function setNoteContacts(db, noteId, ids) {
 
 /**
  * A published, in-person note moves its people's "last met in person" and
- * "last touch" dates forward — never back. Only publishing calls this: a draft
+ * "last touch" dates forward, never back. Only publishing calls this: a draft
  * is not a meeting yet.
  */
 export async function stampLastMet(db, noteId, meetingDate) {

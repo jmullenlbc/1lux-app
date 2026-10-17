@@ -36,7 +36,7 @@ export async function PATCH(req, { params }) {
  * Mike, 2026-09-10: "I think we should make all knowledge base probably be
  * archived and not be deleted at all if it takes it out of the bot's reach."
  *
- * Archiving already does the whole job — it takes the answer out of the bot's
+ * Archiving already does the whole job, it takes the answer out of the bot's
  * reach completely (retrieve.js filters on isActive) while keeping every word of
  * it, and one click puts it back. Deleting only added the chance of losing
  * something for good with no way to get it back.
@@ -50,7 +50,7 @@ export async function DELETE() {
   if (error) return error;
 
   return NextResponse.json({
-    error: 'Answers in the bot library are archived, never deleted. Archive it instead — that takes it out of the bot and keeps it.',
+    error: 'Answers in the bot library are archived, never deleted. Archive it instead. That takes it out of the bot and keeps it.',
   }, { status: 405 });
 }
 

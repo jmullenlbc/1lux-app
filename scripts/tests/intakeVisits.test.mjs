@@ -1,5 +1,5 @@
 /**
- * Visitor tracking for the public /conceptual_budget page — the pure rules.
+ * Visitor tracking for the public /conceptual_budget page, the pure rules.
  *
  * The promise this pins: nothing that identifies a stranger is kept. No IP
  * address, no browser string, no full referring address, no email in a tag.
@@ -45,7 +45,7 @@ test('the visitor key is one-way: stable, salted, and holds neither input', () =
   assert.ok(!a.includes('203'));
 });
 
-test('only the referring SITE is kept — never the path or the search words', () => {
+test('only the referring SITE is kept, never the path or the search words', () => {
   assert.equal(referrerHost('https://www.linkedin.com/feed/?q=pat+example', 'app.ilcstudios.com'), 'linkedin.com');
   assert.equal(referrerHost('https://mail.google.com/mail/u/0/#inbox/abc', ''), 'mail.google.com');
   assert.equal(referrerHost('https://app.ilcstudios.com/conceptual_budget', 'app.ilcstudios.com'), null);

@@ -57,7 +57,7 @@ function MentionDropdown({ users, query, position, onSelect, onClose }) {
   );
 }
 
-// ── useUsers hook — fetch once per mount ─────────────────────────────────────
+// ── useUsers hook, fetch once per mount ─────────────────────────────────────
 function useUsers() {
   const [users, setUsers] = useState([]);
   useEffect(() => {
@@ -547,7 +547,7 @@ export default function MeetingNotes({ projectId }) {
     setCreating(true);
     const title = new Date().toLocaleDateString('en-US', {
       month: 'long', day: 'numeric', year: 'numeric',
-    }) + ' — Meeting Notes';
+    }) + ': Meeting Notes';
 
     const res = await fetch(`/api/projects/${projectId}/meeting-notes`, {
       method: 'POST',

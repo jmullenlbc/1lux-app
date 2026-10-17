@@ -1,12 +1,12 @@
 /**
- * How long is too long? — finding the "went quiet" number from Mike's own calendar.
+ * How long is too long?, finding the "went quiet" number from Mike's own calendar.
  *
  * Mike, 2026-09-07, when I asked what number to use: "went quiet after what is
  * the real question." So this does not pick a number. It reads four years of his
  * real meetings and asks the only question that can settle it:
  *
  *   When a gap opens up between two meetings with the same company, how long a
- *   gap does the relationship usually survive — and past what point does it
+ *   gap does the relationship usually survive, and past what point does it
  *   stop coming back?
  *
  * The method, in plain terms:
@@ -17,13 +17,13 @@
  *      invent a relationship that does not exist.
  *   3. For each company, sort the meeting dates and measure every gap between
  *      one meeting and the next. Every gap measured this way is a gap the
- *      relationship SURVIVED — by definition, another meeting followed it.
+ *      relationship SURVIVED, by definition, another meeting followed it.
  *   4. The answer is the shape of that pile. If 80% of survived gaps are under
  *      N days, then a live relationship that has been silent longer than N is
  *      behaving unlike almost every relationship that came back.
  *
- * The trailing silence — the time since the last meeting, with no next meeting
- * after it — is deliberately NOT mixed into that pile. Those gaps have not
+ * The trailing silence, the time since the last meeting, with no next meeting
+ * after it, is deliberately NOT mixed into that pile. Those gaps have not
  * finished yet, and counting an unfinished gap as though it were survived would
  * drag the number up. They are reported separately, because they are the actual
  * list of companies that are quiet right now.
@@ -174,7 +174,7 @@ function main() {
 
   console.log(`Read ${all.length.toLocaleString()} events from ${START_YEAR} on `
     + `(${future.toLocaleString()} of them scheduled after the export, set aside).`);
-  console.log(`Export taken ${dayKey(asOf)} — that is "today" for this.\n`);
+  console.log(`Export taken ${dayKey(asOf)}, that is "today" for this.\n`);
 
   // company domain → Set of day keys it was met on
   const touchesInPerson = new Map();
@@ -245,7 +245,7 @@ function report(label, map, asOf) {
 
   if (!allGaps.length) return;
 
-  console.log('  Gaps the relationship SURVIVED — a meeting followed every one of these:');
+  console.log('  Gaps the relationship SURVIVED, a meeting followed every one of these:');
   for (const p of [50, 60, 70, 75, 80, 85, 90, 95]) {
     const v = percentile(allGaps, p);
     console.log(`    ${String(p).padStart(2)}% of gaps are ${String(v).padStart(4)} days or less`);
@@ -269,7 +269,7 @@ function report(label, map, asOf) {
   }
 
   // The number above is not the real list length. Four years of history is full
-  // of relationships that ended for good reasons — the job finished, the person
+  // of relationships that ended for good reasons, the job finished, the person
   // left, the deal died in 2023. A weekly list that reopens all of them is a
   // graveyard, not a to-do list. The honest question is: of the relationships
   // that were alive in the last year, how many have gone quiet?
@@ -282,8 +282,8 @@ function report(label, map, asOf) {
 
   // Even that is too long to read on a Monday, because a single invite drags in
   // consultants, city staff and vendors who were never a relationship at all.
-  // Tightening to companies actually worked with — met several times in the last
-  // year — is what turns the number into a list a person will read.
+  // Tightening to companies actually worked with, met several times in the last
+  // year, is what turns the number into a list a person will read.
   for (const min of [3, 5]) {
     const core = live.filter(r => r.recentMeetings >= min);
     console.log(`\n  Narrowed to the ${core.length} companies met ${min}+ times in the last year:`);
@@ -302,7 +302,7 @@ function report(label, map, asOf) {
     console.log(`    ${String(p).padStart(2)}% of companies normally go ${String(percentile(typical, p)).padStart(4)} days or less between meetings`);
   }
 
-  // The busiest relationships — the ones a weekly list is really about.
+  // The busiest relationships, the ones a weekly list is really about.
   const busiest = relationships
     .filter(r => r.meetings >= 4)
     .sort((a, b) => b.silentFor - a.silentFor)

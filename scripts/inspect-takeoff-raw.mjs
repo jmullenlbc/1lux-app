@@ -26,9 +26,9 @@ for (const file of files) {
   console.log('resolved:', fullPath);
   console.log('exists:', !!usePath);
 
-  if (!usePath) { console.log('MISSING — skip'); continue; }
+  if (!usePath) { console.log('MISSING, skip'); continue; }
   const ext = file.originalName.split('.').pop()?.toLowerCase();
-  if (!['xlsx', 'xls'].includes(ext)) { console.log('not xlsx — skip'); continue; }
+  if (!['xlsx', 'xls'].includes(ext)) { console.log('not xlsx, skip'); continue; }
 
   const buffer = await readFile(usePath);
   const wb = XLSX.read(buffer, { type: 'buffer', cellFormula: true, WTF: false });
@@ -64,7 +64,7 @@ for (const file of files) {
     if (fixtureName === 'Measure' || fixtureName === 'Count') break;
 
     if (rowType === 'Point') {
-      // Found first fixture row — inspect Total cell directly
+      // Found first fixture row, inspect Total cell directly
       const rowLetterIdx = i; // 0-based
       const colLetter = XLSX.utils.encode_col(totalColIdx);
       const cellAddr = `${colLetter}${rowLetterIdx + 1}`; // XLSX rows are 1-based

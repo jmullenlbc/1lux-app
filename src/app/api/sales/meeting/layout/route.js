@@ -16,7 +16,7 @@ export const dynamic = 'force-dynamic';
  * personal copy for anyone who wants their own order. A personal copy simply
  * wins when it exists. Deleting it drops you back to the shared set.
  *
- * Rows are Dashboard + DashboardWidget with section="MEETING" — no new tables.
+ * Rows are Dashboard + DashboardWidget with section="MEETING", no new tables.
  */
 
 async function findLayoutRow(ownerUserId) {
@@ -30,7 +30,7 @@ async function findLayoutRow(ownerUserId) {
 
 const keysOf = (row) => normalizeLayout((row?.widgets || []).map(w => w.metric));
 
-// GET /api/sales/meeting/layout — the effective layout plus the whole catalog,
+// GET /api/sales/meeting/layout, the effective layout plus the whole catalog,
 // so the screen can render the add/remove list without a second round trip.
 export async function GET() {
   const { user, error } = await requireAuth();
@@ -105,7 +105,7 @@ export async function PUT(request) {
     }
     return tx.dashboard.create({
       data: {
-        name:        scope === 'shared' ? 'Weekly Meeting' : `Weekly Meeting — ${user.name || user.email}`,
+        name:        scope === 'shared' ? 'Weekly Meeting' : `Weekly Meeting: ${user.name || user.email}`,
         section:     MEETING_SECTION,
         isDefault:   scope === 'shared',
         ownerUserId,
@@ -118,7 +118,7 @@ export async function PUT(request) {
   return NextResponse.json({ ok: true, cards, scope, dashboardId: saved.id });
 }
 
-// DELETE /api/sales/meeting/layout — drop my personal copy, go back to the room's set.
+// DELETE /api/sales/meeting/layout, drop my personal copy, go back to the room's set.
 export async function DELETE() {
   const { user, error } = await requireAuth();
   if (error) return error;

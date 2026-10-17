@@ -239,7 +239,7 @@ export default async function SummaryPage({ params }) {
       )}
 
       {/* ── PARTIAL PROJECT DATA WARNING ──────────────────────────── */}
-      {/* Shows ONLY when grossSf is set but other critical fields are blank — */}
+      {/* Shows ONLY when grossSf is set but other critical fields are blank, */}
       {/* the silent-zero case that surfaced on Manuel's 2026-06-18 retest. */}
       {pd.grossSf && (
         <MissingInputsWarning projectData={pd} projectId={project.id} mode="full" />
@@ -324,7 +324,7 @@ export default async function SummaryPage({ params }) {
         />
       </div>
 
-      {/* ── Design disclaimer — small, above Project Data ──────────── */}
+      {/* ── Design disclaimer, small, above Project Data ──────────── */}
       {project.budgetType === 'design' && (
         <p className="text-xs text-slate-500 leading-relaxed mb-3 print:mb-2">
           This is a design phase budget prepared by ILC Studios for early design and pre-con purposes only.
@@ -333,7 +333,7 @@ export default async function SummaryPage({ params }) {
         </p>
       )}
 
-      {/* ── PROJECT DATA — horizontal grid ─────────────────────────── */}
+      {/* ── PROJECT DATA, horizontal grid ─────────────────────────── */}
       <div className="bg-white rounded-xl print:rounded-none border border-slate-200 shadow-sm print:shadow-none print:border-0 p-5 print:p-0 mb-6 print:mb-4">
         <h3 className="text-sm font-semibold text-slate-800 mb-3 print:text-sm print:font-bold print:text-slate-900 print:mb-2">Project Data</h3>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 print:grid-cols-4 gap-x-6 gap-y-2 print:gap-x-4 print:gap-y-1.5">
@@ -346,10 +346,10 @@ export default async function SummaryPage({ params }) {
         </div>
       </div>
 
-      {/* ── DIVIDER — screen gap already separates; print needs a rule ── */}
+      {/* ── DIVIDER, screen gap already separates; print needs a rule ── */}
       <div className="hidden print:block border-t border-slate-300 my-4" />
 
-      {/* ── BUDGET BREAKDOWN — interactive on screen, clean for print ─ */}
+      {/* ── BUDGET BREAKDOWN, interactive on screen, clean for print ─ */}
       <div className="bg-white rounded-xl print:rounded-none border border-slate-200 shadow-sm print:shadow-none print:border-0 p-5 print:p-0">
         <div className="flex items-center justify-between mb-3 print:mb-2">
           <h3 className="text-sm font-semibold text-slate-800 print:text-sm print:font-bold print:text-slate-900">Budget Breakdown</h3>
@@ -362,7 +362,7 @@ export default async function SummaryPage({ params }) {
       </div>
 
       {/* ══════════════════════════════════════════════════════════════ */}
-      {/* PRINT PAGE 2 — Questionnaire Responses                        */}
+      {/* PRINT PAGE 2, Questionnaire Responses                        */}
       {/* ══════════════════════════════════════════════════════════════ */}
       <div className="print-page-2 bg-white rounded-xl print:rounded-none border border-slate-200 shadow-sm print:shadow-none print:border-0 p-5 print:p-0 mt-6 print:mt-0">
 
@@ -377,7 +377,7 @@ export default async function SummaryPage({ params }) {
 
         <h3 className="text-sm font-semibold text-slate-800 mb-4 print:hidden">Questionnaire Responses</h3>
 
-        {/* Flat single-column list — sections separated by a heading */}
+        {/* Flat single-column list, sections separated by a heading */}
         <div className="space-y-0">
           {answerRows.map((group, gi) => (
             <div key={group.section} className={gi > 0 ? 'mt-4 print:mt-2' : ''}>
@@ -396,7 +396,7 @@ export default async function SummaryPage({ params }) {
 
       </div>
 
-      {/* ── BUDGET CHANGE HISTORY — screen only ───────────────────── */}
+      {/* ── BUDGET CHANGE HISTORY, screen only ───────────────────── */}
       {budgetHistory.length > 0 && (
         <div className="print:hidden bg-white rounded-xl border border-slate-200 shadow-sm p-5 mt-6">
           <div className="flex items-center justify-between mb-4">

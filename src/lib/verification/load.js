@@ -8,7 +8,7 @@ import { runChecks } from './checks';
  * exactly the same result: the card itself, "That's fine" (which has to look up
  * what the item said in order to keep a copy of it), and the archive. If they
  * each grew their own version of these selects they would drift, and a drifted
- * select here fails silently — a wrong relation name simply finds nothing and
+ * select here fails silently, a wrong relation name simply finds nothing and
  * the item quietly stops being checked.
  *
  * Nothing is cached. The whole point of these checks is that they are worked out
@@ -54,7 +54,7 @@ export async function runChecksFromDb(now) {
  * The two facts a live recompute cannot know, split the way the card needs them.
  *
  * A DISMISSED row with a `restoredAt` on it is a bury that somebody has since
- * taken back, so it no longer hides anything — but the row stays, because
+ * taken back, so it no longer hides anything, but the row stays, because
  * nothing in this table is ever deleted.
  */
 export async function loadActions() {

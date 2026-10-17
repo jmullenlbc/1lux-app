@@ -1,12 +1,12 @@
 /**
- * The project team — six companies on a job, plus the one main point of contact.
+ * The project team, six companies on a job, plus the one main point of contact.
  *
  * Mike, 2026-09-09: "we have six project team fields and they connect to
  * clients", and every one of them is "always optional".
  *
  * Maram, same call, on the people side: "there always has to be like the one
  * main point person and that's the only person that's going to be considered for
- * those fields" — so a person's own won/lost record follows the projects they
+ * those fields", so a person's own won/lost record follows the projects they
  * are the MAIN contact on, not every project they were copied on.
  *
  * Run: node --test scripts/tests/projectTeam.test.mjs
@@ -92,7 +92,7 @@ test('an edit form gets all six rows, blanks included', () => {
 });
 
 test('a project with nobody on the team is legal and simply empty', () => {
-  // "always optional" — Mike, 2026-09-09. Never a validation error.
+  // "always optional", Mike, 2026-09-09. Never a validation error.
   assert.deepEqual(projectTeam({}), []);
   assert.equal(teamFilledCount({}), 0);
   assert.equal(teamFilledCount(null), 0);
@@ -111,7 +111,7 @@ test('the Related Projects lookup checks all six seats', () => {
   const where = teamMemberWhere('c1');
   assert.equal(where.OR.length, 6);
   assert.deepEqual(where.OR[0], { developerId: 'c1' });
-  // Every column is covered — a missing one silently hides projects.
+  // Every column is covered, a missing one silently hides projects.
   assert.deepEqual(where.OR.map(o => Object.keys(o)[0]).sort(), [...PROJECT_TEAM_ID_FIELDS].sort());
 });
 

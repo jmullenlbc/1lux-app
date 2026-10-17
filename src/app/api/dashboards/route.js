@@ -15,7 +15,7 @@ async function hiddenKeysFor(dashboardId) {
 }
 
 // Templates flagged as "prebuilt" (dataSpec.kind set) are added to a dashboard
-// that lacks them, even one created before the template existed — unless that
+// that lacks them, even one created before the template existed, unless that
 // dashboard had the card taken off. Matched by what the card is, not its title,
 // so a renamed card is not added a second time. Rules: src/lib/dashboards/prebuilt.js.
 async function appendMissingPrebuilt(dash, section, hiddenKeys) {
@@ -86,7 +86,7 @@ export async function POST(request) {
   const { section = 'SALES', name = 'Dashboard', makeDefault = false } = await request.json().catch(() => ({}));
   const asDefault = actsAsAdmin(user) && makeDefault;
 
-  // Only ever one default per section — demote any existing default first so an
+  // Only ever one default per section, demote any existing default first so an
   // admin clicking "create default" twice can't leave two isDefault rows behind.
   const dashboard = await prisma.$transaction(async (tx) => {
     if (asDefault) {

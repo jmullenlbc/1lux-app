@@ -4,7 +4,7 @@ import { captureAll } from '@/lib/calibration/capture';
 
 export const dynamic = 'force-dynamic';
 
-// POST /api/calibration/backfill — (re)capture calibration samples for every
+// POST /api/calibration/backfill, (re)capture calibration samples for every
 // project. Admin only; idempotent (engine/bidmatrix rows are replaced,
 // recorded actuals are kept).
 export async function POST() {

@@ -4,7 +4,7 @@
  * Checks all clients with an assigned owner and creates an in-app alert
  * when the playbook hasn't been updated in >= 12 months.
  *
- * Protected by CRON_SECRET header — set this env var and pass it as
+ * Protected by CRON_SECRET header, set this env var and pass it as
  * the Authorization: Bearer <secret> header from your scheduler.
  *
  * Schedule: run monthly (e.g. 1st of each month at 9 AM).
@@ -59,7 +59,7 @@ export async function GET(request) {
         data: {
           userId:    client.owner.id,
           type:      'CLIENT_ANNUAL_REVIEW',
-          title:     `Annual review due — ${client.name}`,
+          title:     `Annual review due: ${client.name}`,
           message:   `It's been over a year since the standards and playbook for ${client.name} were last reviewed. Please verify the information is still current.`,
           link:      `${appUrl}/clients/${client.id}`,
           dedupeKey,

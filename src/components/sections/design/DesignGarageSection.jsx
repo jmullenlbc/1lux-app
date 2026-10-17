@@ -98,7 +98,7 @@ export default function DesignGarageSection({
         <ul className="space-y-0.5 text-xs text-blue-700 list-disc list-inside">
           <li>IES RP-20 minimum: 5 fc maintained at floor level</li>
           <li>Ramp transitions: 50 fc minimum (day-to-night adaptation)</li>
-          <li>Painting ceiling and walls white is the single highest-ROI upgrade, can cut fixture count by 25–30%</li>
+          <li>Painting ceiling and walls white is the single highest-ROI upgrade, can cut fixture count by 25 to 30%</li>
         </ul>
       </div>
 

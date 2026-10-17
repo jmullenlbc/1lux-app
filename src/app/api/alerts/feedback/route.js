@@ -4,7 +4,7 @@ import { prisma } from '@/lib/db';
 import { NOTIFICATION_TYPES } from '@/lib/notify';
 import { isVerdict, shouldOfferMute, muteQuestion, STRIKES_BEFORE_ASKING } from '@/lib/alertFeedback';
 
-// POST /api/alerts/feedback — "Useful" or "Don't need" on one notification.
+// POST /api/alerts/feedback, "Useful" or "Don't need" on one notification.
 // Body: { alertId, verdict: 'USEFUL' | 'NOT_USEFUL' }
 //
 // Replies with `offerMute` when this is the third "Don't need" on the same kind,
@@ -18,7 +18,7 @@ export async function POST(request) {
     return NextResponse.json({ error: "verdict must be 'USEFUL' or 'NOT_USEFUL'" }, { status: 400 });
   }
 
-  // The alert has to be one of theirs — otherwise anyone could rate anyone's.
+  // The alert has to be one of theirs, otherwise anyone could rate anyone's.
   const alert = await prisma.userAlert.findFirst({
     where:  { id: body.alertId || '', userId: user.id },
     select: { id: true, type: true },

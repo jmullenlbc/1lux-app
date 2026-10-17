@@ -12,7 +12,7 @@
  *      check-in is withdrawn, because it no longer needs to go.
  *   7. Day 31: the sweep finds nothing left to chase.
  *
- * Nothing is emailed — every draft waits in the Bot Queue. Refuses to run
+ * Nothing is emailed, every draft waits in the Bot Queue. Refuses to run
  * against anything but a local SQLite file.
  *
  * Run: node --env-file=.env --import ./scripts/demo/alias.mjs scripts/demo/coffeeWithLee.mjs
@@ -54,7 +54,7 @@ let inbox = await prisma.emailAccount.findFirst({ where: { email: 'demo-inbox@il
 if (!inbox) inbox = await prisma.emailAccount.create({ data: { email: 'demo-inbox@ilcstudios.test', provider: 'MOCK', accountType: 'USER', inboxRole: 'PERSONAL', displayName: 'Demo inbox' } });
 
 // ── 1. The accepted invite ───────────────────────────────────────────────────
-head('1. Sep 24 — coffee invite accepted');
+head('1. Sep 24: coffee invite accepted');
 const cal = await recordCalendarEvent(prisma, {
   externalId: `demo-lee-coffee-${RUN}`,
   title: 'Coffee: Mike (ILC) / Lee (Clear Sky)',
@@ -62,7 +62,7 @@ const cal = await recordCalendarEvent(prisma, {
   responseStatus: 'accepted', organizerEmail: MIKE,
   attendees: [{ name: 'Mike', email: MIKE }, { name: 'Lee Busse', email: LEE }],
 }, { ownerUserId: owner.id, classification: { activityType: 'COFFEE', isInPerson: true, source: 'keyword', reason: '"Coffee" in the title' } });
-say(`Draft note ${cal.status} — ${cal.reason || 'linked to Lee'}`);
+say(`Draft note ${cal.status}: ${cal.reason || 'linked to Lee'}`);
 const noteId = cal.noteId;
 
 // ── 2. Notes typed in, published ─────────────────────────────────────────────
@@ -83,7 +83,7 @@ try { extracted = (await extractActionsOnPublish(noteId)).created; }
 catch (e) { say(`(AI read failed: ${e.message})`); }
 if (!extracted) {
   // No AI key or no answer: the same steps the AI is told to find.
-  say('(AI returned nothing — using the steps it is told to find)');
+  say('(AI returned nothing, using the steps it is told to find)');
   const now = new Date();
   await prisma.noteAction.createMany({ data: [
     { type: 'SEND_MATERIALS', detail: 'Send Lee our peer review sample and fee sheet' },
@@ -116,16 +116,16 @@ const recapId = (await prisma.noteAction.findFirst({ where: { noteId, botDraftId
 await showDraft(recapId, 'Recap email, waiting for review');
 
 // ── 3. Day 3: drawings arrive ────────────────────────────────────────────────
-head('3. Sep 27 — Lee emails the drawings');
+head('3. Sep 27: Lee emails the drawings');
 await recordEmailMessage(prisma, {
   externalId: `demo-lee-dwgs-${RUN}`, from: LEE, fromName: 'Lee Busse', to: [MIKE],
-  subject: 'Seattle drawings', bodyPreview: 'Here you go — full set attached. Thanks for taking a look.',
+  subject: 'Seattle drawings', bodyPreview: 'Here you go, full set attached. Thanks for taking a look.',
   sentAt: day(3), attachments: [{ filename: 'Seattle drawings.pdf', mimeType: 'application/pdf', size: 3_200_000 }],
 }, { accountId: inbox.id });
 await showSteps(day(3));
 
 // ── 4. Day 15: first reminder ────────────────────────────────────────────────
-head('4. Oct 9 — daily sweep, 15 days after the meeting');
+head('4. Oct 9: daily sweep, 15 days after the meeting');
 const quiet = { notify: async () => ({ created: true }) };
 say('   ', await sendDueWaitReminders(prisma, { now: day(15), ...quiet }));
 const nudgeId = (await prisma.noteAction.findFirst({ where: { noteId, nudgeDraftId: { not: null } }, select: { nudgeDraftId: true } }))?.nudgeDraftId;
@@ -133,20 +133,20 @@ await showDraft(nudgeId, 'Check-in email, waiting for review');
 await showSteps(day(15));
 
 // ── 5. Day 18: the invite ────────────────────────────────────────────────────
-head('5. Oct 12 — Lee sends the lunch-and-learn invite');
+head('5. Oct 12: Lee sends the lunch-and-learn invite');
 await recordCalendarEvent(prisma, {
-  externalId: `demo-lee-lnl-${RUN}`, title: 'ILC lunch-and-learn — Clear Sky PMs',
+  externalId: `demo-lee-lnl-${RUN}`, title: 'ILC lunch-and-learn: Clear Sky PMs',
   startAt: day(35), createdAt: day(18), responseStatus: 'notResponded', organizerEmail: LEE,
   attendees: [{ name: 'Mike', email: MIKE }],
 }, { ownerUserId: owner.id, classification: { activityType: 'MEAL', isInPerson: true, source: 'keyword', reason: 'lunch' } });
 await showSteps(day(18));
 
 // ── 6. Day 20: the intro ─────────────────────────────────────────────────────
-head('6. Oct 14 — Lee introduces Dana');
+head('6. Oct 14: Lee introduces Dana');
 await recordEmailMessage(prisma, {
   externalId: `demo-lee-intro-${RUN}`, from: LEE, fromName: 'Lee Busse',
   to: [MIKE], cc: [DANA],
-  subject: 'Intro: Mike (ILC) <> Dana (Clear Sky precon)', bodyPreview: 'Mike, meet Dana — she runs precon for us. I will let you two take it from here.',
+  subject: 'Intro: Mike (ILC) <> Dana (Clear Sky precon)', bodyPreview: 'Mike, meet Dana. She runs precon for us. I will let you two take it from here.',
   sentAt: day(20),
 }, { accountId: inbox.id });
 await showSteps(day(20));
@@ -156,7 +156,7 @@ if (nudgeId) {
 }
 
 // ── 7. Day 31: nothing left ──────────────────────────────────────────────────
-head('7. Oct 25 — daily sweep, 31 days after the meeting');
+head('7. Oct 25: daily sweep, 31 days after the meeting');
 say('   ', await sendDueWaitReminders(prisma, { now: day(31), ...quiet }));
 
 say(`\nTest note: /crm/notes?note=${noteId}   (Lee Busse / Clear Sky (demo) are test records)`);

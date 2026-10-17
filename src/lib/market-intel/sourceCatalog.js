@@ -1,17 +1,17 @@
 /**
- * sourceCatalog.js — every news feed we know how to read, grouped by market.
+ * sourceCatalog.js, every news feed we know how to read, grouped by market.
  *
  * ── Why this file exists ──
  * The first twenty-one sources were national trade press: Multifamily Dive,
  * GlobeSt, HUD. Good papers, wrong papers. National CRE press writes about
- * REITs and portfolio transactions — it names companies, not buildings. A dry
+ * REITs and portfolio transactions, it names companies, not buildings. A dry
  * run over the 191 articles already collected found ZERO that named one of our
  * jobs, because none of those outlets ever prints the words "Fulshear Lakes".
  *
  * The outlets that DO print a project's name are local: the city-desk paper,
  * the development blog, the council reporter, the builders exchange. So the
  * catalog is organised by MARKET, and adding a city later means adding a key to
- * MARKETS and its feeds to SOURCES — nothing else changes.
+ * MARKETS and its feeds to SOURCES, nothing else changes.
  *
  * ── Rules for adding a source ──
  * 1. It must have a working RSS/Atom feed. Every URL below was fetched and
@@ -55,14 +55,14 @@ const ALL_TYPES = ['MARKET_RATE', 'AFFORDABLE', 'STUDENT_HOUSING', 'SENIOR_LIVIN
  * Feeds that used to be in the catalog and no longer publish.
  *
  * Every one of these was fetched live on 2026-08-24 with the app's own fetcher
- * and returned the failure noted below — not slow, not empty for a day, but
+ * and returned the failure noted below, not slow, not empty for a day, but
  * gone. A dead feed is not harmless: the poller waits ten seconds on each one
  * before giving up, so twelve of them added two minutes to every run and
  * contributed nothing.
  *
  * They are listed rather than deleted so that (a) nobody re-adds them next
  * year, and (b) the Sources page can point at the rows already sitting in the
- * database and offer to turn them off. Removing a row is not this file's job —
+ * database and offer to turn them off. Removing a row is not this file's job
  * somebody may have notes on it.
  *
  * All twelve were national trade press, which is the category that never named
@@ -117,7 +117,7 @@ export function movedSources(rows = []) {
 }
 
 /**
- * The full catalog. `name` is the identity — it is unique in the database and
+ * The full catalog. `name` is the identity, it is unique in the database and
  * is what the seeder matches on, so renaming an entry here creates a second
  * source rather than editing the first one.
  */
@@ -126,7 +126,7 @@ export const SOURCES = [
   // What is left of the original twenty-one after a live check on 2026-08-24
   // found twelve of them dead (see RETIRED above). These eight are kept because
   // they still publish and are still the right place to learn that a developer
-  // we sell to raised a fund — that is client news even when it is never job news.
+  // we sell to raised a fund, that is client news even when it is never job news.
   { name: 'Multifamily Dive',           market: 'NATIONAL', feedUrl: 'https://www.multifamilydive.com/feeds/news/',           siteUrl: 'https://www.multifamilydive.com',          projectTypes: ['MARKET_RATE'],                   pollingFrequency: 'DAILY'  },
   { name: 'Multi-Housing News',         market: 'NATIONAL', feedUrl: 'https://www.multihousingnews.com/feed/',                siteUrl: 'https://www.multihousingnews.com',         projectTypes: ALL_TYPES,                         pollingFrequency: 'DAILY'  },
   { name: 'The Multifamily Journal',    market: 'NATIONAL', feedUrl: 'https://themultifamilyjournal.com/feed/',               siteUrl: 'https://themultifamilyjournal.com',        projectTypes: ['MARKET_RATE'],                   pollingFrequency: 'DAILY'  },
@@ -155,21 +155,21 @@ export const SOURCES = [
 
   // ── Denver & Colorado ────────────────────────────────────────────────────
   // Mile High CRE was already here and was, until now, the only local paper in
-  // the whole list — one out of twenty-one.
+  // the whole list, one out of twenty-one.
   { name: 'Mile High CRE',              market: 'DENVER',   feedUrl: 'https://milehighcre.com/feed/',                         siteUrl: 'https://milehighcre.com',                  projectTypes: ['MARKET_RATE'],                   pollingFrequency: 'DAILY'  },
   { name: 'BusinessDen',                market: 'DENVER',   feedUrl: 'https://businessden.com/feed/',                         siteUrl: 'https://businessden.com',                  projectTypes: ALL_TYPES,                         pollingFrequency: 'DAILY',  notes: 'Denver business desk. Covers individual buildings, sales and permits by name.' },
   { name: 'Bisnow Denver',              market: 'DENVER',   feedUrl: 'https://www.bisnow.com/rss/denver',                     siteUrl: 'https://www.bisnow.com/denver',            projectTypes: ALL_TYPES,                         pollingFrequency: 'DAILY',  notes: 'Local CRE desk: groundbreakings, financings, who bought what.' },
   { name: 'Denverite',                  market: 'DENVER',   feedUrl: 'https://denverite.com/feed/',                           siteUrl: 'https://denverite.com',                    projectTypes: ALL_TYPES,                         pollingFrequency: 'DAILY',  notes: 'City desk. Catches neighbourhood-level development fights before they are deals.' },
-  { name: 'DenverUrbanism',             market: 'DENVER',   feedUrl: 'https://denverurbanism.com/feed',                       siteUrl: 'https://denverurbanism.com',               projectTypes: ['MARKET_RATE','AFFORDABLE'],      pollingFrequency: 'WEEKLY', notes: 'Development blog — writes about towers by name, which is exactly what the matcher needs.' },
-  { name: 'The Colorado Sun',           market: 'DENVER',   feedUrl: 'https://coloradosun.com/feed/',                         siteUrl: 'https://coloradosun.com',                  projectTypes: ALL_TYPES,                         pollingFrequency: 'WEEKLY', notes: 'Statewide. Broad, so weekly — it is here for the jobs outside the metro.' },
+  { name: 'DenverUrbanism',             market: 'DENVER',   feedUrl: 'https://denverurbanism.com/feed',                       siteUrl: 'https://denverurbanism.com',               projectTypes: ['MARKET_RATE','AFFORDABLE'],      pollingFrequency: 'WEEKLY', notes: 'Development blog, writes about towers by name, which is exactly what the matcher needs.' },
+  { name: 'The Colorado Sun',           market: 'DENVER',   feedUrl: 'https://coloradosun.com/feed/',                         siteUrl: 'https://coloradosun.com',                  projectTypes: ALL_TYPES,                         pollingFrequency: 'WEEKLY', notes: 'Statewide. Broad, so weekly. It is here for the jobs outside the metro.' },
 
   // ── Houston ──────────────────────────────────────────────────────────────
   { name: 'Bisnow Houston',             market: 'HOUSTON',  feedUrl: 'https://www.bisnow.com/rss/houston',                    siteUrl: 'https://www.bisnow.com/houston',           projectTypes: ALL_TYPES,                         pollingFrequency: 'DAILY'  },
-  { name: 'Community Impact - Houston', market: 'HOUSTON',  feedUrl: 'https://communityimpact.com/rss/houston/',              siteUrl: 'https://communityimpact.com/houston',      projectTypes: ALL_TYPES,                         pollingFrequency: 'DAILY',  notes: 'Suburban city-desk coverage — Katy, Fulshear, Cypress. Names the subdivision and the phase.' },
+  { name: 'Community Impact - Houston', market: 'HOUSTON',  feedUrl: 'https://communityimpact.com/rss/houston/',              siteUrl: 'https://communityimpact.com/houston',      projectTypes: ALL_TYPES,                         pollingFrequency: 'DAILY',  notes: 'Suburban city-desk coverage: Katy, Fulshear, Cypress. Names the subdivision and the phase.' },
 
   // ── Austin ───────────────────────────────────────────────────────────────
   { name: 'Urbanize Austin',            market: 'AUSTIN',   feedUrl: 'https://austin.urbanize.city/rss.xml',                  siteUrl: 'https://austin.urbanize.city',             projectTypes: ALL_TYPES,                         pollingFrequency: 'DAILY',  notes: 'Development-only. Sample headline: "342-unit housing complex to rise in Pearson Ranch".' },
-  { name: 'Austin Monitor',             market: 'AUSTIN',   feedUrl: 'https://www.austinmonitor.com/feed/',                   siteUrl: 'https://www.austinmonitor.com',            projectTypes: ALL_TYPES,                         pollingFrequency: 'DAILY',  notes: 'Council and land-use reporting — catches a project at entitlement, long before it bids.' },
+  { name: 'Austin Monitor',             market: 'AUSTIN',   feedUrl: 'https://www.austinmonitor.com/feed/',                   siteUrl: 'https://www.austinmonitor.com',            projectTypes: ALL_TYPES,                         pollingFrequency: 'DAILY',  notes: 'Council and land-use reporting, catches a project at entitlement, long before it bids.' },
   { name: 'Community Impact - Austin',  market: 'AUSTIN',   feedUrl: 'https://communityimpact.com/rss/austin/',               siteUrl: 'https://communityimpact.com/austin',       projectTypes: ALL_TYPES,                         pollingFrequency: 'DAILY'  },
 
   // ── Dallas-Fort Worth ────────────────────────────────────────────────────
@@ -260,7 +260,7 @@ export function isKnownMarket(key) {
  * Matched on name, so this is safe to run against a live list: it adds what is
  * missing and never touches, duplicates or overwrites what is already there.
  * That is the whole reason the old "Seed 20 Sources" button only appeared when
- * the list was empty — it could not tell the difference.
+ * the list was empty, it could not tell the difference.
  */
 export function missingSources(existingNames = []) {
   const have = new Set((existingNames || []).map(n => String(n).trim().toLowerCase()));

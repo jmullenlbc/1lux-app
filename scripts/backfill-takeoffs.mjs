@@ -93,7 +93,7 @@ for (const file of files) {
     const parsed = parseTakeoffBuffer(buffer);
     if (parsed) {
       await prisma.projectFile.update({ where: { id: file.id }, data: { takeoffData: JSON.stringify(parsed) } });
-      console.log(`  → OK — ${Object.keys(parsed).length} fixture types: ${Object.keys(parsed).join(', ')}\n`);
+      console.log(`  → OK, ${Object.keys(parsed).length} fixture types: ${Object.keys(parsed).join(', ')}\n`);
     } else {
       console.log(`  → Could not parse\n`);
     }

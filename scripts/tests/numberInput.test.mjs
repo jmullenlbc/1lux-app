@@ -1,4 +1,4 @@
-// numberInput.test.mjs — pins the one loose number reader every typed
+// numberInput.test.mjs, pins the one loose number reader every typed
 // currency/count field goes through (Mike 9-18: commas must be fine).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

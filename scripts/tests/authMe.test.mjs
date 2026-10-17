@@ -1,5 +1,5 @@
-// /api/auth/me looked the user up by `jwtUser.id` — a name that was never
-// defined — so it answered 500 every time and the admin-only tabs on the Sales
+// /api/auth/me looked the user up by `jwtUser.id`, a name that was never
+// defined, so it answered 500 every time and the admin-only tabs on the Sales
 // Automation screen never appeared, even for Super Admins. Found 2026-09-11.
 
 import test from 'node:test';

@@ -14,7 +14,7 @@ import { readUploadedFile } from '@/lib/uploadIntake';
 import { runParkedJob, readJobRequest, jobError, uploadToJobArgs, loadJobUpload } from '@/lib/parkedJob';
 
 // Park-and-poll (src/lib/parkedJob.js). A contract review is the longest
-// single model call in the app — 3–4 minutes on a large scanned PDF — so the
+// single model call in the app, 3 to 4 minutes on a large scanned PDF, so the
 // first request only writes the job down and the polls run and collect it.
 // The in-flight window is the Lambda's own ceiling: one run is trusted for
 // the whole five minutes before a poll would start it again.
@@ -25,8 +25,8 @@ const MAX_CONTRACT_BYTES   = 28 * 1024 * 1024;
 const anthropic = new Anthropic({ apiKey: getAnthropicKey() });
 
 // POST /api/projects/[id]/analyze-contract
-// Body: { fileId } — ID of an already-uploaded ProjectFile (PDF)
-// OR:   FormData with field "file" — an uploaded PDF (for direct review without saving)
+// Body: { fileId }, ID of an already-uploaded ProjectFile (PDF)
+// OR:   FormData with field "file", an uploaded PDF (for direct review without saving)
 export async function POST(request, { params }) {
   const { user, error } = await requireAuth();
   if (error) return error;
@@ -81,17 +81,17 @@ async function reviewContract(args, { projectId, user }) {
     savedFileId = file.id;
 
     if (file.textContent && file.textContent.length > 100) {
-      // Fast path: use pre-extracted text — no disk read, no base64, ~10× faster
+      // Fast path: use pre-extracted text, no disk read, no base64, ~10× faster
       textContent = file.textContent;
     } else {
-      // Slow path: scanned/image PDF — send binary to Claude vision
+      // Slow path: scanned/image PDF, send binary to Claude vision
       const buffer = await getProjectFileBuffer(file.storedPath);
-      if (!buffer) throw jobError(404, { error: 'File not found — it may have been deleted.' });
+      if (!buffer) throw jobError(404, { error: 'File not found. It may have been deleted.' });
       pdfBase64 = buffer.toString('base64');
     }
 
   } else {
-    // Direct upload — extract text on the fly, fall back to binary
+    // Direct upload, extract text on the fly, fall back to binary
     const up = await loadJobUpload(args, { limit: MAX_CONTRACT_BYTES });
     const buffer = up.buffer;
     fileName     = up.name;
@@ -146,14 +146,14 @@ async function reviewContent({ textContent, pdfBase64, fileName, savedFileId }, 
     : null;
 
   if (sealed?.injection.found) {
-    // Visibility only — the parse proceeds unchanged. Something in a contract
+    // Visibility only, the parse proceeds unchanged. Something in a contract
     // reading as an instruction to the reviewer is worth a human knowing about
     // whether or not it was aimed at a model.
     console.warn('[contract.analyze] third-party document contains instruction-like text',
       { projectId, input: sealed.seals[0].summary, markers: sealed.injection.markers.length });
   }
 
-  // Build the Claude message — text path is much faster and cheaper
+  // Build the Claude message, text path is much faster and cheaper
   const userContent = textContent
     ? [{ type: 'text', text: sealed.content }]
     : [
@@ -202,7 +202,7 @@ async function reviewContent({ textContent, pdfBase64, fileName, savedFileId }, 
     analysis = JSON.parse(clean);
   } catch {
     if (message.stop_reason === 'max_tokens') {
-      throw jobError(422, { error: 'Analysis was cut off — document too large. Upload a shorter PDF or specific exhibit.' });
+      throw jobError(422, { error: 'Analysis was cut off, document too large. Upload a shorter PDF or specific exhibit.' });
     }
     throw jobError(500, { error: 'Claude returned malformed JSON', raw: raw.slice(0, 500) });
   }

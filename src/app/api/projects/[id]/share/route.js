@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireAuth, canSeeAllData } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
-// POST — create a share link and (eventually) send emails
+// POST, create a share link and (eventually) send emails
 export async function POST(request, { params }) {
   const { user, error } = await requireAuth();
   if (error) return error;
@@ -31,7 +31,7 @@ export async function POST(request, { params }) {
   });
 
   // TODO: wire up an email provider (Resend / SendGrid / Postmark) here.
-  // The share token and link are ready — just need to call the email API.
+  // The share token and link are ready, just need to call the email API.
   // Example with Resend:
   //   await resend.emails.send({ from: 'budgets@ilcstudios.com', to: emails,
   //     subject: `Lighting Budget: ${project.name}`, html: buildEmailHtml(share) })
@@ -41,7 +41,7 @@ export async function POST(request, { params }) {
   return NextResponse.json({ share, shareUrl }, { status: 201 });
 }
 
-// GET — list shares for this project
+// GET, list shares for this project
 export async function GET(request, { params }) {
   const { user, error } = await requireAuth();
   if (error) return error;

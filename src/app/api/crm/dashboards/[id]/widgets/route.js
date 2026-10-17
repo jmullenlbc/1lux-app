@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma as db } from '@/lib/db';
 
-// POST /api/crm/dashboards/[id]/widgets — add a widget
+// POST /api/crm/dashboards/[id]/widgets, add a widget
 export async function POST(request, { params }) {
   const { user, error } = await requireAuth(request);
   if (error) return error;

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Write agents.md — the page an AI assistant reads before it calls this server.
+ * Write agents.md, the page an AI assistant reads before it calls this server.
  *
  * ── Why this is generated and not written by hand ────────────────────────────
  * A hand-written version of this document is a promise that stops being true the
@@ -14,7 +14,7 @@
  * This file lives in the repository and behind the authenticated /api/mcp
  * surface. It is NOT served at a public URL on app.ilcstudios.com. It names the
  * tools, which is the same thing the unauthenticated server card deliberately
- * withholds — publishing it would undo that decision in a different place.
+ * withholds, publishing it would undo that decision in a different place.
  *
  * Run:    node scripts/generate-agents-md.mjs
  * Check:  node scripts/generate-agents-md.mjs --check   (exit 1 if out of date)
@@ -65,7 +65,7 @@ function render() {
 
   w(
     '<!--',
-    '  GENERATED FILE — do not edit by hand.',
+    '  GENERATED FILE: do not edit by hand.',
     '  Source: src/lib/mcp/catalog.js',
     '  Regenerate: node scripts/generate-agents-md.mjs',
     '  `npm run verify` fails if this file and the catalogue disagree.',
@@ -81,7 +81,7 @@ function render() {
     '',
     '**Everything here is read-only.** There is no tool that creates, edits or deletes',
     'anything, and there never will be on this endpoint. If a question needs something',
-    'changed, say what needs changing and who should change it — do not look for a way',
+    'changed, say what needs changing and who should change it. Do not look for a way',
     'to do it here.',
     '',
     '## What you can see',
@@ -91,11 +91,11 @@ function render() {
     '',
     '- **Which rows.** You only ever see records that belong to whoever the key was',
     '  issued to. A client sees their own jobs. Asking about somebody else\'s job',
-    '  returns nothing at all — not an error, just nothing.',
+    '  returns nothing at all: not an error, just nothing.',
     '- **Which columns.** Buy prices, margins and other internal figures are removed',
     '  from the answer before you get it. They are not marked as removed; they are',
     '  simply absent. Do not try to work them out from what is left, and do not filter',
-    '  on a field you cannot see — that request is refused outright.',
+    '  on a field you cannot see. That request is refused outright.',
     '',
     'If a tool refuses you, that is the answer. Say so plainly and move on; do not try',
     'the same question a different way.',
@@ -108,14 +108,14 @@ function render() {
     'call and is recorded as a failed request.',
     '',
     'To find a record when you only have a name like "The Approach", use `search`',
-    'rather than a filter — it looks across project names, project numbers and client',
+    'rather than a filter. It looks across project names, project numbers and client',
     'names in one go.',
     '',
     '## Limits',
     '',
     `- A query returns at most **${MAX_LIMIT}** rows, and **${DEFAULT_LIMIT}** if you do not ask for a number.`,
     '  Ask a narrower question rather than paging through everything.',
-    '- There is a per-minute cap on requests. If you hit it, wait — retrying',
+    '- There is a per-minute cap on requests. If you hit it, wait. Retrying',
     '  immediately just burns the allowance.',
     '- **Every call is recorded** against the person whose key you are using: which',
     '  tool, which arguments, and whether it was refused. The answer itself is not',
@@ -153,7 +153,7 @@ function render() {
     '',
     '`initialize`, `tools/list` and `ping` work as the protocol specifies. `tools/list`',
     'returns only the tools you are allowed to call, so it is the honest list for you',
-    'specifically — shorter than the one above if your key is not an ILC one.',
+    'specifically, shorter than the one above if your key is not an ILC one.',
     '',
     'Keys are issued per person under **ILC Admin → AI Access Keys**, and a key never',
     'shows more than the person it belongs to could already see in the app.',

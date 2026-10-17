@@ -41,7 +41,7 @@ export async function GET(request, { params }) {
   return NextResponse.json({ draft, published });
 }
 
-// POST /api/projects/[id]/fixture-schedule/items — add a row
+// POST /api/projects/[id]/fixture-schedule/items, add a row
 export async function POST(request, { params }) {
   const { user, error } = await requireAuth();
   if (error) return error;

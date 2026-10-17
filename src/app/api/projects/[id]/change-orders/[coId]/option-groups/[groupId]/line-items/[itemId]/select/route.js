@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { requirePermission } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
-// POST — select this option as the active one within its group
+// POST, select this option as the active one within its group
 // Deselects all other siblings (same root)
 export async function POST(req, { params }) {
   const { error } = await requirePermission(req, 'editJobMoney'); // Construction, Operations, Finance, admins

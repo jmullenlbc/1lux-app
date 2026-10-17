@@ -3,7 +3,7 @@ import { rebuildToneProfile } from '@/lib/tone/library';
 import { whoseLibrary, libraryState } from '@/lib/tone/voiceApi';
 import { runParkedJob, readJobRequest } from '@/lib/parkedJob';
 
-// POST /api/sales/voice/rebuild  { userId? } — relearn the voice from the whole library.
+// POST /api/sales/voice/rebuild  { userId? }, relearn the voice from the whole library.
 // Park-and-poll (src/lib/parkedJob.js): one model call over 60 emails can run
 // past Amplify's ~30-second front door. Call it with postParked().
 export const maxDuration = 300;

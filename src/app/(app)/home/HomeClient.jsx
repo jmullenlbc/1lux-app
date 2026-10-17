@@ -7,7 +7,7 @@ import StatTile from '@/components/ui/StatTile';
 import { BTN_PRIMARY, BTN_SECONDARY, BTN_COMPACT, BTN_COMPACT_PRIMARY, LABEL, HELPER, H1 } from '@/components/ui/tokens';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Widget Registry — single source of truth for all available widgets
+// Widget Registry, single source of truth for all available widgets
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const WIDGET_REGISTRY = {

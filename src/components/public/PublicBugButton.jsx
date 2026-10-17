@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { parseBrowserInfo } from '@/lib/browserInfo';
 import { BTN_GHOST, BTN_PRIMARY, INPUT, LABEL, MODAL } from '@/components/ui/tokens';
+import { OPEN_PUBLIC_BUG, openHelper, useHelperEvent } from '@/components/layout/helperEvents';
 
 /**
  * "Report a bug" for beta-test clients on the public /conceptual_budget pages.
@@ -13,9 +14,28 @@ import { BTN_GHOST, BTN_PRIMARY, INPUT, LABEL, MODAL } from '@/components/ui/tok
  * console log (that recorder only runs inside the app). Messages are inline,
  * not toasts: there is no <Toaster /> on the public side.
  *
- * Sits bottom-LEFT at z-40 (Mike 10-15: bottom-right covered the budget
- * numbers), above the wizard, below any z-50 modal.
+ * No floating button (Mike 10-17: it covered the rail text). Pages place a
+ * <PublicBugLink /> in their own frame and this panel opens as a centered
+ * dialog. The wizard also hands over the budget draft and step
+ * (window.__ilcIntake) so the report links straight to the budget.
  */
+
+/** The "Report a bug" trigger a public page places in its rail or header. */
+export function PublicBugLink({ className = '' }) {
+  return (
+    <button
+      type="button"
+      onClick={() => openHelper(OPEN_PUBLIC_BUG)}
+      className={`inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-800 print:hidden ${className}`}
+    >
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+        <rect x="8" y="6" width="8" height="14" rx="4" />
+        <path d="M12 6V3M5 9l3 1M19 9l-3 1M4 14h4M16 14h4M6 19l2-1M18 19l-2-1" />
+      </svg>
+      Report a bug
+    </button>
+  );
+}
 
 const inputCls = `${INPUT} mt-1`;
 const labelCls = LABEL;
@@ -34,8 +54,11 @@ export default function PublicBugButton() {
   const [sent,    setSent]    = useState(false);
   const [shot,    setShot]    = useState(null); // { blob, url } or null
   const [shotOn,  setShotOn]  = useState(true);
-  const buttonRef = useRef(null);
+  const [pageUrl, setPageUrl] = useState('');
+  const returnRef = useRef(null);
   const textRef   = useRef(null);
+
+  useHelperEvent(OPEN_PUBLIC_BUG, () => { if (!open) openPanel(); });
 
   // Grab the page as a JPEG while the panel is still closed, so the
   // screenshot shows what the visitor saw, not our own form on top of it.
@@ -56,24 +79,27 @@ export default function PublicBugButton() {
     if (!open) return;
     textRef.current?.focus();
     function onKey(e) {
-      if (e.key === 'Escape') { setOpen(false); buttonRef.current?.focus(); }
+      if (e.key === 'Escape') closePanel();
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [open]);
 
   async function openPanel() {
+    // Focus goes back to whichever "Report a bug" link was pressed.
+    returnRef.current = document.activeElement;
     // A fresh report after a sent one; name and email are kept so they don't retype.
     if (sent) { setSent(false); setText(''); }
     setError('');
     setShotOn(true);
+    setPageUrl(window.location.href);
     await capture();
     setOpen(true);
   }
 
   function closePanel() {
     setOpen(false);
-    buttonRef.current?.focus();
+    returnRef.current?.focus?.();
   }
 
   async function send(e) {
@@ -83,13 +109,18 @@ export default function PublicBugButton() {
     setError('');
     try {
       // Same shape as the staff report: a `meta` JSON part plus the screenshot.
+      // The wizard's budget draft and step, so the report opens that budget.
+      const intake = window.__ilcIntake || {};
       const fd = new FormData();
       if (shotOn && shot?.blob) fd.append('screenshot', shot.blob, 'screenshot.jpg');
       fd.append('meta', JSON.stringify({
         description: text,
         name,
         email,
-        pageUrl:   window.location.href,
+        pageUrl,
+        draftId:     intake.draftId || '',
+        step:        intake.stepLabel || '',
+        projectName: intake.projectName || '',
         userAgent: `${parseBrowserInfo()} · ${navigator.userAgent}`,
         viewport:  `${window.innerWidth} x ${window.innerHeight}`,
       }));
@@ -108,30 +139,16 @@ export default function PublicBugButton() {
     }
   }
 
+  if (!open) return null;
   return (
-    <div className="print:hidden">
-      <button
-        ref={buttonRef}
-        type="button"
-        onClick={() => (open ? closePanel() : openPanel())}
-        aria-label="Report a bug"
-        aria-expanded={open}
-        aria-controls="public-bug-panel"
-        className="fixed bottom-4 left-4 z-40 flex items-center gap-1.5 px-3 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold shadow-lg transition-colors"
-      >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-          <rect x="8" y="6" width="8" height="14" rx="4" />
-          <path d="M12 6V3M5 9l3 1M19 9l-3 1M4 14h4M16 14h4M6 19l2-1M18 19l-2-1" />
-        </svg>
-        Report a bug
-      </button>
-
-      {open && (
+    <div className="print:hidden fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={e => { if (e.target === e.currentTarget) closePanel(); }}>
+      {(
         <div
           id="public-bug-panel"
           role="dialog"
+          aria-modal="true"
           aria-labelledby="public-bug-title"
-          className={`fixed bottom-16 left-4 z-40 w-[calc(100vw-2rem)] max-w-sm max-h-[calc(100vh-6rem)] overflow-y-auto ${MODAL} p-4`}
+          className={`w-full max-w-md max-h-[90vh] overflow-y-auto ${MODAL} p-5`}
         >
           <div className="flex items-start justify-between mb-3">
             <h2 id="public-bug-title" className="text-sm font-semibold text-slate-800">Report a bug</h2>
@@ -187,7 +204,13 @@ export default function PublicBugButton() {
                   )}
                 </div>
               )}
-              <p className="text-xs text-slate-500 mt-2">We also note the page link, your browser and window size so we can reproduce it.</p>
+              {pageUrl && (
+                <div className="mt-3">
+                  <span className={labelCls}>Page link</span>
+                  <p className="mt-1 text-xs font-mono text-slate-600 bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 break-all">{pageUrl}</p>
+                </div>
+              )}
+              <p className="text-xs text-slate-500 mt-2">We also note your browser and window size so we can reproduce it.</p>
 
               <p className="text-xs text-slate-500 mt-3">Your name and email, so we can follow up, optional</p>
               <label className="block mt-1">

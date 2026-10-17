@@ -2,7 +2,7 @@
  * Email templates for all notification types.
  * Each function returns { subject, html }.
  *
- * NOTE: All templates are stubs — they produce correct structure with a
+ * NOTE: All templates are stubs, they produce correct structure with a
  * tracking pixel but no styled design. When Outlook/Graph API is connected
  * (NOTIFY_DRY_RUN=false), replace the html bodies with properly branded HTML.
  *
@@ -81,7 +81,7 @@ export function shipDelivered({ projectName, manufacturer, deliveredDate, pixelU
 export function shipEsdDigest({ projectName, events, pixelUrl }) {
   const rows = events.map(e => `<li>${e.manufacturer}: ESD updated to ${e.esdDate ? new Date(e.esdDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'TBD'}</li>`).join('');
   return {
-    subject: `[ILC Studios] Ship schedule update — ${projectName}`,
+    subject: `[ILC Studios] Ship schedule update : ${projectName}`,
     html: baseHtml({
       title: 'Weekly Ship Schedule Digest',
       projectName,
@@ -95,7 +95,7 @@ export function shipEsdDigest({ projectName, events, pixelUrl }) {
 
 export function submittalUploaded({ projectName, submissionName, pixelUrl }) {
   return {
-    subject: `[ILC Studios] New submittal — ${projectName}`,
+    subject: `[ILC Studios] New submittal : ${projectName}`,
     html: baseHtml({
       title: 'New Submittal Uploaded',
       projectName,
@@ -108,7 +108,7 @@ export function submittalUploaded({ projectName, submissionName, pixelUrl }) {
 
 export function submittalWithComments({ projectName, submissionName, pixelUrl }) {
   return {
-    subject: `[ILC Studios] Submittal with comments — ${projectName}`,
+    subject: `[ILC Studios] Submittal with comments : ${projectName}`,
     html: baseHtml({
       title: 'Submittal Uploaded with Comments',
       projectName,
@@ -124,7 +124,7 @@ export function submittalWithComments({ projectName, submissionName, pixelUrl })
 export function budgetSent({ projectName, budgetType, pixelUrl }) {
   const label = budgetType === 'design' ? 'Full Design Budget' : budgetType === 'peer_review' ? 'Peer Review' : 'Conceptual Budget';
   return {
-    subject: `[ILC Studios] ${label} sent — ${projectName}`,
+    subject: `[ILC Studios] ${label} sent : ${projectName}`,
     html: baseHtml({
       title: `${label} Sent`,
       projectName,
@@ -136,7 +136,7 @@ export function budgetSent({ projectName, budgetType, pixelUrl }) {
 
 export function budgetUpdated({ projectName, pixelUrl }) {
   return {
-    subject: `[ILC Studios] Budget updated — ${projectName}`,
+    subject: `[ILC Studios] Budget updated : ${projectName}`,
     html: baseHtml({
       title: 'Budget Updated',
       projectName,
@@ -150,7 +150,7 @@ export function budgetUpdated({ projectName, pixelUrl }) {
 
 export function contractUploaded({ projectName, pixelUrl }) {
   return {
-    subject: `[ILC Studios] Contract document uploaded — ${projectName}`,
+    subject: `[ILC Studios] Contract document uploaded : ${projectName}`,
     html: baseHtml({
       title: 'Contract Uploaded',
       projectName,
@@ -162,7 +162,7 @@ export function contractUploaded({ projectName, pixelUrl }) {
 
 export function contractSigned({ projectName, pixelUrl }) {
   return {
-    subject: `[ILC Studios] Contract signed — ${projectName}`,
+    subject: `[ILC Studios] Contract signed : ${projectName}`,
     html: baseHtml({
       title: 'Contract Signed',
       projectName,
@@ -177,7 +177,7 @@ export function contractSigned({ projectName, pixelUrl }) {
 export function meetingNote({ projectName, noteTitle, meetingDate, pixelUrl }) {
   const fmt = meetingDate ? new Date(meetingDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : '';
   return {
-    subject: `[ILC Studios] Meeting notes${fmt ? ` from ${fmt}` : ''} — ${projectName}`,
+    subject: `[ILC Studios] Meeting notes${fmt ? ` from ${fmt}` : ''} : ${projectName}`,
     html: baseHtml({
       title: 'New Meeting Notes Posted',
       projectName,
@@ -192,7 +192,7 @@ export function meetingNote({ projectName, noteTitle, meetingDate, pixelUrl }) {
 
 export function changeOrderNew({ projectName, fileName, pixelUrl }) {
   return {
-    subject: `[ILC Studios] New change order — ${projectName}`,
+    subject: `[ILC Studios] New change order : ${projectName}`,
     html: baseHtml({
       title: 'New Change Order',
       projectName,
@@ -207,7 +207,7 @@ export function changeOrderNew({ projectName, fileName, pixelUrl }) {
 export function coiExpiring({ projectName, expiryDate, daysOut, pixelUrl }) {
   const fmt = expiryDate ? new Date(expiryDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : '';
   return {
-    subject: `[ILC Studios] COI expiring soon — ${projectName}`,
+    subject: `[ILC Studios] COI expiring soon : ${projectName}`,
     html: baseHtml({
       title: 'Certificate of Insurance Expiring',
       projectName,
@@ -224,12 +224,12 @@ export function constructionDeadline({ projectName, milestone, date, daysOut, pi
   const fmt = date ? new Date(date + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : '';
   const urgency = daysOut <= 14 ? '⚠️ ' : '';
   return {
-    subject: `[ILC Studios] ${urgency}${milestone} in ${daysOut} day${daysOut !== 1 ? 's' : ''} — ${projectName}`,
+    subject: `[ILC Studios] ${urgency}${milestone} in ${daysOut} day${daysOut !== 1 ? 's' : ''} : ${projectName}`,
     html: baseHtml({
       title: `${urgency}${milestone} Upcoming`,
       projectName,
       pixelUrl,
-      body: `<p><strong>${milestone}</strong>${fmt ? ` is scheduled for ${fmt}` : ' is approaching'}${daysOut != null ? ` — ${daysOut} day${daysOut !== 1 ? 's' : ''} away` : ''}.</p>
+      body: `<p><strong>${milestone}</strong>${fmt ? ` is scheduled for ${fmt}` : ' is approaching'}${daysOut != null ? `, ${daysOut} day${daysOut !== 1 ? 's' : ''} away` : ''}.</p>
              <p>Please ensure all deliverables are on track for this milestone.</p>`,
     }),
   };
@@ -244,7 +244,7 @@ export function clientAnnualReview({ ownerName, clientName, clientUrl, lastUpdat
     ? new Date(lastUpdated).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
     : 'over a year ago';
   return {
-    subject: `[ILC Studios] Annual review reminder — ${clientName}`,
+    subject: `[ILC Studios] Annual review reminder : ${clientName}`,
     html: baseHtml({
       title: `Annual Standards & Playbook Review`,
       pixelUrl: null,
@@ -254,8 +254,8 @@ export function clientAnnualReview({ ownerName, clientName, clientUrl, lastUpdat
         <p>Hi ${ownerName || 'team'},</p>
         <p>It's been a year since the standards and playbook for <strong>${clientName}</strong> were last reviewed (${lastFmt}). Please take a few minutes to verify the information is still current:</p>
         <ul style="padding-left:20px;margin:12px 0;">
-          <li>Playbook — key contacts, approval process, GC routing</li>
-          <li>Standards — fixture selections, CCT preferences, control preferences</li>
+          <li>Playbook: key contacts, approval process, GC routing</li>
+          <li>Standards: fixture selections, CCT preferences, control preferences</li>
         </ul>
         <p style="font-size:13px;color:#64748b;">Keeping this information up to date ensures every ILC team member is working from the right playbook.</p>
       `,
@@ -279,7 +279,7 @@ function formatEventRow(e) {
       return `<strong>${p.manufacturer || 'Unknown'}</strong> ESD within 2 weeks (${d})`;
     }
     default:
-      return `${(e.type || '').replace(/_/g, ' ')}${p.manufacturer ? ` — ${p.manufacturer}` : ''}`;
+      return `${(e.type || '').replace(/_/g, ' ')}${p.manufacturer ? `: ${p.manufacturer}` : ''}`;
   }
 }
 
@@ -303,7 +303,7 @@ export function portalInvite({ projectName, inviteUrl, contactName }) {
 export function weeklyDigest({ projectName, events, pixelUrl }) {
   const rows = events.map(e => `<li style="margin-bottom:6px;">${formatEventRow(e)}</li>`).join('');
   return {
-    subject: `[ILC Studios] Weekly project update — ${projectName}`,
+    subject: `[ILC Studios] Weekly project update : ${projectName}`,
     html: baseHtml({
       title: 'Weekly Project Update',
       projectName,

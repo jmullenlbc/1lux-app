@@ -1,5 +1,5 @@
 /**
- * The budget objects — Design Bid Matrix (design / design-assist work) and
+ * The budget objects, Design Bid Matrix (design / design-assist work) and
  * Peer Review Item (peer-review / bid work). Two shapes, one rule.
  *
  * Both carry a per-unit DN alongside a per-unit CN on the same row, which makes
@@ -47,7 +47,7 @@ export const FixtureScheduleItem = {
   description:
     'One fixture type on a schedule: manufacturer, catalog number, and the electrical ' +
     'and finish attributes. aiFlagged/aiConfidence mark rows a vision parse produced ' +
-    'rather than a human — provenance, kept for the accuracy ledger.',
+    'rather than a human: provenance, kept for the accuracy ledger.',
 
   properties: {
     id:            { type: 'string', sensitivity: 'client_ok' },
@@ -72,7 +72,7 @@ export const FixtureScheduleItem = {
     createdAt:     { type: 'datetime', sensitivity: 'client_ok' },
     updatedAt:     { type: 'datetime', sensitivity: 'client_ok' },
 
-    // Provenance — ILC-only. A client seeing "our system guessed this at 0.62
+    // Provenance, ILC-only. A client seeing "our system guessed this at 0.62
     // confidence" is a support call, not transparency.
     aiFlagged:     { type: 'boolean', sensitivity: 'ilc_only' },
     aiConfidence:  { type: 'float',   sensitivity: 'ilc_only' },
@@ -92,7 +92,7 @@ export const DesignBidMatrix = {
   label: 'Design Bid Matrix',
   description:
     'A versioned priced budget pushed from a published Fixture Schedule. matrixType ' +
-    'distinguishes the layout. Each version is an immutable snapshot — new pushes ' +
+    'distinguishes the layout. Each version is an immutable snapshot. New pushes ' +
     'create a new version rather than editing an old one.',
 
   properties: {
@@ -146,7 +146,7 @@ export const DesignBidMatrixItem = {
     updatedAt:     { type: 'datetime', sensitivity: 'client_ok' },
 
     // ── the hard boundary ── (globalDeny: see ChangeOrderLineItem.originalDN)
-    dnPerUnit:          { type: 'money',    sensitivity: 'ilc_only', globalDeny: true, desc: 'dealer net per unit — ILC buy price' },
+    dnPerUnit:          { type: 'money',    sensitivity: 'ilc_only', globalDeny: true, desc: 'dealer net per unit, ILC buy price' },
     salesRep:           { type: 'string',   sensitivity: 'ilc_only', globalDeny: true, desc: 'which manufacturer rep ILC is working' },
     rfqStatus:          { type: 'string',   sensitivity: 'ilc_only', globalDeny: true, desc: "ILC's own RFQ pipeline state" },
     internalNotes:      { type: 'string',   sensitivity: 'ilc_only', globalDeny: true },
@@ -188,7 +188,7 @@ export const PeerReviewItem = {
     propManufacturer: { type: 'string', sensitivity: 'client_ok' },
     propModel:        { type: 'string', sensitivity: 'client_ok' },
     propUnitPrice:    { type: 'money',  sensitivity: 'client_ok', desc: 'ILC proposed sell price per unit' },
-    unitSavings:      { type: 'money',  sensitivity: 'client_ok', desc: 'spec price minus proposed price — the pitch' },
+    unitSavings:      { type: 'money',  sensitivity: 'client_ok', desc: 'spec price minus proposed price: the pitch' },
     totalSavings:     { type: 'money',  sensitivity: 'client_ok' },
     sortOrder:     { type: 'int',      sensitivity: 'client_ok' },
     createdAt:     { type: 'datetime', sensitivity: 'client_ok' },
@@ -258,12 +258,12 @@ export const ProjectData = {
     // ── the one that reverses every CN in the system ──
     // dn = cn × (1 - marginPct). Publishing this publishes the buy price on
     // every line item the client can already see. It stays ilc_only forever.
-    marginPct:            { type: 'percent', sensitivity: 'ilc_only', globalDeny: true, desc: 'ILC margin — DN is derivable from any CN with this' },
+    marginPct:            { type: 'percent', sensitivity: 'ilc_only', globalDeny: true, desc: 'ILC margin: DN is derivable from any CN with this' },
     contingencyPct:       { type: 'percent', sensitivity: 'ilc_only', globalDeny: true },
     bohManualAdder:       { type: 'money',   sensitivity: 'ilc_only', globalDeny: true },
     garageManualAdder:    { type: 'money',   sensitivity: 'ilc_only', globalDeny: true },
     exitSignsManualAdder: { type: 'money',   sensitivity: 'ilc_only', globalDeny: true },
-    clientInitialBudget:  { type: 'money',   sensitivity: 'ilc_only', globalDeny: true, desc: "what the client said their budget was — negotiating context" },
+    clientInitialBudget:  { type: 'money',   sensitivity: 'ilc_only', globalDeny: true, desc: "what the client said their budget was, negotiating context" },
   },
 
   links: {

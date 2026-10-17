@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 
 // Client standards are open to everyone on staff (Mike, 2026-09-14); contractors
 // (Client Viewers) never see them. This used to let only Super Admins and people
-// whose permissions said `clients: true` in — a value the Users screen never saves.
+// whose permissions said `clients: true` in, a value the Users screen never saves.
 const staff = s => canSeeAllData(s);
 const EXT = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/jpg': 'jpg', 'image/webp': 'webp' };
 
@@ -15,7 +15,7 @@ async function withUrl(concept) {
   return { ...concept, imageUrl: concept.imageKey ? await getQcObjectUrl(concept.imageKey) : null };
 }
 
-// GET ?answerId= | ?questionKey=&projectType=&region= — list a question's concepts
+// GET ?answerId= | ?questionKey=&projectType=&region=, list a question's concepts
 export async function GET(req, { params }) {
   const s = await getSession();
   if (!s) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -46,7 +46,7 @@ export async function POST(req, { params }) {
     });
   }
   if (!answer || answer.clientId !== params.id) {
-    return NextResponse.json({ error: 'Answer not found — create the standards answer first' }, { status: 400 });
+    return NextResponse.json({ error: 'Answer not found, create the standards answer first' }, { status: 400 });
   }
 
   const concept = await prisma.standardsAnswerConcept.create({

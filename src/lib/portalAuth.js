@@ -1,5 +1,5 @@
 /**
- * Portal authentication — separate from ILC admin auth.
+ * Portal authentication, separate from ILC admin auth.
  * Used for external contractor/client portal sessions.
  * Cookie: portal_token (httpOnly, 30-day expiry)
  * JWT payload: { portalUserId, email, name }
@@ -58,7 +58,7 @@ export function clearPortalSessionCookie(response) {
 
 /**
  * Route guard for portal API endpoints.
- * Returns { portalUser, error } — portalUser is the JWT payload.
+ * Returns { portalUser, error }, portalUser is the JWT payload.
  */
 export async function requirePortalAuth() {
   const cookieStore = cookies();

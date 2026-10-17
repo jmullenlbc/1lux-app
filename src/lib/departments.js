@@ -1,4 +1,4 @@
-// The six departments a person can belong to — as many as apply (Mike,
+// The six departments a person can belong to, as many as apply (Mike,
 // 2026-09-12: "We need to start with departments for every use. ... It should
 // be a multi select."). This is the first step of the permissions work: later
 // checks ask "is this person in department X", never a role name.
@@ -10,7 +10,7 @@
 // Project management was folded into Construction on 2026-09-14 (Mike: "Project
 // management and construction are the same department"; named just
 // "Construction"). Migration 0085 moved everyone across. A stray
-// PROJECT_MANAGEMENT row would simply not count here — cleanDepartments drops
+// PROJECT_MANAGEMENT row would simply not count here, cleanDepartments drops
 // keys it doesn't know.
 //
 // No `@/` imports here so the tests can load this file directly.

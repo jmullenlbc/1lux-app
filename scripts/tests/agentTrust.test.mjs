@@ -1,4 +1,4 @@
-// Trust tiers — Step 18 of the Governed AI Layer, Slice 4b.
+// Trust tiers, Step 18 of the Governed AI Layer, Slice 4b.
 //
 // `computeTier` and `needsReview` are pure, so this file needs no store, no
 // clock and no database. That is deliberate: the tier rules are the part of this
@@ -32,7 +32,7 @@ test('a brand new task type is supervised, and says why', () => {
   assert.match(t.reason, /starts supervised/i);
 });
 
-test('nine perfect verdicts is still supervised — the count gate is real', () => {
+test('nine perfect verdicts is still supervised, the count gate is real', () => {
   assert.equal(computeTier('extract.thing', history(9)).tier, TIER.SUPERVISED);
 });
 
@@ -42,7 +42,7 @@ test('ten verdicts at 90% earns auto-edit', () => {
   const h = history(10, 1, { badFirst: true });
   const t = computeTier('extract.thing', h);
   assert.equal(t.tier, TIER.AUTO_EDIT);
-  assert.equal(t.acceptRate, 0.9, 'the boundary is inclusive — 90% earns it');
+  assert.equal(t.acceptRate, 0.9, 'the boundary is inclusive: 90% earns it');
 });
 
 test('twenty verdicts at 95% earns auto-write', () => {
@@ -55,16 +55,16 @@ test('twenty verdicts at 90% earns auto-edit, not auto-write', () => {
   assert.equal(t.tier, TIER.AUTO_EDIT, '90% clears tier 1 but not tier 2');
 });
 
-// ── Demotion — the half people forget to build ───────────────────────────────
+// ── Demotion, the half people forget to build ───────────────────────────────
 
 test('two non-accepted in the last five drops a tier, even on a long clean record', () => {
-  // 100 verdicts, 98 accepted — a 98% lifetime record — but the last two failed.
+  // 100 verdicts, 98 accepted, a 98% lifetime record, but the last two failed.
   const h = history(100, 2);
   const t = computeTier('extract.thing', h);
   assert.equal(t.demoted, true);
   assert.equal(t.tier, TIER.AUTO_EDIT, 'auto-write drops to auto-edit');
   assert.match(t.reason, /Demoted/);
-  assert.ok(t.acceptRate > 0.95, 'the lifetime rate still looks great — that is the point');
+  assert.ok(t.acceptRate > 0.95, 'the lifetime rate still looks great, that is the point');
 });
 
 test('one bad verdict in the last five is not a demotion', () => {
@@ -74,13 +74,13 @@ test('one bad verdict in the last five is not a demotion', () => {
 test('demotion cannot push below supervised', () => {
   const t = computeTier('extract.thing', history(5, 5));
   assert.equal(t.tier, TIER.SUPERVISED);
-  assert.equal(t.demoted, false, 'already at the floor — nothing to demote');
+  assert.equal(t.demoted, false, 'already at the floor, nothing to demote');
 });
 
 test('a corrected verdict counts against acceptance, same as a rejection', () => {
   const h = [...history(98), { verdict: 'corrected' }, { verdict: 'corrected' }];
   const t = computeTier('extract.thing', h);
-  assert.equal(t.demoted, true, '"corrected" means a human had to fix it — that is not an acceptance');
+  assert.equal(t.demoted, true, '"corrected" means a human had to fix it, that is not an acceptance');
 });
 
 // ── Policy that data cannot override ─────────────────────────────────────────
@@ -114,13 +114,13 @@ test('auto-edit always surfaces for review, but flags rather than holds', () => 
   const tier = computeTier('extract.thing', history(10, 1, { badFirst: true }));
   const d = needsReview(tier, true, () => 0.99);
   assert.equal(d.review, true);
-  assert.equal(d.flagOnly, true, 'tier 1 writes and flags — it does not hold the write');
+  assert.equal(d.flagOnly, true, 'tier 1 writes and flags, it does not hold the write');
 });
 
 test('auto-write still samples ten percent, forever', () => {
   const tier = computeTier('extract.thing', history(50));
-  assert.equal(needsReview(tier, true, () => 0.05).sampled, true, 'below the rate — sampled');
-  assert.equal(needsReview(tier, true, () => 0.5).review, false, 'above the rate — not sampled');
+  assert.equal(needsReview(tier, true, () => 0.05).sampled, true, 'below the rate, sampled');
+  assert.equal(needsReview(tier, true, () => 0.5).review, false, 'above the rate, not sampled');
   assert.equal(TIER_2_SAMPLE_RATE, 0.10);
 });
 

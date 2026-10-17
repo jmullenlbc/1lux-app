@@ -4,7 +4,7 @@ import { prisma } from '@/lib/db';
 import { readFile } from 'fs/promises';
 import path from 'path';
 
-// GET — serve a drawing file inline (for PDF viewer)
+// GET, serve a drawing file inline (for PDF viewer)
 export async function GET(request, { params }) {
   const { user, error } = await requireAuth();
   if (error) return error;

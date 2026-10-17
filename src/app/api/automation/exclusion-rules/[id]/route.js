@@ -25,13 +25,13 @@ export async function PATCH(request, { params }) {
     data,
   });
 
-  // The mass-email threshold is cached — drop it so an edit takes effect now.
+  // The mass-email threshold is cached, drop it so an edit takes effect now.
   invalidateMassEmailThreshold();
 
   return NextResponse.json({ rule });
 }
 
-// DELETE /api/automation/exclusion-rules/[id]  — admin only
+// DELETE /api/automation/exclusion-rules/[id], admin only
 export async function DELETE(request, { params }) {
   const { user, error } = await requireAuth();
   if (error) return error;

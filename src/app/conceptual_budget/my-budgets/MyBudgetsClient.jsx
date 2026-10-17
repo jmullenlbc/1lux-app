@@ -14,6 +14,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { PORTAL_FIELDS, applyPortalView, activeFilterCount, portalChoices } from '@/lib/intake/portalFilter';
 import Link from 'next/link';
+import { PublicBugLink } from '@/components/public/PublicBugButton';
 import { formatCurrency } from '@/lib/format';
 import { useUrlView } from '@/lib/useUrlView';
 import { FilterToolbar, FilterPanel } from '@/components/ui/FilterPanel';
@@ -128,14 +129,18 @@ export default function MyBudgetsClient() {
 
   return (
     <main className="min-h-screen bg-slate-50">
-      <div className="max-w-3xl mx-auto px-4 py-8 sm:py-12">
+      {/* Mike 10-17: built for a monitor, still fine on a phone. */}
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 sm:py-12">
         <div className="flex flex-wrap items-baseline justify-between gap-2 mb-6">
           <h1 className={H1}>My company&apos;s budgets</h1>
-          <Link href="/conceptual_budget" className="text-sm font-semibold text-orange-600 hover:text-orange-700">Start a new budget</Link>
+          <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
+            <Link href="/conceptual_budget" className="text-sm font-semibold text-orange-600 hover:text-orange-700">Start a new budget</Link>
+            <PublicBugLink />
+          </div>
         </div>
 
         {!email && (
-          <form onSubmit={submitEmail} className={CARD_PADDED}>
+          <form onSubmit={submitEmail} className={`${CARD_PADDED} max-w-2xl`}>
             <p className="text-sm text-slate-700">Type your work email. We will show every budget anyone at your company has started here.</p>
             <p className={`${HELPER} mt-1`}>Work emails only. A personal email such as gmail.com is not accepted.</p>
             <div className="mt-4 flex flex-wrap gap-2">
@@ -211,7 +216,7 @@ export default function MyBudgetsClient() {
                 <ul className="space-y-3">
                   {g.budgets.map(b => (
                     <li key={b.id} className={CARD_PADDED}>
-                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-3 text-sm">
+                      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-x-6 gap-y-3 text-sm">
                         <Field label="Description" value={b.budgetName || 'Budget'} strong />
                         <Field label="Location" value={[b.city, b.state].filter(Boolean).join(', ')} />
                         <Field label="Building type" value={b.buildingTypeLabel} />

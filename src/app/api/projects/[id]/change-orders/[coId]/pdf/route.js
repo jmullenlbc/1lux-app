@@ -16,14 +16,14 @@ function pct(n) { return n != null ? `${(Number(n) * 100).toFixed(2).replace(/\.
 // GET /api/projects/[id]/change-orders/[coId]/pdf?hideInternalDN=true
 export async function GET(req, { params }) {
   // This guard used to be `const { error } = await requireAuth().catch(...)` with
-  // `error` never checked — requireAuth() *returns* its 401, it doesn't throw, so
+  // `error` never checked, requireAuth() *returns* its 401, it doesn't throw, so
   // the catch was dead code and the route served to anyone with the URL. Combined
   // with `?hideInternalDN=false` that published ILC's buy price. Enforce it.
   const { user, error } = await requireAuth();
   if (error) return error;
 
   const { searchParams } = new URL(req.url);
-  // DN stays hidden by default, and un-hiding is available to ILC staff only —
+  // DN stays hidden by default, and un-hiding is available to ILC staff only
   // a logged-in CLIENT_VIEWER must not be able to opt into the internal column.
   const audience       = audienceForRole(user?.role);
   const hideInternalDN = !(searchParams.get('hideInternalDN') === 'false' && audience === AUDIENCE.ILC);
@@ -127,7 +127,7 @@ export async function GET(req, { params }) {
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>${co.coNumber} — ${co.title}</title>
+<title>${co.coNumber}: ${co.title}</title>
 <style>
 * { box-sizing:border-box; margin:0; padding:0; }
 body { font-family:'Helvetica Neue',Arial,sans-serif; font-size:10px; color:#231F20; background:#fff; }
@@ -245,7 +245,7 @@ td { padding:5px 6px; border-bottom:1px solid #f0f0f0; vertical-align:top; font-
     </tbody>
   </table>
 
-  <!-- Pricing footer — matches budget style -->
+  <!-- Pricing footer, matches budget style -->
   <table class="footer-table">
     <tbody>
       <tr><td class="lbl">Subtotal</td><td class="val">${fmt(selectedFooter.subtotal)}</td></tr>
@@ -257,7 +257,7 @@ td { padding:5px 6px; border-bottom:1px solid #f0f0f0; vertical-align:top; font-
   </table>
 
   <div class="page-footer">
-    <span>Confidential — ILC Studios LLC | 2301 Blake Street, Ste 100, Denver, CO 80205 | 720-248-8208</span>
+    <span>Confidential: ILC Studios LLC | 2301 Blake Street, Ste 100, Denver, CO 80205 | 720-248-8208</span>
     <span>Printed: ${today}</span>
   </div>
 </div>
@@ -313,7 +313,7 @@ td { padding:5px 6px; border-bottom:1px solid #f0f0f0; vertical-align:top; font-
   </div>
 
   <div class="page-footer">
-    <span>Confidential — ILC Studios LLC | 2301 Blake Street, Ste 100, Denver, CO 80205 | 720-248-8208</span>
+    <span>Confidential: ILC Studios LLC | 2301 Blake Street, Ste 100, Denver, CO 80205 | 720-248-8208</span>
     <span>Printed: ${today}</span>
   </div>
 </div>

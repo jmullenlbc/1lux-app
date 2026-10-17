@@ -103,7 +103,7 @@ export async function POST(request) {
       const spec = parseSpec(w.dataSpec);
       const lw = legacyById.get(w.id);
       if (spec.kind === 'verification') {
-        // Things Needing a Look fetches itself from /api/verification — it has
+        // Things Needing a Look fetches itself from /api/verification, it has
         // to write (it stamps which items have been shown), which this route
         // does not do. Nothing to render here; the card takes over on screen.
         results[w.id] = { chartType: 'VERIFICATION', series: [] };

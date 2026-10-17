@@ -1,4 +1,4 @@
-// From the standalone module, not '@/lib/drawingExtract' — that one reaches the
+// From the standalone module, not '@/lib/drawingExtract', that one reaches the
 // model and would pull server-only code (node:crypto) into the browser bundle.
 import { mergeProposals } from '../mergeProposals.js';
 
@@ -9,7 +9,7 @@ const IN_FLIGHT = new Set(['queued', 'uploading', 'parsing']);
 
 /**
  * One combined read from the files dropped now plus the read kept from last
- * time — or NOTHING, while any file is still being read.
+ * time, or NOTHING, while any file is still being read.
  *
  * Mike 2026-09-16: "If I drag in multiple drawings, just because it read one
  * first doesn't mean it should use that data. It shouldn't show data until it
@@ -17,8 +17,8 @@ const IN_FLIGHT = new Set(['queued', 'uploading', 'parsing']);
  * something real it can use."
  *
  * Before this, the merge re-ran every time one file finished, so the first
- * file to come back — often the small one, often the one with the worse
- * numbers — set the building summary and the live price for a minute or two,
+ * file to come back, often the small one, often the one with the worse
+ * numbers, set the building summary and the live price for a minute or two,
  * and every later file read as a "disagreement" with it. Now `merged` stays
  * null until nothing is queued, uploading or parsing, and the merge then runs
  * ONCE over everything (see mergeProposals: the counted schedule's file speaks

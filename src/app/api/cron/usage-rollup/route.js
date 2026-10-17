@@ -7,18 +7,18 @@ export const dynamic = 'force-dynamic';
 
 /**
  * GET /api/cron/usage-rollup
- * Daily 07:00 ET — freeze yesterday's operational totals.
+ * Daily 07:00 ET, freeze yesterday's operational totals.
  * Protected by x-cron-secret header.
  * Triggered by AWS EventBridge Scheduler: cron(0 12 * * ? *)
  *
- * Follows the same shape as `/api/cron/digest` and `/api/cron/threshold` — one
+ * Follows the same shape as `/api/cron/digest` and `/api/cron/threshold`, one
  * secret-gated GET, no body, idempotent.
  *
  * ── Why a scheduled job at all, when the dashboard queries live tables ───────
  * Because two of the numbers cannot be recomputed later. The agent ledger's file
  * sink lives on a Lambda's ephemeral disk and is gone on the next cold start, so
  * "how many model calls did we make on the 4th" is unanswerable by Tuesday
- * unless something wrote it down. Rows get deleted too — a project removed in
+ * unless something wrote it down. Rows get deleted too, a project removed in
  * September takes its uploads and activity out of every retroactive count for
  * August. The live query answers *now*; the snapshot is the only thing that
  * answers *then*.
@@ -46,7 +46,7 @@ export async function GET(request) {
   // retry at 07:05 must produce the same row as the run at 07:00.
   const anchor = requested ? new Date(`${requested}T00:00:00.000Z`) : new Date();
   if (Number.isNaN(anchor.getTime())) {
-    return NextResponse.json({ error: 'Invalid date — expected YYYY-MM-DD' }, { status: 400 });
+    return NextResponse.json({ error: 'Invalid date, expected YYYY-MM-DD' }, { status: 400 });
   }
   const until = new Date(Date.UTC(anchor.getUTCFullYear(), anchor.getUTCMonth(), anchor.getUTCDate()));
   const since = new Date(until.getTime() - 86400_000);
@@ -55,7 +55,7 @@ export async function GET(request) {
     const metrics  = await collectMetrics(prisma, { since, until, readLedger: () => readLedgerTail(5000) });
     const snapshot = toSnapshot(metrics);
     // toSnapshot dates from `window.until`, which is midnight of the *following*
-    // day — label the row with the day actually measured.
+    // day, label the row with the day actually measured.
     snapshot.day = since.toISOString().slice(0, 10);
 
     const key = rollupKey(since);

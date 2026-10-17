@@ -27,7 +27,7 @@ export async function POST(req, { params }) {
   if (co.status === 'APPROVED') return NextResponse.json({ error: 'CO is already approved' }, { status: 400 });
 
   const selected = co.optionGroups.find(g => g.isSelected);
-  if (!selected) return NextResponse.json({ error: 'No option group selected — select one before sending' }, { status: 400 });
+  if (!selected) return NextResponse.json({ error: 'No option group selected, select one before sending' }, { status: 400 });
 
   const body  = await req.json().catch(() => ({}));
   const { recipients, notes } = body;
@@ -65,7 +65,7 @@ export async function POST(req, { params }) {
     for (const to of recipientList) {
       await sendEmail({
         to,
-        subject: `Change Order ${co.coNumber}: ${co.title} — ${project?.name || ''}`,
+        subject: `Change Order ${co.coNumber}: ${co.title}, ${project?.name || ''}`,
         html: `
           <p>Please find attached change order <strong>${escapeHtml(co.coNumber)}</strong>: ${escapeHtml(co.title)}</p>
           ${notes ? `<p><em>${escapeHtml(notes)}</em></p>` : ''}

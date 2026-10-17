@@ -57,7 +57,7 @@ test('a stated required total is used before the rate', () => {
 test('counting the stalls is the LAST rung', () => {
   const r = parking({ totalUnits: 200, surfaceParkingCounted: 180, buildingType: 'garden' });
   assert.equal(r.value, 180);
-  assert.equal(r.source, 'drawing', 'a count is off the drawing — the ask card must not re-ask it');
+  assert.equal(r.source, 'drawing', 'a count is off the drawing, the ask card must not re-ask it');
   assert.match(r.flag, /Counted off the site plan/);
 });
 
@@ -122,7 +122,7 @@ test('the new fields survive a multi-sheet merge and count as a real read', () =
  * Structured-parking types (wrap / podium / mid-rise / high-rise) skipped BOTH
  * total-based rungs outright, so a set that plainly stated its stall count
  * produced no surface figure at all and the site-lighting line came in at
- * zero. A stated total IS usable on those buildings — but only once the
+ * zero. A stated total IS usable on those buildings, but only once the
  * covered stalls are known, since that is the only way to tell how many of
  * them are out in the open.
  */

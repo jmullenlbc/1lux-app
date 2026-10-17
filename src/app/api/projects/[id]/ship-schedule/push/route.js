@@ -44,7 +44,7 @@ export async function POST(req, { params }) {
     if (!co || co.projectId !== params.id) {
       return NextResponse.json({ error: 'CO not found' }, { status: 404 });
     }
-    batchLabel = `${co.coNumber} — ${co.title}`;
+    batchLabel = `${co.coNumber}: ${co.title}`;
     const allItems = co.optionGroups.flatMap(g => g.lineItems);
     sourceItems = allItems.map((li, idx) => ({
       id:              li.id,
@@ -62,7 +62,7 @@ export async function POST(req, { params }) {
       orderBy: { version: 'desc' },
       include: { items: { where: { isArchived: false }, orderBy: [{ sortOrder: 'asc' }] } },
     });
-    if (!matrix) return NextResponse.json({ error: 'No bid matrix found — push fixture schedule to bid first' }, { status: 404 });
+    if (!matrix) return NextResponse.json({ error: 'No bid matrix found, push fixture schedule to bid first' }, { status: 404 });
     sourceVersion = matrix.version;
     batchLabel = `Bid Matrix v${matrix.version}`;
     // De-dupe by type (catalog splits may produce multiple rows per type)
@@ -79,7 +79,7 @@ export async function POST(req, { params }) {
         sortOrder:       i.sortOrder   ?? idx,
       }));
   } else {
-    // Push from Budget Matrix (PeerReview items) — proposed specs only, no spec columns
+    // Push from Budget Matrix (PeerReview items), proposed specs only, no spec columns
     const items = await prisma.peerReviewItem.findMany({
       where:   { projectId: params.id },
       orderBy: [{ section: 'asc' }, { sortOrder: 'asc' }],
@@ -161,7 +161,7 @@ export async function POST(req, { params }) {
     const existing = existingByType.get(key);
 
     if (existing) {
-      // UPDATE: refresh type/description/manufacturer/sortOrder — preserve logistics
+      // UPDATE: refresh type/description/manufacturer/sortOrder, preserve logistics
       await prisma.shipmentLineItem.update({
         where: { id: existing.id },
         data: {

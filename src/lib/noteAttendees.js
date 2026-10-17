@@ -1,5 +1,5 @@
 /**
- * Sales-note attendees and meeting time, for the editor. Pure — safe in the browser.
+ * Sales-note attendees and meeting time, for the editor. Pure, safe in the browser.
  *
  * Attendees are stored as a JSON array. Typed notes hold names; the calendar
  * sync holds { name, email }. The editor shows one comma-separated line and,

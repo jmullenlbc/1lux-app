@@ -82,7 +82,7 @@ test('no stair count: code minimum of 2 per building when there is no footprint'
 });
 
 test('no stair count: a long floor plate gets more stairs (one per 15,000 SF, corridor)', () => {
-  // Broadstone-sized wrap: one building, ~140,000 SF plate → 9 stairs —
+  // Broadstone-sized wrap: one building, ~140,000 SF plate → 9 stairs
   // Broadstone's actual drawings work out to ~11, so 15,000 lands close.
   const e = estimateStairLandings({ stories: 5, stairs: null, buildings: 1, footprintSf: 139541 });
   assert.equal(e.stairsPerBuilding, 9);

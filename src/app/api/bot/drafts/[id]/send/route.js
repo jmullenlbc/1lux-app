@@ -27,7 +27,7 @@ export async function POST(req, { params }) {
   }
 
   return NextResponse.json(
-    { error: 'Email sending not yet available — Phase B', code: 'PHASE_B' },
+    { error: 'Email sending not yet available: Phase B', code: 'PHASE_B' },
     { status: 501 }
   );
 }

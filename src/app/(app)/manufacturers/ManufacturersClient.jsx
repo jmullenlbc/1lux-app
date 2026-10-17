@@ -1,5 +1,13 @@
 'use client';
 import { useState, useMemo, useRef } from 'react';
+import { FilterToolbar, FilterPanel, countFilters } from '@/components/ui/FilterPanel';
+import { useUrlView } from '@/lib/useUrlView';
+
+const FILTER_FIELDS = [
+  { key: 'setup', label: 'Setup to sell', kind: 'yesno' },
+  { key: 'terms', label: 'Terms',         kind: 'pick' },
+  { key: 'state', label: 'State',         kind: 'pick' },
+];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -223,9 +231,11 @@ function AddRow({ onAdd, onCancel }) {
 export default function ManufacturersClient({ initialManufacturers }) {
   const [manufacturers, setManufacturers] = useState(initialManufacturers);
   const [search,        setSearch]        = useState('');
-  const [filterSetup,   setFilterSetup]   = useState('all'); // 'all' | 'yes' | 'no'
-  const [filterTerms,   setFilterTerms]   = useState('');
-  const [filterState,   setFilterState]   = useState('');
+  const [filtersOpen,   setFiltersOpen]   = useState(false);
+  const view = useUrlView({ fields: FILTER_FIELDS });
+  const filterSetup = view.filters.setup || 'all'; // 'all' | 'yes' | 'no'
+  const filterTerms = view.filters.terms || '';
+  const filterState = view.filters.state || '';
   const [sortKey,       setSortKey]       = useState('name');
   const [sortDir,       setSortDir]       = useState('asc');
   const [showAdd,       setShowAdd]       = useState(false);
@@ -322,40 +332,19 @@ export default function ManufacturersClient({ initialManufacturers }) {
               placeholder="Search…"
               className="pl-8 pr-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 w-52" />
           </div>
-          {/* Setup to sell filter */}
-          <select value={filterSetup} onChange={e => setFilterSetup(e.target.value)}
-            className="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white">
-            <option value="all">All accounts</option>
-            <option value="yes">Setup to sell</option>
-            <option value="no">Not setup</option>
-          </select>
-          {/* Terms filter */}
-          <select value={filterTerms} onChange={e => setFilterTerms(e.target.value)}
-            className="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white">
-            <option value="">All terms</option>
-            {uniqueTerms.map(t => <option key={t} value={t}>{t}</option>)}
-          </select>
-          {/* State filter */}
-          {uniqueStates.length > 0 && (
-            <select value={filterState} onChange={e => setFilterState(e.target.value)}
-              className="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white">
-              <option value="">All states</option>
-              {uniqueStates.map(s => <option key={s} value={s}>{s}</option>)}
-            </select>
-          )}
-          {/* Clear filters */}
-          {(search || filterSetup !== 'all' || filterTerms || filterState) && (
-            <button onClick={() => { setSearch(''); setFilterSetup('all'); setFilterTerms(''); setFilterState(''); }}
-              className="px-3 py-2 rounded-lg border border-slate-200 text-slate-500 text-sm hover:bg-slate-50 transition-colors">
-              Clear
-            </button>
-          )}
           <button onClick={() => setShowAdd(true)}
             className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold transition-colors">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
             Add
           </button>
         </div>
+      </div>
+
+      <div className="bg-white border-b border-slate-200 px-6 py-3">
+        <FilterToolbar count={countFilters(view.filters, FILTER_FIELDS)} open={filtersOpen} onToggle={() => setFiltersOpen(o => !o)}
+          onClear={view.clearFilters} shown={filtered.length} total={manufacturers.length} noun="manufacturers" />
+        <FilterPanel open={filtersOpen} fields={FILTER_FIELDS} filters={view.filters}
+          choices={{ terms: uniqueTerms, state: uniqueStates }} onChange={view.setFilter} />
       </div>
 
       {/* ── Table ── */}
@@ -381,7 +370,7 @@ export default function ManufacturersClient({ initialManufacturers }) {
             {filtered.length === 0 ? (
               <tr>
                 <td colSpan={COLS.length + 1} className="px-6 py-20 text-center text-slate-400">
-                  {manufacturers.length === 0 ? 'No manufacturers yet — click Add to get started.' : 'No results match your filters.'}
+                  {manufacturers.length === 0 ? 'No manufacturers yet. Click Add to get started.' : 'No results match your filters.'}
                 </td>
               </tr>
             ) : (

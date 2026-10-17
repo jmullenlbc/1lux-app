@@ -52,10 +52,10 @@ export async function PUT(request, { params }) {
   // APPROACH II, lost 2026-06-22) when the form re-mounted with empty
   // defaults and then sent everything on Save & Continue.
   //
-  // "Blank" here = '' or '{}' (empty JSON object — how the form
+  // "Blank" here = '' or '{}' (empty JSON object, how the form
   // serializes an untouched manualItems map). If existing value is
   // already blank, write the new blank (no harm). If existing was
-  // meaningful and new is blank, skip — preserve the meaningful value.
+  // meaningful and new is blank, skip, preserve the meaningful value.
   function isBlank(v) {
     if (v === null || v === undefined) return true;
     const s = String(v).trim();

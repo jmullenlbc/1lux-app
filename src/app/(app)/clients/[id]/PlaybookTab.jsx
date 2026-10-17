@@ -7,7 +7,7 @@ import { contactDepartmentLabel } from '@/lib/contactDepartments';
 import { CARD, INPUT, LABEL, HELPER, BTN_SECONDARY } from '@/components/ui/tokens';
 import { WidgetLoading } from '@/components/ui/WidgetFrame';
 
-// ── Sections (v3 — modify + extend; all internal-only data) ───────────────────
+// ── Sections (v3, modify + extend; all internal-only data) ───────────────────
 const SECTIONS = [
   { id: 'profile',    label: 'Account Profile',          icon: '📇', color: 'blue' },
   { id: 'intro',      label: 'Introductions & Onboarding', icon: '🚪', color: 'indigo' },
@@ -107,7 +107,7 @@ function ContactSelect({ contacts, value, onChange, placeholder = 'Select a cont
       <option value="">{contacts.length ? placeholder : 'No contacts yet, add them on the People tab'}</option>
       {Object.entries(byDept).map(([dept, list]) => (
         <optgroup key={dept} label={dept}>
-          {list.map(c => <option key={c.id} value={c.id}>{c.name}{c.email ? ` — ${c.email}` : ''}</option>)}
+          {list.map(c => <option key={c.id} value={c.id}>{c.name}{c.email ? `, ${c.email}` : ''}</option>)}
         </optgroup>
       ))}
     </select>

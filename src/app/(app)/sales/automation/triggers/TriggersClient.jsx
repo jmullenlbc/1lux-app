@@ -75,7 +75,7 @@ function ActionConfig({ actionType, action, setAction }) {
   if (actionType === 'DRAFT_EMAIL') return (
     <div className="space-y-2">
       <input className={input} placeholder="Subject (optional)" value={action.subject || ''} onChange={e => set('subject', e.target.value)} />
-      <TemplateTextarea rows={4} className={input + ' font-mono'} placeholder={'Email body — type { for variables'} value={action.template || ''} onChange={v => set('template', v)} />
+      <TemplateTextarea rows={4} className={input + ' font-mono'} placeholder={'Email body, type { for variables'} value={action.template || ''} onChange={v => set('template', v)} />
     </div>
   );
   if (actionType === 'NOTIFY') return (
@@ -303,7 +303,7 @@ export default function TriggersClient() {
 
         {draft && (
           <div className="bg-slate-50 rounded-lg border border-slate-200 p-4 mb-4 space-y-4">
-            <input className={input} placeholder="Rule name — e.g. “Notify me on Brinkmann emails”" value={draft.name} onChange={e => setDraft({ ...draft, name: e.target.value })} />
+            <input className={input} placeholder="Rule name, e.g. “Notify me on Brinkmann emails”" value={draft.name} onChange={e => setDraft({ ...draft, name: e.target.value })} />
 
             {/* WHEN */}
             <div>
@@ -326,7 +326,7 @@ export default function TriggersClient() {
                 </div>
               </div>
               <div className="space-y-2 mt-1">
-                {draft.conditions.length === 0 && <p className="text-xs text-slate-500">No conditions — fires every time.</p>}
+                {draft.conditions.length === 0 && <p className="text-xs text-slate-500">No conditions. Fires every time.</p>}
                 {draft.conditions.map((c, i) => (
                   <ConditionRow key={i} fields={trigger.fields} operators={meta.operators} cond={c}
                     onChange={nc => setDraft(d => ({ ...d, conditions: d.conditions.map((x, j) => j === i ? nc : x) }))}
@@ -342,7 +342,7 @@ export default function TriggersClient() {
               <select className={input + ' mt-1'} value={draft.actionType} onChange={e => setDraft({ ...draft, actionType: e.target.value, action: {} })}>
                 {meta.actions.map(a => (
                   <option key={a.key} value={a.key} disabled={a.available === false}>
-                    {a.available === false ? `${a.label} — not available yet` : a.label}
+                    {a.available === false ? `${a.label}: not available yet` : a.label}
                   </option>
                 ))}
               </select>
@@ -381,7 +381,7 @@ export default function TriggersClient() {
         )}
 
         <div className="space-y-2">
-          {rules.length === 0 && !draft && <p className="text-sm text-slate-500">No rules yet. The bot still runs each method&rsquo;s baseline action — add a rule to layer on more.</p>}
+          {rules.length === 0 && !draft && <p className="text-sm text-slate-500">No rules yet. The bot still runs each method&rsquo;s baseline action. Add a rule to layer on more.</p>}
           {rules.length > 0 && shownRules.length === 0 && <p className="text-sm text-slate-500">No rules match these filters.</p>}
           {shownRules.map(({ rule, s }) => (
             <div key={rule.id} className={`${CARD} px-4 py-3 flex items-start gap-3 ${rule.isActive ? '' : 'bg-slate-50 opacity-70'}`}>

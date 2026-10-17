@@ -4,7 +4,7 @@ import { prisma } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
-// POST /api/dashboards/[id]/share { userId } — share this dashboard with a person.
+// POST /api/dashboards/[id]/share { userId }, share this dashboard with a person.
 export async function POST(request, { params }) {
   const { user, error } = await requireAuth();
   if (error) return error;

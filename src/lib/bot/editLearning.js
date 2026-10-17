@@ -4,7 +4,7 @@
  *
  * Every recap and check-in draft keeps the words the bot first wrote
  * (BotDraft.aiSubject / aiBody, migration 0101). When a person changes them and
- * the email goes out, that pair — what the bot wrote, what was actually sent —
+ * the email goes out, that pair, what the bot wrote, what was actually sent
  * is shown to the writer the next time it drafts the same kind of email, so the
  * next draft starts closer to how Mike writes. Nothing is summarised or stored
  * twice: the sent emails ARE the lesson.
@@ -20,7 +20,7 @@ const SENT = ['SENT', 'MANUALLY_SENT'];
 const MAX_CHARS = 1500;
 
 // The meeting word for a subject line. Mike 9-25: the recap is approved when
-// somebody gets to it — maybe two days later — so the subject names the
+// somebody gets to it, maybe two days later, so the subject names the
 // meeting, never the day ("Coffee follow-up", not "Great meeting today").
 const MEETING_WORDS = {
   COFFEE: 'Coffee', HAPPY_HOUR: 'Happy hour', GOLF: 'Golf', SITE_VISIT: 'Site visit',

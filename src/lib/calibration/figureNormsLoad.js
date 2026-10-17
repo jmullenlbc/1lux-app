@@ -4,7 +4,7 @@
  * the pure half without reaching the database (the 9-23 crash).
  *
  * Where each figure came from is ProjectFigureSource. A figure written before
- * that table existed (no row) is trusted as staff-entered — unless the project
+ * that table existed (no row) is trusted as staff-entered, unless the project
  * was made from a web request, where it counts only if staff changed that
  * field afterwards (the project_data activity log's `changed` list).
  */
@@ -76,7 +76,7 @@ export async function loadAdoptedGuesses() {
   }
 }
 
-/** figureNorms() over loadFigureRows(), cached. Never throws — {} on failure. */
+/** figureNorms() over loadFigureRows(), cached. Never throws, {} on failure. */
 export async function loadFigureNorms() {
   if (normsCache && Date.now() - normsCache.at < TTL_MS) return normsCache.norms;
   try {
@@ -89,5 +89,5 @@ export async function loadFigureNorms() {
   }
 }
 
-/** Drop both caches — after a figure is adopted or marked right. */
+/** Drop both caches, after a figure is adopted or marked right. */
 export function forgetFigureCaches() { normsCache = null; adoptedCache = null; }

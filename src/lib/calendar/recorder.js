@@ -7,7 +7,7 @@
  * meeting that never becomes a note reaches none of that.
  *
  * So the sync's job is to have the note already sitting there, filled in, the
- * morning after the meeting — with the type and the in-person answer already
+ * morning after the meeting, with the type and the in-person answer already
  * worked out from the title and the location. Mike writes what was said and hits
  * Publish. Nothing is published automatically; that stays his call.
  *
@@ -113,7 +113,7 @@ async function adoptLinkedNote(prisma, event, calendarRef, ownerUserId, ownerUse
  * @returns {
  *   noteId:           string | null
  *   status:           'created' | 'updated' | 'linked' | 'archived' | 'left alone' | 'skipped'
- *   reason:           string        — plain English, safe to show or log
+ *   reason:           string, plain English, safe to show or log
  *   activityType:     string | null
  *   isInPerson:       boolean
  *   linkedContactIds: string[]
@@ -132,7 +132,7 @@ export async function recordCalendarEvent(
              activityType: null, isInPerson: false, linkedContactIds: [] };
   }
 
-  // An invite THEY sent closes an "expect an invite" step — whether or not it
+  // An invite THEY sent closes an "expect an invite" step, whether or not it
   // has been accepted yet; receiving it is the thing we were waiting for.
   if (prisma.noteAction && !event.isCancelled) {
     try {
@@ -183,7 +183,7 @@ export async function recordCalendarEvent(
   }
 
   // Cancelled, declined, never answered or tentative (Maram 9-17: accepted
-  // invites only). A draft that already exists is archived — Mike 9-25: "a
+  // invites only). A draft that already exists is archived, Mike 9-25: "a
   // declined one after accepted should remove it too". Archived, not deleted,
   // with no archivedById, so a later accept can bring it back.
   if (gone) {
@@ -224,7 +224,7 @@ export async function recordCalendarEvent(
 
   const verdict = classification ?? await (await import('@/lib/bot/activityClassifier')).classifyEvent(event);
 
-  // Nothing worth a note — an internal standup, or a meeting nothing could read.
+  // Nothing worth a note, an internal standup, or a meeting nothing could read.
   if (!verdict?.activityType) {
     return {
       noteId: existing?.id ?? null,
@@ -274,7 +274,7 @@ export async function recordCalendarEvent(
   await addNoteLinks(prisma, 'contact', noteId, linkedContactIds);
 
   // Deliberately NOT touching anyone's Last In Person date here. That happens on
-  // publish, in the note's own PATCH route — an invite on a calendar is not proof
+  // publish, in the note's own PATCH route, an invite on a calendar is not proof
   // the meeting happened.
   return {
     noteId, status,

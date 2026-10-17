@@ -64,7 +64,7 @@ const STATUS_CONFIG = {
   ON_HOLD:   { label: 'On Hold',   color: 'text-amber-700 bg-amber-50  border-amber-200'  },
   WON:       { label: 'Won',       color: 'text-green-700 bg-green-50  border-green-200'  },
   LOST:      { label: 'Lost',      color: 'text-red-700   bg-red-50    border-red-200'    },
-  COMPLETED: { label: 'Completed', color: 'text-slate-700 bg-slate-100 border-slate-300' }, // legacy rows only — not in the picker
+  COMPLETED: { label: 'Completed', color: 'text-slate-700 bg-slate-100 border-slate-300' }, // legacy rows only, not in the picker
   ABANDONED: { label: 'Abandoned', color: 'text-slate-500 bg-slate-50  border-slate-200' },
 };
 
@@ -167,7 +167,7 @@ function NoteInput({ projectId, onClose }) {
 function ProjectCard({ project, pipeline, onOpen, onDragStart, onDragEnd, isDragging }) {
   const status   = project[statusFieldFor(pipeline)] || 'OPEN';
   const st       = STATUS_CONFIG[status] || STATUS_CONFIG.OPEN;
-  // Why it was lost or abandoned — hover the status chip to read it.
+  // Why it was lost or abandoned, hover the status chip to read it.
   const statusReason = project[`${statusFieldFor(pipeline)}Reason`] || '';
   const rev      = revenueFor(project, pipeline);
   const outSync  = stagesOutOfSync(project);
@@ -236,7 +236,7 @@ function ProjectCard({ project, pipeline, onOpen, onDragStart, onDragEnd, isDrag
         </div>
 
         {/* Weighted Probability % is DERIVED (win % + move-forward %, averaged), so it
-            is shown read-only here — edit the two source fields on the project. */}
+            is shown read-only here. Edit the two source fields on the project. */}
         <div className="flex items-center gap-2 mt-1.5"
           title={`${WEIGHTED_PROBABILITY_HINT} Edit Probability to Win / to Move Forward on the project.`}>
           <div className="w-12 h-1 rounded-full bg-slate-200 overflow-hidden">
@@ -268,7 +268,7 @@ function ProjectCard({ project, pipeline, onOpen, onDragStart, onDragEnd, isDrag
 // ── New web request card ──────────────────────────────────────────────────────
 // A request from the public budget form that nobody has linked or turned into
 // a project yet. Its own colour so it can't be mistaken for a job, and not
-// draggable — it isn't a job until someone says so on the review screen.
+// draggable, it isn't a job until someone says so on the review screen.
 function WebRequestCard({ request }) {
   const where = [request.city, request.state].filter(Boolean).join(', ');
   const looksLike = request.suggestedProject && !request.suggestionDismissedAt ? request.suggestedProject : null;
@@ -336,7 +336,7 @@ function PipelineSummary({ projects, pipeline, onNeedsAttention }) {
   const open     = projects.filter(p => p[sf] === 'OPEN');
   const won      = projects.filter(p => p[sf] === 'WON' && daysSince(p.updatedAt) <= 30);
   const onHold   = projects.filter(p => p[sf] === 'ON_HOLD');
-  // Probability + win rate come from src/lib/pipeline.js — one definition, used by
+  // Probability + win rate come from src/lib/pipeline.js, one definition, used by
   // the CRM bar AND the dashboards. Do not recompute either of them here.
   const highProb = open.filter(p => (averageProbability(p) ?? 0) >= 80);
   const stale    = open.filter(p => daysSince(p.updatedAt) >= 30);
@@ -666,7 +666,7 @@ export default function CRMClient({ initialProjects, users, newRequests = [] }) 
 
   // Mike, 2026-09-09: "So we don't have to go into a project and come back, go
   // into a project, come back." Clicking a job on the board no longer leaves the
-  // board — it slides the sales fields out on the right. The panel still carries
+  // board, it slides the sales fields out on the right. The panel still carries
   // an "Open full project" link for everything else on the job.
   const openProject = p => setPanelId(p.id);
   const newProject  = () => router.push('/project/new');

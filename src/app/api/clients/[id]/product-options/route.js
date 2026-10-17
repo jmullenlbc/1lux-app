@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
 
 // Client standards are open to everyone on staff (Mike, 2026-09-14); contractors
 // (Client Viewers) never see them. This used to let only Super Admins and people
-// whose permissions said `clients: true` in — a value the Users screen never saves.
+// whose permissions said `clients: true` in, a value the Users screen never saves.
 const staff = s => canSeeAllData(s);
 const EXT = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/jpg': 'jpg', 'image/webp': 'webp' };
 const FIELDS = ['category', 'name', 'productUrl', 'notes', 'priceEstimate', 'priceTarget', 'sortOrder'];
@@ -27,7 +27,7 @@ function pickFields(b) {
   return data;
 }
 
-// GET — all product options for the client (client groups them by category).
+// GET, all product options for the client (client groups them by category).
 export async function GET(req, { params }) {
   const s = await getSession();
   if (!s) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -38,7 +38,7 @@ export async function GET(req, { params }) {
   return NextResponse.json({ options: await Promise.all(rows.map(withUrl)) });
 }
 
-// POST — add an option to a category.
+// POST, add an option to a category.
 export async function POST(req, { params }) {
   const s = await getSession();
   if (!s) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -48,8 +48,8 @@ export async function POST(req, { params }) {
   return NextResponse.json({ option: await withUrl(row) }, { status: 201 });
 }
 
-// PATCH { optionId, ...fields, status?, imageBase64? } — edit / approve / reject.
-// Or { renameCategory: { from, to } } — rename a whole category.
+// PATCH { optionId...fields, status?, imageBase64? }, edit / approve / reject.
+// Or { renameCategory: { from, to } }, rename a whole category.
 export async function PATCH(req, { params }) {
   const s = await getSession();
   if (!s) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

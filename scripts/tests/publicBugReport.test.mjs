@@ -7,7 +7,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { cleanPublicBugReport, titleFrom, clampText, LIMITS } from '../../src/lib/publicBugReport.js';
 
-test('a description is required — blank, whitespace or missing is refused', () => {
+test('a description is required: blank, whitespace or missing is refused', () => {
   assert.equal(cleanPublicBugReport({}).ok, false);
   assert.equal(cleanPublicBugReport({ description: '   \n ' }).ok, false);
   assert.equal(cleanPublicBugReport(null).ok, false);
@@ -32,6 +32,9 @@ test('a good report comes back tidied', () => {
     pageUrl:       'https://app.ilcstudios.com/conceptual_budget',
     browserInfo:   'Mozilla/5.0',
     viewport:      '390 x 844',
+    draftId:       null,
+    step:          null,
+    projectName:   null,
   });
 });
 
@@ -54,7 +57,7 @@ test('every string is capped', () => {
     description: long, name: long, userAgent: long, viewport: long,
     email: `${'a'.repeat(300)}@example.com`,
   });
-  // The over-long email gets cut, loses its domain, and is refused — which is
+  // The over-long email gets cut, loses its domain, and is refused, which is
   // fine: nobody has a 300-character address.
   assert.equal(r.ok, false);
 
@@ -92,4 +95,21 @@ test('only http(s) page URLs are kept', () => {
   assert.equal(cleanPublicBugReport({ description: 'x', pageUrl: 'javascript:alert(1)' }).data.pageUrl, null);
   assert.equal(cleanPublicBugReport({ description: 'x', pageUrl: 'http://localhost:3000/conceptual_budget' }).data.pageUrl,
     'http://localhost:3000/conceptual_budget');
+});
+
+test('the wizard draft id is kept only when it looks like one; step and project name are clamped', () => {
+  const ok = cleanPublicBugReport({ description: 'x', draftId: 'cmabc123def456ghi', step: 'Amenities', projectName: 'Lincoln Ave, 100% DD' }).data;
+  assert.equal(ok.draftId, 'cmabc123def456ghi');
+  assert.equal(ok.step, 'Amenities');
+  assert.equal(ok.projectName, 'Lincoln Ave, 100% DD');
+  assert.equal(cleanPublicBugReport({ description: 'x', draftId: '../etc/passwd' }).data.draftId, null);
+  assert.equal(cleanPublicBugReport({ description: 'x', draftId: 'short' }).data.draftId, null);
+  assert.equal(cleanPublicBugReport({ description: 'x', draftId: 'a'.repeat(50) }).data.draftId, null);
+  const long = cleanPublicBugReport({ description: 'x', step: 's'.repeat(500), projectName: 'p'.repeat(500) }).data;
+  assert.equal(long.step.length, LIMITS.step);
+  assert.equal(long.projectName.length, LIMITS.projectName);
+  const blank = cleanPublicBugReport({ description: 'x' }).data;
+  assert.equal(blank.draftId, null);
+  assert.equal(blank.step, null);
+  assert.equal(blank.projectName, null);
 });

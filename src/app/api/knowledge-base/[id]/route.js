@@ -41,7 +41,7 @@ export async function PATCH(request, { params }) {
   return NextResponse.json(standard);
 }
 
-// DELETE /api/knowledge-base/[id]  — soft delete
+// DELETE /api/knowledge-base/[id], soft delete
 export async function DELETE(request, { params }) {
   const { user, error } = await requireAuth();
   if (error) return error;

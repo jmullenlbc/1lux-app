@@ -4,7 +4,7 @@ import { weeklyDigest } from '@/lib/emailTemplates';
 
 /**
  * GET /api/cron/digest
- * Wednesday 9am ET — flush the NotificationQueue.
+ * Wednesday 9am ET, flush the NotificationQueue.
  * Protected by x-cron-secret header.
  * Triggered by AWS EventBridge Scheduler: cron(0 14 ? * 4 *)
  *

@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
  *
  * These are drawings a general contractor sent us. They are not public, they
  * are not shared, and nothing about them should be reachable by guessing a URL
- * — so the bucket stays private and the only way to see a sheet is through
+ * so the bucket stays private and the only way to see a sheet is through
  * here, behind the same admin gate as the review queue itself.
  *
  * The link expires in five minutes. It is re-issued every time the reviewer

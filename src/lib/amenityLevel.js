@@ -2,14 +2,14 @@
  * One meaning for the exterior amenity level, wherever it is read.
  *
  * The public questionnaire stores the visitor's answer as a BARE DOLLAR
- * FIGURE — '1', '2', '3', '5' — because the question asks "what $/SF ... based
+ * FIGURE, '1', '2', '3', '5', because the question asks "what $/SF ... based
  * on the level of finish" and shows the choices as $1/SF … $5/SF. The internal
  * wizard, the project summary, the share page and the calibration report were
- * all written against the master sheet's WORD keys — low / lowMedium / medium
+ * all written against the master sheet's WORD keys, low / lowMedium / medium
  * / high. Nothing translated between them, so:
  *
  *   - a public answer of $1/SF read as `medium` inside the app and priced at
- *     $3/SF — a real money error, tripling that line on the cheapest finish;
+ *     $3/SF, a real money error, tripling that line on the cheapest finish;
  *   - the summary and share pages printed a bare "1" where the label belongs.
  *
  * Both directions are needed and both must keep working on already-stored
@@ -17,12 +17,12 @@
  * every internally-created budget, numeric ones on every public one.
  *
  * The numbers are the master sheet's DEFAULT rates, and they are only used to
- * recognise a stored answer — never to price. Pricing always reads the live
+ * recognise a stored answer, never to price. Pricing always reads the live
  * rate out of PRICING/the project's snapshot by the word key, so an edited
  * master sheet still governs.
  *
- * @see src/lib/pricing.js — exteriorAmenities rates and labels (the word keys)
- * @see src/lib/intake/questionnaire.js — exteriorAmenityFinish (the numbers)
+ * @see src/lib/pricing.js, exteriorAmenities rates and labels (the word keys)
+ * @see src/lib/intake/questionnaire.js, exteriorAmenityFinish (the numbers)
  */
 
 /** Word key → the master sheet's default $/SF. Order is the ladder low→high. */
@@ -41,7 +41,7 @@ export const AMENITY_LEVELS = Object.freeze(Object.keys(AMENITY_LEVEL_RATES));
  *
  * Accepts a word key ('medium'), a bare number or numeric string from the
  * public questionnaire ('1', 3, '$5/SF'), and anything unrecognised. An
- * unrecognised answer returns the fallback rather than guessing — the callers
+ * unrecognised answer returns the fallback rather than guessing, the callers
  * all defaulted to 'medium' before this existed, so that stays the default.
  *
  * A number that is not one of the four rates snaps to the NEAREST rate, so a

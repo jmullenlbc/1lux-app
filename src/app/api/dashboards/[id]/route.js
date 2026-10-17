@@ -27,7 +27,7 @@ export async function PATCH(request, { params }) {
   return NextResponse.json({ dashboard: updated });
 }
 
-// DELETE /api/dashboards/[id] — deletes a personal copy (= "reset to default"),
+// DELETE /api/dashboards/[id], deletes a personal copy (= "reset to default"),
 // or an admin deletes a default.
 export async function DELETE(request, { params }) {
   const { user, error } = await requireAuth();

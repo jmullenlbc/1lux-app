@@ -205,7 +205,7 @@ export default function BudgetQCDrawer({
                 <button onClick={() => setAssigningOpen(v => !v)} className="text-[11px] text-amber-600 hover:text-amber-700 font-medium">+ Assign reviewer</button>
               </div>
             ) : (
-              <div className="px-4 py-2.5 text-[11px] text-slate-400">Not assigned — any team member can check items.</div>
+              <div className="px-4 py-2.5 text-[11px] text-slate-400">Not assigned, any team member can check items.</div>
             )}
 
             {/* Assign dropdown */}
@@ -216,7 +216,7 @@ export default function BudgetQCDrawer({
                   value={assignedTo?.id ?? ''}
                   onChange={e => { onAssign(e.target.value || null); setAssigningOpen(false); }}
                 >
-                  <option value="">— Unassigned —</option>
+                  <option value="">Unassigned</option>
                   <PersonOptions users={allUsers} picker="qcAssignee" />
                 </select>
               </div>
@@ -228,7 +228,7 @@ export default function BudgetQCDrawer({
         <div className="px-5 py-3 border-t border-slate-100 bg-slate-50 flex items-center gap-3 flex-shrink-0">
           <div className={`flex-1 text-[11.5px] ${summary?.isComplete ? 'text-green-700 font-semibold' : 'text-slate-600'}`}>
             {summary?.isComplete
-              ? '✓ All checks complete — ready to send'
+              ? '✓ All checks complete, ready to send'
               : <><strong className="text-slate-900">{remaining} item{remaining !== 1 ? 's' : ''}</strong> need{remaining === 1 ? 's' : ''} attention.</>
             }
           </div>

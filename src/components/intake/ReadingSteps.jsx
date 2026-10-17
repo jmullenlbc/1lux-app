@@ -27,7 +27,7 @@ export default function ReadingSteps({ steps, startedAt }) {
       <style>{SHIMMER}</style>
 
       {/* One bar for the whole read. It fills as steps land, and the moving
-          highlight is the only thing here that is decoration -- it says "still
+          highlight is the only thing here that is decoration. It says "still
           working" during the long gaps while a step is running. */}
       <div className="h-1 rounded-full bg-slate-100 overflow-hidden">
         <div
@@ -58,7 +58,7 @@ export default function ReadingSteps({ steps, startedAt }) {
       </ol>
 
       {/* Shown once the wait is long enough to be worth explaining. A number
-          that visibly counts up is what tells someone it is not stuck -- and it
+          that visibly counts up is what tells someone it is not stuck, and it
           used to say "about a minute", which a plotted set beats by well over a
           minute. The words live in ReadingWait now, with every other place we
           read a drawing. */}

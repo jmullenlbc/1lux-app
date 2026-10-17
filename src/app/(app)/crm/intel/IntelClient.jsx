@@ -1,6 +1,10 @@
 'use client';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { CARD, INPUT, BTN_COMPACT, HELPER } from '@/components/ui/tokens';
+import { FilterToolbar, FilterPanel } from '@/components/ui/FilterPanel';
+
+const STATUS_FIELD = [{ key: 'status', label: 'Show', kind: 'pick' }];
+const STATUS_CHOICES = { status: [['confirmed', 'Verified only']] };
 
 function initials(name) {
   if (!name) return '?';
@@ -127,6 +131,7 @@ export default function IntelClient() {
   const [items, setItems] = useState(null);
   const [q, setQ] = useState('');
   const [status, setStatus] = useState('active'); // active | confirmed
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const debRef = useRef(null);
 
   const load = useCallback(async (query, st) => {
@@ -164,7 +169,7 @@ export default function IntelClient() {
         link a fact to its CRM contact, and confirm the ones worth keeping.
       </p>
 
-      <div className="flex items-center gap-3 mt-3 mb-4">
+      <div className="flex flex-wrap items-center gap-3 mt-3 mb-4">
         <div className="relative flex-1">
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 15.803a7.5 7.5 0 0010.607 0z" /></svg>
@@ -172,12 +177,10 @@ export default function IntelClient() {
           <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search intel by person, company, or keyword…"
             className={`${INPUT} pl-9`} />
         </div>
-        <div className="flex gap-1.5">
-          {[['active', 'All'], ['confirmed', 'Verified']].map(([v, l]) => (
-            <button key={v} onClick={() => setStatus(v)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${status === v ? 'bg-orange-50 border border-orange-400 text-orange-700' : 'bg-white text-slate-500 hover:text-slate-700 border border-slate-300'}`}>{l}</button>
-          ))}
-        </div>
+        <FilterToolbar count={status === 'confirmed' ? 1 : 0} open={filtersOpen} onToggle={() => setFiltersOpen(o => !o)}
+          onClear={() => setStatus('active')} />
+        <FilterPanel open={filtersOpen} fields={STATUS_FIELD} filters={{ status: status === 'confirmed' ? 'confirmed' : '' }}
+          choices={STATUS_CHOICES} onChange={(_, v) => setStatus(v || 'active')} className="basis-full mt-0" />
       </div>
 
       {items === null ? (

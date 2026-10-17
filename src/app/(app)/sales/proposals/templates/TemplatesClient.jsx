@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { Chevron } from '@/components/ui/SortHeader';
 import { WidgetLoading, WidgetEmpty } from '@/components/ui/WidgetFrame';
+import { FilterToolbar, FilterPanel, FilterField } from '@/components/ui/FilterPanel';
 import { CARD, TILE, BTN_PRIMARY, BTN_COMPACT, INPUT, LABEL, H1, TH } from '@/components/ui/tokens';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -212,7 +213,7 @@ function TaskTable({ tasks, onChange }) {
                 return (
                   <tr key={`sub-${ri}`} className="bg-slate-50 border-t border-slate-200">
                     <td className={`px-3 py-1.5 ${LABEL}`} colSpan={2}>
-                      {row.area || '(no area)'} — subtotal
+                      {row.area || '(no area)'}: subtotal
                     </td>
                     {HOUR_FIELDS.map(f => (
                       <td key={f} className="px-2 py-1.5 text-right text-xs font-semibold text-slate-600 tabular-nums">
@@ -455,7 +456,7 @@ function TemplateEditor({ template, onSaved, onDeleted }) {
         {activeTab === 'document' && (
           <div>
             <p className="text-xs text-slate-500 mb-2">
-              Use <span className="font-mono text-violet-600">{'{tokens}'}</span> for merge fields — click the <span className="font-mono">{'{…}'}</span> button to insert. Formatting toolbar below.
+              Use <span className="font-mono text-violet-600">{'{tokens}'}</span> for merge fields. Click the <span className="font-mono">{'{…}'}</span> button to insert. Formatting toolbar below.
             </p>
             <RichToolbar editorRef={editorRef} onInsertToken={insertToken} />
             <div
@@ -483,7 +484,7 @@ function TemplateEditor({ template, onSaved, onDeleted }) {
             </div>
             <div>
               <p className={`${LABEL} mb-2`}>
-                Fee Breakdown — pre-populates when this template is chosen
+                Fee Breakdown: pre-populates when this template is chosen
               </p>
               <TaskTable tasks={form.tasks} onChange={v => set('tasks', v)} />
             </div>
@@ -492,7 +493,7 @@ function TemplateEditor({ template, onSaved, onDeleted }) {
 
         {activeTab === 'milestones' && (
           <div className="space-y-4">
-            <p className="text-xs text-slate-500">Milestone payment split — shown on the client-facing PDF for Full Design proposals.</p>
+            <p className="text-xs text-slate-500">Milestone payment split: shown on the client-facing PDF for Full Design proposals.</p>
             <div className="space-y-2">
               {form.milestoneSplit.map((m, idx) => (
                 <div key={idx} className="flex items-center gap-2">
@@ -534,7 +535,7 @@ function TemplateEditor({ template, onSaved, onDeleted }) {
                 placeholder="Not included in this scope: energy compliance calculations, emergency lighting systems…"
                 className={inputCls + ' resize-none'}
               />
-              <p className="text-xs text-slate-500 mt-1">Internal reference — not shown on PDF unless explicitly inserted in document body.</p>
+              <p className="text-xs text-slate-500 mt-1">Internal reference, not shown on PDF unless explicitly inserted in document body.</p>
             </div>
           </div>
         )}
@@ -552,6 +553,7 @@ export default function TemplatesClient({ embedded = false }) {
   const [loading,          setLoading]          = useState(true);
   const [err,              setErr]              = useState('');
   const [typeFilter,       setTypeFilter]       = useState('all');
+  const [filtersOpen,      setFiltersOpen]      = useState(false);
   const [creatingNew,      setCreatingNew]      = useState(false);
 
   const load = useCallback(async () => {
@@ -619,18 +621,15 @@ export default function TemplatesClient({ embedded = false }) {
         <div className="w-72 shrink-0 border-r border-slate-200 bg-white flex flex-col overflow-hidden">
           {/* Type filter */}
           <div className="px-3 py-2 border-b border-slate-100">
-            <div className="flex gap-1 bg-slate-100 rounded-lg p-1">
-              <button onClick={() => setTypeFilter('all')}
-                className={`flex-1 px-2 py-1 rounded-lg text-xs font-semibold transition-colors ${typeFilter === 'all' ? 'bg-white text-orange-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
-                All
-              </button>
-              {PROPOSAL_TYPES.map(t => (
-                <button key={t.value} onClick={() => setTypeFilter(v => v === t.value ? 'all' : t.value)}
-                  className={`flex-1 px-2 py-1 rounded-lg text-xs font-semibold transition-colors ${typeFilter === t.value ? 'bg-white text-orange-600 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}>
-                  {t.label.split(' ')[0]}
-                </button>
-              ))}
-            </div>
+            <FilterToolbar count={typeFilter === 'all' ? 0 : 1} open={filtersOpen} onToggle={() => setFiltersOpen(o => !o)}
+              onClear={() => setTypeFilter('all')} />
+            {/* The list is narrow, so the one box spans the panel. */}
+            <FilterPanel open={filtersOpen} className="p-3 mt-2">
+              <div className="col-span-full">
+                <FilterField field={{ key: 'type', label: 'Type', kind: 'pick' }} value={typeFilter === 'all' ? '' : typeFilter}
+                  choices={PROPOSAL_TYPES.map(t => [t.value, t.label])} onChange={v => setTypeFilter(v || 'all')} />
+              </div>
+            </FilterPanel>
           </div>
           {/* Template list */}
           <div className="flex-1 overflow-y-auto">

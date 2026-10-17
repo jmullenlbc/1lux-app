@@ -2,10 +2,10 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { publicFixtureItem, cleanShareEdit } from '@/lib/share/fixtureShare';
 
-// Public endpoint — no auth required
+// Public endpoint, no auth required
 // GET /api/share/fixture/[token]
 // Returns the fixture schedule (draft items + project info) for the share token.
-// Only the allowlisted columns leave the building — see src/lib/share/fixtureShare.js.
+// Only the allowlisted columns leave the building, see src/lib/share/fixtureShare.js.
 
 export async function GET(req, { params }) {
   const { token } = params;
@@ -38,7 +38,7 @@ export async function GET(req, { params }) {
   });
 }
 
-// PATCH — save a cell edit (only for 'edit' permission links)
+// PATCH, save a cell edit (only for 'edit' permission links)
 export async function PATCH(req, { params }) {
   const { token } = params;
 

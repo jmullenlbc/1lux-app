@@ -1,5 +1,5 @@
 /**
- * "Looks like [Project X]" — does a new web request look like a job we already
+ * "Looks like [Project X]", does a new web request look like a job we already
  * have?
  *
  * Mike, 2026-09-12: match on the name, the city/state and the email domain;
@@ -70,7 +70,7 @@ function samePlace(a, b) {
  * @param {Array}  projects [{ id, name, city, state, clientId, contactEmail }]
  * @returns {{ projectId, projectName, reason, score } | null}
  *
- * A name match is required — two jobs in the same city from the same company
+ * A name match is required, two jobs in the same city from the same company
  * are just two jobs. On top of the name, one more thing has to agree (same city,
  * same company, same email domain), unless the names are identical AND unusual
  * enough that a coincidence is unlikely.

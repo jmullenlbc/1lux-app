@@ -3,7 +3,7 @@
  *
  * These encode a REAL measured failure. Reading the hand-lettered Beckett
  * Firestone SITE DATA block at 1600px, the model returned totalUnits 264 while
- * its own bed mix summed to 319 — a plausible, wrong number that would have
+ * its own bed mix summed to 319, a plausible, wrong number that would have
  * flowed straight into a budget. Raising the render to 2200px fixed the read;
  * these checks are the net for when it happens anyway.
  *
@@ -40,7 +40,7 @@ test('THE REAL FAILURE: bed mix disagreeing with total units is caught', () => {
   assert.ok(r.confidence <= 0.45, 'confidence must be downgraded');
 });
 
-test('a warning never rewrites the number — a human decides', () => {
+test('a warning never rewrites the number: a human decides', () => {
   const r = validateSiteData({
     ...base, totalUnits: 264,
     bedMix: { oneBed: 162, twoBed: 113, threeBed: 44 },
@@ -102,7 +102,7 @@ test('missing bedMix entirely is safe', () => {
 //
 // Reading two drawings in one request measured 29.4 seconds against a front
 // door that hangs up at 30. So they are read one per request and merged as
-// they arrive -- and a merge is a new way to be wrong: a blank on the second
+// they arrive, and a merge is a new way to be wrong: a blank on the second
 // drawing must never wipe out a real number off the first.
 
 test('the first drawing to answer a field is the one that stands', () => {
@@ -196,8 +196,8 @@ test('the cross-checks run on the merged answer, not on each drawing alone', () 
 // ─── the memory the drawing renderer gives back ─────────────────────────────
 //
 // A canvas keeps its pixels OUTSIDE JavaScript's memory, so the garbage
-// collector -- which decides when to tidy by looking at how much JavaScript
-// memory is in use -- sees a tiny handle and feels no urgency, while a
+// collector, which decides when to tidy by looking at how much JavaScript
+// memory is in use, sees a tiny handle and feels no urgency, while a
 // full-size image sits there unreleased.
 //
 // That is not a theoretical worry. Cutting the fourteen close-ups of the index
@@ -315,7 +315,7 @@ test('gross building SF merges like any other stated number', () => {
 
 // ── fitForVision: the picture must fit through the model's front desk ──────
 // A plotted sheet re-encoded as PNG can exceed the API's per-image limit, and
-// that rejection is deterministic — retries can't save it. These pin the fix.
+// that rejection is deterministic, retries can't save it. These pin the fix.
 import { fitForVision } from '../../src/lib/siteVision.js';
 import { createCanvas } from '@napi-rs/canvas';
 

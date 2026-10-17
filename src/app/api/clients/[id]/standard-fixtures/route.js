@@ -8,11 +8,11 @@ export const dynamic = 'force-dynamic';
 
 // Client standards are open to everyone on staff (Mike, 2026-09-14); contractors
 // (Client Viewers) never see them. This used to let only Super Admins and people
-// whose permissions said `clients: true` in — a value the Users screen never saves.
+// whose permissions said `clients: true` in, a value the Users screen never saves.
 const staff = s => canSeeAllData(s);
 const EXT = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/jpg': 'jpg', 'image/webp': 'webp' };
 
-// The editable columns of a client standard fixture row (no SKU-locking — the exact
+// The editable columns of a client standard fixture row (no SKU-locking, the exact
 // manufacturer/catalog is picked per project, but left editable here as optional hints).
 const FIELDS = ['typeCode', 'location', 'description', 'priceTarget', 'productUrl', 'manufacturer',
   'catalogNumber', 'finish', 'cct', 'lumens', 'wattage', 'voltage', 'dimming', 'mounting', 'notes', 'sortOrder'];
@@ -31,7 +31,7 @@ function pickFields(b) {
   return data;
 }
 
-// GET /api/clients/[id]/standard-fixtures — the client's standard fixture schedule.
+// GET /api/clients/[id]/standard-fixtures, the client's standard fixture schedule.
 export async function GET(req, { params }) {
   const s = await getSession();
   if (!s) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -43,7 +43,7 @@ export async function GET(req, { params }) {
   return NextResponse.json({ fixtures: await Promise.all(rows.map(withUrl)) });
 }
 
-// POST — add a row (blank, or seeded from an approved concept via conceptId).
+// POST, add a row (blank, or seeded from an approved concept via conceptId).
 export async function POST(req, { params }) {
   const s = await getSession();
   if (!s) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

@@ -9,7 +9,7 @@ import { grantedProjectIds, setProjectAccess } from '@/lib/projectScope';
 // Which jobs one Client Viewer has been handed.
 //
 // `ProjectAccess` has existed since the first migration and nothing ever wrote
-// to it, so a Client Viewer could only ever see jobs they created — and they
+// to it, so a Client Viewer could only ever see jobs they created, and they
 // cannot create jobs. This route is the missing half.
 
 async function guard(request, params) {
@@ -37,7 +37,7 @@ export async function GET(request, { params }) {
   return NextResponse.json({ projectIds });
 }
 
-// PUT — replace the whole list. Body: { projectIds: string[] }
+// PUT, replace the whole list. Body: { projectIds: string[] }
 export async function PUT(request, { params }) {
   const { actor, target, error } = await guard(request, params);
   if (error) return error;

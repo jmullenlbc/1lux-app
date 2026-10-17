@@ -14,7 +14,7 @@ import ReminderTimelineEditor from './ReminderTimelineEditor';
  * After a meeting, some next steps are theirs to do: reply, send drawings,
  * send an invite, make an intro. The app watches the inbox for each one. When
  * nothing comes, it drafts a check-in email (for a person to send) on this
- * ladder — days after the meeting. Laid out like the master pricing sheet: one
+ * ladder, days after the meeting. Laid out like the master pricing sheet: one
  * row per step, one number per box, saved as you leave the box.
  */
 export default async function ReminderTimelinePage() {

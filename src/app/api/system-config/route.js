@@ -17,7 +17,7 @@ export async function GET(req) {
   return NextResponse.json({ config });
 }
 
-// PATCH /api/system-config  — upserts one or more key/value pairs
+// PATCH /api/system-config, upserts one or more key/value pairs
 // ILC_ADMIN / SUPER_ADMIN only
 export async function PATCH(req) {
   const { user, error } = await requireAuth();

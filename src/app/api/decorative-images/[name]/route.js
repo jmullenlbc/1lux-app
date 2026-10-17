@@ -6,7 +6,7 @@
  * load is a lot of work to reach the same place.
  *
  * Staff only for now. When shared surveys arrive, this is the one route that
- * has to learn about share tokens — the pictures are the only thing on that
+ * has to learn about share tokens, the pictures are the only thing on that
  * screen an outside respondent needs that does not already come down with the
  * survey payload.
  *

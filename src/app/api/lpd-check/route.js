@@ -142,7 +142,7 @@ export async function POST(request) {
     return NextResponse.json({ error: 'File appears empty or has only one row' }, { status: 400 });
   }
 
-  // Find header row — first row with at least 3 non-empty cells
+  // Find header row, first row with at least 3 non-empty cells
   let headerRowIdx = 0;
   for (let i = 0; i < Math.min(rawData.length, 10); i++) {
     const nonEmpty = rawData[i].filter(c => String(c).trim()).length;
@@ -177,7 +177,7 @@ export async function POST(request) {
     const loc     = getCol('location');
     const sf      = parseNumber(getCol('areaSf'));
 
-    // Skip rows with no type or no wattage — they're likely headers/notes
+    // Skip rows with no type or no wattage, they're likely headers/notes
     if (!type && wattage == null) continue;
 
     rows.push({
@@ -267,8 +267,8 @@ export async function POST(request) {
     hasQty,
     hasLocation,
     warnings: [
-      !hasQty      && 'No quantity column detected — enter quantities manually to calculate LPD',
-      !hasLocation && 'No location column detected — locations are required to group by area',
+      !hasQty      && 'No quantity column detected, enter quantities manually to calculate LPD',
+      !hasLocation && 'No location column detected, locations are required to group by area',
     ].filter(Boolean),
   });
 }

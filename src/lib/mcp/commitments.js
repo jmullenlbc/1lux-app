@@ -4,22 +4,22 @@
  * ── Read this before changing anything here ─────────────────────────────────
  * The MCP build plan specified `get_commitments` against "the commitment schema
  * (THEY_OWE_US, WE_OWE_THEM, FOLLOW_UP_EMAIL, …)". **There is no Commitment
- * table.** It was never built — no model, no migration, no route, nothing in
+ * table.** It was never built, no model, no migration, no route, nothing in
  * src/. The plan was written against a schema that only ever existed on paper.
  *
  * Rather than invent a new table nobody asked for and then have to keep it in
  * step with the four screens that already record obligations, this composes the
  * answer out of the rows the app genuinely writes today:
  *
- *   Task                  — an internal to-do with an owner and a due date
- *   NoteAction            — a follow-up pulled out of a meeting or sales note
- *   Project.nextAction*   — the one next step on a live deal
- *   RFI                   — a question in the field somebody owes an answer to
+ *   Task, an internal to-do with an owner and a due date
+ *   NoteAction, a follow-up pulled out of a meeting or sales note
+ *   Project.nextAction*, the one next step on a live deal
+ *   RFI, a question in the field somebody owes an answer to
  *
  * The upside is that this cannot drift: there is no second copy of an
  * obligation to fall out of sync, and an item closed on its own screen
  * disappears from here on the next call. The cost is that a commitment cannot
- * be created THROUGH this tool — it is a read over four systems of record, not
+ * be created THROUGH this tool, it is a read over four systems of record, not
  * a system of record itself. If Mike ever wants commitments to be a first-class
  * thing people file directly, that is a real table and a real migration, and
  * this file becomes the backfill.
@@ -27,10 +27,10 @@
  * ── Direction ───────────────────────────────────────────────────────────────
  * Derived from which row it came from and what type it is, never stored:
  *
- *   THEY_OWE_US   — EXPECT_INTRO note actions (somebody is introducing us) and
+ *   THEY_OWE_US, EXPECT_INTRO note actions (somebody is introducing us) and
  *                   RFIs ILC raised itself, which are waiting on an answer.
- *   FOLLOW_UP     — an outbound message we owe: EMAIL, TEXT, SEND_MATERIALS.
- *   WE_OWE_THEM   — everything else. Tasks, calls, scheduling, the next step on
+ *   FOLLOW_UP, an outbound message we owe: EMAIL, TEXT, SEND_MATERIALS.
+ *   WE_OWE_THEM, everything else. Tasks, calls, scheduling, the next step on
  *                   a deal, and any RFI a GC or EC sent us.
  *
  * ── Only CONFIRMED note actions count ───────────────────────────────────────
@@ -136,8 +136,8 @@ export async function loadCommitments(filters = {}) {
         // SUGGESTED is the AI's guess; DONE and DISMISSED are closed.
         ...(wantAll ? { status: { in: ['SUGGESTED', 'CONFIRMED'] } } : { status: 'CONFIRMED' }),
         // An unpublished note is a draft nobody has stood behind yet.
-        // A note reaches a job two ways — its own projectId, or the NoteProject
-        // join — and reaches a company three, so both paths are spelled out.
+        // A note reaches a job two ways, its own projectId, or the NoteProject
+        // join, and reaches a company three, so both paths are spelled out.
         // A step belongs to its lead, else to every owner of the note (0108).
         ...(ownerId ? { OR: [{ leadUserId: null }, { leadUserId: ownerId }] } : {}),
         note: {
@@ -269,7 +269,7 @@ export async function loadCommitments(filters = {}) {
   if (status === 'overdue') rows = rows.filter(r => r.overdue);
 
   // Overdue first, then soonest-due, then the undated. An item with no date is
-  // last rather than first — no date means nobody set a clock on it, which is
+  // last rather than first, no date means nobody set a clock on it, which is
   // weaker than a date that has not arrived yet.
   rows.sort((a, b) => {
     if (!a.dueDate && !b.dueDate) return 0;

@@ -49,7 +49,7 @@ async function main() {
     fromEmail:      'mason@ilcstudios.com',
     fromName:       'Mason Bartlett',
     toEmails:       JSON.stringify([{ email: 'jordan.orr@liverangewater.com', name: 'Jordan Orr' }]),
-    bodyPreview:    'Good afternoon Jordan — Mike mentioned that you wanted me to send you a copy of the updated budget before sending it out to everyone else.',
+    bodyPreview:    'Good afternoon Jordan, Mike mentioned that you wanted me to send you a copy of the updated budget before sending it out to everyone else.',
     bodyHtml:       `<p>Good afternoon Jordan</p>
 <p>Mike mentioned that you wanted me to send you a copy of the updated budget before sending it out to everyone else.</p>
 <p>Attached is the updated budget through ASI 3 and the handful of RFI's. Totaling <strong>$822,981.11</strong></p>
@@ -186,7 +186,7 @@ async function main() {
     fromEmail:      'mason@ilcstudios.com',
     fromName:       'Mason Bartlett',
     toEmails:       csiTeam,
-    bodyPreview:    'Hi Robbie — We will get started on a submittal package, but we also need to get a finalized PO for the package as well.',
+    bodyPreview:    'Hi Robbie, we will get started on a submittal package, but we also need to get a finalized PO for the package as well.',
     bodyHtml:       `<p>Hi Robbie,</p>
 <p>Yeah we will get started on a submittal package, but we also need to get a finalized PO for the package as well. I have looped in Jason Mullen our CEO to help finalize that. We started those discussions at the beginning of the year but they were put on the backburner while we worked through all the recent coordination items.</p>
 <p><strong>Type D1:</strong> I changed those to surface mounted disks and adjusted the description to make that a little more clear, as the Luminaire schedule on the drawings didn't update those descriptions. There are no more recessed fixtures in the package per previous conversations and clarifications from Lexi.</p>
@@ -224,7 +224,7 @@ async function main() {
     fromEmail:      'lhasenack@csigc.com',
     fromName:       'Lexi Hasenack',
     toEmails:       fullCSITeam,
-    bodyPreview:    'Mason — We just closed out the attached RFI, which added EM2 fixtures at all the riser rooms. Please be sure to account for these.',
+    bodyPreview:    'Mason, we just closed out the attached RFI, which added EM2 fixtures at all the riser rooms. Please be sure to account for these.',
     bodyHtml:       `<p>Mason,</p>
 <p>We just closed out the attached RFI, which added EM2 fixtures at all the riser rooms. Please be sure to account for these. Thank you!</p>
 <p>Lexi Hasenack<br>Project Manager<br>Colorado Structures Inc. d.b.a CSI Construction Company<br>Mobile: 303-518-8662 | Work: 719-522-0500</p>`,
@@ -270,7 +270,7 @@ async function main() {
     fromEmail:      'mason@ilcstudios.com',
     fromName:       'Mason Bartlett',
     toEmails:       fullCSITeam,
-    bodyPreview:    'Thanks Lexi — I appreciate you doing all of that, we will make sure everything is updated accordingly with the updated pricing we are working on.',
+    bodyPreview:    'Thanks Lexi, I appreciate you doing all of that, we will make sure everything is updated accordingly with the updated pricing we are working on.',
     bodyHtml:       `<p>Thanks Lexi,</p>
 <p>I appreciate you doing all of that, we will make sure everything is updated accordingly with the updated pricing we are working on.</p>
 <p>Thanks,<br>Mason Bartlett<br>Project Manager, ILC Studios</p>`,
@@ -281,7 +281,7 @@ async function main() {
     isRead:         false,
   }});
 
-  console.log('\n✅ Candelas email seed complete — 3 threads seeded:');
+  console.log('\n✅ Candelas email seed complete, 3 threads seeded:');
   console.log('   Thread 1: Candelas Updated Pricing       (4 msgs, Budget/CO)');
   console.log('   Thread 2: RE: Candelas - CSI / ILC Intro (2 msgs, RFI/Schedule, 1 unread)');
   console.log('   Thread 3: Candelas - CSI / ILC Intro     (3 msgs, RFI/Design, 1 unread)');

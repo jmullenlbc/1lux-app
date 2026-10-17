@@ -24,7 +24,7 @@ const TTL_MS = 5 * 60 * 1000;
 let cached = null;
 let cachedAt = 0;
 
-/** Forget the cached number — call after the rule is edited. */
+/** Forget the cached number, call after the rule is edited. */
 export function invalidateMassEmailThreshold() {
   cached = null;
   cachedAt = 0;
@@ -32,7 +32,7 @@ export function invalidateMassEmailThreshold() {
 
 /**
  * The current mass-email threshold. Falls back to 25 whenever there is no
- * active rule, the rule's config is unreadable, or the database is unhappy —
+ * active rule, the rule's config is unreadable, or the database is unhappy
  * this must never be the reason an email sync fails.
  */
 export async function getMassEmailThreshold(prisma) {

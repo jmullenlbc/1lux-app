@@ -94,7 +94,7 @@ export async function POST(request) {
   const spentCents = parseAmountCents(amountSpent);
   if (spentCents === undefined) return NextResponse.json({ error: 'Amount spent has to be a dollar figure, like 42.50.' }, { status: 400 });
 
-  // An empty draft is fine — the "New" button starts one and the editor fills it in.
+  // An empty draft is fine, the "New" button starts one and the editor fills it in.
   const isInPerson = isInPersonType(activityType);
   const noteNumber = await nextNoteNumber();
 

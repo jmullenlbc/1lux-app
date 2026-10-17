@@ -1,9 +1,9 @@
-// Who can change what — the one table (Mike, 2026-09-14, "Option B").
+// Who can change what, the one table (Mike, 2026-09-14, "Option B").
 //
 // Everyone on staff sees and edits almost everything; only the rows below are
 // locked. Admins (Super Admin, Company Admin) can do all of them, and anyone in
 // the Operations department counts as a Company Admin (Mike: "Like an admin.
-// The CEO or COO would be in operations." — and yes, that includes adding and
+// The CEO or COO would be in operations.", and yes, that includes adding and
 // turning off users). Contractors (Client Viewers) can do none of them,
 // whatever departments they carry.
 //

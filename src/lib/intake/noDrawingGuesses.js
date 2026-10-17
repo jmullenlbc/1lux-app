@@ -6,7 +6,7 @@
  * Required (see noDrawingsReady in questionnaire.js): project type, total
  * units, total building SF or an average unit size, stories and surface
  * stalls (the last two since 2026-09-12). Everything below fills a blank on
- * the no-drawings form, and ONLY there — a drawing-read budget never uses
+ * the no-drawings form, and ONLY there, a drawing-read budget never uses
  * these; a blank there is asked for, not guessed. The stories and parking
  * guesses stay as a backstop for submissions saved before they were required.
  *
@@ -50,9 +50,9 @@ export const NO_DRAWING_GUESSES = {
     singleFamily: 0, townHouses: 0, stackedFlats: 0, garden: 0, gurban: 0,
     wrap: 0.12, podium: 0.12, midRise: 0.12, highRise: 0.12,
   },
-  // Clubhouse / leasing / fitness per unit. Real: gardens 16–20, wrap 18–26,
-  // podium 22–35, high-rise 39. Townhouse and single-family communities may
-  // or may not have one — the clubhouse question decides (see below).
+  // Clubhouse / leasing / fitness per unit. Real: gardens 16 to 20, wrap 18 to 26,
+  // podium 22 to 35, high-rise 39. Townhouse and single-family communities may
+  // or may not have one, the clubhouse question decides (see below).
   interiorAmenitySfPerUnit: {
     singleFamily: 0, townHouses: 0, stackedFlats: 19, garden: 19, gurban: 19,
     wrap: 22, podium: 25, midRise: 30, highRise: 38,
@@ -69,9 +69,9 @@ export const NO_DRAWING_GUESSES = {
     singleFamily: 0, townHouses: 0, stackedFlats: 1, garden: 1, gurban: 1,
     wrap: 1, podium: 1, midRise: 1, highRise: 1,
   },
-  // Bathroom vanities per unit — without it the vanity answer prices at $0.
-  // Real counts: 1.37–1.44 per apartment (Eastchase 468/324, Greenville
-  // 559/408, Lake Pointe 493/352, Rice 468/331). Townhomes run 2–3 baths.
+  // Bathroom vanities per unit, without it the vanity answer prices at $0.
+  // Real counts: 1.37 to 1.44 per apartment (Eastchase 468/324, Greenville
+  // 559/408, Lake Pointe 493/352, Rice 468/331). Townhomes run 2 to 3 baths.
   // Used only when there is no bathroom count and no bedroom mix, and only
   // until a person adopts what our real jobs say on the Pre-Con dashboard
   // (ConfirmedGuess). Mike 2026-09-24: 1.4 per apartment.
@@ -86,8 +86,8 @@ export const NO_DRAWING_GUESSES = {
     singleFamily: 0, townHouses: 0, stackedFlats: 0, garden: 0, gurban: 0,
     wrap: 520, podium: 570, midRise: 600, highRise: 640,
   },
-  // Pool deck / courtyards / dog park SF per unit. Real: gardens 9–50
-  // (median ~26), wrap 63–71, podium 15–19, high-rise 76. Townhouse
+  // Pool deck / courtyards / dog park SF per unit. Real: gardens 9 to 50
+  // (median ~26), wrap 63 to 71, podium 15 to 19, high-rise 76. Townhouse
   // communities rarely light an outdoor amenity (Echo Trail: none).
   exteriorAmenitySfPerUnit: {
     singleFamily: 0, townHouses: 0, stackedFlats: 25, garden: 25, gurban: 25,
@@ -118,7 +118,7 @@ export const NO_DRAWING_GUESSES = {
     townHouses: 1,
   },
   // Back of house as a share of building gross (mechanical, storage, trash,
-  // bike rooms). Real: gardens 0.7–0.9% (Fulshear 2.8%), wrap 1.7–2.6%,
+  // bike rooms). Real: gardens 0.7 to 0.9% (Fulshear 2.8%), wrap 1.7 to 2.6%,
   // podium 2.4%, high-rise 3.5%; townhouses none. Never above the master
   // sheet's 5% cap, and never more than what the building has left over.
   bohPctOfGross: {

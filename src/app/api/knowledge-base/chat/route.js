@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-// Same missing import as peer-review/parse-pdf — `getAnthropicKey` was used
+// Same missing import as peer-review/parse-pdf, `getAnthropicKey` was used
 // below without ever being imported, so this route threw a ReferenceError.
 import { getAnthropicKey } from '@/lib/anthropicKey';
 import { recordRun } from '@/lib/agent/ledger';
 import { modelFor } from '@/lib/aiModels';
+import { NO_DASHES_RULE } from '@/lib/bot/emailStyle';
 
 const CATEGORY_LABELS = {
   UNIT:         'Unit (Residential Fixtures)',
@@ -71,17 +72,17 @@ export async function POST(request) {
   const systemPrompt = `You are an expert AI assistant for ILC Studios, a boutique lighting design firm. You answer questions about ILC Studios' in-house design standards and best practices. Your knowledge comes exclusively from the ILC Studios Design Standards library shown below.
 
 BEHAVIOR RULES:
-- Answer questions directly and specifically — cite the exact standard title when referencing a rule
+- Answer questions directly and specifically, cite the exact standard title when referencing a rule
 - If a standard says "REQUIRED", emphasise that it is mandatory at ILC Studios
-- If something is not in the knowledge base, say so plainly — do not invent standards
+- If something is not in the knowledge base, say so plainly. Do not invent standards
 - Use **bold** for key measurements, percentages, and mandatory rules
 - Use bullet points for lists of 3 or more items
-- Keep answers focused and actionable — designers are using this on the job
+- Keep answers focused and actionable. Designers are using this on the job
 - When multiple standards apply to a question, list each one clearly
 
 Standard severity levels:
-- REQUIRED = Mandatory ILC Studios practice — must be followed on every project
-- RECOMMENDED = Strong preference — follow unless there is a project-specific reason not to
+- REQUIRED = Mandatory ILC Studios practice, must be followed on every project
+- RECOMMENDED = Strong preference, follow unless there is a project-specific reason not to
 - NOTE = Background information, context, or useful guidance
 
 ──────────────────────────────────────────────────────────────────────────────
@@ -98,7 +99,7 @@ ${kbText}
   ];
 
   // Recorded: see src/lib/agent/ledger.js. This site speaks raw SSE rather than
-  // going through the SDK, so neither wrapClient nor recordRawCall fits — the
+  // going through the SDK, so neither wrapClient nor recordRawCall fits, the
   // usage totals only exist inside the event stream. They are picked out of it
   // below: `message_start` carries input_tokens, `message_delta` carries the
   // running output_tokens and the stop reason.
@@ -121,7 +122,7 @@ ${kbText}
             model:      MODEL,
             max_tokens: 1024,
             stream:     true,
-            system:     systemPrompt,
+            system:     systemPrompt + NO_DASHES_RULE,
             messages:   apiMessages,
           }),
         });

@@ -50,7 +50,7 @@ export default function DesignUnitsSection({ responses, projectData, allSections
   const [saving, setSaving] = useState(false);
   useLiveAnswers(onLiveAnswers, "units", ans); // Mike 10-15: sidebar moves before Next
   // What each answer costs (+ estimated labor), recomputed live as answers
-  // change — local answers only save on Next (Mike 2026-09-13).
+  // change, local answers only save on Next (Mike 2026-09-13).
   const qc = useMemo(
     () => calculateBudget(projectData, { ...(allSections || {}), units: { ...(allSections?.units || {}), ...ans } }, pricing || null).questionCosts || {},
     [projectData, allSections, ans, pricing],

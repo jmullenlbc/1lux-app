@@ -56,7 +56,7 @@ export async function DELETE() {
   return NextResponse.json({ error: deleteRefused('Products') }, { status: 405 });
 }
 
-// POST /api/products/[id]  { archived: true | false } — archive or restore.
+// POST /api/products/[id]  { archived: true | false }, archive or restore.
 // Same people who can edit products: Pre-con, Design, Construction and admins.
 export async function POST(request, { params }) {
   const { user, error } = await requirePermission(request, 'editProducts');

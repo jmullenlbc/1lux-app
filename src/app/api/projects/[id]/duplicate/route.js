@@ -43,7 +43,7 @@ export async function POST(request, { params }) {
     include: { projectData: true },
   });
 
-  // A copy is a new deal with its own history — it starts today, not on the day
+  // A copy is a new deal with its own history, it starts today, not on the day
   // the original was created.
   await recordProjectCreated(prisma, copy, user.id);
 
@@ -59,7 +59,7 @@ export async function POST(request, { params }) {
     });
   }
 
-  // Copy the live site feature rows (dog parks, courts, …) — the copy's budget
+  // Copy the live site feature rows (dog parks, courts, …), the copy's budget
   // should match the original's on day one. Archived rows stay behind.
   if (original.siteFeatures?.length > 0) {
     await prisma.siteFeature.createMany({

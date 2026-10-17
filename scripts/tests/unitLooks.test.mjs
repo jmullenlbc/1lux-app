@@ -1,5 +1,5 @@
 /**
- * Unit Selections "pick a look" — pure, browser-safe helpers in looks.js.
+ * Unit Selections "pick a look", pure, browser-safe helpers in looks.js.
  */
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -17,7 +17,7 @@ const categories = [
   { key: 'f1', options: [o('f-mod', 'modern', [fin('white', true), fin('matte_black')])] },
 ];
 
-test('looks.js imports nothing — it ships to the browser', () => {
+test('looks.js imports nothing: it ships to the browser', () => {
   const src = readFileSync(new URL('../../src/lib/unitSelections/looks.js', import.meta.url), 'utf8');
   assert.doesNotMatch(src, /^\s*import\s/m);
 });

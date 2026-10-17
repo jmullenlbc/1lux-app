@@ -95,7 +95,7 @@ function parseChangeOrderAmount(text) {
   m = flat.match(/\btotal\s+(-?)\$\s*([\d,]+(?:\.\d{1,2})?)/i);
   if (m) return toSigned(m[1], m[2]);
 
-  // "TOTAL [WORDS] $X" — e.g. "TOTAL SALES TAX INCREASE $4,521.81"
+  // "TOTAL [WORDS] $X", e.g. "TOTAL SALES TAX INCREASE $4,521.81"
   m = flat.match(/\btotal\s+(?:[a-zA-Z]+\s+){1,6}\$\s*([\d,]+(?:\.\d{1,2})?)/i);
   if (m) return parseFloat(m[1].replace(/,/g, ''));
 

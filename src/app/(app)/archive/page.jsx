@@ -5,13 +5,13 @@ import { getSession, canSeeAllData, isClientViewer } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import ArchiveClient from './ArchiveClient';
 
-export const metadata = { title: 'Archive — ILC Studios' };
+export const metadata = { title: 'Archive: ILC Studios' };
 
 // Everything that was archived instead of deleted (Mike, 2026-09-11:
 // "archive only for everything"): companies, projects, people and notes
 // (0075), and project files, drawing sets, budget versions and products
 // (0076), each with a Restore button. Reached from the small "Archived …"
-// links at the bottom of the client list and the projects list — there on
+// links at the bottom of the client list and the projects list, there on
 // purpose, not in the main menu ("accessible but not easily").
 //
 // `archivedAt: { not: null }` is what lets these lists through the rule in

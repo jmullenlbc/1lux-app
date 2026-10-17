@@ -3,12 +3,12 @@ import { useState, useEffect, useCallback } from 'react';
 import { CARD, CARD_TITLE, HELPER, BTN_COMPACT_PRIMARY, TH } from '@/components/ui/tokens';
 import { WidgetLoading } from '@/components/ui/WidgetFrame';
 
-// Client-level Standard Fixture Schedule — the typed list assembled after spec
+// Client-level Standard Fixture Schedule, the typed list assembled after spec
 // approvals. Mirrors the project fixture schedule columns (minus SKU-locking: the
 // exact manufacturer/catalog is picked per project). Cells autosave on blur.
 
 // Column order mirrors the LAC "National Lighting Schedule" sheet. (Image + Target $
-// live on Product Options, not here — this is the spec schedule.)
+// live on Product Options, not here, this is the spec schedule.)
 const COLS = [
   { key: 'typeCode',      label: 'Type',        w: 'w-16' },
   { key: 'location',      label: 'Location',    w: 'w-32' },

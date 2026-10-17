@@ -1,5 +1,5 @@
 /**
- * Landscape lighting — NET lot, wired 2026-09-04 (Mike: "net lot").
+ * Landscape lighting, NET lot, wired 2026-09-04 (Mike: "net lot").
  *
  *   landscape = min((lotSf − buildingFootprintSf) × pctOfNetLotSf, maxTotal)
  *

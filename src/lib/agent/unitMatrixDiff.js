@@ -5,7 +5,7 @@
  * Step 17's queue is only as good as the verdicts in it, and a verdict costs a
  * click. The unit-matrix flow already has the click: somebody looks at the
  * extraction in the review modal, edits what is wrong, and presses "Apply to
- * Project". That press is a verdict — it just was not being recorded as one.
+ * Project". That press is a verdict, it just was not being recorded as one.
  *
  * So instead of asking Mike's team to review the same extraction twice, the
  * commit route diffs what they applied against what the model proposed and
@@ -15,7 +15,7 @@
  *
  * ── Why the diff runs on the server, against the stored proposal ─────────────
  * The obvious implementation is for the browser to send "I changed 3 rows". The
- * browser is also the one thing in this loop with an interest in the answer —
+ * browser is also the one thing in this loop with an interest in the answer
  * an accuracy record that the reviewed party reports on itself is not a record.
  * The commit route reloads the model's ORIGINAL output from the review store and
  * diffs against that, so the summary describes what actually changed no matter
@@ -23,7 +23,7 @@
  *
  * Pure: no IO, no store, no clock.
  *
- * @see src/lib/agent/reviewStore.js — where the original proposal is read back
+ * @see src/lib/agent/reviewStore.js, where the original proposal is read back
  * @see scripts/tests/unitMatrixDiff.test.mjs
  */
 
@@ -84,7 +84,7 @@ export function describeUnitMatrixCorrection(proposed, committed) {
   }
 
   // Rows the reviewer typed in by hand carry no code, so they never land in the
-  // keyed maps above. Count them explicitly rather than letting them vanish —
+  // keyed maps above. Count them explicitly rather than letting them vanish
   // an added type is exactly the correction worth learning from.
   const uncodedAdds = (Array.isArray(committed) ? committed : []).filter(r => !key(r)).length;
 
@@ -100,10 +100,10 @@ export function describeUnitMatrixCorrection(proposed, committed) {
   }
 
   const parts = [];
-  if (edits.length) parts.push(`Edited — ${edits.slice(0, 8).join('; ')}${edits.length > 8 ? `; +${edits.length - 8} more` : ''}`);
-  if (added.length) parts.push(`Added — ${added.slice(0, 6).join(', ')}${added.length > 6 ? `, +${added.length - 6} more` : ''}`);
-  if (uncodedAdds)  parts.push(`Added — ${uncodedAdds} row(s) with no type code`);
-  if (removed.length) parts.push(`Removed — ${removed.slice(0, 6).join(', ')}${removed.length > 6 ? `, +${removed.length - 6} more` : ''}`);
+  if (edits.length) parts.push(`Edited: ${edits.slice(0, 8).join('; ')}${edits.length > 8 ? `; +${edits.length - 8} more` : ''}`);
+  if (added.length) parts.push(`Added: ${added.slice(0, 6).join(', ')}${added.length > 6 ? `, +${added.length - 6} more` : ''}`);
+  if (uncodedAdds)  parts.push(`Added: ${uncodedAdds} row(s) with no type code`);
+  if (removed.length) parts.push(`Removed: ${removed.slice(0, 6).join(', ')}${removed.length > 6 ? `, +${removed.length - 6} more` : ''}`);
 
   return { changed: true, summary: parts.join('. ') + '.', counts };
 }

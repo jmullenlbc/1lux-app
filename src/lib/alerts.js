@@ -1,10 +1,10 @@
 /**
- * alerts.js — the one way anything in the app tells a human something.
+ * alerts.js, the one way anything in the app tells a human something.
  *
  * The bell in the sidebar reads `UserAlert`. Before this file, five places
  * wrote to that table directly with hand-rolled `prisma.userAlert.create`
  * calls, and `sendNotification` in notify.js wrote an INTERNAL audit row and
- * told nobody — the row existed, the human never heard. Everything that wants
+ * told nobody, the row existed, the human never heard. Everything that wants
  * to reach a person now comes through here.
  *
  * ── The dedupe trap ──
@@ -13,7 +13,7 @@
  * first write wins and the second is silently dropped. Every key is therefore
  * namespaced with the recipient's id before it is stored, and callers should
  * pass the key that describes the EVENT, not the delivery. Get this wrong and
- * the failure is invisible — one person gets told, everyone else doesn't, and
+ * the failure is invisible, one person gets told, everyone else doesn't, and
  * nothing errors.
  *
  * ── Failure policy ──
@@ -27,8 +27,8 @@
  * the module can be LOADED without a database: `@/lib/db` is a bundler alias,
  * so a plain `node --test` cannot resolve it and the file would be untestable
  * no matter what its functions accept. Resolving it on first use instead of at
- * load keeps the real callers unchanged — they still pass nothing and still get
- * the real client — while leaving the module importable outside Next.
+ * load keeps the real callers unchanged, they still pass nothing and still get
+ * the real client, while leaving the module importable outside Next.
  */
 
 let realDb = null;
@@ -52,7 +52,7 @@ export function scopedKey(userId, dedupeKey) {
  *
  * @param {object}  a
  * @param {string}  a.userId     recipient
- * @param {string}  a.type       taxonomy key — a NOTIFICATION_TYPES key where one fits
+ * @param {string}  a.type       taxonomy key, a NOTIFICATION_TYPES key where one fits
  * @param {string}  a.title      one line, shown bold in the bell
  * @param {string} [a.message]   the detail line
  * @param {string} [a.link]      where clicking it should go
@@ -109,7 +109,7 @@ export async function notifyUsers(userIds, alert, { db } = {}) {
 
 /**
  * Tell whoever owns a project. That is the sales owner and the pre-con manager
- * — the two people the schema says are accountable for it. If a project has
+ * the two people the schema says are accountable for it. If a project has
  * neither, nobody is told and the caller is told nobody was told, rather than
  * the alert evaporating.
  */

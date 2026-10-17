@@ -6,9 +6,9 @@
  *
  * Without force-dynamic, Next.js 14 may attempt static rendering, which
  * causes cookies() to throw "called outside a request scope" in production
- * (Amplify Lambda) — crashing the page with Application Error.
+ * (Amplify Lambda), crashing the page with Application Error.
  *
- * Client components ('use client') are exempt — they're always dynamic.
+ * Client components ('use client') are exempt, they're always dynamic.
  * Exit 1 fails the Amplify build so broken code is never deployed.
  */
 
@@ -41,7 +41,7 @@ for (const p of pages) {
 }
 
 if (broken.length > 0) {
-  console.error('\n❌ BUILD BLOCKED — pages missing force-dynamic:\n');
+  console.error('\n❌ BUILD BLOCKED: pages missing force-dynamic:\n');
   broken.forEach(f => console.error(`   ${f}`));
   console.error('\nFix: add this line to the top of each file above:');
   console.error("   export const dynamic = 'force-dynamic';\n");

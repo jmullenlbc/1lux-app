@@ -6,7 +6,7 @@
  * The charts and the History tab must never tell different stories, so both are
  * fed from the rows recordStatusChanges() writes. These tests pin two things:
  * the sentence a person reads uses the BOARD names and the STATUS labels from
- * src/lib/pipeline.js (never a second typed-out copy — that is this codebase's
+ * src/lib/pipeline.js (never a second typed-out copy, that is this codebase's
  * recurring bug), and recordStatusChanges hands its rows back so the History tab
  * can be written from the same source.
  */
@@ -24,7 +24,7 @@ test('a status move names the board, both ends and the reason', () => {
   const line = describeStatusChange({
     pipeline: 'PROCUREMENT', fromStatus: 'OPEN', toStatus: 'LOST', reason: 'Price',
   });
-  assert.equal(line, 'Procurement project moved from Open to **Lost** — Price');
+  assert.equal(line, 'Procurement project moved from Open to **Lost**: Price');
 });
 
 test('no reason given means no dangling dash', () => {

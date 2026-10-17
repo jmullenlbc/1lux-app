@@ -8,7 +8,7 @@ import { DEFAULT_MARKET, isKnownMarket } from '@/lib/market-intel/sourceCatalog'
  *
  * ── A bug that was hiding here ──
  * POST used to call `getSession()`, which is not imported and does not exist in
- * this file, and then read `user` — also undefined. Every attempt to add a
+ * this file, and then read `user`, also undefined. Every attempt to add a
  * source threw a ReferenceError and returned a 500. The old "Seed 20 Sources"
  * button only appeared when the list was empty, so once the first twenty-one
  * were in, nobody ever pressed it again and nobody found out. The same mistake

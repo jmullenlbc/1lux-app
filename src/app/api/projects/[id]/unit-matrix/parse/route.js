@@ -59,7 +59,7 @@ async function readUnitMatrix({ fileId }, { projectId, user }) {
 
   const ext = file.originalName.split('.').pop()?.toLowerCase();
 
-  // Image path — not supported in Phase 1
+  // Image path, not supported in Phase 1
   if (['png', 'jpg', 'jpeg', 'gif', 'webp'].includes(ext)) {
     throw jobError(422, { error: 'vision_not_supported' });
   }
@@ -70,7 +70,7 @@ async function readUnitMatrix({ fileId }, { projectId, user }) {
 
   if (ext === 'xlsx' || ext === 'xls') {
     const buffer = await getProjectFileBuffer(file.storedPath);
-    if (!buffer) throw jobError(404, { error: 'File not found — it may have been deleted.' });
+    if (!buffer) throw jobError(404, { error: 'File not found. It may have been deleted.' });
     contentText = await xlsxToText(buffer);
   } else if (ext === 'pdf') {
     // Use pre-extracted text from upload (textContent stored on file record)
@@ -83,7 +83,7 @@ async function readUnitMatrix({ fileId }, { projectId, user }) {
     //
     // `textContent` is one flattened blob, and flattening is exactly what breaks
     // the net-vs-gross call: a full set contains the life-safety "ACTUAL AREA",
-    // the room schedule's "AVG AREA" and sometimes a "GROSS SF" — all true, all
+    // the room schedule's "AVG AREA" and sometimes a "GROSS SF", all true, all
     // about different numbers. Read as one string they cancel out and every
     // upload comes back "not sure". Per page, each label sits with the table it
     // belongs to and the answer is clean.
@@ -107,8 +107,8 @@ async function readUnitMatrix({ fileId }, { projectId, user }) {
       // the real table can lose.
       //
       // The sheet index already knows which page the matrix is on. Narrowing
-      // the text to those pages costs one cheap model call on the index — sheet
-      // numbers and titles only — and hands the extractor the table rather than
+      // the text to those pages costs one cheap model call on the index, sheet
+      // numbers and titles only, and hands the extractor the table rather than
       // a keyword sample of the building.
       //
       // Best-effort throughout: any failure here leaves contentText exactly as
@@ -144,26 +144,26 @@ async function readUnitMatrix({ fileId }, { projectId, user }) {
   // Truncation, model choice, the prompt, code-fence stripping and shape
   // validation all live in the shared core now.
   // Recorded: see src/lib/agent/ledger.js. Deliberately a different task name
-  // from the public intake route's call into the same helper — they share a
+  // from the public intake route's call into the same helper, they share a
   // prompt but not a caller, and the rollup should be able to tell them apart.
   const client = wrapClient(new Anthropic({ apiKey }), 'unitMatrix.parse', { projectId, userId: user.id });
   const result = await parseUnitMatrix(contentText, file.originalName, client, { pages, projectId });
   if (!result.ok) {
-    // Preserve the original error strings — UnitMatrixUpload.jsx branches on them.
+    // Preserve the original error strings, UnitMatrixUpload.jsx branches on them.
     const error = result.code === 'extraction_failed' ? 'Extraction failed' : 'Could not parse extraction output';
     throw jobError(502, { error });
   }
 
   // ── The governance boundary ────────────────────────────────────────────────
   //
-  // The unit matrix is the first extraction wired through Steps 16–18, and it is
+  // The unit matrix is the first extraction wired through Steps 16 to 18, and it is
   // the budget one on purpose: unit count and unit SF are upstream of every
   // dollar in a conceptual budget, so a quiet miss here is the most expensive
   // quiet miss the app can make.
   //
   // Note what is NOT being decided here. This feature is human-in-the-loop by
-  // construction — nothing is written until somebody clicks "Apply to Project"
-  // in the review modal — so we do not consult `shouldWrite`. What we want from
+  // construction, nothing is written until somebody clicks "Apply to Project"
+  // in the review modal, so we do not consult `shouldWrite`. What we want from
   // this call is the two things the modal cannot work out for itself: the
   // deterministic checks, shown to the reviewer at the moment they are deciding,
   // and a queue row whose verdict the commit route will sign. The click that was
@@ -200,7 +200,7 @@ async function readUnitMatrix({ fileId }, { projectId, user }) {
     console.error('[unit-matrix/parse] review submission failed:', e?.message || e);
   }
 
-  // `sheetsRead` is null unless the sheet index narrowed a full set — the
+  // `sheetsRead` is null unless the sheet index narrowed a full set, the
   // review panel uses it to say which sheets the numbers came off.
   return { ...result.proposal, fileId, sheetsRead, review };
 }

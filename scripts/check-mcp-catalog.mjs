@@ -7,7 +7,7 @@
  *   1. Somebody adds an import to src/lib/mcp/catalog.js. The moment it imports
  *      anything with an `@/` alias, or anything that reaches a database,
  *      scripts/generate-agents-md.mjs stops being able to load it under plain
- *      Node — and the failure shows up in CI, not in the editor.
+ *      Node, and the failure shows up in CI, not in the editor.
  *   2. A tool gets a name, description or argument schema written directly in
  *      tools.js instead of the catalogue, so agents.md silently stops describing
  *      the real server.
@@ -33,7 +33,7 @@ const catalogSrc = readFileSync(path.join(ROOT, 'src/lib/mcp/catalog.js'), 'utf8
 const imports = [...catalogSrc.matchAll(/^\s*import\s.*?from\s+['"]([^'"]+)['"]/gm)].map(m => m[1]);
 for (const spec of imports) {
   problems.push(
-    `src/lib/mcp/catalog.js imports "${spec}". It must import nothing at all — ` +
+    `src/lib/mcp/catalog.js imports "${spec}". It must import nothing at all, ` +
     'scripts/generate-agents-md.mjs loads it under plain Node with no bundler.',
   );
 }

@@ -1,12 +1,12 @@
 /**
- * Tests for src/lib/sheetIndex.js — finding the four sheets that matter inside
+ * Tests for src/lib/sheetIndex.js, finding the four sheets that matter inside
  * a full drawing set.
  * Run: node --test scripts/tests/sheetIndex.test.mjs
  *
  * What these protect, in order of how much they would hurt:
  *
  *   1. The picker must NEVER fail. It stands between a GC's upload and an error
- *      message. A model outage, an empty set, junk input — all of them have to
+ *      message. A model outage, an empty set, junk input, all of them have to
  *      come back with an answer, because the alternative is telling someone his
  *      drawings failed when they did not.
  *   2. A page number the model invents must never reach the renderer. Rendering
@@ -66,7 +66,7 @@ test('buildSheetIndex survives an empty or junk page list', () => {
   assert.doesNotThrow(() => buildSheetIndex([{ page: 1 }, { page: 2, text: null }]));
 });
 
-// ─── scanSheetRoles — the never-fails floor ─────────────────────────────────
+// ─── scanSheetRoles, the never-fails floor ─────────────────────────────────
 
 test('the scan finds the real sheets, not the ones that mention them', () => {
   const scan = scanSheetRoles(buildSheetIndex(SET));
@@ -92,7 +92,7 @@ test('scanSheetRoles returns every role even when it finds nothing', () => {
 });
 
 test('a combined project-information sheet (Skyline G101 shape) ranks as the area summary', () => {
-  // Skyline Ridge's ONLY square footage in 294 pages was on "G101 — PROJECT
+  // Skyline Ridge's ONLY square footage in 294 pages was on "G101, PROJECT
   // INFORMATION": a BUILDING DATA / PROPOSED TOTAL AREA block. Its title says
   // neither "area" nor "code summary", so before these signals existed the
   // sheet was never rendered and the whole set read as having no gross SF.
@@ -103,12 +103,12 @@ test('a combined project-information sheet (Skyline G101 shape) ranks as the are
   const scan = scanSheetRoles(buildSheetIndex(set));
   // Before the BUILDING DATA / PROPOSED TOTAL AREA / PROJECT INFORMATION
   // signals existed this page scored ZERO for the role and vanished. It must
-  // now be a candidate — outranking a genuine code-summary sheet is not
+  // now be a candidate, outranking a genuine code-summary sheet is not
   // required, being in the running is.
   assert.ok(scan.areaSummary.some(c => c.page === 4), 'the BUILDING DATA sheet must be an areaSummary candidate');
 });
 
-// ─── pickKeySheets — the part that must never fail ─────────────────────────
+// ─── pickKeySheets, the part that must never fail ─────────────────────────
 
 test('with no model at all, the scan still produces an answer', async () => {
   const r = await pickKeySheets(buildSheetIndex(SET), null);
@@ -151,7 +151,7 @@ test('a page the model invented is discarded, and the scan fills the hole', asyn
 });
 
 test('the model wins the roles it answered; the scan fills the rest', async () => {
-  // Page 30 is the landscape plan — the scan ranks it below the real site plan,
+  // Page 30 is the landscape plan, the scan ranks it below the real site plan,
   // but a model reading titles may know this set puts site data there.
   const m = { messages: { create: async () => ({ content: [
     { type: 'text', text: JSON.stringify({ sitePlan: [30], confidence: 0.8, notes: 'site data is on the landscape sheet' }) },
@@ -182,7 +182,7 @@ test('an empty set does not reach the model at all', async () => {
 
 test('the render list is de-duplicated and site-plan first', () => {
   // Site plan first because it is the sheet the vision read exists for; a
-  // duplicate page would otherwise be rendered — and paid for — twice.
+  // duplicate page would otherwise be rendered, and paid for, twice.
   const pages = pagesToRender({ sitePlan: [12], areaSummary: [2, 12], unitMatrix: [3], cover: [1] });
   assert.equal(pages[0], 12);
   assert.equal(new Set(pages).size, pages.length, 'no page appears twice');
@@ -191,13 +191,13 @@ test('the render list is de-duplicated and site-plan first', () => {
 test('every role gets a look before any role gets a second sheet', () => {
   // The bug this exists for: with two site-plan candidates and a cap of two, a
   // role-at-a-time walk renders BOTH site plans and never opens the area
-  // summary — so the read comes back with no square footage at all.
+  // summary, so the read comes back with no square footage at all.
   const picks = { sitePlan: [12, 30], areaSummary: [2], unitMatrix: [3], cover: [1] };
   assert.deepEqual(pagesToRender(picks, { max: 2 }), [12, 2]);
   assert.deepEqual(pagesToRender(picks, { max: 3 }), [12, 2, 3]);
 });
 
-test('the render list honours its cap — every page is paid for by the pixel', () => {
+test('the render list honours its cap: every page is paid for by the pixel', () => {
   const picks = { sitePlan: [12, 13], areaSummary: [2, 4], unitMatrix: [3], cover: [1] };
   assert.equal(pagesToRender(picks, { max: 2 }).length, 2);
   assert.equal(pagesToRender(picks, { max: 3 }).length, 3);
@@ -212,7 +212,7 @@ test('pagesToRender returns an empty list rather than throwing on nothing', () =
 // ── That the readers actually use it ────────────────────────────────────────
 //
 // The index was built, tested, and then wired into exactly one route. The two
-// in-app readers went on rendering from the front of the file for weeks — the
+// in-app readers went on rendering from the front of the file for weeks, the
 // site reader opening a title page, the unit-matrix reader sampling 30,000
 // characters out of two million. Nothing failed; the answers were just wrong,
 // which is the expensive kind of quiet. These pin the wiring itself.
@@ -244,7 +244,7 @@ test('the threshold for paying to index a set lives in one place', async () => {
     assert.doesNotMatch(
       src,
       /const SET_PAGE_THRESHOLD\s*=/,
-      `${file} keeps its own copy of the threshold — three routes drifting apart`
+      `${file} keeps its own copy of the threshold: three routes drifting apart`
     );
   }
 });

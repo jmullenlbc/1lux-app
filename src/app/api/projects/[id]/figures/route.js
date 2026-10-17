@@ -17,7 +17,7 @@ async function gate(request, projectId) {
   return { user, project };
 }
 
-// GET — what the on-screen alerts need for this project: this building type's
+// GET, what the on-screen alerts need for this project: this building type's
 // ranges, adopted stand-ins, and which figures somebody already marked right.
 export async function GET(request, { params }) {
   const { error, project } = await gate(request, params.id);
@@ -35,7 +35,7 @@ export async function GET(request, { params }) {
   });
 }
 
-// POST { field } — "It's right": the person checked an alerted figure. It
+// POST { field }, "It's right": the person checked an alerted figure. It
 // stops alerting, and it counts as a real number for learning even if the
 // visitor typed it.
 export async function POST(request, { params }) {

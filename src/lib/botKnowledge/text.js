@@ -5,7 +5,7 @@
 // directly.
 
 // What kind of file did somebody just drop on the page. Extension first,
-// because browsers lie about MIME types often enough to matter — Windows sends
+// because browsers lie about MIME types often enough to matter, Windows sends
 // .docx as application/octet-stream more often than not.
 const BY_EXTENSION = {
   pdf:  'pdf',
@@ -87,7 +87,7 @@ export function isUsefulText(text) {
 
 /**
  * Split a search phrase into the words worth matching on.
- * Very short words and the obvious filler are dropped — matching "the" against
+ * Very short words and the obvious filler are dropped, matching "the" against
  * every document in the library ranks nothing.
  */
 const STOPWORDS = new Set([
@@ -139,7 +139,7 @@ export function scoreText({ title = '', keywords = '', body = '' }, terms) {
 //
 // So the library is no longer sampled. Every active piece of knowledge goes into
 // the prompt whole, in one block, and the only ceiling is the model's context
-// window — which is a real ceiling, not a policy one: past it the API rejects the
+// window, which is a real ceiling, not a policy one: past it the API rejects the
 // call and the bot writes nothing at all. The follow-up drafter runs on a model
 // with a 200,000-token window; at roughly four characters to the token that is
 // about 800,000 characters for everything, prompt included. 350,000 leaves the
@@ -151,7 +151,7 @@ export function scoreText({ title = '', keywords = '', body = '' }, terms) {
 // the tail off a prompt is how you get a bot confidently quoting half a policy.
 export const KNOWLEDGE_CHAR_BUDGET = 350_000;
 
-// Below this much room left, a partial document is worse than none — a few
+// Below this much room left, a partial document is worse than none, a few
 // hundred characters of a contract is a fragment nobody should draft from.
 export const MIN_PARTIAL_CHARS = 2_000;
 
@@ -202,7 +202,7 @@ export function packKnowledge(items = [], budget = KNOWLEDGE_CHAR_BUDGET) {
  * Pull the part of a long document that is actually about the query, so the bot
  * is handed the relevant paragraph instead of the first page of a 40-page PDF.
  *
- * No longer used by the bot — it gets whole documents now — but kept for any
+ * No longer used by the bot, it gets whole documents now, but kept for any
  * caller that needs a preview rather than the real thing.
  */
 export function excerptAround(body, terms, radius = 400) {

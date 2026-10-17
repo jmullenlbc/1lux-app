@@ -3,7 +3,7 @@
 /**
  * The decorative option pool.
  *
- * Five fixtures a client actually picks — the kitchen pendant, the bath vanity,
+ * Five fixtures a client actually picks, the kitchen pendant, the bath vanity,
  * the balcony sconce, the unit entry sconce and the ceiling fan. What is in here
  * is what anybody ever gets offered, so the screen is deliberately plain: one
  * category at a time, a card per fixture, and the two numbers that decide
@@ -219,7 +219,7 @@ function OptionCard({ option, canEdit, retiredLook, onEdit, onRetire, onRestore 
           <h4 className="font-semibold text-slate-900 text-sm leading-snug">{option.name}</h4>
           {prices.length > 0 && (
             <span className="shrink-0 text-sm font-semibold text-slate-900">
-              {low === high ? money(low) : `${money(low)}–${money(high)}`}
+              {low === high ? money(low) : `${money(low)} to ${money(high)}`}
             </span>
           )}
         </div>

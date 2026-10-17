@@ -66,7 +66,7 @@ function EditableField({ display, onSave, inputType = 'text', placeholder, locke
             </span>
           ) : (
             <span className="text-sm text-slate-300 group-hover:text-slate-400 transition-colors italic">
-              Not found — click to enter
+              Not found, click to enter
             </span>
           )}
           <span className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-300 text-xs shrink-0">✎</span>
@@ -99,7 +99,7 @@ export default function ContractWidgets({
   // Design contract
   designValue,    onDesignValueChange,
   designDate,     onDesignDateChange,
-  // Filter flags — show only one contract type
+  // Filter flags, show only one contract type
   supplyOnly = false,
   designOnly  = false,
   // False for anyone outside Construction, Operations, Finance and admins.
@@ -138,7 +138,7 @@ export default function ContractWidgets({
 
   return (
     <div className="space-y-3 mb-6">
-      {/* Design contract row — hidden in supplyOnly mode */}
+      {/* Design contract row, hidden in supplyOnly mode */}
       {!supplyOnly && (
         <div className="flex gap-3">
           <Widget label="Design Contract Value" autoParsed={designValue != null}>
@@ -149,7 +149,7 @@ export default function ContractWidgets({
           </Widget>
         </div>
       )}
-      {/* Supply contract row — hidden in designOnly mode */}
+      {/* Supply contract row, hidden in designOnly mode */}
       {!designOnly && (
         <div className="flex gap-3">
           <Widget label="Supply Contract Value" autoParsed={value != null}>

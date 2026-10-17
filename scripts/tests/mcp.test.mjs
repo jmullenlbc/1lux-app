@@ -1,4 +1,4 @@
-// Live acceptance tests for the Librarian (/api/mcp) — Slice 3.
+// Live acceptance tests for the Librarian (/api/mcp), Slice 3.
 //
 // Requires a running dev server (`npm run dev:3000`); run via `npm run verify:mcp`.
 //
@@ -11,7 +11,7 @@
 // Every DN assertion is PAIRED with an ILC positive control on the same row. A
 // test that only asserts "the client did not see 6363.63" passes just as happily
 // when the query returned nothing at all, when the model name was wrong, or when
-// the endpoint 500'd — which is how a redaction test quietly stops testing
+// the endpoint 500'd, which is how a redaction test quietly stops testing
 // redaction. The ILC half proves the value was there to leak.
 //
 // Everything created here is disposable and removed in after().
@@ -21,11 +21,13 @@ import { login, get, post, serverUp, BASE } from './_auth.mjs';
 import { PrismaClient } from '@prisma/client';
 import { generateKey, keyTableReady } from '../../src/lib/mcp/apiKeys.js';
 import bcrypt from 'bcryptjs';
+import { ensureE2eAdmin } from './_e2eAdmin.mjs';
 
 const prisma = new PrismaClient();
 
-// Admin login comes from the private .env, never typed here (this file is in git).
-const ADMIN        = { email: process.env.E2E_ADMIN_EMAIL, password: process.env.E2E_ADMIN_PASSWORD };
+// Admin login: E2E_ADMIN_EMAIL / E2E_ADMIN_PASSWORD from the private .env if set,
+// otherwise a local test admin with a fresh random password (_e2eAdmin.mjs).
+let ADMIN          = null;
 const VIEWER_EMAIL = 'mcp-clientviewer@ilcstudios.test';
 const VIEWER_PW    = 'McpTest2026!';
 
@@ -41,24 +43,24 @@ const TAX      = 0.0815;
 
 // Two fixtures, because there are two different boundaries to prove.
 //
-//   fixture — a project the CLIENT_VIEWER OWNS. Every redaction test reads this
+//   fixture, a project the CLIENT_VIEWER OWNS. Every redaction test reads this
 //             one, so it fails on redaction rather than on an empty result. It is
 //             the harder version of the claim: even on your own project, you do
 //             not see the buy price.
-//   foreign — a project owned by ILC. Every row-scope test reads this one, and
+//   foreign, a project owned by ILC. Every row-scope test reads this one, and
 //             the client must not reach it at all.
 //
 // Before row scoping existed, one fixture served both roles and the redaction
 // tests happened to pass because the client could read every row in the database.
-let fixture   = null;   // { projectId, coId, groupId, lineItemId } — viewer-owned
-let foreign   = null;   // { projectId, coId, lineItemId, name }    — ILC-owned
+let fixture   = null;   // { projectId, coId, groupId, lineItemId }, viewer-owned
+let foreign   = null;   // { projectId, coId, lineItemId, name }   , ILC-owned
 let ilc       = null;
 let viewer    = null;
 let viewerId  = null;
 let adminRole = null;   // whatever the seed actually gave the admin
 
 // Per-person MCP keys (migration 0094). Null when the table is not there yet,
-// and every key test below skips rather than fails in that case — the migration
+// and every key test below skips rather than fails in that case, the migration
 // is allowed to land after the code that tolerates its absence.
 let viewerKey = null;   // a key issued to the CLIENT_VIEWER
 let adminKey  = null;   // a key issued to the seeded admin
@@ -70,7 +72,7 @@ const mcp = (body, auth) => post('/api/mcp', body, auth);
  * The JSON-RPC shape, unwrapped to the tool's own result object.
  *
  * A tool result comes back as `result.content[0].text` holding pretty-printed
- * JSON — so a leak check has to look at BOTH the parsed object and the raw text,
+ * JSON, so a leak check has to look at BOTH the parsed object and the raw text,
  * which is why this returns both.
  */
 async function rpc(method, params, auth, id = 1) {
@@ -82,11 +84,11 @@ async function rpc(method, params, auth, id = 1) {
 }
 
 before(async () => {
-  assert.ok(await serverUp(), `no dev server at ${BASE} — run \`npm run dev:3000\` first`);
-  assert.ok(process.env.E2E_ADMIN_EMAIL && process.env.E2E_ADMIN_PASSWORD, 'set E2E_ADMIN_EMAIL and E2E_ADMIN_PASSWORD in .env first');
+  assert.ok(await serverUp(), `no dev server at ${BASE}, run \`npm run dev:3000\` first`);
+  ADMIN = await ensureE2eAdmin(prisma);
 
   const admin = await prisma.user.findFirst({ where: { email: ADMIN.email } });
-  assert.ok(admin, `seeded admin ${ADMIN.email} not found — run \`npm run db:seed\``);
+  assert.ok(admin, `seeded admin ${ADMIN.email} not found, run \`npm run db:seed\``);
   // Read the role rather than assuming it. The schema carries both the current
   // names (SUPER_ADMIN) and the legacy ones (ILC_ADMIN); the audit assertion
   // below cares that the log recorded the RIGHT role, not which name it is.
@@ -196,7 +198,7 @@ after(async () => {
   // Deleted by project id rather than by name: an earlier run whose before()
   // threw mid-way leaves an orphan, and matching on the name would delete rows
   // this run never created.
-  // Children first — the CO is not guaranteed to cascade off the project, and an
+  // Children first, the CO is not guaranteed to cascade off the project, and an
   // orphaned CO-99998 would collide with the next run's fixture.
   for (const f of [fixture, foreign]) {
     if (!f) continue;
@@ -237,7 +239,7 @@ test('GET with an ILC credential lists exactly the expected tools', async () => 
   const names = json.tools.map(t => t.name).sort();
   // Pinned rather than counted. A tool appearing in this list is a deliberate
   // act, and a WRITE tool appearing in it is the single thing this slice exists
-  // to prevent — so the list is asserted whole and a new tool fails this test
+  // to prevent, so the list is asserted whole and a new tool fails this test
   // until someone writes its guard tests.
   assert.deepEqual(names, [
     'count_records', 'describe_model', 'get_calibration', 'get_client_360',
@@ -246,7 +248,7 @@ test('GET with an ILC credential lists exactly the expected tools', async () => 
   ]);
 });
 
-test('POST without a credential is refused — no degrading to a public view', async () => {
+test('POST without a credential is refused, no degrading to a public view', async () => {
   const { status } = await mcp({ tool: 'list_models', params: {} }, null);
   assert.equal(status, 401);
 });
@@ -269,7 +271,7 @@ test('POSITIVE CONTROL: ILC reads the line item and gets originalDN', async () =
   }, ilc.cookie);
 
   assert.equal(status, 200, JSON.stringify(json));
-  assert.equal(json.count, 1, 'fixture row not found — every paired assertion below would pass vacuously');
+  assert.equal(json.count, 1, 'fixture row not found, every paired assertion below would pass vacuously');
   assert.equal(json.records[0].originalDN, DN_VALUE, 'ILC lost the DN it is entitled to');
 });
 
@@ -280,7 +282,7 @@ test('a CLIENT_VIEWER reads the same row and originalDN is absent', async () => 
   }, viewer.cookie);
 
   assert.equal(status, 200, JSON.stringify(json));
-  assert.equal(json.count, 1, 'the client got no row — this test must fail on redaction, not on an empty result');
+  assert.equal(json.count, 1, 'the client got no row, this test must fail on redaction, not on an empty result');
   const row = json.records[0];
   assert.equal(row.cnUnitPrice, CN_VALUE, 'redaction removed the client-facing sell price');
   assert.ok(!('originalDN' in row), 'originalDN reached a CLIENT_VIEWER');
@@ -348,7 +350,7 @@ test('a client cannot COUNT on a field it cannot read', async () => {
   assert.equal(status, 403, 'count_records accepted a forbidden filter');
 });
 
-test('ILC may filter on originalDN — the guard is by audience, not a blanket ban', async () => {
+test('ILC may filter on originalDN, the guard is by audience, not a blanket ban', async () => {
   const { status, json } = await mcp({
     tool: 'query_records',
     params: { model: 'ChangeOrderLineItem', where: { originalDN: DN_VALUE } },
@@ -369,7 +371,7 @@ test('a nested include cannot smuggle DN up through two relations', async () => 
 
   const asIlc = await mcp({ tool: 'query_records', params }, ilc.cookie);
   assert.equal(asIlc.status, 200, JSON.stringify(asIlc.json));
-  assert.equal(asIlc.json.count, 1, 'the nested read returned nothing — the client half would pass vacuously');
+  assert.equal(asIlc.json.count, 1, 'the nested read returned nothing, the client half would pass vacuously');
   assert.equal(
     asIlc.json.records[0].optionGroups[0].lineItems[0].originalDN, DN_VALUE,
     'ILC lost DN through a nested include',
@@ -377,7 +379,7 @@ test('a nested include cannot smuggle DN up through two relations', async () => 
 
   const asClient = await mcp({ tool: 'query_records', params }, viewer.cookie);
   assert.equal(asClient.status, 200, JSON.stringify(asClient.json));
-  assert.equal(asClient.json.count, 1, 'the client got no CO — this must fail on redaction, not on an empty result');
+  assert.equal(asClient.json.count, 1, 'the client got no CO, this must fail on redaction, not on an empty result');
   const nested = asClient.json.records[0].optionGroups[0].lineItems[0];
   assert.equal(nested.cnUnitPrice, CN_VALUE, 'redaction removed the client-facing price two levels down');
   assert.ok(!('originalDN' in nested), 'originalDN leaked through a nested include');
@@ -407,7 +409,7 @@ test('a select inside an include cannot request a forbidden field', async () => 
 // ── ILC-only tools ───────────────────────────────────────────────────────────
 
 test('the ILC-only tools are refused to a client', async () => {
-  // get_calibration is the pricing engine talking about itself — our rates, our
+  // get_calibration is the pricing engine talking about itself, our rates, our
   // drift, our drivers. get_commitments is ILC's internal running list of who
   // owes what, across every job and every client at once. Both are the last
   // thing that may ever reach an outside caller.
@@ -484,7 +486,7 @@ test('get_calibration answers ILC staff, and never invents a finding', async () 
   for (const s2 of json.driverSuggestions || []) {
     assert.ok(s2.projects >= 5, `a finding was reported off ${s2.projects} jobs`);
   }
-  // The per-project breakdown stays out of the bot answer — it is a list of
+  // The per-project breakdown stays out of the bot answer, it is a list of
   // every job behind every line, and nobody asked for that.
   for (const row of json.drift) assert.equal('details' in row, false);
 });
@@ -493,12 +495,12 @@ test('get_calibration answers ILC staff, and never invents a finding', async () 
 //
 // Field redaction and row scoping are different controls and fail differently.
 // Every test above this line passed on a build where a CLIENT_VIEWER could list
-// all 25 projects and all 12 clients in the database — perfectly redacted, and
+// all 25 projects and all 12 clients in the database, perfectly redacted, and
 // completely enumerated. "You may not see the buy price" and "you may not see
 // that this project exists" are separate claims and need separate tests.
 //
 // The rule is not invented here. src/app/api/projects/route.js:
-//   "External Client Viewers stay scoped to their own — never widen this to
+//   "External Client Viewers stay scoped to their own, never widen this to
 //    CLIENT_VIEWER"  → { createdById: user.id }
 // src/lib/mcp/scope.js reaches that same predicate from every registered object.
 
@@ -522,20 +524,20 @@ test('a CLIENT_VIEWER listing projects gets only its own', async () => {
   }, viewer.cookie);
 
   assert.equal(status, 200, JSON.stringify(json));
-  // Not "fewer than ILC" — exactly its own. A weaker assertion would pass while
+  // Not "fewer than ILC", exactly its own. A weaker assertion would pass while
   // leaking every project that happened to fall outside the first page.
   assert.deepEqual(json.records.map(r => r.id), [fixture.projectId],
     'a CLIENT_VIEWER enumerated projects it does not own');
   assert.ok(!text.includes(foreign.name), "someone else's project name came back");
 });
 
-test('the same holds for count — a census needs no rows', async () => {
+test('the same holds for count: a census needs no rows', async () => {
   const asIlc    = await mcp({ tool: 'count_records', params: { model: 'Project' } }, ilc.cookie);
   const asClient = await mcp({ tool: 'count_records', params: { model: 'Project' } }, viewer.cookie);
 
   assert.equal(asIlc.status, 200);
   assert.equal(asClient.status, 200);
-  assert.ok(asIlc.json.count > 1, 'the dev database has almost no projects — this comparison proves nothing');
+  assert.ok(asIlc.json.count > 1, 'the dev database has almost no projects, this comparison proves nothing');
   assert.equal(asClient.json.count, 1, `a client counted ${asClient.json.count} projects, owning 1`);
 });
 
@@ -583,7 +585,7 @@ test('a foreign row cannot be reached through a curated tool either', async () =
   assert.equal(byName.json.project, null, 'get_project_360 matched a foreign project by name');
 });
 
-test('search is scoped too — it is a query with a friendlier argument', async () => {
+test('search is scoped too, it is a query with a friendlier argument', async () => {
   const { status, json, text } = await mcp({
     tool: 'search', params: { query: 'ZZ MCP' },
   }, viewer.cookie);
@@ -604,7 +606,7 @@ test('Client is unreachable to a client caller through the generic tools', async
   }
 });
 
-test('SHIP CRITERION: every registered object is scoped or refused — never open', async () => {
+test('SHIP CRITERION: every registered object is scoped or refused, never open', async () => {
   // The fail-closed proof, stated over the whole registry rather than the objects
   // someone remembered to test. SCOPED_OBJECTS is imported from the source, so
   // this reads the real map and not a copy that can drift.
@@ -612,7 +614,7 @@ test('SHIP CRITERION: every registered object is scoped or refused — never ope
 
   const listing = await mcp({ tool: 'list_models', params: {} }, ilc.cookie);
   const models = listing.json.models;
-  assert.ok(models.length >= 8, `registry has only ${models.length} objects — this sweep would be near-vacuous`);
+  assert.ok(models.length >= 8, `registry has only ${models.length} objects, this sweep would be near-vacuous`);
 
   let reachable = 0, refused = 0;
 
@@ -627,13 +629,13 @@ test('SHIP CRITERION: every registered object is scoped or refused — never ope
     } else {
       // Not declared → must be refused. This is the branch that protects the
       // objects nobody has thought about yet, including ones added next year.
-      assert.equal(status, 403, `${object} has NO scope path and was not refused (${status}) — open by default`);
+      assert.equal(status, 403, `${object} has NO scope path and was not refused (${status}), open by default`);
       refused++;
     }
   }
 
   assert.equal(reachable + refused, models.length);
-  assert.ok(reachable >= 5, `only ${reachable} objects are reachable by a client — scoping has become deny-all`);
+  assert.ok(reachable >= 5, `only ${reachable} objects are reachable by a client, scoping has become deny-all`);
   assert.ok(refused >= 1, 'every object is scopable, so the fail-closed branch was never exercised');
 });
 
@@ -650,7 +652,7 @@ test('the row limit is clamped no matter what the caller asks for', async () => 
   assert.ok(json.records.length <= 100);
 });
 
-test('an unregistered model is refused even to ILC — reachability is not visibility', async () => {
+test('an unregistered model is refused even to ILC: reachability is not visibility', async () => {
   // `User` is a real Prisma model with no ontology definition. ILC staff are
   // cleared to see users; the SERVER is not cleared to serve them.
   const { status, text } = await mcp({
@@ -664,7 +666,7 @@ test('an unregistered model is refused even to ILC — reachability is not visib
 test('there is no write tool reachable by any name', async () => {
   for (const tool of ['create_record', 'update_record', 'delete_record', 'execute_raw', 'query_raw']) {
     const { status, json } = await mcp({ tool, params: {} }, ilc.cookie);
-    assert.equal(status, 400, `${tool} returned ${status} — expected "unknown tool"`);
+    assert.equal(status, 400, `${tool} returned ${status}, expected "unknown tool"`);
     assert.match(json.error, /Unknown tool/, `${tool} resolved to something`);
   }
 });
@@ -691,7 +693,7 @@ test('every call is audited, refusals included', async () => {
 
   const tail = await auditTail(50);
   assert.ok(tail.some(e => JSON.stringify(e).includes(marker)), 'a successful query was not audited');
-  assert.ok(tail.some(e => e.status === 'rejected'), 'a refusal was not audited — refusals are the interesting ones');
+  assert.ok(tail.some(e => e.status === 'rejected'), 'a refusal was not audited, refusals are the interesting ones');
 });
 
 // ── The ship criterion, stated over the whole registry ───────────────────────
@@ -712,7 +714,7 @@ const AUDIT_PATH = new URL('../../.mcp-audit/mcp-queries.jsonl', import.meta.url
 
 // Read the log from wherever src/lib/mcp/audit.js writes it: the McpQueryLog
 // table once that table exists (migration 0081), the .mcp-audit/ file before
-// then. Until 2026-09-14 this read only the file — and once 0081 reached the
+// then. Until 2026-09-14 this read only the file, and once 0081 reached the
 // local database the file stopped growing, so these tests read a stale copy.
 // Oldest first, like the file.
 async function auditTail(limit = 80) {
@@ -720,7 +722,7 @@ async function auditTail(limit = 80) {
     try {
       const rows = await prisma.mcpQueryLog.findMany({ orderBy: { at: 'desc' }, take: limit });
       return rows.reverse();
-    } catch { /* the table isn't in this database yet — use the file */ }
+    } catch { /* the table isn't in this database yet, use the file */ }
   }
   const { readFile } = await import('node:fs/promises');
   try {
@@ -735,7 +737,7 @@ test('SHIP CRITERION: no ilc_only field on any registered object is named to a c
   assert.equal(listing.status, 200, JSON.stringify(listing.json));
 
   const models = listing.json.models;
-  assert.ok(models.length >= 8, `registry has only ${models.length} objects — this sweep would be near-vacuous`);
+  assert.ok(models.length >= 8, `registry has only ${models.length} objects, this sweep would be near-vacuous`);
 
   let checkedFields = 0;
 
@@ -761,7 +763,7 @@ test('SHIP CRITERION: no ilc_only field on any registered object is named to a c
   // Guard against the sweep silently testing nothing: if the registry ever stops
   // declaring sensitivity, every assertion above passes and the criterion is
   // unproven. The count is what makes the green meaningful.
-  assert.ok(checkedFields >= 15, `only ${checkedFields} ilc_only fields checked — the registry declares far more`);
+  assert.ok(checkedFields >= 15, `only ${checkedFields} ilc_only fields checked, the registry declares far more`);
 });
 
 test('SHIP CRITERION: no ilc_only field on any registered object is RETURNED to a client', async () => {
@@ -798,16 +800,16 @@ test('SHIP CRITERION: no ilc_only field on any registered object is RETURNED to 
   }
 
   assert.ok(checkedObjects >= 5,
-    `only ${checkedObjects} objects with ilc_only fields were exercised (${refusedOutright} refused outright) — ` +
+    `only ${checkedObjects} objects with ilc_only fields were exercised (${refusedOutright} refused outright), ` +
     'if this fell because scoping now denies everything, the sweep is no longer proving redaction');
 });
 
-test('redaction removes EXACTLY the ilc_only fields — not fewer, and not more', async () => {
+test('redaction removes EXACTLY the ilc_only fields, not fewer, and not more', async () => {
   // The anti-vacuity test for everything above it.
   //
   // Every other assertion in this file is of the form "field X is absent for a
-  // client". A redactor that returned `{}` — or that silently failed and returned
-  // null — would satisfy all of them at once, and the suite would go green while
+  // client". A redactor that returned `{}`, or that silently failed and returned
+  // null, would satisfy all of them at once, and the suite would go green while
   // the endpoint returned nothing to anybody. So this one pins the difference
   // between the two audiences in both directions: the client must LOSE the
   // ilc_only set, and must KEEP everything else.
@@ -822,7 +824,7 @@ test('redaction removes EXACTLY the ilc_only fields — not fewer, and not more'
   const ilcOnly = new Set(Object.entries(described.json.properties)
     .filter(([, def]) => def.sensitivity === 'ilc_only')
     .map(([name]) => name));
-  assert.ok(ilcOnly.size >= 2, 'the object under test declares almost nothing ilc_only — pick a different one');
+  assert.ok(ilcOnly.size >= 2, 'the object under test declares almost nothing ilc_only, pick a different one');
 
   const ilcKeys    = new Set(Object.keys(asIlc.json.records[0]));
   const clientKeys = new Set(Object.keys(asClient.json.records[0]));
@@ -831,26 +833,26 @@ test('redaction removes EXACTLY the ilc_only fields — not fewer, and not more'
   // Direction 1: nothing sensitive survived.
   assert.deepEqual(removed, [...ilcOnly].sort(), 'the set of removed fields is not the set of ilc_only fields');
 
-  // Direction 2: the response is still a response. Over-redaction is a bug too —
+  // Direction 2: the response is still a response. Over-redaction is a bug too
   // it is how a client-facing surface goes blank after a schema change, and it is
   // the exact failure mode that would make every other test here meaningless.
-  assert.ok(clientKeys.size >= 10, `the client got only ${clientKeys.size} fields back — redaction ate the record`);
+  assert.ok(clientKeys.size >= 10, `the client got only ${clientKeys.size} fields back, redaction ate the record`);
   for (const kept of ['id', 'fixtureType', 'qty', 'description', 'cnUnitPrice']) {
     assert.ok(clientKeys.has(kept), `${kept} is client_ok but was redacted away`);
   }
 });
 
-test('the margin is ilc_only too — the DN is one division away from any CN', async () => {
+test('the margin is ilc_only too: the DN is one division away from any CN', async () => {
   const params = { model: 'ProjectData', where: { projectId: fixture.projectId } };
 
   const asIlc = await mcp({ tool: 'query_records', params }, ilc.cookie);
   assert.equal(asIlc.status, 200, JSON.stringify(asIlc.json));
-  assert.equal(asIlc.json.count, 1, 'the ProjectData row is missing — the client half would pass vacuously');
+  assert.equal(asIlc.json.count, 1, 'the ProjectData row is missing, the client half would pass vacuously');
   assert.equal(asIlc.json.records[0].marginPct, MARGIN, 'ILC lost the margin');
 
   const asClient = await mcp({ tool: 'query_records', params }, viewer.cookie);
   assert.equal(asClient.status, 200);
-  assert.equal(asClient.json.count, 1, 'the client got no row — this must fail on redaction, not on an empty result');
+  assert.equal(asClient.json.count, 1, 'the client got no row, this must fail on redaction, not on an empty result');
   assert.equal(asClient.json.records[0].salesTaxPct, TAX, 'redaction removed a rate the client is entitled to');
   assert.ok(!('marginPct' in asClient.json.records[0]), 'marginPct reached a CLIENT_VIEWER');
   assert.ok(!asClient.text.includes(String(MARGIN)), 'the margin value appears somewhere in the response body');
@@ -870,7 +872,7 @@ test('a relation filter cannot reach a forbidden field one level down', async ()
   assert.equal(status, 403, 'the oracle survived by moving down a relation');
 });
 
-test('nobody filters on a credential — not even ILC', async () => {
+test('nobody filters on a credential, not even ILC', async () => {
   // NEVER_READABLE outranks the ILC audience. An admin does not get to
   // binary-search a bcrypt hash through a relation filter either.
   const { status } = await mcp({
@@ -883,11 +885,11 @@ test('nobody filters on a credential — not even ILC', async () => {
 
 test('get_project_360 redacts every branch it assembles', async () => {
   // The curated tools are convenience over the same primitives, not a privileged
-  // path — and they are where a redaction gap is most likely, because they
+  // path, and they are where a redaction gap is most likely, because they
   // hand-assemble six relations in one query.
   const asIlc = await mcp({ tool: 'get_project_360', params: { projectId: fixture.projectId } }, ilc.cookie);
   assert.equal(asIlc.status, 200, JSON.stringify(asIlc.json));
-  assert.ok(asIlc.text.includes(String(DN_VALUE)), 'ILC lost the DN from the 360 view — the client half is now vacuous');
+  assert.ok(asIlc.text.includes(String(DN_VALUE)), 'ILC lost the DN from the 360 view, the client half is now vacuous');
 
   const asClient = await mcp({ tool: 'get_project_360', params: { projectId: fixture.projectId } }, viewer.cookie);
   assert.equal(asClient.status, 200, JSON.stringify(asClient.json));
@@ -899,8 +901,8 @@ test('get_project_360 redacts every branch it assembles', async () => {
 test('the unauthenticated card never names a field, a column or an object', async () => {
   // GET is deliberately open so an MCP client can discover that the endpoint
   // exists before it has a token. What comes back is protocol and policy only:
-  // no tool names (those are behind the credential now), and — the thing this
-  // test guards — nothing at all about what is stored or what it is called.
+  // no tool names (those are behind the credential now), and, the thing this
+  // test guards, nothing at all about what is stored or what it is called.
   const { json, text } = await get('/api/mcp', null);
   assert.equal(json.readOnly, true);
   for (const name of ['originalDN', 'quoteReference', 'marginPct', 'dnPerUnit', 'passwordHash']) {
@@ -918,7 +920,7 @@ test('a body with neither shape is a 400 that says what to send', async () => {
 //
 // Everything above drives the plain `{tool, params}` shape the in-app Ask AI
 // branch uses. A real MCP client speaks JSON-RPC 2.0, and a second wire shape is
-// a second way around the guards unless it is proven not to be — which is the
+// a second way around the guards unless it is proven not to be, which is the
 // whole reason both shapes funnel through executeTool().
 
 test('initialize returns a protocol version and a tools capability', async () => {
@@ -930,7 +932,7 @@ test('initialize returns a protocol version and a tools capability', async () =>
 
   assert.equal(status, 200);
   assert.equal(envelope.jsonrpc, '2.0');
-  assert.ok(envelope.result.protocolVersion, 'no protocolVersion — clients abort the handshake');
+  assert.ok(envelope.result.protocolVersion, 'no protocolVersion, clients abort the handshake');
   assert.ok(envelope.result.capabilities.tools, 'the server did not advertise tools');
   assert.equal(envelope.result.serverInfo.name, 'ilc-librarian');
 });
@@ -979,7 +981,7 @@ test('SHIP CRITERION: the boundary holds through the JSON-RPC shape too', async 
 
   const asClient = await rpc('tools/call', { name: 'query_records', arguments: args }, viewer.cookie);
   assert.equal(asClient.isError, false, `client call errored: ${asClient.text.slice(0, 200)}`);
-  assert.equal(asClient.result.count, 1, 'the client got no row — this must fail on redaction, not on an empty result');
+  assert.equal(asClient.result.count, 1, 'the client got no row, this must fail on redaction, not on an empty result');
   assert.ok(!('originalDN' in asClient.result.records[0]), 'originalDN leaked through JSON-RPC');
   assert.ok(!asClient.text.includes(String(DN_VALUE)), 'the DN appears in the JSON-RPC content block');
 });
@@ -1016,7 +1018,7 @@ test('a batch cannot buy more calls than the per-minute limit allows', async () 
   // limiter counted requests, one array would be an unlimited call budget.
   //
   // Every message here is a notification, so nothing runs even if it were let
-  // through — and a refusal is charged nothing, so this test cannot starve the
+  // through, and a refusal is charged nothing, so this test cannot starve the
   // ones after it.
   const { limits } = (await get('/api/mcp')).json;
   const oversized = Array.from(
@@ -1037,7 +1039,7 @@ test('a batch cannot buy more calls than the per-minute limit allows', async () 
   assert.ok(Number.isFinite(retry) && retry >= 1, `no usable Retry-After (got "${res.headers.get('retry-after')}")`);
   assert.equal(res.headers.get('ratelimit-limit'), String(limits.requestsPerMinute));
 
-  // And the refusal cost nothing — the next ordinary call still works.
+  // And the refusal cost nothing, the next ordinary call still works.
   const after = await mcp({ tool: 'list_models', params: {} }, ilc.cookie);
   assert.equal(after.status, 200, 'a refused batch consumed the allowance of the caller');
 });
@@ -1084,7 +1086,7 @@ test('a key issued to a CLIENT_VIEWER gets the client view, not the ILC one', sk
     { tool: 'get_record', params: { model: 'ChangeOrderLineItem', id: fixture.lineItemId } },
     { bearer: adminKey.token },
   );
-  assert.ok(asIlc.text.includes(String(DN_VALUE)), 'the ILC key could not see the value either — the test proves nothing');
+  assert.ok(asIlc.text.includes(String(DN_VALUE)), 'the ILC key could not see the value either, the test proves nothing');
 });
 
 test('an ILC-only tool is refused to a CLIENT_VIEWER key', skipKeys, async () => {
@@ -1137,7 +1139,7 @@ test('a key cannot be deleted, only turned off', skipKeys, async () => {
   const res = await fetch(`${BASE}/api/admin/mcp-keys/${adminKey.id}`, {
     method: 'DELETE', headers: { cookie: ilc.cookie },
   });
-  assert.equal(res.status, 405, 'keys can be deleted — the audit trail can be erased');
+  assert.equal(res.status, 405, 'keys can be deleted, the audit trail can be erased');
 });
 
 test('a non-admin cannot list or issue keys', skipKeys, async () => {
@@ -1179,9 +1181,9 @@ test('the audit log records the question, never the answer', async () => {
   const asText = JSON.stringify(tail);
 
   // Row COUNTS are recorded; row CONTENTS are not. An audit log that copied the
-  // rows would be a second, unredacted store of the same buy prices — and one
+  // rows would be a second, unredacted store of the same buy prices, and one
   // that nothing redacts on the way out.
   assert.ok(!asText.includes(String(DN_VALUE)), 'the audit log holds the buy price it was auditing access to');
   assert.ok(!asText.includes(String(CN_VALUE)), 'the audit log is storing row contents');
-  assert.ok(tail.some(e => Number.isFinite(e.rowCount)), 'no row count was recorded — the log cannot show scale of access');
+  assert.ok(tail.some(e => Number.isFinite(e.rowCount)), 'no row count was recorded, the log cannot show scale of access');
 });

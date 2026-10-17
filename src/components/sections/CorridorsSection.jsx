@@ -10,7 +10,7 @@ import { breezewayStairPackage, BREEZEWAY_STYLES } from '@/lib/stairLandings';
 import StandardsHint from '@/components/wizard/StandardsHint';
 import StairTypeQuestions from './StairTypeQuestions';
 
-// Static fallbacks — live values come from the master pricing prop (see P below).
+// Static fallbacks, live values come from the master pricing prop (see P below).
 const DISK_RATES     = { 6: 0.40, 7: 0.35, 8: 0.30, 9: 0.28, 10: 0.25, 11: 0.23, 12: 0.23 };
 const RECESSED_RATES = { 6: 3.00, 7: 2.625, 8: 2.25, 9: 2.10, 10: 1.875, 11: 1.725, 12: 1.725 };
 
@@ -42,7 +42,7 @@ export default function CorridorsSection({ responses, projectData, allSections, 
   const [saving, setSaving] = useState(false);
   useLiveAnswers(onLiveAnswers, "corridors", ans); // Mike 10-15: sidebar moves before Next
   // What each answer costs (+ estimated labor), recomputed live as answers
-  // change — local answers only save on Next (Mike 2026-09-13).
+  // change, local answers only save on Next (Mike 2026-09-13).
   const qc = useMemo(
     () => calculateBudget(projectData, { ...(allSections || {}), corridors: { ...(allSections?.corridors || {}), ...ans } }, pricing || null).questionCosts || {},
     [projectData, allSections, ans, pricing],
@@ -78,7 +78,7 @@ export default function CorridorsSection({ responses, projectData, allSections, 
   const STAIR_ELEV    = P.designCorridors?.stairwellElevatedAdder ?? 50;
   const ACCENT_EACH   = P.designCorridors?.accentDownlightEach ?? 120;
   // Breezeway stairs price each landing at the small, long or average
-  // breezeway multiple — same helper the engine uses, so this card and the
+  // breezeway multiple, same helper the engine uses, so this card and the
   // sidebar agree.
   const breezeway     = breezewayStairPackage(
     { landings: stairwells, stories: projectData?.numFloors, buildingTypeKey: projectData?.buildingTypeKey, stairType: ans.stairType, style: ans.breezewayStyle },

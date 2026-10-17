@@ -10,7 +10,7 @@ const globalForPrisma = globalThis;
 // Wrapped so archived clients, projects, people and notes drop out of every
 // list and count on their own, and files, drawing sets, budget versions,
 // products, conceptual budgets and questionnaire answers can never be deleted
-// — see src/lib/archive.js (migrations 0075 + 0076).
+// see src/lib/archive.js (migrations 0075 + 0076).
 // Cached under its own name so a dev reload never reuses an unwrapped client.
 export const prisma = globalForPrisma.prismaArchiveAware ?? withArchiveFilter(new PrismaClient({
     datasources: {

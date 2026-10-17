@@ -1,12 +1,12 @@
 /**
- * project-matcher.js — deciding which of OUR jobs a news article is about.
+ * project-matcher.js, deciding which of OUR jobs a news article is about.
  *
  * ── Why this is not the fuzzy matcher ──
  * Developer names are distinctive ("Zocalo Community Development"), so fuzzy
  * matching them is safe. Project names are the opposite: "Trailhead",
  * "Creekside", "The Approach", "Lowell" are ordinary English, and a fuzzy match
  * on them against arbitrary industry news would tag half the feed. A false link
- * here is worse than no link — it puts a stranger's groundbreaking on our job's
+ * here is worse than no link, it puts a stranger's groundbreaking on our job's
  * record, and nobody re-reads a record they believe is already correct.
  *
  * So this does not fuzzy-match. It asks a narrower question: does the article
@@ -19,7 +19,7 @@
  *    on its own. One short word is not, however exactly it matches.
  * 2. A project belonging to the client the article ALREADY matched gets a lower
  *    bar, because the coincidence has to be much larger to be a coincidence.
- * 3. Names on the stop list never match alone — every developer has a "Phase 2"
+ * 3. Names on the stop list never match alone, every developer has a "Phase 2"
  *    and a "The Residences".
  *
  * Pure and dependency-free apart from the shared normalizer, so it can be
@@ -87,7 +87,7 @@ export function isDistinctiveEnough(normalized, sameClient = false) {
  * @returns {{projectId, projectName, status, score}|null}
  *
  * `status` is AUTO_LINKED when the article names a job belonging to the client
- * it already matched — two independent things agreeing — and SUGGESTED when the
+ * it already matched, two independent things agreeing, and SUGGESTED when the
  * name alone carried it, which is a claim a human should confirm.
  */
 export function matchProject(articleText, projects, { matchedClientId = null } = {}) {
@@ -110,7 +110,7 @@ export function matchProject(articleText, projects, { matchedClientId = null } =
       projectName: project.name,
       status:      sameClient ? 'AUTO_LINKED' : 'SUGGESTED',
       // Longer names matching are stronger evidence; a client agreeing is
-      // stronger still. Not a probability — a ranking, used to break ties.
+      // stronger still. Not a probability, a ranking, used to break ties.
       score: Math.min(1, (sameClient ? 0.6 : 0.3) + normalized.length / 100),
       _len: normalized.length,
       _sameClient: sameClient,
@@ -120,7 +120,7 @@ export function matchProject(articleText, projects, { matchedClientId = null } =
   if (!hits.length) return null;
 
   // Two of our jobs named in one article is possible and rare. Prefer the one
-  // whose client already matched, then the longer name — "Trailhead Apartments"
+  // whose client already matched, then the longer name, "Trailhead Apartments"
   // beats "Trailhead" when the article contains both, because it is the more
   // specific claim rather than a substring of the other.
   hits.sort((a, b) =>

@@ -1,6 +1,6 @@
 // ── ILC Spec Library seed ─────────────────────────────────────────────────────
-// Source: Standard_products_matrix_final.xlsx (Standards tab) — 69 records
-// budget_cost: null on all — to be filled via admin UI
+// Source: Standard_products_matrix_final.xlsx (Standards tab), 69 records
+// budget_cost: null on all, to be filled via admin UI
 // Variables stored as JSON array: [{position, resolve_at, options, default}]
 // base_catalog: everything before the first *** position
 

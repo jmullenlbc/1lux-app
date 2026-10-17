@@ -51,7 +51,7 @@ export async function POST(req) {
       reviewWindowMinutes,
       reviewExpiresAt:     reviewWindowMinutes > 0 ? new Date(Date.now() + reviewWindowMinutes * 60 * 1000) : null,
       draftModel:          modelFor('bot.followUp'),
-      classificationReason: `Manual draft — ${daysSinceActivity}d stale`,
+      classificationReason: `Manual draft, ${daysSinceActivity}d stale`,
     },
     include: { project: { select: { id: true, name: true } } },
   });

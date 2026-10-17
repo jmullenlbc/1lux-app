@@ -1,5 +1,5 @@
 /**
- * The personal stop-list — what never becomes a sales note.
+ * The personal stop-list, what never becomes a sales note.
  *
  * Mike, 2026-09-07: "all personal events like soccer practice, tennis match,
  * doctors appts, therapy should be excluded."
@@ -12,8 +12,8 @@
  * and its answer is final: no note, no classification, no AI call, nothing.
  *
  * Two separate jobs live here:
- *   isPersonalEvent  — this is his life, not the business. Never a note.
- *   isNotAMeeting    — a to-do or a placeholder he parked on the calendar
+ *   isPersonalEvent, this is his life, not the business. Never a note.
+ *   isNotAMeeting, a to-do or a placeholder he parked on the calendar
  *                      ("Send golf email", "Hold", "Placeholder"). Nobody was in
  *                      a room; it is not a meeting.
  *
@@ -23,7 +23,7 @@
 /**
  * Words that mean this is Mike's own life.
  *
- * Deliberately generous — the cost of wrongly skipping a business meeting is one
+ * Deliberately generous, the cost of wrongly skipping a business meeting is one
  * note he types by hand ("if we miss 10% we can always manually create a note").
  * The cost of wrongly KEEPING one of these is his therapist's name showing up in
  * a shared CRM. Those are not the same size of mistake.
@@ -64,7 +64,7 @@ const PERSONAL_PATTERNS = [
   /\b(baseball|basketball|football|lacrosse|volleyball) (practice|game|match|tournament)\b/i,
   /\bpractice\b(?! ?(management|group|lead))/i,
 
-  // Time off — not a meeting with anybody
+  // Time off, not a meeting with anybody
   /\bvacation\b|\bpto\b|\bday off\b|\bout of office\b|\booo\b|\bholiday\b/i,
   /\b(ski|camping|family|beach) trip\b/i,
   /\bbirthday\b|\banniversary\b|\bfuneral\b|\bwedding\b/i,
@@ -83,7 +83,7 @@ const NOT_A_MEETING_PATTERNS = [
   /\breminder\b|\bto ?do\b|\bdeadline\b|\bdue\b/i,
   // A delivery or service window is a slot somebody else booked on him. Found in
   // the 2026-09-07 run, where "IKEA delivery- 438646230" sat over a real client
-  // visit and — being the longer block — won the same-time-period comparison.
+  // visit and, being the longer block, won the same-time-period comparison.
   /\bdeliver(y|ies)\b|\binstall(ation)? window\b|\bservice (call|window|appointment)\b/i,
   /\b(order|confirmation|tracking) ?#?\s*\d{6,}\b|-\s*\d{8,}\s*$/i,
 ];
@@ -96,7 +96,7 @@ const NOT_A_MEETING_PATTERNS = [
  *
  * OpenTable, Resy and the hotel apps write these straight into the calendar. The
  * dinner they confirm is real, but it is almost always already on the calendar as
- * a proper meeting sitting over the same hour — so counting the confirmation too
+ * a proper meeting sitting over the same hour, so counting the confirmation too
  * counts the same dinner twice.
  *
  * A hotel stay is deliberately NOT here. That one is a day on the road, and Mike
@@ -125,7 +125,7 @@ export function isAutoBooking(event = {}) {
     if (hit) {
       return {
         autoBooking: true,
-        reason: `"${hit[0].trim()}" reads as a booking confirmation an app added — the real meeting is usually already on the calendar over the top of it`,
+        reason: `"${hit[0].trim()}" reads as a booking confirmation an app added, the real meeting is usually already on the calendar over the top of it`,
       };
     }
   }

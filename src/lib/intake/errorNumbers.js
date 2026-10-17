@@ -40,7 +40,7 @@ export const ERROR_NUMBERS = {
 const alreadyCoded = /\([A-Z][A-Za-z0-9/.-]*\)$/;
 
 /**
- * Append the error number for `code` to a public message -- unless the message
+ * Append the error number for `code` to a public message, unless the message
  * already ends in a code (the vision layer stamps V-codes itself).
  */
 export function stampError(code, message) {

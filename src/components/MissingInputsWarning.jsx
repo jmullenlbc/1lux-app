@@ -6,13 +6,13 @@ import { findMissingProjectInputs, groupMissingBySection } from '@/lib/projectIn
  * Warns the user when critical Project Data fields are blank, causing the
  * conceptual budget engine to silently zero out entire calculation sections.
  *
- * Renders nothing if no critical inputs are missing — auto-hides cleanly.
+ * Renders nothing if no critical inputs are missing, auto-hides cleanly.
  *
  * Two modes:
- *   - 'compact' — one-line for the Project Overview / Dashboard tab. Always
+ *   - 'compact', one-line for the Project Overview / Dashboard tab. Always
  *     visible above the budget number; tells the user at a glance that the
  *     number they're looking at may be incomplete.
- *   - 'full'    — itemized, grouped by section, with an Edit Project Data
+ *   - 'full', itemized, grouped by section, with an Edit Project Data
  *     button. For the Summary page where the user is reviewing the budget.
  *
  * Amber, not red, because this is "your budget may be under-counting", not

@@ -39,7 +39,7 @@ export async function POST(request) {
     },
   });
 
-  // The mass-email threshold is cached — drop it so a new rule takes effect now.
+  // The mass-email threshold is cached, drop it so a new rule takes effect now.
   invalidateMassEmailThreshold();
 
   return NextResponse.json({ rule }, { status: 201 });

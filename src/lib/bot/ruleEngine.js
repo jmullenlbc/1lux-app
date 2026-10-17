@@ -1,10 +1,10 @@
 /**
- * ruleEngine.js — the generic "if-then" automation engine.
+ * ruleEngine.js, the generic "if-then" automation engine.
  *
  * Philosophy (Zapier-in-app):
- *   • PRIMITIVES are code — a registry of executors (draft email, schedule
+ *   • PRIMITIVES are code, a registry of executors (draft email, schedule
  *     reminder, notify, …). These are the "apps."
- *   • WIRING is data — `BotRule` rows the sales team builds in the UI:
+ *   • WIRING is data, `BotRule` rows the sales team builds in the UI:
  *     WHEN <trigger> IF <conditions> THEN <action + config>. These are the "Zaps."
  *   • A baseline behavior (the method's own action) always runs; user rules
  *     layer additional conditional actions on top.
@@ -154,13 +154,13 @@ export const ACTIONS = {
   CREATE_TASK: {
     label: 'Create an internal task',
     // Until 2026-08-22 this returned a sentence and created nothing. A rule
-    // using it fired green, logged success, and left no task anywhere — the
+    // using it fired green, logged success, and left no task anywhere, the
     // worst kind of broken, because it looks like it works.
     //
     // A task lives on the note that produced it: same row shape as any other
     // note action, so it shows up wherever note actions already show up and
     // does not need a parallel task system to exist first. `remindAt` is what
-    // makes it surface — the daily sweep in /api/cron/note-reminders nudges the
+    // makes it surface, the daily sweep in /api/cron/note-reminders nudges the
     // note's owner when it comes due.
     async run(payload, cfg, ctx) {
       const noteId = ctx?.action?.noteId;
@@ -199,12 +199,12 @@ export const ACTIONS = {
   },
   ADD_TO_LIST: {
     label: 'Add the contact to a list',
-    // There are no lists in the app yet — no model, no screen. Rather than
+    // There are no lists in the app yet, no model, no screen. Rather than
     // quietly do nothing and report success, this refuses and says why, and
     // `available: false` greys it out in the rule builder so nobody can pick
     // it in the first place.
     available: false,
-    unavailableReason: 'Contact lists do not exist yet — nothing to add anyone to.',
+    unavailableReason: 'Contact lists do not exist yet. Nothing to add anyone to.',
     async run(payload) {
       return {
         detail: `not run: contact lists are not built yet (would have added ${payload.contactName || 'the contact'})`,

@@ -3,7 +3,7 @@ import { prisma } from '@/lib/db';
 import { getProjectRates, calcGroupFooter } from '@/lib/changeOrderRates';
 import { redact, AUDIENCE } from '@/lib/redact';
 
-// Public endpoint — no auth required
+// Public endpoint, no auth required
 // GET /api/share/co/[token]
 // Returns CO data with DN fields omitted
 export async function GET(req, { params }) {
@@ -33,7 +33,7 @@ export async function GET(req, { params }) {
   const co    = share.changeOrder;
   const rates = await getProjectRates(co.projectId);
 
-  // Footers and totals are computed from the FULL rows first — redaction is a
+  // Footers and totals are computed from the FULL rows first, redaction is a
   // transport concern, not a math one.
   const groups = co.optionGroups.map(g => ({
     ...g,
@@ -42,7 +42,7 @@ export async function GET(req, { params }) {
   }));
 
   // One redaction pass over the whole response. This covers `rates.marginPct`
-  // as well as every line item's `originalDN` — the previous per-item strip
+  // as well as every line item's `originalDN`, the previous per-item strip
   // dropped the DN but shipped the margin, and `dn = cn × (1 - marginPct)`.
   // The share page only reads salesTax/freight/warehousing off `rates`.
   return NextResponse.json(redact({

@@ -35,7 +35,7 @@ function fmtDate(d) {
 }
 
 /**
- * Who a person works for — and, when we do not know, say so out loud rather than
+ * Who a person works for, and, when we do not know, say so out loud rather than
  * printing a dash that looks like every other blank field.
  */
 function CompanyCell({ contact }) {

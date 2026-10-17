@@ -1,7 +1,7 @@
 'use client';
 // On-screen alerts per building area of the budget (Mike 2026-09-24: "do it
 // by area of the building … out of whack or totally off from the
-// questionnaire they answered originally"). Staff only — the API 404s for a
+// questionnaire they answered originally"). Staff only, the API 404s for a
 // contractor, and then nothing shows. Never on the public form, PDF or portal:
 // BudgetSidebar only renders what it is handed and imports none of this.
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -66,7 +66,7 @@ export function AreaAlertNote({ alerts, onRight }) {
 export function AreaAlertSummary({ count }) {
   return (
     <div className="mb-2 rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs text-amber-800">
-      ⚠ {count} area{count === 1 ? '' : 's'} look{count === 1 ? 's' : ''} off — against our past jobs or the original questionnaire. Notes below.
+      ⚠ {count} area{count === 1 ? '' : 's'} look{count === 1 ? 's' : ''} off, against our past jobs or the original questionnaire. Notes below.
     </div>
   );
 }

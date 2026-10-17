@@ -3,7 +3,7 @@
  *
  * The visitor's link carries the token; the database holds only its SHA-256,
  * so a copy of the database cannot be turned into working links. A token is
- * 24 random bytes, base64url — long enough that guessing one is hopeless,
+ * 24 random bytes, base64url, long enough that guessing one is hopeless,
  * short enough to live in a URL.
  */
 import { createHash, randomBytes } from 'node:crypto';

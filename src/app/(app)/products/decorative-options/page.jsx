@@ -5,7 +5,7 @@ import { getSession, can, canSeeAllData } from '@/lib/auth';
 import PoolAdmin from '@/components/unitSelections/PoolAdmin';
 
 /**
- * The decorative option pool — the five fixtures a client picks per unit.
+ * The decorative option pool, the five fixtures a client picks per unit.
  *
  * Reading is open to staff; changing it rides on the same key as the rest of
  * the fixture library, so the people who keep Products up to date keep this up

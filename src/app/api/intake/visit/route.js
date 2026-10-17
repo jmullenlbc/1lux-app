@@ -15,7 +15,7 @@ export const dynamic = 'force-dynamic';
  *        draftToken?, submissionId? }  →  { visitId }
  *
  * The first ping (no visitId) opens a ConceptualVisit row; later pings move the
- * same row forward — furthest step, last seen, and the draft / request the
+ * same row forward, furthest step, last seen, and the draft / request the
  * visit turned into. The page keeps the visitId for the life of the tab.
  *
  * What is NOT stored: the IP address, the browser string, the full referring
@@ -57,7 +57,7 @@ export async function POST(req) {
       if (draft) { draftId = draft.id; submissionId = draft.submissionId ?? null; }
     }
     if (!submissionId && typeof body.submissionId === 'string' && ID_RE.test(body.submissionId)) {
-      // Only a request made in the last few minutes — a visit cannot attach
+      // Only a request made in the last few minutes, a visit cannot attach
       // itself to somebody else's old submission.
       const sub = await prisma.conceptualSubmission.findUnique({
         where: { id: body.submissionId }, select: { id: true, createdAt: true },

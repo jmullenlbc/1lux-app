@@ -10,19 +10,19 @@ export const dynamic = 'force-dynamic';
  *
  * The browser sends a big file to storage in parts (see PART_BYTES in
  * uploadStorage.js). Storage holds those parts separately until someone says
- * "that's all of them" — this route says it, and storage stitches them into
+ * "that's all of them", this route says it, and storage stitches them into
  * one object at the key the presign desk issued.
  *
  * Why the server does the stitching rather than the browser: reassembly needs
  * each part's ETag, and a browser can only read a cross-origin response header
- * if the bucket's CORS policy exposes it — a console setting we don't own. So
+ * if the bucket's CORS policy exposes it, a console setting we don't own. So
  * the server asks storage what actually landed instead. It also means a
  * browser can't talk us into assembling parts it didn't send.
  *
  * `action: 'abort'` throws away an upload the browser gave up on, so half a
  * drawing set doesn't sit in the bucket waiting on the lifecycle sweep.
  *
- * Unauthenticated for the same reason as the presign desk — the public
+ * Unauthenticated for the same reason as the presign desk, the public
  * conceptual-budget intake is the first consumer. What keeps it safe: the key
  * must match the uploads/ shape our own presign desk issues, the uploadId must
  * match a live upload against that exact key, and nothing here reads, lists,
@@ -70,7 +70,7 @@ export async function POST(request) {
       expectedParts: Number.isFinite(expectedParts) ? expectedParts : undefined,
     });
     if (!res.ok) {
-      // A part is missing — the object would be silently truncated if we
+      // A part is missing, the object would be silently truncated if we
       // assembled it, so throw the whole thing away and say so.
       await abortMultipart({ key, uploadId });
       return NextResponse.json({ error: res.code, message: stampError(res.code, res.message) }, { status: 422 });

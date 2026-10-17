@@ -25,7 +25,7 @@ export async function GET(req, { params }) {
     return NextResponse.json({ messages: [] });
   }
 
-  // Batch company lookup — one query per unique fromEmail
+  // Batch company lookup, one query per unique fromEmail
   const uniqueEmails = [...new Set(messages.map(m => m.fromEmail))];
   const contacts = await prisma.contact.findMany({
     where: { email: { in: uniqueEmails } },

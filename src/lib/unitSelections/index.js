@@ -40,7 +40,7 @@ export async function resolveFacts(projectId, overrides = {}) {
   }
 
   // The frozen snapshot, with any pricing key added after the freeze filled in
-  // from the master sheet — a zero there would read as "this is free".
+  // from the master sheet, a zero there would read as "this is free".
   const pricing = pricingForProject(project?.pricingSnapshot, PRICING);
 
   const clientTargets = {};

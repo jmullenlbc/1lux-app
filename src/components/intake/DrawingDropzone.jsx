@@ -179,7 +179,7 @@ export default function DrawingDropzone({ onResults, restored = null }) {
 
     // === The screen stays awake for the WHOLE journey, not just the upload ===
     // The wake lock inside uploadDirect is released the moment the upload
-    // finishes -- and the read that follows is the LONG part. A phone dimming
+    // finishes, and the read that follows is the LONG part. A phone dimming
     // its screen two minutes into "looking through the set" suspends the page
     // and kills the request in flight, which surfaced as R1/scan on every one
     // of Mike's screenshots. Hold one lock across upload AND read, re-grabbed
@@ -242,8 +242,8 @@ export default function DrawingDropzone({ onResults, restored = null }) {
 
     // === Step 2: read it ===
     // Four short requests rather than one long one. The one-request version
-    // could not finish on the live site at all -- Amplify hangs up at ~30
-    // seconds and a set takes about a minute -- and short requests are also
+    // could not finish on the live site at all, Amplify hangs up at ~30
+    // seconds and a set takes about a minute, and short requests are also
     // the only way to tell the visitor what is happening while he waits.
     // Published for the same reason as the 'uploading' step above: a Retry
     // that kept its upload key starts here, and must pull the figures back.
@@ -270,7 +270,7 @@ export default function DrawingDropzone({ onResults, restored = null }) {
       // we hand over the key; without it (a laptop) the file rides along with
       // the first short step and the server parks it. Falling back to one long
       // request just because there is no bucket would mean the laptop runs the
-      // shape we just spent this whole change removing -- and it is the laptop
+      // shape we just spent this whole change removing, and it is the laptop
       // Mike tests on from his phone.
       const staged = await runStagedParse({
         s3Key: sent?.key, file: sent ? null : item.file, fileName: item.file.name, onStep,
@@ -289,7 +289,7 @@ export default function DrawingDropzone({ onResults, restored = null }) {
       }
       // `shown` means the server already wrote this for a public reader.
       // Anything else is the browser losing the same request three times over
-      // (stage() retries the dropped ones) -- and the two ways that happens on
+      // (stage() retries the dropped ones), and the two ways that happens on
       // a phone deserve different words. If the page went dark mid-read, the
       // phone cut the line, not the network, and "try again" alone would just
       // send him around the same loop.

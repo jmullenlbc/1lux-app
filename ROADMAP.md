@@ -1,4 +1,4 @@
-# ILC Studios — Product Roadmap
+# ILC Studios, Product Roadmap
 
 Items are grouped by area. Each entry notes what it is, why it matters, and rough scope.
 
@@ -7,7 +7,7 @@ Items are grouped by area. Each entry notes what it is, why it matters, and roug
 ## 🏠 Home Dashboard
 
 ### Filterable Dashboard Widgets _(future)_
-Right now all widgets show pre-built, hardcoded data views. The goal is to let each widget be a fully configurable report — similar to Pipedrive Insights — where the user can set:
+Right now all widgets show pre-built, hardcoded data views. The goal is to let each widget be a fully configurable report, similar to Pipedrive Insights, where the user can set:
 - **Metric** (pipeline value, deal count, won value, project count, etc.)
 - **Filters** (pipeline type, stage, probability threshold, date range, owner, client, etc.)
 - **Visualization** (number, bar chart, list, table)
@@ -15,14 +15,14 @@ Right now all widgets show pre-built, hardcoded data views. The goal is to let e
 
 Each widget would save its config as a named report in the DB. Widgets become containers that run a saved report query. Users can have multiple instances of the same "type" with different filters (e.g., one "Pipeline Value" widget filtered to PROCUREMENT ≥80% and another filtered to DESIGN).
 
-**Scope:** Large (2–3 weeks). Requires a report builder UI, a saved-report DB model, and a query engine that maps report configs to Prisma queries.
+**Scope:** Large (2 to 3 weeks). Requires a report builder UI, a saved-report DB model, and a query engine that maps report configs to Prisma queries.
 
 ---
 
 ## 💰 Budget Summary
 
 ### Sales Tax Rate Lookup _(deferred 2026-09-05)_
-The summary page has a manual "sales tax %" box (saved to the project as `salesTaxPct`, applied to lighting and controls product, never freight). A look-up-by-ZIP helper was built on 2026-09-05 — a small server route proxied a free ZIP-to-rate estimate (SalesTaxZip) and pre-filled the box, with the typed number always winning — and pulled the same day at Mike's request ("Forget the sales tax lookup for now. Put in the roadmap."). If it comes back it should use a paid, maintained rate source (TaxJar / Avalara-style) rather than a free estimate, and pre-fill from the project address ZIP automatically.
+The summary page has a manual "sales tax %" box (saved to the project as `salesTaxPct`, applied to lighting and controls product, never freight). A look-up-by-ZIP helper was built on 2026-09-05, a small server route proxied a free ZIP-to-rate estimate (SalesTaxZip) and pre-filled the box, with the typed number always winning, and pulled the same day at Mike's request ("Forget the sales tax lookup for now. Put in the roadmap."). If it comes back it should use a paid, maintained rate source (TaxJar / Avalara-style) rather than a free estimate, and pre-fill from the project address ZIP automatically.
 
 **Scope:** Small. One API route + a ZIP field on the widget; the manual box stays the source of truth.
 
@@ -39,19 +39,19 @@ When a deal is marked WON, offer a "Convert to Project" action in the DealDrawer
 
 ## 🤖 Sales Bot + Automation
 
-### Phase B — Live Follow-Up Drafting _(done)_
+### Phase B, Live Follow-Up Drafting _(done)_
 Bot scans open deals daily via BotRules (DEAL_STALE trigger). When a deal exceeds the configured stale threshold, Claude Haiku drafts a contextual follow-up email using your templates and Bot Knowledge entries. Drafts appear in Bot Queue → Follow-Ups for review, edit, and manual send (copy to clipboard).
 
 ---
 
-### Phase C — Market Signal → Draft _(planned)_
+### Phase C, Market Signal → Draft _(planned)_
 When Market Intelligence auto-links a signal to a client (matchStatus: AUTO_LINKED or SUGGESTED), evaluate active BotRules with `MARKET_SIGNAL` trigger. Rules configured with `DRAFT_FOLLOW_UP_EMAIL` generate a BotDraft; rules with `NOTIFY_ONLY` surface a card in the queue without drafting. Connects Market Intel to Bot Queue automatically.
 
 **Scope:** Medium. Requires wiring the Market Intel signal ingestion pipeline (already built) to the BotRule evaluator, and a new `NOTIFY_ONLY` card type in Bot Queue UI.
 
 ---
 
-### Phase D — Travel Detection _(future)_
+### Phase D, Travel Detection _(future)_
 Nightly scan of the deal owner's M365 calendar using Claude Haiku to extract city from event titles/locations. Upserts `UserLocationState` records. Scheduling Rules panel goes live with detected travel state. Slot resolver applies travel buffer on days the user is outside their home base.
 
 **Requires:** M365 calendar read permission.
@@ -60,8 +60,8 @@ Nightly scan of the deal owner's M365 calendar using Claude Haiku to extract cit
 
 ---
 
-### Phase E — Scheduling Bot _(future)_
-Full inbound scheduling intent detection: emails from prospects expressing interest in a meeting are classified by Claude Haiku. Bot resolves available slots against the deal owner's calendar + SchedulingRules + UserLocationState, drafts a reply proposing 2–3 times, and places it in Bot Queue → Scheduling for review. After the review window, auto-sends via Microsoft Graph `sendMail`. Confirmation detection closes the loop by creating a calendar event when the prospect accepts.
+### Phase E, Scheduling Bot _(future)_
+Full inbound scheduling intent detection: emails from prospects expressing interest in a meeting are classified by Claude Haiku. Bot resolves available slots against the deal owner's calendar + SchedulingRules + UserLocationState, drafts a reply proposing 2 to 3 times, and places it in Bot Queue → Scheduling for review. After the review window, auto-sends via Microsoft Graph `sendMail`. Confirmation detection closes the loop by creating a calendar event when the prospect accepts.
 
 **Requires:** M365 email webhook, calendar read, sendMail permission.
 
@@ -82,20 +82,20 @@ Currently rep data is aggregated from `PeerReviewItem.repName / repEmail`. A pro
 
 ## ⚖️ Code Intelligence Layer
 
-The Code Intelligence Layer is a multi-phase initiative to embed building code knowledge directly into the ILC workflow — from passive lookup to active QC that flags issues in real project documents before they reach the EOR or client.
+The Code Intelligence Layer is a multi-phase initiative to embed building code knowledge directly into the ILC workflow, from passive lookup to active QC that flags issues in real project documents before they reach the EOR or client.
 
-### Phase 1 — Code Search _(shipped 2026-05-27)_
+### Phase 1, Code Search _(shipped 2026-05-27)_
 A searchable database of building codes (ASHRAE 90.1, IBC, IECC, NEC) accessible from the Knowledge Base. Users can ask natural-language questions and get answers with specific section citations and a confidence level (✅ CERTAIN / ⚠️ LIKELY / 🔍 VERIFY WITH EOR). Uses Claude with prompt caching on the code corpus for cost efficiency.
 
 **Live at:** `/knowledge-base/code-search`
 
 ---
 
-### LPD Check v2 — Takeoff-Driven _(planned)_
+### LPD Check v2, Takeoff-Driven _(planned)_
 The current LPD Check requires a manually prepared spreadsheet upload. The correct approach: pull fixture types and wattages directly from the project's fixture schedule, pull quantities from the takeoff data already in the system, and compute LPD per space automatically without any manual input.
 
 **What changes:**
-- No more spreadsheet upload — data sourced entirely from existing project records
+- No more spreadsheet upload, data sourced entirely from existing project records
 - LPD = Σ(qty × watts) per space zone, where qty comes from takeoffs and watts from the fixture schedule
 - Results update automatically when the schedule or takeoff changes
 - Surfaces directly on the project's Code tab instead of the standalone tool at `/knowledge-base/lpd-check`
@@ -105,12 +105,12 @@ The current LPD Check requires a manually prepared spreadsheet upload. The corre
 - Fixture schedule must have wattages populated
 - Space areas needed for W/ft² calculation (can be pulled from takeoff area field or manually entered)
 
-**Scope:** Medium. Mostly a new API route + UI component on the project Code tab. No external parsing needed — all data is in the DB.
+**Scope:** Medium. Mostly a new API route + UI component on the project Code tab. No external parsing needed, all data is in the DB.
 
 ---
 
-### Phase 2 — Document Code Check _(planned)_
-Upload a project document — fixture schedule, lighting plan PDF, submittal, or bid — and automatically flag code compliance issues. The system reads the document and cross-references it against the loaded code corpus.
+### Phase 2, Document Code Check _(planned)_
+Upload a project document, fixture schedule, lighting plan PDF, submittal, or bid, and automatically flag code compliance issues. The system reads the document and cross-references it against the loaded code corpus.
 
 **What it checks:**
 
@@ -132,8 +132,8 @@ Upload a project document — fixture schedule, lighting plan PDF, submittal, or
 
 ---
 
-### Phase 3 — Human Error Radar _(future)_
-Cross-document consistency checks that catch the kind of errors that happen when drawings, schedules, and bids are produced by different people. Does not require code knowledge — purely data reconciliation.
+### Phase 3, Human Error Radar _(future)_
+Cross-document consistency checks that catch the kind of errors that happen when drawings, schedules, and bids are produced by different people. Does not require code knowledge, purely data reconciliation.
 
 **Three engines:**
 
@@ -170,13 +170,13 @@ Compares a received bid against the fixture schedule line by line.
 
 ---
 
-### Phase 4 — Drawing Intelligence (Claude Vision) _(planned)_
-Use Claude Vision to read uploaded lighting plan PDFs and extract structured data: fixture locations by space, control devices, emergency fixtures, exit signs, switch legs. ILC's limited symbol vocabulary (~20–40 variations between ILC-designed and reviewed drawings) makes this feasible without a full computer vision pipeline.
+### Phase 4, Drawing Intelligence (Claude Vision) _(planned)_
+Use Claude Vision to read uploaded lighting plan PDFs and extract structured data: fixture locations by space, control devices, emergency fixtures, exit signs, switch legs. ILC's limited symbol vocabulary (~20 to 40 variations between ILC-designed and reviewed drawings) makes this feasible without a full computer vision pipeline.
 
 **Two-folder training corpus:**
 ILC would provide ~100 drawings split into two sets:
-1. **ILC-designed** — drawings produced by ILC (consistent symbol conventions, control callouts, emergency notation)
-2. **Reviewed/third-party** — drawings ILC reviews for peer review engagements
+1. **ILC-designed**, drawings produced by ILC (consistent symbol conventions, control callouts, emergency notation)
+2. **Reviewed/third-party**, drawings ILC reviews for peer review engagements
 
 Claude processes both sets to extract a **design pattern library**: what ILC-designed drawings consistently include (occupancy sensors in corridors, controls at every amenity space, EM drivers called out at egress, etc.). These extracted patterns become the QC rubric.
 
@@ -195,14 +195,14 @@ Claude processes both sets to extract a **design pattern library**: what ILC-des
 4. Results compared against the QC rule library extracted from ILC's training corpus
 5. Discrepancies flagged as: PASS / MISSING / VERIFY
 
-**Key insight:** This is NOT general-purpose floor plan analysis (which is hard). ILC's drawings have a very consistent look — same CAD blocks, same annotation style, same layer conventions. Claude Vision with a few reference examples can reliably read them. lighttable.ai is solving a much harder version of this problem across all drawing styles. ILC only needs to solve it for ~40 fixture symbols and their own drawing conventions.
+**Key insight:** This is NOT general-purpose floor plan analysis (which is hard). ILC's drawings have a very consistent look, same CAD blocks, same annotation style, same layer conventions. Claude Vision with a few reference examples can reliably read them. lighttable.ai is solving a much harder version of this problem across all drawing styles. ILC only needs to solve it for ~40 fixture symbols and their own drawing conventions.
 
 **Scope:** Large, but achievable in phases. Start with corridor/egress controls check (highest code risk), then expand.
 
 ---
 
-### Phase 5A — QC Controls Checklist (Schedule-Based) _(planned)_
-Automated check that specific control devices are present in every required space type. Phase 5A attempts this using only fixture schedule data — no drawing analysis required.
+### Phase 5A, QC Controls Checklist (Schedule-Based) _(planned)_
+Automated check that specific control devices are present in every required space type. Phase 5A attempts this using only fixture schedule data, no drawing analysis required.
 
 **Required coverage per ASHRAE 90.1 Section 9.4:**
 
@@ -222,11 +222,11 @@ Automated check that specific control devices are present in every required spac
 **Concept:** Check if fixture schedule location tags that have luminaires also have corresponding control device rows. Flag spaces with luminaires but no controls.
 
 **Why this is harder than it sounds:**
-- Location tags in the schedule (Corridor, BOH, Amenity, etc.) are broad categories — a single tag maps to multiple distinct space types with different control requirements
+- Location tags in the schedule (Corridor, BOH, Amenity, etc.) are broad categories, a single tag maps to multiple distinct space types with different control requirements
 - Distinguishing a "control device" row from a "luminaire" row requires consistent schedule data entry (manufacturer, description, type code patterns) that may not always be present
 - A control device might exist in the schedule but be associated with the wrong space, or not associated with a space at all
-- The ASHRAE requirements vary by space function, project type, and jurisdiction adoption — a flat rule check would produce false positives
-- The schedule reflects the designer's intent at time of entry, not what's actually placed in drawings — a sensor could be in the schedule but never placed on the plan
+- The ASHRAE requirements vary by space function, project type, and jurisdiction adoption, a flat rule check would produce false positives
+- The schedule reflects the designer's intent at time of entry, not what's actually placed in drawings, a sensor could be in the schedule but never placed on the plan
 
 **Phase 5B (drawing-verified):** Cross-check Phase 4's drawing extraction output against the required controls table. More reliable since it reads actual placed devices.
 

@@ -32,7 +32,7 @@ test('client-typed budgets count only inside the normal range', () => {
   assert.equal(n.garden.garage.jobs, 6);
 });
 
-test('out of whack against our jobs: high, low, zero — and quiet inside the range', () => {
+test('out of whack against our jobs: high, low, zero, and quiet inside the range', () => {
   const n = areaNorms(five);
   const high = areaJobsAlert('garage', 300 * 200, ctx, n);
   assert.equal(high.way, 'high');

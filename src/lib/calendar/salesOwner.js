@@ -1,6 +1,6 @@
 /**
  * Who owns a meeting the calendar sync turns into a draft note, and whether a
- * hand-made note's calendar link points at a synced event. Pure — no database.
+ * hand-made note's calendar link points at a synced event. Pure, no database.
  *
  * Owner (Mike 9-25): the ILC person on the invite who is tagged Sales +
  * marketing. A client who sends the invite is never the owner, so the draft
@@ -18,7 +18,7 @@ export function inviteEmails(event = {}, mailbox = '') {
 }
 
 /**
- * @param users [{ id, email, departments: [{ department }] }] — any users; only
+ * @param users [{ id, email, departments: [{ department }] }], any users; only
  *              ones whose email is on the invite count.
  * @returns the owner's user id, or null. A salesperson wins; failing that, the
  *          first ILC user on the invite (the old organizer rule).

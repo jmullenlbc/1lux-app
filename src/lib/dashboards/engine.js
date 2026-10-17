@@ -135,7 +135,7 @@ export function runFieldWidget(widget, rows, section, globalFilters = []) {
   else series.sort((a, b) => b.value - a.value);
   // hideZero drops empty groups (e.g. every client with nothing On Hold).
   if (spec.hideZero && dim?.type !== 'date') series = series.filter(s => s.value);
-  // Running total — each bar is everything up to and including that period.
+  // Running total, each bar is everything up to and including that period.
   if (spec.cumulative && dim?.type === 'date') {
     let run = 0;
     series = series.map(s => (s.sort === Infinity ? s : { ...s, value: (run += s.value) }));

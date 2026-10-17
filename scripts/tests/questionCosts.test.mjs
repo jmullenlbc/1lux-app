@@ -4,7 +4,7 @@
  * calculateBudget returns budget.questionCosts keyed "section.field"; every
  * questionnaire screen prints the chosen answer's entry under that answer.
  *
- *   1. Labor is an estimate beside the product — it never moves any total.
+ *   1. Labor is an estimate beside the product, it never moves any total.
  *   2. Labor uses the RAW rates on the master sheet (no OH&P).
  *   3. $/SF answers carry no labor ("Leave labor off of those").
  *   4. A frogeye installs like a wall sconce, one per 25 ft of corridor.
@@ -112,7 +112,7 @@ test('solar site: 70% of wired-pole labor credited back as a saving', () => {
   close(solar.labor, solar.lines[0].count * poleLabor * 0.3, 'net solar labor = 30% of wired');
 });
 
-test('$/SF answers show cost only — no labor', () => {
+test('$/SF answers show cost only, no labor', () => {
   for (const key of ['amenities.interiorLevel', 'exterior.amenityLevel', 'exterior.amenityHours']) {
     assert.ok(qc[key].product > 0, `${key} should have a cost`);
     assert.equal(qc[key].labor, 0, `${key} must carry no labor`);

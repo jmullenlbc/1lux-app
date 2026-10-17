@@ -2,7 +2,7 @@
  * Was this meeting in person, and what kind of meeting was it?
  *
  * Mike, 2026-09-07: "when we sync with Microsoft the system should know it's in
- * person through a title or location." That is what this file does — it reads a
+ * person through a title or location." That is what this file does, it reads a
  * calendar event's title and location and nothing else.
  *
  * Everything here is pure: no database, no network, no mention of Microsoft. The
@@ -29,7 +29,7 @@
  * Mike, 2026-09-07: "change to meals and include work breakfast, lunch and
  * dinners." One category covers all three; nothing distinguishes a 7am breakfast
  * with a developer from a 7pm dinner with the same developer. Old notes written
- * before the rename still say LUNCH, so every read path accepts both — run
+ * before the rename still say LUNCH, so every read path accepts both, run
  * anything coming in through normalizeActivityType and stop thinking about it.
  */
 const LEGACY_TYPE_ALIASES = { LUNCH: 'MEAL', DINNER: 'MEAL', BREAKFAST: 'MEAL' };
@@ -53,7 +53,7 @@ export const IN_PERSON_TYPES = new Set([
  * days people are traveling to see clients."
  *
  * TRAVEL is deliberately NOT in IN_PERSON_TYPES. A travel day is not a meeting
- * and must not inflate the in-person meeting count Mike checks by hand — it is
+ * and must not inflate the in-person meeting count Mike checks by hand, it is
  * its own number, counted in days rather than in meetings. What it IS is
  * business, so the import keeps it (see BUSINESS_TYPES).
  */
@@ -72,7 +72,7 @@ export const BUSINESS_TYPES = new Set([...IN_PERSON_TYPES, 'EVENT', 'TRAVEL']);
  * hour in the title should automatically be in person."
  *
  * These four override the location box entirely. A Teams link on an invite
- * titled "Lunch with Greystar" does not make it a call — the link is usually
+ * titled "Lunch with Greystar" does not make it a call, the link is usually
  * left on the invite by habit, or somebody dialled in to a real lunch. The title
  * wins, full stop.
  *
@@ -90,7 +90,7 @@ export function isInPersonType(activityType) {
   return IN_PERSON_TYPES.has(normalizeActivityType(activityType));
 }
 
-/** Is this worth keeping in the CRM at all — a meeting, an event or a trip? */
+/** Is this worth keeping in the CRM at all, a meeting, an event or a trip? */
 export function isBusinessType(activityType) {
   return BUSINESS_TYPES.has(normalizeActivityType(activityType));
 }
@@ -123,8 +123,8 @@ export function isVirtualLocation(event = {}) {
 /**
  * Does the location name a real place?
  *
- * An empty location box is NOT proof of anything — plenty of real coffees get
- * booked with no location typed — so this returns false for blank, and the
+ * An empty location box is NOT proof of anything, plenty of real coffees get
+ * booked with no location typed, so this returns false for blank, and the
  * caller falls back to the title.
  */
 export function isPhysicalLocation(event = {}) {
@@ -142,7 +142,7 @@ const TITLE_KEYWORDS = [
   [/\bgolf\b|\btee time\b|\bdriving range\b|\bscramble\b/i,               'GOLF'],
   [/\bhappy hour\b|\bdrinks\b|\bbrewery\b|\bcocktails?\b|\bbar\b/i,       'HAPPY_HOUR'],
   [/\bsite visit\b|\bsite walk\b|\bwalk ?through\b|\bjob ?site\b|\bpunch ?walk\b|\bsite tour\b/i, 'SITE_VISIT'],
-  // One category for breakfast, lunch and dinner — Mike's rule, 2026-09-07.
+  // One category for breakfast, lunch and dinner, Mike's rule, 2026-09-07.
   [/\blunch\b|\bdinner\b|\bbreakfast\b|\bsupper\b|\bbrunch\b/i,           'MEAL'],
   [/\bcoffee\b|\bcafe\b|\bcaf[eé]\b|\bstarbucks\b/i,                      'COFFEE'],
   // Days on the road to see clients. "trip" and "travel" are here; the personal
@@ -156,7 +156,7 @@ const TITLE_KEYWORDS = [
   // needs the word in a staying-somewhere context, not just a building type.
   [/\bhotel (stay|reservation|check-?in|check-?out|booking)\b|^\s*hotel stay\b/i, 'TRAVEL'],
   [/\bstay at\b|\bstaying at\b|\bnights? at\b|\bovernight in\b|\blodging\b/i,     'TRAVEL'],
-  // "Hilton Stay Ft. Collins" — the way he actually writes it, brand first and
+  // "Hilton Stay Ft. Collins", the way he actually writes it, brand first and
   // no preposition. The word "stay" and a place to stay have to BOTH be there.
   [/\bstay\b(?=.*\b(hotel|inn|resort|lodge|suites|marriott|hilton|hyatt|westin|sheraton|ritz|kimpton|omni|courtyard|residence inn|embassy|doubletree|hampton)\b)|\b(hotel|inn|resort|lodge|suites|marriott|hilton|hyatt|westin|sheraton|ritz|kimpton|omni|courtyard|residence inn|embassy|doubletree|hampton)\b(?=.*\bstay\b)/i, 'TRAVEL'],
   [/\bconference\b|\btrade ?show\b|\bnetworking\b|\bgala\b|\bawards?\b|\bmixer\b|\bgroundbreaking\b|\bribbon cutting\b/i, 'EVENT'],
@@ -183,7 +183,7 @@ export function activityTypeFromTitle(title = '') {
  *
  *   { activityType, isInPerson, source: 'keyword', confidence, reason }
  *
- * Returns null only when the title and the location BOTH say nothing — which is
+ * Returns null only when the title and the location BOTH say nothing, which is
  * the one case worth spending an AI call on.
  */
 export function classifyByTitleAndLocation(event = {}) {
@@ -192,20 +192,20 @@ export function classifyByTitleAndLocation(event = {}) {
   const physical  = isPhysicalLocation(event);
 
   // Golf, lunch, coffee and happy hour in the title are in person and that is
-  // the end of it — Mike's rule. The location box does not get a vote.
+  // the end of it, Mike's rule. The location box does not get a vote.
   if (titleType && ALWAYS_IN_PERSON_TYPES.has(titleType)) {
     return {
       activityType: titleType, isInPerson: true, source: 'keyword',
       confidence: virtual ? 90 : (physical ? 95 : 90),
       reason: virtual
-        ? `the title says ${titleType.toLowerCase().replace('_', ' ')} — that is in person whatever the location box says`
+        ? `the title says ${titleType.toLowerCase().replace('_', ' ')}, that is in person whatever the location box says`
         : physical
           ? `the title says ${titleType.toLowerCase().replace('_', ' ')} and the location is a real place`
           : `the title says ${titleType.toLowerCase().replace('_', ' ')}`,
     };
   }
 
-  // A site walk is the one in-person word that a Teams link can still overrule —
+  // A site walk is the one in-person word that a Teams link can still overrule
   // "site walk review" really does get held on a screen.
   if (titleType && IN_PERSON_TYPES.has(titleType)) {
     if (virtual) {
@@ -223,7 +223,7 @@ export function classifyByTitleAndLocation(event = {}) {
     };
   }
 
-  // A day on the road. Not a meeting — it is counted in days, not in meetings —
+  // A day on the road. Not a meeting, it is counted in days, not in meetings
   // but it is business and it must survive the import. A join link on it means
   // it was a call about the trip, not the trip.
   if (titleType === 'TRAVEL') {

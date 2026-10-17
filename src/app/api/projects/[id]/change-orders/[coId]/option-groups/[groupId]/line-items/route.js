@@ -4,7 +4,7 @@ import { prisma } from '@/lib/db';
 
 const OPTION_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
-// POST — add line item to group
+// POST, add line item to group
 // body.action: 'add_line' | 'add_option'
 // body.afterItemId: insert after this item ID
 // body.parentLineItemId: for add_option, the root of the group
@@ -35,7 +35,7 @@ export async function POST(req, { params }) {
 
   const items = group.lineItems;
 
-  // ── Action: add_option — convert a line into Option A and add Option B ──────
+  // ── Action: add_option, convert a line into Option A and add Option B ──────
   if (action === 'add_option') {
     const parentId = bodyParentId || afterItemId;
     const parentItem = items.find(i => i.id === parentId);
@@ -79,7 +79,7 @@ export async function POST(req, { params }) {
     return NextResponse.json(newItem, { status: 201 });
   }
 
-  // ── Action: add_line — add a plain new line after afterItemId ───────────────
+  // ── Action: add_line, add a plain new line after afterItemId ───────────────
   const afterItem = afterItemId ? items.find(i => i.id === afterItemId) : null;
   const nextOrder = afterItem
     ? afterItem.sortOrder + 0.5

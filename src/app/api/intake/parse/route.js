@@ -40,18 +40,18 @@ export const maxDuration = 300;
  * ProjectFile row, no Project. Two reasons:
  *
  *   1. A public form should not create durable records from anonymous input.
- *      Nothing persists until a human at ILC accepts the submission — which is
+ *      Nothing persists until a human at ILC accepts the submission, which is
  *      exactly the review-queue model Mike asked for. An abandoned form leaves
  *      no trace to clean up.
  *   2. The client holds parsed results in memory and sends them along at submit.
  *
  * ── Two ways in ──
- * 1. multipart form-data with `file` — the classic path. Works everywhere, but
+ * 1. multipart form-data with `file`, the classic path. Works everywhere, but
  *    on production Amplify's front door rejects bodies over ~4.4 MB before this
  *    code runs, so it effectively serves small files and local dev.
- * 2. JSON `{ s3Key, fileName }` — the direct-to-S3 path. The browser already
+ * 2. JSON `{ s3Key, fileName }`, the direct-to-S3 path. The browser already
  *    PUT the file to S3 via a presigned slip (/api/uploads/presign); we read the
- *    bytes back, parse them, and DELETE the object — stateless stays stateless.
+ *    bytes back, parse them, and DELETE the object, stateless stays stateless.
  *
  * ── Reading a whole set, not a sheet (2026-08-21) ──
  * The size ceiling is 400 MB because a GC sends the drawings he has, not the
@@ -61,7 +61,7 @@ export const maxDuration = 300;
  *     a PDF that big is read back BY BYTE RANGE (src/lib/pdfRange.js), so peak
  *     memory tracks the pages we touch rather than the size of the set.
  *   - We read the sheet index, not the drawings. Fable 5 is shown one line per
- *     sheet — number, title, snippet — and names the four sheets that matter
+ *     sheet, number, title, snippet, and names the four sheets that matter
  *     (src/lib/sheetIndex.js). Only those are rendered and read in full.
  *   - Everything is time-budgeted and degrades instead of failing. A scan that
  *     runs long returns what it has; a model that is unreachable falls back to
@@ -71,16 +71,16 @@ export const maxDuration = 300;
  * the argument above does not apply to it.
  *
  * ── STAGES, and the 30-second wall (2026-08-25) ─────────────────────────────
- * Everything above was designed against `maxDuration` — 300 seconds. It turns
+ * Everything above was designed against `maxDuration`, 300 seconds. It turns
  * out a second, lower ceiling sits in FRONT of that one and nobody knew: the
  * CloudFront distribution Amplify manages on our behalf hangs up on any origin
  * response slower than ~30 seconds, and returns an empty 504. That distribution
- * is not visible or editable in our AWS console — Amplify owns it — so the
+ * is not visible or editable in our AWS console, Amplify owns it, so the
  * limit cannot simply be raised.
  *
  * Measured on production, 2026-08-25, with a real 245 MB / 120-sheet set:
  *
- *      upload straight to S3            18.8s   fine — never touches this app
+ *      upload straight to S3            18.8s   fine, never touches this app
  *      the read, one 472 KB sheet       ~49s    504 at 28.1s
  *      the read, the full 120 sheets    ~66s    504 at 28.1s
  *
@@ -88,7 +88,7 @@ export const maxDuration = 300;
  * production, at any file size. The 504 arrives with no body, which is why it
  * looked like a generic failure rather than a timeout.
  *
- * The fix is not to make the read faster — 17.5s of it is PDF work and the rest
+ * The fix is not to make the read faster, 17.5s of it is PDF work and the rest
  * is model latency we do not control. It is to stop asking one long question.
  * The read is now four requests the BROWSER drives, each comfortably inside the
  * ceiling, with the working state parked in storage between them:
@@ -101,19 +101,19 @@ export const maxDuration = 300;
  *      site            read the site plan (only when needed)     ~25s
  *      done            throw away the working files              <1s
  *
- * `site` is still conditional, exactly as before — it is the more expensive
+ * `site` is still conditional, exactly as before, it is the more expensive
  * call and a sheet with a clean matrix never needs it. Being separate requests
  * rather than one means running them in sequence costs nothing; each is judged
  * against the ceiling on its own.
  *
  * Omitting `stage` runs the whole thing in one request, as it always did. That
  * path is not dead code: it is local dev, the multipart door, and any caller
- * that would rather wait — none of which sit behind CloudFront.
+ * that would rather wait, none of which sit behind CloudFront.
  *
  * ── Abuse surface ──
  * Every call costs an Anthropic request. Throttled per IP, size-capped, and
  * extension-checked before any model call. See the limitation note in
- * `rateLimit.js` — the counter is per warm Lambda instance, not global.
+ * `rateLimit.js`, the counter is per warm Lambda instance, not global.
  */
 
 const MAX_BYTES = MAX_INTAKE_UPLOAD_BYTES;          // 400 MB, shared with the presign desk
@@ -126,7 +126,7 @@ const MAX_SHEET_BYTES = 50 * 1024 * 1024;           // spreadsheets are read who
  * call. 12 fresh drawing sets a minute from one address is already generous.
  *
  * REQUESTS is a flood brake in front of it. A staged read of a large set is a
- * dozen-plus short requests -- scan slices, then render/matrix/site/done -- so
+ * dozen-plus short requests, scan slices, then render/matrix/site/done, so
  * the old single 12-per-minute counter rejected an honest GC partway through
  * his own upload with "Too many uploads. Please wait a moment." Continuations
  * are cheap and cannot be made without first paying for a scan key, so they
@@ -147,7 +147,7 @@ const BIG_SET_SCAN_MS = 90_000;
  * Scanning budget for ONE slice of a staged read.
  *
  * The staged path exists because CloudFront hangs up at about 30 seconds, so
- * BIG_SET_SCAN_MS is not a budget it may ever spend -- a 60 MB, 158-sheet set
+ * BIG_SET_SCAN_MS is not a budget it may ever spend, a 60 MB, 158-sheet set
  * used the whole 90s and died at 28.06s with nothing to show. A slice reads for
  * this long, parks what it got, and asks to be called again, which keeps every
  * request short no matter how large the set is.
@@ -163,7 +163,7 @@ const SCAN_SLICE_MS = 12_000;
  * Opening a 300 MB set from S3 is dozens of range round-trips, and on the
  * Skyline Ridge failure that unbudgeted open is part of what pushed one slice
  * past the ~30s front door. So the open is charged against the slice
- * (sliceBudgetMs below) — but never all the way to zero, because a slice that
+ * (sliceBudgetMs below), but never all the way to zero, because a slice that
  * reads nothing parks nothing and the scan stops moving.
  */
 const MIN_SLICE_READ_MS = 3_000;
@@ -178,7 +178,7 @@ const MAX_SCAN_SLICES = 80;
 /**
  * ── Parallel scan shards ──
  *
- * Production reads 5–8 pages per 12-second slice — a 294-page set is nine
+ * Production reads 5 to 8 pages per 12-second slice, a 294-page set is nine
  * minutes of one browser politely asking for one slice at a time. But each
  * slice runs on its own Lambda, and Lambdas don't queue behind each other: the
  * browser can run several slice streams AT ONCE, each reading its own stretch
@@ -191,7 +191,7 @@ const MAX_SCAN_SLICES = 80;
  * the read finishes through the exact same judgement it always used.
  *
  * Below this many unread pages the fan-out isn't worth its overhead (every
- * shard slice re-opens the file) — small sets keep the single-stream path.
+ * shard slice re-opens the file), small sets keep the single-stream path.
  */
 const SCAN_SHARDS = 4;
 const SHARD_MIN_REMAINING = 32;
@@ -203,13 +203,13 @@ const shardStateKeyFor = (scanKey, i) =>
 /**
  * The matrix read's OWN parking spot and in-flight marker, derived from the
  * scan key. Both derived keys still match `isScanKey` (a cuid2 is lowercase
- * alphanumeric), so the ordinary state helpers handle them — and both live
+ * alphanumeric), so the ordinary state helpers handle them, and both live
  * under `scans/`, so the lifecycle sweep covers them like everything else.
  *
  * Separate on purpose: the matrix now runs WHILE the render stage is still
  * drawing (the browser kicks it early and lets the model think in parallel).
  * Parking its answer into the main state, or sharing the render's attempt
- * marker, would be two concurrent writers on one object — last write wins and
+ * marker, would be two concurrent writers on one object, last write wins and
  * either the render's progress or the matrix's answer silently vanishes.
  */
 const matrixStateKeyFor = (scanKey) =>
@@ -221,7 +221,7 @@ const matrixStateKeyFor = (scanKey) =>
  * afternoon) and each site-plan sheet (20-24 s measured on Lone Tree GEN).
  *
  * Neither had a marker before 2026-09-16. When the front door hung up on one
- * of them the browser re-asked a few seconds later — and the server, seeing
+ * of them the browser re-asked a few seconds later, and the server, seeing
  * no sign that the first call was still running, ran the SAME call again on a
  * second Lambda. Two model calls racing on one object, and the retry just as
  * likely to be hung up on as the original: that was the Lone Tree GEN set
@@ -230,7 +230,7 @@ const matrixStateKeyFor = (scanKey) =>
  * answer BEFORE responding so a hung-up response is not a lost one.
  *
  * Only the MARKER lives at these keys. The answers themselves go into the main
- * state as before — nothing else writes the main state while these run.
+ * state as before, nothing else writes the main state while these run.
  */
 const pickStateKeyFor = (scanKey) =>
   scanKey.replace(/\.json\.gz$/i, 'pick.json.gz');
@@ -247,14 +247,14 @@ const SITE_MAX_KICKS = 3;
 /**
  * How many key sheets the public read opens: site plan, landscape plan, area
  * summary, floor plan, elevation. The landscape plan (2026-09-16) is the one
- * addition — one more render and one more short vision request on a set that
+ * addition, one more render and one more short vision request on a set that
  * has one, nothing on a set that does not.
  */
 const INTAKE_SHEETS_TO_READ = 5;
 
 // Closing a ranged document is best-effort, never load-bearing. pdfjs's
 // destroy() waits for in-flight work, and a page read that was raced out by
-// the slice budget can leave a range fetch stuck underneath it — awaiting
+// the slice budget can leave a range fetch stuck underneath it, awaiting
 // that would hold the RESPONSE hostage until the front door hangs up, which
 // is the exact 504 the staged read exists to avoid. Two seconds of grace,
 // then the response leaves; a leaked handle dies with the Lambda instance.
@@ -327,8 +327,8 @@ export async function POST(request) {
       return bad('bad_request', 'No file received.');
     }
     name = file.name || 'upload';
-    // The multipart door is local dev and small files only — Amplify caps this
-    // path at ~4.4 MB regardless — so the modest ceiling is the right one here.
+    // The multipart door is local dev and small files only, Amplify caps this
+    // path at ~4.4 MB regardless, so the modest ceiling is the right one here.
     if (typeof file.size === 'number' && file.size > MAX_SHEET_BYTES) {
       return bad('too_large', `That file is larger than ${mb(MAX_SHEET_BYTES)} MB.`, 413);
     }
@@ -336,7 +336,7 @@ export async function POST(request) {
   }
 
   // A visitor's first request lands on a server that may need fifteen seconds
-  // to wake, and the front door hangs up at thirty -- so the intake page rings
+  // to wake, and the front door hangs up at thirty, so the intake page rings
   // the bell the moment it opens, while the visitor is still choosing a file.
   // This does nothing on purpose; being asked is the point.
   if (stage === 'warm') {
@@ -348,7 +348,7 @@ export async function POST(request) {
   }
 
   // Now that we know which kind of request this is, charge the upload counter
-  // -- but only for one that begins a read. Everything carrying a scan key is
+  // but only for one that begins a read. Everything carrying a scan key is
   // continuing work already paid for.
   if (!scanKey) {
     const fresh = rateLimit(`intake-parse:${ip}`, UPLOADS);
@@ -364,7 +364,7 @@ export async function POST(request) {
     if (!parked.ok) return bad(parked.code, parked.message, parked.code === 'bad_key' ? 400 : 410);
 
     // One of the parallel scan streams. It reads its own stretch of the set
-    // and parks into its own derived state object — it never writes the main
+    // and parks into its own derived state object, it never writes the main
     // state, so any number of them can run at once.
     if (shard != null) {
       try {
@@ -375,7 +375,7 @@ export async function POST(request) {
     }
 
     // Every stream is done: fold their banked pages into the main state, then
-    // fall through to the ordinary continue below — which finds nothing left
+    // fall through to the ordinary continue below, which finds nothing left
     // to read and finishes the scan through the same judgement it always used.
     if (mergeShards) {
       const merged = await mergeScanShards(scanKey, parked.state);
@@ -384,14 +384,14 @@ export async function POST(request) {
     }
 
     // The reading is done and only the sheet pick is left. It works from the
-    // parked pages alone, so this request never pays to open the file at all —
+    // parked pages alone, so this request never pays to open the file at all
     // the pick used to ride on the FINAL reading slice, and on a big set that
     // stack-up (open + read + model call + park) is what breached the front
     // door's ~30 seconds.
     //
     // `pickDone` is the pick's parked answer (kept in the main state). A retry
-    // that lands after the pick finished — the front door hung up on the
-    // response, not the work — is served from it without opening the file.
+    // that lands after the pick finished, the front door hung up on the
+    // response, not the work, is served from it without opening the file.
     if (parked.state.pickPending || parked.state.pickDone) {
       try {
         return await stageScanPick(scanKey, parked.state);
@@ -418,7 +418,7 @@ export async function POST(request) {
     } catch (e) {
       return unexpected(e, parked.state?.fileName || 'upload');
     } finally {
-      // The uploaded file stays put -- later slices and the render stage still
+      // The uploaded file stays put, later slices and the render stage still
       // have to read from it. Only `done` clears it.
       await closeQuietly(opened.handle);
     }
@@ -429,7 +429,7 @@ export async function POST(request) {
   if (stage && RESUME_STAGES.includes(stage)) {
     const parked = await getScanState(scanKey);
     // `scan_expired` is the honest answer for a key that has been swept, a key
-    // that never existed, and a bucket that is unreachable — from the visitor's
+    // that never existed, and a bucket that is unreachable, from the visitor's
     // side all three mean the same thing and have the same remedy.
     if (!parked.ok) return bad(parked.code, parked.message, parked.code === 'bad_key' ? 400 : 410);
     try {
@@ -471,7 +471,7 @@ export async function POST(request) {
     return unexpected(e, name);
   } finally {
     // The scan stage hands the open document off to later stages by parking a
-    // key, not by holding it — so the handle is always closed here. What is NOT
+    // key, not by holding it, so the handle is always closed here. What is NOT
     // always deleted is the uploaded object: `scan` leaves it in place because
     // `render` still has to draw from it, and `done` clears it.
     await closeQuietly(opened.handle);
@@ -487,7 +487,7 @@ export async function POST(request) {
  * Get to something the extractor and the renderer can both read.
  *
  * `source` is raw bytes for a spreadsheet or a small file, and an open pdfjs
- * document for a big set. Neither caller cares which — see pdfRange.js.
+ * document for a big set. Neither caller cares which, see pdfRange.js.
  */
 async function openSource({ s3Key, buffer, ext, chunkBytes }) {
   if (!s3Key) return { source: buffer, handle: null };
@@ -512,7 +512,7 @@ async function openSource({ s3Key, buffer, ext, chunkBytes }) {
 function anthropicClient() {
   const apiKey = getAnthropicKey()?.trim();
   if (!apiKey) {
-    // Bare 503 rather than a detailed message — this is a config fault on our
+    // Bare 503 rather than a detailed message, this is a config fault on our
     // side and a public caller should not learn about our key setup.
     console.error('intake/parse: ANTHROPIC_API_KEY not configured');
     return null;
@@ -526,7 +526,7 @@ const unavailable = () =>
 /** One place for "a throw reached the top", so every stage fails the same way. */
 function unexpected(e, name) {
   // A corrupt PDF can survive text extraction (it reads as "no text layer") and
-  // only blow up when the vision path tries to render it — that's the visitor's
+  // only blow up when the vision path tries to render it, that's the visitor's
   // file, not us, and it must never surface as a message-less 500.
   if (e?.name === 'InvalidPDFException') {
     return bad('unreadable',
@@ -556,7 +556,7 @@ async function readAndPick({ source, name, ext, opened, client, slice = null }) 
       {
         ...(opened?.ranged ? { timeBudgetMs: BIG_SET_SCAN_MS, shouldStop: opened.overBudget } : {}),
         // A staged read overrides the budget above: it is bounded by the front
-        // door, not by the Lambda — and what the slice already spent OPENING
+        // door, not by the Lambda, and what the slice already spent OPENING
         // the file comes out of the same budget, because the front door's
         // clock started at the request, not at the first page. It also carries
         // the pages earlier slices already read, and the page to pick up from.
@@ -569,7 +569,7 @@ async function readAndPick({ source, name, ext, opened, client, slice = null }) 
     );
   } catch (e) {
     // A damaged or mislabeled file makes the extractor throw, and an unhandled
-    // throw becomes a bare 500 with no message — the UI can only show its
+    // throw becomes a bare 500 with no message, the UI can only show its
     // generic fallback. Say something a public visitor can act on.
     console.error('intake/parse: extractor threw for', name, e);
     return {
@@ -584,7 +584,7 @@ async function readAndPick({ source, name, ext, opened, client, slice = null }) 
   if (extracted.partial) return { partial: true, extracted };
 
   // Images and unsupported types are user-fixable, not server errors. A missing
-  // text layer is NOT one of those — it is the scanned-set case, which vision
+  // text layer is NOT one of those, it is the scanned-set case, which vision
   // handles, so it travels on rather than ending here. So does a set the
   // memory brake stopped before it could be judged (too_big_to_read): the
   // vision read of page 1 is still worth having.
@@ -609,7 +609,7 @@ async function readAndPick({ source, name, ext, opened, client, slice = null }) 
 
   // Five sheets: the site plan and area summary carry the written site data,
   // the landscape plan (2026-09-16) the outdoor amenity area and the sporadic
-  // site features, and — since Mike's 2026-08-31 takeoff ask — a floor plan
+  // site features, and, since Mike's 2026-08-31 takeoff ask, a floor plan
   // for counting egress stairwells and exit doors, and an elevation for
   // counting stories. Each rendered page is paid for by the pixel, and the
   // site stage reads one sheet per request, so five sheets is five short
@@ -623,8 +623,8 @@ async function readAndPick({ source, name, ext, opened, client, slice = null }) 
  * Draw the chosen sheets and keep them.
  *
  * Mike, 2026-08-21: "keep the small, compressed version for sure. So they can
- * reference." The uploaded set is discarded as soon as the read is done — far
- * too big to keep — so without this a reviewer has the numbers we pulled and no
+ * reference." The uploaded set is discarded as soon as the read is done, far
+ * too big to keep, so without this a reviewer has the numbers we pulled and no
  * way to see where they came from.
  *
  * Rendered ONCE and used twice: the JPEG is the reviewer's copy, and the PNG is
@@ -634,7 +634,7 @@ async function readAndPick({ source, name, ext, opened, client, slice = null }) 
 async function renderAndKeep({ source, chosenPages, opened, keepPng = false }) {
   // Raced against `opened.failed` because rendering is the last place that
   // pulls bytes. If storage stops answering mid-render, pdfjs waits for bytes
-  // that are not coming rather than raising anything — so without the race this
+  // that are not coming rather than raising anything, so without the race this
   // sits until the 300-second ceiling and the visitor watches a spinner.
   const render = renderPdfPages(source, {
     pageNumbers: chosenPages, pages: chosenPages.length, alsoJpeg: true,
@@ -642,7 +642,7 @@ async function renderAndKeep({ source, chosenPages, opened, keepPng = false }) {
   const rendered = opened?.failed ? await Promise.race([render, opened.failed]) : await render;
 
   // The PNG is only stored for the staged read, where the site step is a
-  // separate request and would otherwise have to redraw the sheet -- 7.5s of
+  // separate request and would otherwise have to redraw the sheet, 7.5s of
   // rendering on top of a 25s read, which is what put the whole thing over the
   // ceiling in the first place. The one-request path still has the rendered
   // image in hand, so storing a second copy there is pure waste.
@@ -662,7 +662,7 @@ async function renderAndKeep({ source, chosenPages, opened, keepPng = false }) {
 // The stages
 // ─────────────────────────────────────────────────────────────────────────────
 
-/** Stage 1 — read the text layer, pick the sheets, park the result. */
+/** Stage 1, read the text layer, pick the sheets, park the result. */
 async function stageScan({ source, opened, name, ext, s3Key, buffer, state = null, scanKey = null, openMs = 0 }) {
   const client = anthropicClient();
   if (!client) return unavailable();
@@ -681,7 +681,7 @@ async function stageScan({ source, opened, name, ext, s3Key, buffer, state = nul
   const fileKey = state?.s3Key || s3Key || await putUploadedObjectDev(buffer, ext);
 
   // Nowhere to leave the file means the later stages have nothing to open. Only
-  // reachable from a multipart POST in production -- which Amplify caps at
+  // reachable from a multipart POST in production, which Amplify caps at
   // ~4.4 MB anyway, and a file that small finishes in one request comfortably.
   if (!fileKey) {
     return NextResponse.json({ stage: 'scan', staging: false, fileName: name });
@@ -691,7 +691,7 @@ async function stageScan({ source, opened, name, ext, s3Key, buffer, state = nul
   // a second key would leave it holding a stale one.
   const park = async (next) => (scanKey ? putScanStateAt(scanKey, next) : putScanState(next));
 
-  // -- Still reading --
+  // Still reading
   // Park the pages banked so far and the page to pick up from, then ask for
   // another short request. Nothing is judged yet: a set is not "without a text
   // layer" until every sheet has actually been looked at.
@@ -715,7 +715,7 @@ async function stageScan({ source, opened, name, ext, s3Key, buffer, state = nul
     }
     // Enough left to be worth fanning out? Offer the remainder as parallel
     // ranges. The ranges are computed HERE, once, and echoed back by every
-    // shard request — a single source, so no two shards can ever disagree
+    // shard request, a single source, so no two shards can ever disagree
     // about who owns which pages (a hung-up slice's zombie can still rewrite
     // the main state's nextPage after this response leaves, so deriving the
     // ranges server-side on each shard call would not be stable).
@@ -736,7 +736,7 @@ async function stageScan({ source, opened, name, ext, s3Key, buffer, state = nul
     });
   }
 
-  // -- Finished reading, sheet pick still to do --
+  // Finished reading, sheet pick still to do
   // The pick is a model call, and this slice has already spent its budget
   // reading. Park the finished pages and ask to be called once more; that
   // request (stageScanPick) does the pick alone, without even opening the
@@ -774,9 +774,9 @@ async function stageScan({ source, opened, name, ext, s3Key, buffer, state = nul
     });
   }
 
-  // -- Finished reading --
+  // Finished reading
   // A scanned set has no text layer, so there is no sheet index to pick from
-  // and nothing lands in `chosenPages` -- but that is precisely the case where
+  // and nothing lands in `chosenPages`, but that is precisely the case where
   // the vision read is the ONLY way in, so something has to be drawn. Page 1,
   // matching what the single-request path falls back to.
   const chosenPages = picked.chosenPages.length || ext !== 'pdf'
@@ -784,7 +784,7 @@ async function stageScan({ source, opened, name, ext, s3Key, buffer, state = nul
     : [1];
 
   // A plotted set has no text layer, so nothing landed in `chosenPages` and the
-  // fallback above is about to draw the cover -- which has no numbers on it.
+  // fallback above is about to draw the cover, which has no numbers on it.
   // For a set that big it is worth going and READING the drawing index off the
   // cover as a picture, which is what the two stages below do. Page 1 stays
   // parked as the answer if that read comes back with nothing.
@@ -809,7 +809,7 @@ async function stageScan({ source, opened, name, ext, s3Key, buffer, state = nul
 
   if (!key) {
     // Nowhere to park it means the staged read cannot continue. Rather than
-    // fail, tell the browser to fall back to the one-shot path -- which is the
+    // fail, tell the browser to fall back to the one-shot path, which is the
     // right answer for the small files that can still fit through it.
     console.error('intake/parse: could not park scan state for', name);
     return NextResponse.json({ stage: 'scan', staging: false, fileName: name });
@@ -823,7 +823,7 @@ async function stageScan({ source, opened, name, ext, s3Key, buffer, state = nul
     totalPages: picked.extracted.scan?.totalPages ?? null,
     sheetsRead: picked.sheetsRead,
     // How much of the set the text read actually covered, and whether the
-    // memory brake cut it short — so the visitor is told "read 1 of 33 pages"
+    // memory brake cut it short, so the visitor is told "read 1 of 33 pages"
     // rather than believing the whole set was searched.
     pagesRead:  picked.extracted.scan?.scannedPages ?? null,
     readBraked: picked.extracted.scan?.braked === true || state?.braked === true,
@@ -862,7 +862,7 @@ function scanShardRanges({ ext, totalPages, nextPage }) {
  * One slice of one parallel scan stream.
  *
  * Same reading loop as the main scan, with two differences: it stops at the
- * top of its own range, and it parks into its own derived state object — never
+ * top of its own range, and it parks into its own derived state object, never
  * the main state, so four of these running at once cannot clobber each other.
  * The range arrives echoed from our own fan-out offer and is frozen into the
  * shard's state on first contact; a retried request after a front-door hang-up
@@ -891,7 +891,7 @@ async function runScanShard(scanKey, state, shardIndex, range) {
     sh = { shard: shardIndex, from, to, pages: [], nextPage: from };
   }
 
-  // Nothing left in this stream's range — answer done without opening the file.
+  // Nothing left in this stream's range, answer done without opening the file.
   // (A hung-up FINAL slice replays here: the zombie parked nextPage null.)
   if (sh.nextPage == null) {
     return NextResponse.json({
@@ -911,7 +911,7 @@ async function runScanShard(scanKey, state, shardIndex, range) {
     });
 
     const pages = sh.pages.concat(slice.pages);
-    // `nextPage` null means this stream is finished — its range ran out, or
+    // `nextPage` null means this stream is finished, its range ran out, or
     // the memory brake came on (out of ROOM is final, exactly as it is for
     // the single-stream scan; the merge works with whatever was banked).
     const next = { ...sh, pages, nextPage: slice.nextPage, braked: slice.braked || sh.braked || false };
@@ -931,7 +931,7 @@ async function runScanShard(scanKey, state, shardIndex, range) {
 /**
  * Fold every stream's banked pages back into the main state.
  *
- * Pages are keyed by page number — the main state's prefix plus each shard's
+ * Pages are keyed by page number, the main state's prefix plus each shard's
  * stretch, sorted, first writer wins on the (theoretical) duplicate. The main
  * state's `nextPage` is pushed past the end of the set, so the ordinary scan
  * continue that runs right after this reads nothing and drops straight into
@@ -967,10 +967,10 @@ async function mergeScanShards(scanKey, state) {
 }
 
 /**
- * Stage 1a½ — the sheet pick, as its own short request.
+ * Stage 1a½, the sheet pick, as its own short request.
  *
  * Runs when a staged scan finished its reading and parked with `pickPending`.
- * Everything it needs — the text of every page — is in the parked state, so
+ * Everything it needs, the text of every page, is in the parked state, so
  * this request never opens the file: it is one model call and one park,
  * comfortably inside the front door on its own. The response is exactly the
  * one the finishing scan slice used to send, so the browser's loop does not
@@ -981,7 +981,7 @@ async function stageScanPick(scanKey, state) {
   if (state.pickDone) return NextResponse.json(pickResponse(scanKey, state));
 
   // Is a pick still running on another Lambda? Then this request must not
-  // start a second one — it says "still working" and the browser polls.
+  // start a second one, it says "still working" and the browser polls.
   const pickKey = pickStateKeyFor(scanKey);
   const marker = await getScanAttempt(pickKey);
   const inFlight = marker?.stage === 'pick' && Number.isFinite(marker.startedAt);
@@ -994,7 +994,7 @@ async function stageScanPick(scanKey, state) {
   }
   if (marker) {
     // A run finished (or died) since this request read the state. If it
-    // finished, its answer is in the main state — re-read rather than re-pick.
+    // finished, its answer is in the main state, re-read rather than re-pick.
     const fresh = await getScanState(scanKey, { quiet: true });
     if (fresh.ok && fresh.state.pickDone) return NextResponse.json(pickResponse(scanKey, fresh.state));
   }
@@ -1017,7 +1017,7 @@ async function stageScanPick(scanKey, state) {
   // nothing picked still opens its front sheet.
   const chosenPages = picks.length || state.ext !== 'pdf' ? picks : [1];
 
-  // Park BEFORE answering, marker downgraded second — same order as the
+  // Park BEFORE answering, marker downgraded second, same order as the
   // matrix, so a poll that sees the downgrade always finds the answer parked.
   const next = { ...state, pickPending: false, pickDone: true, chosenPages, sheetsRead };
   const key = await putScanStateAt(scanKey, next);
@@ -1057,20 +1057,20 @@ function pickResponse(scanKey, state) {
 }
 
 /**
- * Stage 1b — find the drawing index on the cover and cut close-ups of it.
+ * Stage 1b, find the drawing index on the cover and cut close-ups of it.
  *
  * Only runs for a set with no text layer at all.
  *
  * ONE CANDIDATE SHEET PER REQUEST. Looking at both front sheets in one call and
  * then cutting the close-ups measured 23.7 seconds against a front door that
- * hangs up at 30 -- and it got slower, not faster, when the drawing jobs all
+ * hangs up at 30, and it got slower, not faster, when the drawing jobs all
  * moved to the strongest model. Asking about one sheet at a time also usually
  * costs LESS in total, because the index is normally on the first sheet asked
  * about and the rest are never drawn at all.
  *
  * So this returns `more: true` until it finds an index or runs out of front
  * sheets to look at. The request that finds one goes on to read the anchor and
- * cut the close-ups, and that request is the long one -- about eight seconds.
+ * cut the close-ups, and that request is the long one, about eight seconds.
  */
 async function stageIndex(scanKey, state) {
   const nothing = (reason) => NextResponse.json({ stage: 'index', found: false, reason });
@@ -1122,7 +1122,7 @@ async function stageIndex(scanKey, state) {
     if (!rects.length) return nothing('no_tiles');
 
     // The anchor. Locate has already guessed at it from a whole shrunk sheet,
-    // and on a real set that guess was wrong about one time in three — so the
+    // and on a real set that guess was wrong about one time in three, so the
     // corner gets cut out and read properly, and the guess is only the
     // fallback. Everything the index says hangs on this one number.
     let selfSheetNumber = found.selfSheetNumber ?? null;
@@ -1135,7 +1135,7 @@ async function stageIndex(scanKey, state) {
     const crops = await renderPdfCrops(opened.source, { page: sheet.page, rects });
     // Parked all at once, not one after another. Fourteen close-ups stored in
     // turn is fourteen round trips to S3 inside a single request, and this
-    // request is already the longest of the read -- measured at 24 seconds on
+    // request is already the longest of the read, measured at 24 seconds on
     // Mike's Lowell set against a front door that hangs up at 30.
     const stored = await Promise.all(crops.map(c => putSheetImage(c.png, 'image/png')));
     const tileKeys = [];
@@ -1172,11 +1172,11 @@ async function stageIndex(scanKey, state) {
 }
 
 /**
- * Stage 1c — read the index close-ups and work out which pages to draw.
+ * Stage 1c, read the index close-ups and work out which pages to draw.
  *
  * ONE close-up per request, the same way the scan reads a few sheets at a time.
  * Reading a whole 127-row index in one go was measured at 32 seconds, and the
- * front door hangs up around 30 — and the cost is the transcript, not the
+ * front door hangs up around 30, and the cost is the transcript, not the
  * pictures, so a 158-sheet index would have failed with an empty 504 no matter
  * how the images were packed. Split by tile, each request writes about forty
  * rows and lands near ten seconds, whatever the size of the set.
@@ -1189,7 +1189,7 @@ async function stageIndex(scanKey, state) {
  * Once the last tile is in: the index lists the sheet it is printed on, and we
  * know which page that is because we just drew it. That gives the offset
  * between a row's position in the list and its page in the file, for free. A
- * pick that lands outside the file is DROPPED, never clamped — a clamped pick
+ * pick that lands outside the file is DROPPED, never clamped, a clamped pick
  * quietly becomes some other drawing and its numbers get reported as answer.
  */
 async function stageSheets(scanKey, state) {
@@ -1237,11 +1237,11 @@ async function stageSheets(scanKey, state) {
       });
     }
 
-    // The cover usually lists itself, and that gives the offset for free --
+    // The cover usually lists itself, and that gives the offset for free
     // and when it does, counting down the list is one cheap step. When it does
     // not, counting is abandoned for hunting: read sheet numbers out of
     // corners and home in. Counting also quietly assumes the index is HONEST,
-    // which Lowell's is not -- 80 rows over 158 bound sheets -- and hunting is
+    // which Lowell's is not, 80 rows over 158 bound sheets, and hunting is
     // the only one of the two that survives that.
     const offset = offsetFromSelf({
       entries, selfSheetNumber: vi.selfSheetNumber, selfPage: vi.selfPage,
@@ -1380,7 +1380,7 @@ async function stageHunt(scanKey, state, client, nothing) {
  * Check a picture-read set landed on the sheet the index named, and re-aim if
  * it did not.
  *
- * Returns null when there is nothing to correct — which covers every set that
+ * Returns null when there is nothing to correct, which covers every set that
  * has a text layer, an unreadable title block, and a landing that was right.
  * Only a title block that plainly disagrees produces a new set of pages, and
  * only once: the corrected offset comes from a sheet number we have actually
@@ -1416,12 +1416,12 @@ async function recheckLanding(state, landedPage, fallbackPng, source) {
   return { chosenPages, targets, offset };
 }
 
-/** Stage 2 — draw the chosen sheets and keep them, a slice at a time.
+/** Stage 2, draw the chosen sheets and keep them, a slice at a time.
  *
  * Sliced for the same reason the scan is: on the Skyline Ridge set the old
  * one-request version (open the 334 MB file + draw four full-size 42x30
  * plots + the landing recheck, all before answering) measured ~28.1s on
- * production three times in a row — a deterministic front-door 504 that no
+ * production three times in a row, a deterministic front-door 504 that no
  * retry could save. Each request now opens the file, draws sheets until the
  * slice budget is spent (always at least one), parks progress, and answers
  * `more: true`; the browser simply asks again. A small set still finishes in
@@ -1435,21 +1435,21 @@ async function stageRender(scanKey, state) {
   const openStarted = Date.now();
   // 4 MB range chunks, not pdfjs's 64 KB default: drawing a plotted sheet
   // pulls its embedded raster images through the ranged reader, and doing that
-  // in serial 64 KB bites cost ~26 s per sheet on the Skyline Ridge set —
+  // in serial 64 KB bites cost ~26 s per sheet on the Skyline Ridge set
   // nearly the whole front-door budget spent on round trips to S3. Only the
   // render opens this way; the scan's sparse text touches stay small.
   const opened = await openSource({ s3Key: state.s3Key, ext: 'pdf', chunkBytes: 4 * 1024 * 1024 });
   if (opened.error) return opened.error;
   const openMs = Date.now() - openStarted;
   // ONE wall for the whole request, and every piece of work below is capped by
-  // what REMAINS of it — never by a fixed per-piece constant. Round 3 learned
+  // what REMAINS of it, never by a fixed per-piece constant. Round 3 learned
   // this the hard way on Skyline Ridge: the loop asked "is there budget left?"
   // (~12s) before starting a sheet, then gave that sheet its own ~23s ceiling,
-  // so two quick sheets followed by one slow one answered at ~30s — past the
+  // so two quick sheets followed by one slow one answered at ~30s, past the
   // front door, deterministically, three times. A cap that ignores the clock
   // already spent is no cap at all.
   const wallMs = Math.max(8_000, 24_000 - openMs);
-  // Below this remainder, don't START anything new — park and answer. Starting
+  // Below this remainder, don't START anything new, park and answer. Starting
   // work that can't finish inside the wall is how Round 3 died.
   const FLOOR_MS = 6_000;
   const RECHECK_CAP_MS = 10_000;
@@ -1465,7 +1465,7 @@ async function stageRender(scanKey, state) {
   // the Lambda died with nothing parked, and every retry replayed the same
   // death. So each render below writes its page number to a tiny marker
   // BEFORE starting, and a slice that lives long enough to park downgrades
-  // the marker to "parked" — so a marker still reading "render" here is
+  // the marker to "parked", so a marker still reading "render" here is
   // proof the last request died mid-draw of that page.
   //
   // The marker carries a LIST of such pages, not just the latest one. Skyline
@@ -1488,8 +1488,8 @@ async function stageRender(scanKey, state) {
     let firstOfSlice = true;
     let landed = null; // { page, png } of a sheet drawn THIS slice, for the recheck
 
-    // Every page the front door has ever caught mid-draw, plus — if the last
-    // request's marker still says "render" — the page it died on. A marker
+    // Every page the front door has ever caught mid-draw, plus, if the last
+    // request's marker still says "render", the page it died on. A marker
     // that says "parked" or "recheck" contributes only its list.
     const poisoned = Array.isArray(prior?.skip) ? [...prior.skip] : [];
     if (prior?.stage === 'render' && Number.isFinite(prior.page) && !poisoned.includes(prior.page)) {
@@ -1503,20 +1503,20 @@ async function stageRender(scanKey, state) {
 
     while (next < chosenPages.length) {
       // One sheet per request is as thin as this stage can slice, so the FIRST
-      // sheet of a slice always runs (with the whole wall as its ceiling) —
+      // sheet of a slice always runs (with the whole wall as its ceiling)
       // otherwise a monster sheet could stall the read forever. Later sheets
       // only start if the remainder gives them a fair chance.
       if (!firstOfSlice && remaining() < FLOOR_MS) break;
       const capMs = firstOfSlice ? Math.max(8_000, remaining()) : remaining();
       const fullCap = firstOfSlice;
 
-      // The page that killed the last request gets skipped, not retried — a
+      // The page that killed the last request gets skipped, not retried, a
       // lost drawn copy degrades the site read; replaying the death kills the
       // whole read. Skipping costs nothing off the wall, so it does not
       // consume this slice's first-sheet privilege.
       if (poisoned.includes(chosenPages[next])) {
         console.warn('intake/parse: page', chosenPages[next], 'of', state.fileName,
-          'ate a whole request on an earlier attempt — skipping it');
+          'ate a whole request on an earlier attempt, skipping it');
         next += 1;
         continue;
       }
@@ -1527,14 +1527,14 @@ async function stageRender(scanKey, state) {
       }), capMs);
       if (one === 'timeout') {
         // The abandoned render is still chewing this Lambda's one CPU, so
-        // nothing more useful can happen in THIS request — park and answer.
+        // nothing more useful can happen in THIS request, park and answer.
         // A sheet that blew a FULL ceiling is skipped for good (losing one
         // drawn copy degrades the site read; sitting on it kills the whole
         // read). A sheet that merely hit the wall's remainder gets retried
         // next slice, where it is first and the ceiling is honest.
         if (fullCap) {
           console.warn('intake/parse: sheet render timed out, skipping page', chosenPages[next], 'of', state.fileName);
-          // It blew a FULL ceiling — remember that, so a later re-aim that
+          // It blew a FULL ceiling, remember that, so a later re-aim that
           // resets the walk can never draw it again.
           if (!poisoned.includes(chosenPages[next])) poisoned.push(chosenPages[next]);
           next += 1;
@@ -1546,7 +1546,7 @@ async function stageRender(scanKey, state) {
       landed = { page: one.rendered?.[0]?.page ?? chosenPages[next], png: one.rendered?.[0]?.png ?? null };
       next += 1;
       // One survivor is this slice's whole job once the scan is in cautious
-      // mode — park it (below) before risking the next sheet.
+      // mode, park it (below) before risking the next sheet.
       if (cautious) break;
 
       // Did we land where the index said? Only asked of a set whose pages were
@@ -1558,16 +1558,16 @@ async function stageRender(scanKey, state) {
       // the answer. The look costs a crop render plus an AI probe, so it obeys
       // the wall like everything else: raced against the remainder, deferred
       // to a later slice when there is no room, and if it blows its own
-      // ceiling the landing is simply accepted — a rare mis-aim is better
+      // ceiling the landing is simply accepted, a rare mis-aim is better
       // than a killed read.
       if (!recheckDone && remaining() >= FLOOR_MS) {
         recheckDone = true;
         // The recheck crop-renders a sheet corner, so it carries the same
-        // synchronous-bite risk as a full sheet — same marker, same rule: a
+        // synchronous-bite risk as a full sheet, same marker, same rule: a
         // recheck that ate a whole request is not retried, the landing is
         // simply accepted.
         if (prior?.stage === 'recheck') {
-          console.warn('intake/parse: landing recheck ate a whole request — accepting landing for', state.fileName);
+          console.warn('intake/parse: landing recheck ate a whole request, accepting landing for', state.fileName);
           fix = null;
         } else {
           await putScanAttempt(scanKey, { stage: 'recheck', page: landed.page, skip: poisoned });
@@ -1596,11 +1596,11 @@ async function stageRender(scanKey, state) {
     // All sheets drawn but the landing never had room to be checked: a slice
     // that arrives with nothing left to draw does the recheck as ITS one unit
     // of work. The crop is re-rendered from the source, so no drawn copy is
-    // needed in hand — any chosen page anchors it.
+    // needed in hand, any chosen page anchors it.
     if (!recheckDone && next >= chosenPages.length && (firstOfSlice || remaining() >= FLOOR_MS)) {
       recheckDone = true;
       if (prior?.stage === 'recheck') {
-        console.warn('intake/parse: landing recheck ate a whole request — accepting landing for', state.fileName);
+        console.warn('intake/parse: landing recheck ate a whole request, accepting landing for', state.fileName);
         fix = null;
       } else {
         await putScanAttempt(scanKey, { stage: 'recheck', page: landed?.page ?? chosenPages[0], skip: poisoned });
@@ -1635,7 +1635,7 @@ async function stageRender(scanKey, state) {
     await putScanAttempt(scanKey, { stage: 'parked', skip: poisoned });
 
     // Park the keys so the site stage can pick the images up without
-    // redrawing — and, mid-set, so the next slice knows where to resume.
+    // redrawing, and, mid-set, so the next slice knows where to resume.
     await putScanStateAt(scanKey, {
       ...state,
       chosenPages,
@@ -1668,7 +1668,7 @@ async function stageRender(scanKey, state) {
  * How long a kicked-off matrix read is trusted to still be running.
  *
  * The matrix is ONE model call that cannot be sliced, and on a dense set it
- * thinks for longer than the front door allows — measured on the 294-sheet
+ * thinks for longer than the front door allows, measured on the 294-sheet
  * Skyline Ridge set 2026-09-02: six requests, six empty 504s at ~28.1s, no
  * convergence possible. But the front door only drops the RESPONSE; the
  * compute behind it keeps running, finishes the call, and can park the
@@ -1682,28 +1682,28 @@ const MATRIX_INFLIGHT_MS = 150_000;
 
 /**
  * How many kicks before giving up. A matrix that cannot finish inside the
- * runner's lifetime three times running is not going to — and the read has
+ * runner's lifetime three times running is not going to, and the read has
  * a graceful next move (the site-plan read), so the honest answer is the
  * same one a failed extraction gives: no matrix, go look at the drawings.
  */
 const MATRIX_MAX_KICKS = 3;
 
-/** Stage 3 — read the unit matrix off the text layer. */
+/** Stage 3, read the unit matrix off the text layer. */
 async function stageMatrix(scanKey, state) {
   if (!state.hasText) {
-    // A scanned set has no text to read. Not an error — the site stage is what
+    // A scanned set has no text to read. Not an error, the site stage is what
     // handles this, and the browser is told to go there next.
     return NextResponse.json({ stage: 'matrix', matrix: null, needsSite: true });
   }
 
-  // An earlier request already finished this — very possibly one whose
+  // An earlier request already finished this, very possibly one whose
   // response the front door had dropped. The parked answer IS the answer.
   // (Reads written by the previous release parked it inside the main state;
   // reads from this one park it in the matrix's own object, below.)
   if (state.matrixParked) return NextResponse.json(state.matrixParked);
 
   // Everything this stage parks lives at its OWN derived key, because the
-  // browser now kicks the matrix while the render stage is still drawing —
+  // browser now kicks the matrix while the render stage is still drawing
   // the two run concurrently on purpose (the model thinks for ~2 minutes and
   // the sheets draw underneath it). Sharing the render's marker, or writing
   // the answer into the main state mid-render, would be a lost-update race.
@@ -1735,21 +1735,21 @@ async function stageMatrix(scanKey, state) {
   await putScanAttempt(matrixKey, { stage: 'matrix', startedAt: Date.now(), kicks: kicks + 1 });
 
   // `pages` lets the area-sheet finder score sheet-by-sheet instead of guessing
-  // from one flattened blob — that's what tells net from gross.
+  // from one flattened blob, that's what tells net from gross.
   const result = await parseUnitMatrix(
     state.text, state.fileName, client('intake.unitMatrix.parse'), { pages: state.pages },
   );
 
   // A failed text read is NOT the end of the read. Seen locally 2026-08-25 on a
   // code-review sheet: the model ran long and its answer was cut off mid-JSON,
-  // so the whole upload came back "Could not read the extraction result" -- even
+  // so the whole upload came back "Could not read the extraction result", even
   // though the site-plan read on that same sheet goes on to find 250 units and
   // 12 buildings. It is also intermittent, so the same file can fail and then
   // succeed, which is the worst kind of thing to hand a GC.
   //
   // So a failed matrix read is treated like an empty one: fall through to the
   // site read. The error travels with it, and only becomes the answer if the
-  // site read cannot produce numbers either -- because "we could not read this"
+  // site read cannot produce numbers either, because "we could not read this"
   // and "this drawing has no numbers on it" are different things to be told.
   const payload = result.ok
     ? {
@@ -1760,7 +1760,7 @@ async function stageMatrix(scanKey, state) {
     : { stage: 'matrix', matrix: null, needsSite: true, matrixError: result.message };
 
   // Park BEFORE answering: if the front door already hung up on this request,
-  // the park is the only way the answer survives — the next poll serves it.
+  // the park is the only way the answer survives, the next poll serves it.
   // Parked at the matrix's own key, marker downgraded second, so a poll that
   // sees the downgrade always finds the answer already in place.
   await putScanStateAt(matrixKey, payload);
@@ -1769,11 +1769,11 @@ async function stageMatrix(scanKey, state) {
 }
 
 /**
- * Stage 4 — read the drawings we picked. Only asked for when the matrix came up
+ * Stage 4, read the drawings we picked. Only asked for when the matrix came up
  * short.
  *
  * ONE SHEET PER REQUEST. Handing the model both sheets together measured 29.4
- * seconds against a front door that hangs up at 30 -- close enough that a
+ * seconds against a front door that hangs up at 30, close enough that a
  * denser set, or a slow afternoon, is an empty 504 and a GC who uploaded a file
  * for nothing. A single sheet lands around fifteen.
  *
@@ -1782,7 +1782,7 @@ async function stageMatrix(scanKey, state) {
  * lowest of the sheets that contributed anything.
  *
  * The cross-checks run ONCE, on the finished merge, and that is not just tidier
- * -- it is what lets a bed mix read off one drawing be checked against a unit
+ * it is what lets a bed mix read off one drawing be checked against a unit
  * total read off another. Running them per sheet would only ever check a sheet
  * against itself.
  */
@@ -1802,7 +1802,7 @@ async function stageSite(scanKey, state) {
   };
 
   // Is THIS sheet still being read on another Lambda? One sheet measured 20-24
-  // seconds on the Lone Tree GEN set — close enough to the front door that a
+  // seconds on the Lone Tree GEN set, close enough to the front door that a
   // hung-up response used to mean the same sheet read twice, racing itself.
   const siteKey = siteStateKeyFor(scanKey);
   const marker = await getScanAttempt(siteKey);
@@ -1812,7 +1812,7 @@ async function stageSite(scanKey, state) {
   }
   if (marker) {
     // A sheet finished (or its runner died) since this request read the
-    // state. Its merge, if it parked one, is in the main state — re-read it.
+    // state. Its merge, if it parked one, is in the main state, re-read it.
     const fresh = await getScanState(scanKey, { quiet: true });
     if (fresh.ok) { state = fresh.state; done = state.siteRead?.done ?? 0; }
   }
@@ -1835,13 +1835,13 @@ async function stageSite(scanKey, state) {
     console.warn('intake/parse: site sheet', image.page, 'of', state.fileName, 'skipped after', kicks, 'kicks');
   }
 
-  // One unreadable sheet is not a failed read -- the others may hold everything
+  // One unreadable sheet is not a failed read, the others may hold everything
   // we came for. It only fails if NO sheet gave us anything.
   const merged = vision.ok
     ? mergeSiteData(state.siteRead?.data ?? null, vision.data, image.page)
     : (state.siteRead?.data ?? null);
 
-  // Park BEFORE answering — every sheet, the last one included — so a response
+  // Park BEFORE answering, every sheet, the last one included, so a response
   // the front door drops is served from the park by the retry, never redone.
   const next = done + 1;
   await putScanStateAt(scanKey, { ...state, siteRead: { done: next, data: merged } });
@@ -1854,10 +1854,10 @@ async function stageSite(scanKey, state) {
 }
 
 /**
- * Stage 5 — throw away everything the read was standing on.
+ * Stage 5, throw away everything the read was standing on.
  *
  * `keepUpload` is sent by a read that FAILED. The browser keeps the upload key
- * on the file card so Retry re-asks the read without re-sending the file —
+ * on the file card so Retry re-asks the read without re-sending the file
  * but until 2026-09-16 this stage deleted the upload regardless, so every
  * Retry found nothing there and quietly re-uploaded (25.7 MB, three times, on
  * the Lone Tree GEN set). Now a failed read leaves the file where it is; the
@@ -1896,7 +1896,7 @@ async function loadKeptImages(state) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// The whole thing in one request — local dev, multipart, and small files
+// The whole thing in one request, local dev, multipart, and small files
 // ─────────────────────────────────────────────────────────────────────────────
 
 /**
@@ -1928,7 +1928,7 @@ async function runWhole({ source, opened, name, ext }) {
 
   const hasText = picked.extracted.ok === true;
 
-  // Kept in step with the staged path on purpose -- see stageMatrix for why a
+  // Kept in step with the staged path on purpose, see stageMatrix for why a
   // failed text read falls through to the site read instead of ending here.
   let matrix = null;
   let matrixError = null;
@@ -1953,8 +1953,8 @@ async function runWhole({ source, opened, name, ext }) {
       else if (!hasText || matrixError) return bad(vision.code, vision.message, 502);
     } catch (e) {
       // With a matrix in hand the answer below is still valid; a failed second
-      // look should not turn it into an error. With no text layer -- or with a
-      // text read that FAILED rather than came up empty -- there is no answer
+      // look should not turn it into an error. With no text layer, or with a
+      // text read that FAILED rather than came up empty, there is no answer
       // without vision, so those are the 502 above.
       if (!hasText || matrixError) throw e;
       console.error('intake/parse: vision fallback failed for', name, e?.message ?? e);

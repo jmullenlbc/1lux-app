@@ -26,7 +26,7 @@ export default async function SalesAutomationTriggersPage() {
         <h1 className={H1}>If-Then Rules</h1>
         <p className="text-slate-500 text-sm mt-1 max-w-3xl">
           Build your own automations: <strong>When</strong> something happens (a note action, email, or calendar event),
-          <strong> If</strong> it matches your conditions, <strong>Then</strong> the bot does something — drafts an email,
+          <strong> If</strong> it matches your conditions, <strong>Then</strong> the bot does something: drafts an email,
           notifies you, schedules a reminder. The bot always runs the method&rsquo;s baseline action; these rules add to it.
           Review how each rule performs below and tune as you go.
         </p>

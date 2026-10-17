@@ -7,9 +7,9 @@
 // The S3 path is what enables persistent storage on AWS Amplify, where
 // the Lambda filesystem is ephemeral. Setup walkthrough is in
 // G:\Shared drives\SOFTWARE\_MIKE's APP\Software engineering\Z_Completed\
-// QC Bug Tracker — S3 Setup for Production.md
+// QC Bug Tracker, S3 Setup for Production.md
 //
-// S3_BUCKET / S3_REGION must be in next.config.mjs's env block — this
+// S3_BUCKET / S3_REGION must be in next.config.mjs's env block, this
 // file is webpack-bundled, so without those entries, process.env.S3_BUCKET
 // inlines as undefined and the prod path silently dies. Same trap as
 // DATABASE_URL.
@@ -20,7 +20,7 @@ import path from 'path';
 
 // Static imports of the AWS SDK. The packages are in
 // serverComponentsExternalPackages (in next.config.mjs), so they're loaded
-// via require() at runtime, not bundled — but importing them statically
+// via require() at runtime, not bundled, but importing them statically
 // at the top of this file is more reliable than dynamic await import(),
 // which has bitten us on Amplify SSR.
 import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
@@ -59,13 +59,13 @@ function getLocalUrl(key) {
 //
 // S3_ACCESS_KEY_ID / S3_SECRET_ACCESS_KEY are deliberately NOT AWS_-
 // prefixed because AWS reserves the AWS_* env var namespace in Lambda
-// execution environments — setting AWS_ACCESS_KEY_ID there is blocked
+// execution environments, setting AWS_ACCESS_KEY_ID there is blocked
 // or silently ignored.
 //
-// If both env vars are absent, we fall back to the default chain — that's
+// If both env vars are absent, we fall back to the default chain, that's
 // the path that works once a proper SSR compute role is set up (planned
 // for the security pass).
-// Exported for uploadStorage.js (direct-to-S3 uploads) — one place owns the
+// Exported for uploadStorage.js (direct-to-S3 uploads), one place owns the
 // credential fallback logic, so a future switch to an SSR compute role is a
 // one-file change.
 export function s3Client() {
@@ -73,7 +73,7 @@ export function s3Client() {
   const id     = process.env.S3_ACCESS_KEY_ID;
   const secret = process.env.S3_SECRET_ACCESS_KEY;
   // Dualstack matters for the PRESIGNED urls this client mints: the standard
-  // bucket hostname has no IPv6 address (checked 2026-08-29 -- no AAAA
+  // bucket hostname has no IPv6 address (checked 2026-08-29, no AAAA
   // record), so a phone on an IPv6-only carrier network loads the site fine
   // and then can't reach the bucket at all. The upload dies before the first
   // byte (the U3 error) while the same page works on office wifi. The
@@ -127,7 +127,7 @@ export async function getQcObjectUrl(key) {
   }
 }
 
-// Best-effort delete — returns true on success, false on failure. We don't
+// Best-effort delete, returns true on success, false on failure. We don't
 // throw because deleting the underlying DB row is the user-visible outcome;
 // an orphan blob in S3 is harmless and we'd rather not block the row delete
 // on an S3 hiccup.

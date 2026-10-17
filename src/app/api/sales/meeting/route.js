@@ -18,7 +18,7 @@ const isOverdue = (d) => { if (!d) return false; const t = new Date(); t.setHour
 const daysAgo   = (n) => new Date(Date.now() - n * DAY);
 const daysAhead = (n) => new Date(Date.now() + n * DAY);
 
-// Cards that need no project scan at all — kept separate so we only pay for the
+// Cards that need no project scan at all, kept separate so we only pay for the
 // queries a card that is actually switched on needs.
 const PROJECT_CARDS = new Set([
   'awaitingSignature', 'nextActions', 'closingSoon',
@@ -31,7 +31,7 @@ const PROJECT_CARDS = new Set([
 const STEP_CARDS = new Set(['introductions', 'clientFollowUps', 'deadlines', 'blockers']);
 const OPEN_STEP = ['SUGGESTED', 'CONFIRMED'];
 
-// GET /api/sales/meeting?cards=a,b,c — one payload per card on the screen.
+// GET /api/sales/meeting?cards=a,b,c, one payload per card on the screen.
 export async function GET(request) {
   const { user, error } = await requireAuth();
   if (error) return error;
@@ -218,7 +218,7 @@ export async function GET(request) {
     out.blockers = [...fromProjects, ...fromSteps].sort((a, b) => new Date(a.since) - new Date(b.since));
   }
 
-  // ── ① Awaiting signature — a proposal is out and the deal hasn't closed ─────
+  // ── ① Awaiting signature, a proposal is out and the deal hasn't closed ─────
   if (want('awaitingSignature')) {
     out.awaitingSignature = projects
       .filter(p => p.proposalSentDate
@@ -227,7 +227,7 @@ export async function GET(request) {
       .sort((a, b) => (b.daysWaiting ?? -1) - (a.daysWaiting ?? -1)); // longest waiting first
   }
 
-  // ── ② Next actions due — soonest and overdue first ─────────────────────────
+  // ── ② Next actions due, soonest and overdue first ─────────────────────────
   if (want('nextActions')) {
     out.nextActions = projects
       .filter(p => p.nextActionType)
@@ -259,7 +259,7 @@ export async function GET(request) {
 
   // ── Won and lost since last week ───────────────────────────────────────────
   // NOTE: there is no "status changed at" column, so this leans on updatedAt.
-  // Any edit to a closed deal re-surfaces it. Honest approximation, not a lie —
+  // Any edit to a closed deal re-surfaces it. Honest approximation, not a lie
   // a real statusChangedAt is worth adding when the new date fields go in.
   if (want('wonAndLost')) {
     const since = daysAgo(7);
@@ -278,7 +278,7 @@ export async function GET(request) {
   }
 
   // ── Budgets sent with no reply ─────────────────────────────────────────────
-  // Mike's "IFC / for-award budgets awaiting response — not sure how to track
+  // Mike's "IFC / for-award budgets awaiting response, not sure how to track
   // this that isn't manual". Nothing is typed: the budget's send date is already
   // recorded, and the email work already knows which messages count as a real
   // reply from a person (mass sends, calendar invites and auto-replies are out).
@@ -353,7 +353,7 @@ export async function GET(request) {
   // ── Design submissions this week ───────────────────────────────────────────
   // Mike: drawings coming IN from the architect and packages going OUT are "the
   // same" to him, so both directions land on one card. The table already knows
-  // which is which (source EXTERNAL | INTERNAL) — it just gets shown as a label.
+  // which is which (source EXTERNAL | INTERNAL), it just gets shown as a label.
   if (want('designSubmissions')) {
     const rows = await prisma.drawingSubmission.findMany({
       where: { createdAt: { gte: daysAgo(7) } },

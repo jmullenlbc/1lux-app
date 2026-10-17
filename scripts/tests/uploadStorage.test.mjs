@@ -1,6 +1,6 @@
 /**
  * Unit tests for the direct-to-S3 upload layer (src/lib/uploadStorage.js).
- * Pure validation plus offline presigning — SigV4 signing is local crypto,
+ * Pure validation plus offline presigning, SigV4 signing is local crypto,
  * so no AWS account, network, or bucket is touched.
  * Run: node --test scripts/tests/uploadStorage.test.mjs
  */
@@ -11,7 +11,7 @@ import assert from 'node:assert/strict';
 // getSignedUrl has something to sign with. Nothing here ever reaches AWS.
 process.env.S3_BUCKET = 'test-bucket';
 process.env.S3_REGION = 'us-east-1';
-// Deliberately NOT in AWS's real AKIA[0-9A-Z]{16} shape — that form trips the
+// Deliberately NOT in AWS's real AKIA[0-9A-Z]{16} shape, that form trips the
 // pre-push secret scanner (scripts/check-secrets.js), and a guard that cries
 // wolf on a test fixture is a guard people learn to skip with --no-verify.
 process.env.S3_ACCESS_KEY_ID = 'fake-access-key-id-for-tests';
@@ -69,13 +69,13 @@ test('the intake ceiling is 400 MB and the project ceiling is separate', () => {
   // us straight back in front of the same failure.
   assert.equal(MAX_INTAKE_UPLOAD_BYTES, 400 * 1024 * 1024);
   assert.equal(limitForScope('intake'), MAX_INTAKE_UPLOAD_BYTES);
-  // In-app uploads stay small on purpose — every megabyte there becomes parsed
+  // In-app uploads stay small on purpose, every megabyte there becomes parsed
   // text we pay for. Raising the public cap must not drag this one along.
   assert.equal(limitForScope('project'), MAX_PROJECT_UPLOAD_BYTES);
   assert.ok(MAX_PROJECT_UPLOAD_BYTES < MAX_INTAKE_UPLOAD_BYTES);
 });
 
-test('a 246 MB set — the one that actually failed — is now accepted', () => {
+test('the 246 MB set that actually failed is now accepted', () => {
   const v = validatePresignRequest({ fileName: 'Broadston Drawings.pdf', size: 246.1 * 1024 * 1024 });
   assert.equal(v.ok, true, 'the real upload from the GC must go through');
   assert.equal(v.limit, MAX_INTAKE_UPLOAD_BYTES);
@@ -85,7 +85,7 @@ test('a 246 MB set — the one that actually failed — is now accepted', () => 
 //
 // Mike, 2026-09-07: "we should make it up to 25mbs like email. can we do it in
 // pieces very easily like drawings?" These tests are the answer to the second
-// half — the knowledge scope rides the same presign/multipart plumbing, it just
+// half, the knowledge scope rides the same presign/multipart plumbing, it just
 // accepts more kinds of file and stops at 25 MB.
 
 test('the knowledge scope takes everything the bot can read, not just PDFs', () => {
@@ -113,7 +113,7 @@ test('widening the knowledge scope does NOT widen the public intake page', () =>
   }
 });
 
-test('the knowledge ceiling is 25 MB — the size of an email attachment', () => {
+test('the knowledge ceiling is 25 MB, the size of an email attachment', () => {
   assert.equal(MAX_KNOWLEDGE_UPLOAD_BYTES, 25 * 1024 * 1024);
   assert.equal(limitForScope('knowledge'), MAX_KNOWLEDGE_UPLOAD_BYTES);
 
@@ -124,7 +124,7 @@ test('the knowledge ceiling is 25 MB — the size of an email attachment', () =>
   assert.equal(over.code, 'too_large');
 });
 
-test('a 20 MB Word document — the thing that used to be refused at 4 MB', () => {
+test('a 20 MB Word document, the thing that used to be refused at 4 MB', () => {
   const v = validatePresignRequest({ fileName: 'ILC Standards.docx', size: 20 * 1024 * 1024, scope: 'knowledge' });
   assert.equal(v.ok, true);
   // Four pieces of 5 MB, each its own request with its own retry. That is the
@@ -145,7 +145,7 @@ test('handles null/absent input without throwing', () => {
   assert.equal(validatePresignRequest({ fileName: null, size: null }).ok, false);
 });
 
-// ─── isUploadKey — the guard between a public key string and our bucket ─────
+// ─── isUploadKey, the guard between a public key string and our bucket ─────
 
 test('accepts only keys the presign route could have issued', () => {
   assert.equal(isUploadKey('uploads/intake/ab12cd34ef56.pdf'), true);
@@ -166,7 +166,7 @@ test('rejects traversal, other prefixes, and non-strings', () => {
   }
 });
 
-// ─── presignUpload — offline signing with fake credentials ──────────────────
+// ─── presignUpload, offline signing with fake credentials ──────────────────
 
 test('presigned slip points at our bucket, under uploads/, with an expiry', async () => {
   const slip = await presignUpload({ scope: 'intake', ext: 'pdf', contentType: 'application/pdf' });
@@ -191,7 +191,7 @@ test('two slips never share a key', async () => {
 });
 
 
-// ─── rangeFetcherFor — the byte-range reader behind big-set parsing ─────────
+// ─── rangeFetcherFor, the byte-range reader behind big-set parsing ─────────
 // The fetch itself needs S3, but the guard in front of it does not, and that
 // guard is the security-relevant half: it is what stops a caller-supplied
 // string from addressing an object outside uploads/.
@@ -210,7 +210,7 @@ test('rangeFetcherFor returns a fetcher for a legitimate key', () => {
 });
 
 
-// ─── Kept sheets — the compressed copies a reviewer looks at later ──────────
+// ─── Kept sheets, the compressed copies a reviewer looks at later ──────────
 // The originals are deleted after parsing, so these images are the only record
 // of what the parser actually read. Two things matter: they must live somewhere
 // the 1-day lifecycle rule does not sweep, and the key that names one arrives
@@ -219,7 +219,7 @@ test('rangeFetcherFor returns a fetcher for a legitimate key', () => {
 test('a kept-sheet key is not an upload key, and vice versa', () => {
   // The prefixes are deliberately separate: uploads/ is swept daily, sheets/ is
   // not. If the guards overlapped, a kept sheet could be written where it would
-  // vanish overnight — and the reviewer would open an empty panel.
+  // vanish overnight, and the reviewer would open an empty panel.
   assert.equal(isSheetKey('sheets/abc123def456.jpg'), true);
   assert.equal(isUploadKey('sheets/abc123def456.jpg'), false, 'sheets/ is not the upload prefix');
   assert.equal(isSheetKey('uploads/intake/abc123def456.pdf'), false, 'uploads/ is not the sheet prefix');

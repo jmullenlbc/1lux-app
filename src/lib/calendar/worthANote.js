@@ -3,7 +3,7 @@
  *
  * This is the one gate. The dry run over Mike's .ics export and the live
  * Microsoft sync both call it, so what the dry run reports is what the import
- * will actually do — the two cannot drift apart.
+ * will actually do, the two cannot drift apart.
  *
  * Everything here is a ruling Mike gave on 2026-09-07, after the first dry run
  * over his own calendar showed the original rules throwing away 622 real
@@ -25,7 +25,7 @@
  *
  *  - Repeating meetings are the noise problem, so a repeating meeting where
  *     everyone on the invite is ILC is skipped. Repeating with somebody outside
- *     the company on it is kept — that is a real client rhythm.
+ *     the company on it is kept, that is a real client rhythm.
  *
  * Pure: no database, no network, no Microsoft.
  */
@@ -38,7 +38,7 @@ export const OUR_DOMAIN = 'ilcstudios.com';
  * Maram 9-17: pull ACCEPTED invites only.
  *
  * An invite the owner declined, left unanswered or only marked tentative is a
- * meeting they did not commit to, so it never becomes a note — business title
+ * meeting they did not commit to, so it never becomes a note, business title
  * or not. Their own events ('organizer'), plain appointments with nobody to
  * answer ('none'), and events from sources that carry no response at all
  * (an .ics export, the loose test shape) all pass: only an explicit non-answer
@@ -71,8 +71,8 @@ const domainOf = email => String(email || '').split('@')[1]?.toLowerCase() || ''
  *   bucket:  'business title' | 'candidate' | 'personal' | 'not a meeting'
  *          | 'auto booking' | 'cancelled' | 'not accepted' | 'internal only'
  *          | 'no one else invited' | 'all-day block'
- *   reason:  string          — plain English, safe to show or log
- *   verdict: object|null     — the title/location read, if one was made
+ *   reason:  string, plain English, safe to show or log
+ *   verdict: object|null, the title/location read, if one was made
  * }
  */
 export function isWorthANote(event = {}, opts = {}) {
@@ -106,7 +106,7 @@ export function isWorthANote(event = {}, opts = {}) {
   const verdict = opts.verdict ?? classifyByTitleAndLocation(event);
 
   // 3. Mike's rule: a business title always counts. Golf, a meal, coffee, happy
-  //    hour, a site visit, an event, a travel day — kept whether it repeats every
+  //    hour, a site visit, an event, a travel day, kept whether it repeats every
   //    other week, whether anyone was invited, and whether it is an all-day
   //    block. This is what saves the Catalina Golf Mixer.
   if (verdict && isBusinessType(verdict.activityType)) {
@@ -123,8 +123,8 @@ export function isWorthANote(event = {}, opts = {}) {
   }
 
   // 5. Nobody else on it, and the title did not say it was business. Mike books
-  //    real meetings with nobody on the invite — that is exactly why rule 3 runs
-  //    first — but with no name and no business word there is nothing to record.
+  //    real meetings with nobody on the invite, that is exactly why rule 3 runs
+  //    first, but with no name and no business word there is nothing to record.
   if (people <= 1) {
     return { keep: false, bucket: 'no one else invited', verdict,
              reason: 'nobody else was on the invite and the title does not say what it was' };
@@ -136,7 +136,7 @@ export function isWorthANote(event = {}, opts = {}) {
              reason: 'an all-day block with nothing in the title to say it was business' };
   }
 
-  // 7. Somebody outside ILC was on it. That is worth a note — repeating or not.
+  // 7. Somebody outside ILC was on it. That is worth a note, repeating or not.
   return {
     keep: true, bucket: 'candidate', verdict,
     reason: verdict?.reason || 'somebody outside ILC was on the invite',
@@ -152,7 +152,7 @@ export function isWorthANote(event = {}, opts = {}) {
  * Two things put the same afternoon on his calendar twice. An app writes a
  * booking confirmation over a dinner he already has booked as a meeting. And a
  * repeating series gets re-listed under a new name each season without the old
- * listing being deleted — "The Catalina Golf Mixer", "Catalina Golf Mixer Season
+ * listing being deleted, "The Catalina Golf Mixer", "Catalina Golf Mixer Season
  * 2" and "Season 3" all sit on the same Thursday, so one real afternoon of golf
  * was being counted three times.
  *
@@ -169,7 +169,7 @@ export function isWorthANote(event = {}, opts = {}) {
  *
  *   - they overlap in time, AND
  *   - they start within half an hour of each other, AND
- *   - they are the same kind of thing, or one of them has no kind at all —
+ *   - they are the same kind of thing, or one of them has no kind at all
  *     which is what a booking confirmation or a bare restaurant name looks like.
  *
  * So three listings of the same 3:10pm tee time collapse to one, and a
@@ -177,11 +177,11 @@ export function isWorthANote(event = {}, opts = {}) {
  * coffee that genuinely happened during a long event stays its own meeting.
  *
  * Events that merely touch (one ends exactly as the next begins) are two
- * meetings, not one — the overlap has to be real.
+ * meetings, not one, the overlap has to be real.
  *
  * Hand it only the events you actually want compared. The dry run hands it the
  * in-person ones and nothing else, because the in-person count is the number
- * Mike checks by hand — a call that happens to sit over a lunch is a separate
+ * Mike checks by hand, a call that happens to sit over a lunch is a separate
  * record and should stay one.
  *
  * @param events [{ start: Date, end: Date, isAllDay?, activityType?, title? }]
@@ -216,7 +216,7 @@ export function dedupeOverlappingMeetings(events = []) {
       dropped.push({
         event: loser,
         keptInstead: winner,
-        reason: `the same meeting as "${String(winner.title || '').slice(0, 60)}" — same time period, counted once`,
+        reason: `the same meeting as "${String(winner.title || '').slice(0, 60)}", same time period, counted once`,
       });
       current = winner;
       continue;
@@ -240,7 +240,7 @@ function isSameMeeting(a, b) {
 
   const ta = normalizeActivityType(a.activityType);
   const tb = normalizeActivityType(b.activityType);
-  // An entry with no kind — a bare restaurant name, an app's confirmation — is
+  // An entry with no kind, a bare restaurant name, an app's confirmation, is
   // whatever it is sitting on top of.
   if (!ta || !tb || ta === 'OTHER' || tb === 'OTHER') return true;
   return ta === tb;
@@ -260,7 +260,7 @@ function betterRecord(a, b) {
   const sb = score(b);
   if (sa.n !== sb.n) return sa.n > sb.n ? a : b;
   if (sa.ms !== sb.ms) return sa.ms > sb.ms ? a : b;
-  return a;   // same on every count — the earlier one wins, and it sorted first
+  return a;   // same on every count, the earlier one wins, and it sorted first
 }
 
 /**

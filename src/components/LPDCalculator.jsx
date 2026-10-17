@@ -51,7 +51,7 @@ function AreaRow({ area, onAreaSfChange }) {
           {area.fixtures.map((f, i) => (
             <span
               key={i}
-              title={`${f.type}${f.description ? ` — ${f.description}` : ''}: ${f.wattage}W × ${f.qty ?? '?'} = ${f.totalWatts != null ? `${Math.round(f.totalWatts)}W` : '?'}`}
+              title={`${f.type}${f.description ? `, ${f.description}` : ''}: ${f.wattage}W × ${f.qty ?? '?'} = ${f.totalWatts != null ? `${Math.round(f.totalWatts)}W` : '?'}`}
               className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-semibold border ${
                 f.qty != null ? 'bg-slate-50 border-slate-200 text-slate-700' : 'bg-amber-50 border-amber-200 text-amber-700'
               }`}
@@ -72,7 +72,7 @@ function AreaRow({ area, onAreaSfChange }) {
         )}
       </td>
 
-      {/* Area SF — editable */}
+      {/* Area SF, editable */}
       <td className="px-4 py-3 text-right">
         {editing ? (
           <input
@@ -167,7 +167,7 @@ export default function LPDCalculator({ projectId }) {
 
   return (
     <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-      {/* Header — always visible */}
+      {/* Header, always visible */}
       <button
         onClick={() => setOpen(prev => !prev)}
         className="w-full flex items-center justify-between px-6 py-4 hover:bg-slate-50/50 transition-colors text-left"
@@ -224,17 +224,17 @@ export default function LPDCalculator({ projectId }) {
               <div className="flex flex-wrap items-center gap-4 px-6 py-3 bg-slate-50 border-b border-slate-100 text-xs text-slate-500">
                 <span className={`flex items-center gap-1 ${data.hasSchedule ? 'text-green-600' : 'text-amber-500'}`}>
                   <span className={`inline-block w-1.5 h-1.5 rounded-full ${data.hasSchedule ? 'bg-green-500' : 'bg-amber-400'}`} />
-                  {data.hasSchedule ? 'Fixture schedule loaded' : 'No fixture schedule — add fixtures first'}
+                  {data.hasSchedule ? 'Fixture schedule loaded' : 'No fixture schedule, add fixtures first'}
                 </span>
                 <span className={`flex items-center gap-1 ${data.hasTakeoff ? 'text-green-600' : 'text-amber-500'}`}>
                   <span className={`inline-block w-1.5 h-1.5 rounded-full ${data.hasTakeoff ? 'bg-green-500' : 'bg-amber-400'}`} />
                   {data.hasTakeoff
                     ? `Takeoff: ${data.takeoffFile?.name ?? 'loaded'}`
-                    : 'No takeoff — upload a Countfire export for quantities'}
+                    : 'No takeoff, upload a Countfire export for quantities'}
                 </span>
                 <span className={`flex items-center gap-1 ${data.hasAreas ? 'text-green-600' : 'text-amber-500'}`}>
                   <span className={`inline-block w-1.5 h-1.5 rounded-full ${data.hasAreas ? 'bg-green-500' : 'bg-amber-400'}`} />
-                  {data.hasAreas ? 'Area SF from project data' : 'Area SF not set — enter manually below'}
+                  {data.hasAreas ? 'Area SF from project data' : 'Area SF not set, enter manually below'}
                 </span>
                 <button
                   onClick={load}
@@ -283,7 +283,7 @@ export default function LPDCalculator({ projectId }) {
               )}
 
               <div className="px-6 py-3 border-t border-slate-100 text-[10px] text-slate-400 bg-slate-50">
-                ASHRAE 90.1-2022 §9.5.1 limits shown. Residential units (R-2) are exempt. Click any area value to override. Quantities from latest Countfire takeoff — fixtures shown in amber have no matching takeoff key.
+                ASHRAE 90.1-2022 §9.5.1 limits shown. Residential units (R-2) are exempt. Click any area value to override. Quantities from latest Countfire takeoff. Fixtures shown in amber have no matching takeoff key.
               </div>
             </>
           )}

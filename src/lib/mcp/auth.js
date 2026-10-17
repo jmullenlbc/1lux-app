@@ -3,16 +3,16 @@
  *
  * Three credentials, one resolved identity:
  *
- *   1. `Authorization: Bearer ilcmcp_…` — a per-person key minted on the admin
+ *   1. `Authorization: Bearer ilcmcp_…`, a per-person key minted on the admin
  *      screen (migration 0094). It resolves to the User it was issued to, with
  *      that user's real role, so the audit log names a human and a key issued to
  *      a CLIENT_VIEWER sees the client-redacted view. Preferred for anything a
  *      person drives. See lib/mcp/apiKeys.js.
- *   2. `Authorization: Bearer <MCP_API_TOKEN>` — the shared service token. This
+ *   2. `Authorization: Bearer <MCP_API_TOKEN>`, the shared service token. This
  *      is how a machine process (the Ask AI data branch, a nightly job)
  *      authenticates. It resolves to a fixed ILC_ADMIN caller with no person
  *      behind it, which is exactly why option 1 exists.
- *   3. The normal `ilc_session` cookie — a real logged-in human, resolved to
+ *   3. The normal `ilc_session` cookie, a real logged-in human, resolved to
  *      their real role. This exists so the Slice 3 acceptance test can drive the
  *      endpoint AS a CLIENT_VIEWER over plain HTTP and prove the boundary
  *      empirically rather than by inspection.
@@ -26,12 +26,12 @@
  *
  * ── The Amplify trap, stated plainly ──────────────────────────────────────────
  * Amplify Hosting Gen 1 does NOT pass console-set environment variables into the
- * SSR Lambda runtime — they exist at build time only. Anything the server bundle
+ * SSR Lambda runtime, they exist at build time only. Anything the server bundle
  * reads from `process.env` has to be listed in the `env: {}` block of
  * next.config.mjs or it inlines as `undefined`. This has already bitten this
  * codebase three times (DATABASE_URL, the S3 keys, ANTHROPIC_API_KEY).
  *
- * If it bites a fourth time here, `process.env.MCP_API_TOKEN` is `undefined` —
+ * If it bites a fourth time here, `process.env.MCP_API_TOKEN` is `undefined`
  * and a naive `token === process.env.MCP_API_TOKEN` would then authenticate
  * anyone who sends the literal string "undefined", or, worse, anyone at all if
  * the header were also missing. So the guard is: no token configured, or a token
@@ -45,11 +45,11 @@ import { looksLikeApiKey, keyTableReady, resolveApiKey } from '@/lib/mcp/apiKeys
 import { requireAuth, isClientViewer } from '@/lib/auth';
 import { AUDIENCE } from '@/lib/redact';
 
-/** A token shorter than this is treated as unset — a placeholder, not a secret. */
+/** A token shorter than this is treated as unset, a placeholder, not a secret. */
 export const MIN_TOKEN_LENGTH = 32;
 
 export const CALLER_KIND = Object.freeze({
-  SERVICE: 'service',   // the shared MCP_API_TOKEN — no person behind it
+  SERVICE: 'service',   // the shared MCP_API_TOKEN, no person behind it
   SESSION: 'session',   // a logged-in human, over the normal cookie
   KEY:     'key',       // a per-person key from the admin screen (migration 0094)
 });
@@ -63,7 +63,7 @@ export function bearerAuthConfigured() {
 /**
  * Constant-time string compare that does not leak length through early return.
  * Buffers of differing length cannot go through timingSafeEqual at all, so the
- * length check happens first and deliberately — the alternative is a `===`
+ * length check happens first and deliberately, the alternative is a `===`
  * fallback, which is exactly the comparison we are trying to avoid.
  */
 function tokensMatch(presented, expected) {
@@ -79,7 +79,7 @@ function tokensMatch(presented, expected) {
  *
  * Note the deliberate asymmetry with `audienceForRole()` in src/lib/redact.js:
  * there, an absent role degrades to PUBLIC. Here, an absent role is not a caller
- * at all — resolveCaller() has already refused. Anything that reaches this
+ * at all, resolveCaller() has already refused. Anything that reaches this
  * function has authenticated as somebody.
  */
 export function audienceForCaller(role) {
@@ -126,7 +126,7 @@ export async function resolveCaller(request) {
 
     if (!bearerAuthConfigured()) {
       // No shared token configured. If the key table is live, the correct answer
-      // is 401 — a per-user key is a complete credential and the shared token is
+      // is 401, a per-user key is a complete credential and the shared token is
       // not required for the endpoint to work. Only when NEITHER exists is the
       // server actually misconfigured, and then it fails LOUD, never open.
       // See the Amplify note above.
@@ -138,7 +138,7 @@ export async function resolveCaller(request) {
         status: 503,
         message:
           'MCP bearer authentication is not configured on this server. MCP_API_TOKEN is unset or too short. ' +
-          'On Amplify, confirm it is present in the env block of next.config.mjs — console-only variables do not ' +
+          'On Amplify, confirm it is present in the env block of next.config.mjs, console-only variables do not ' +
           'reach the SSR Lambda runtime.',
       };
     }

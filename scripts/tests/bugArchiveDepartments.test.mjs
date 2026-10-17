@@ -1,5 +1,5 @@
 // Migration 0079 (Mike, 2026-09-12):
-//  1. QC bug reports are archive-only — Archive/Restore, never Delete.
+//  1. QC bug reports are archive-only, Archive/Restore, never Delete.
 //  2. Every user picks any number of seven departments; the old one-per-person
 //     division and the JSON deptRoles list are retired (kept, never read).
 import { test } from 'node:test';
@@ -25,7 +25,7 @@ function walk(dir, out = []) {
 
 // Seven until 2026-09-14, when Project management folded into Construction
 // (Mike: "Project management and construction are the same department").
-test('exactly six departments, in Mike\'s order — Project management is now Construction', () => {
+test('exactly six departments, in Mike\'s order, Project management is now Construction', () => {
   assert.deepEqual(DEPARTMENTS.map(d => d.label), [
     'Sales + marketing', 'Operations', 'Pre-construction', 'Construction', 'Design', 'Finance',
   ]);

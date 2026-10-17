@@ -1,4 +1,4 @@
-// ── Client Standards — Question Definitions ────────────────────────────────────
+// ── Client Standards, Question Definitions ────────────────────────────────────
 // Keys use flat snake_case. DB stores answers only; questions live here.
 // question_key format: snake_case string (e.g. 'unit_disk_style')
 // CCT keys use 'cct_*' prefix and are handled by the CCT renderer.
@@ -18,10 +18,10 @@ export const CCT_OPTIONS          = ['2700K', '3000K', '3500K', '4000K'];
 export const CCT_EXTERIOR_OPTIONS = ['2700K', '3000K', '3500K', '4000K', '5000K'];
 
 export const CCT_INTERIOR_AREAS = [
-  { key: 'cct_unit_living',   label: 'Unit — Living / Dining'   },
-  { key: 'cct_unit_bedroom',  label: 'Unit — Bedroom'           },
-  { key: 'cct_unit_bathroom', label: 'Unit — Bathroom / Vanity' },
-  { key: 'cct_unit_kitchen',  label: 'Unit — Kitchen'           },
+  { key: 'cct_unit_living',   label: 'Unit: Living / Dining'   },
+  { key: 'cct_unit_bedroom',  label: 'Unit: Bedroom'           },
+  { key: 'cct_unit_bathroom', label: 'Unit: Bathroom / Vanity' },
+  { key: 'cct_unit_kitchen',  label: 'Unit: Kitchen'           },
   { key: 'cct_corridors',     label: 'Corridors / Stairwells'   },
   { key: 'cct_amenities',     label: 'Interior Amenities'       },
   { key: 'cct_garage',        label: 'Garage'                   },
@@ -43,7 +43,7 @@ export const CASCADE_MAP = {
 // ── Question sections ─────────────────────────────────────────────────────────
 
 export const STANDARDS_SECTIONS = [
-  // GENERAL_DESIGN_QUESTIONS — broad design preferences; first thing we cover
+  // GENERAL_DESIGN_QUESTIONS, broad design preferences; first thing we cover
   {
     key:   'GENERAL_DESIGN_QUESTIONS',
     label: 'General Design Questions',
@@ -52,7 +52,7 @@ export const STANDARDS_SECTIONS = [
     questions: [],
   },
 
-  // COLOR_TEMPERATURE — special section rendered by CCTRenderer, not question list
+  // COLOR_TEMPERATURE, special section rendered by CCTRenderer, not question list
   {
     key:   'COLOR_TEMPERATURE',
     label: 'Color Temperature',
@@ -70,7 +70,7 @@ export const STANDARDS_SECTIONS = [
     questions: [
       {
         key:        'unit_disk_style',
-        label:      'Disk style — standard ceiling fixture',
+        label:      'Disk style: standard ceiling fixture',
         hint:       'Primary ceiling disk used across all rooms. Auto-fills bedrooms, living rooms, closets, HVAC closet, kitchen, bathroom.',
         tags:       ['REQUIRED', 'CASCADE'],
         inputType:  'CHIPS',
@@ -87,7 +87,7 @@ export const STANDARDS_SECTIONS = [
       {
         key:       'unit_entryway',
         label:     'Entryway fixture',
-        hint:      'Unit entry — statement fixture or same disk as unit?',
+        hint:      'Unit entry: statement fixture or same disk as unit?',
         tags:      ['REQUIRED'],
         inputType: 'CHIPS',
         options: [
@@ -178,7 +178,7 @@ export const STANDARDS_SECTIONS = [
       {
         key:       'unit_undercab',
         label:     'Undercabinet lighting',
-        hint:      'Typical in Class A and B+. 2–3 per unit.',
+        hint:      'Typical in Class A and B+. 2 to 3 per unit.',
         tags:      ['ADDER'],
         inputType: 'MULTI_CHIPS',
         options: [
@@ -202,7 +202,7 @@ export const STANDARDS_SECTIONS = [
       {
         key:       'unit_balcony',
         label:     'Balcony / patio fixture',
-        hint:      'Units with balconies — disk, sconce, or nothing?',
+        hint:      'Units with balconies: disk, sconce, or nothing?',
         tags:      ['REQUIRED'],
         inputType: 'CHIPS',
         options: [
@@ -222,7 +222,7 @@ export const STANDARDS_SECTIONS = [
     questions: [
       {
         key:       'em_corridors',
-        label:     'Corridors — emergency approach',
+        label:     'Corridors: emergency approach',
         hint:      'No generator assumed. Three approaches trade off cost, aesthetics, and complexity.',
         tags:      ['REQUIRED'],
         inputType: 'CHIPS',
@@ -234,8 +234,8 @@ export const STANDARDS_SECTIONS = [
       },
       {
         key:       'em_amenities',
-        label:     'Interior amenities — emergency approach',
-        hint:      'Clubhouse, fitness, leasing — often different from corridors.',
+        label:     'Interior amenities: emergency approach',
+        hint:      'Clubhouse, fitness, leasing: often different from corridors.',
         tags:      ['REQUIRED'],
         inputType: 'CHIPS',
         options: [
@@ -246,7 +246,7 @@ export const STANDARDS_SECTIONS = [
       },
       {
         key:       'em_garage',
-        label:     'Garage — emergency approach',
+        label:     'Garage: emergency approach',
         hint:      'GL-R series supports integrated EM battery adder.',
         tags:      ['REQUIRED'],
         inputType: 'CHIPS',
@@ -264,7 +264,7 @@ export const STANDARDS_SECTIONS = [
       },
       {
         key:       'em_boh',
-        label:     'BOH — emergency approach',
+        label:     'BOH: emergency approach',
         hint:      'Mechanical, electrical, storage rooms.',
         tags:      ['REQUIRED'],
         inputType: 'CHIPS',
@@ -276,7 +276,7 @@ export const STANDARDS_SECTIONS = [
       },
       {
         key:       'em_exterior',
-        label:     'Exterior egress doors — emergency approach',
+        label:     'Exterior egress doors: emergency approach',
         hint:      'Must be wet-listed. Exit doors leading outside.',
         tags:      ['REQUIRED'],
         inputType: 'CHIPS',
@@ -296,7 +296,7 @@ export const STANDARDS_SECTIONS = [
     questions: [
       {
         key:       'exit_corridors',
-        label:     'Corridors — exit sign type',
+        label:     'Corridors: exit sign type',
         hint:      'Thermoplastic = cost-effective default. Edge-lit = design upgrade.',
         tags:      ['REQUIRED'],
         inputType: 'CHIPS',
@@ -307,7 +307,7 @@ export const STANDARDS_SECTIONS = [
       },
       {
         key:       'exit_amenities',
-        label:     'Interior amenities — exit sign type',
+        label:     'Interior amenities: exit sign type',
         hint:      'Clubhouse, fitness, leasing. Usually matches corridors.',
         tags:      ['REQUIRED'],
         inputType: 'CHIPS',
@@ -454,7 +454,7 @@ export const STANDARDS_SECTIONS = [
 // Returns the most-specific matching answer record, or null.
 
 export function resolveAnswer(answers, questionKey, projectType = '', region = '') {
-  // Skip records where answer_value is null — allows "clear override" by nulling a record
+  // Skip records where answer_value is null, allows "clear override" by nulling a record
   const match = (pt, r) =>
     answers.find(a =>
       a.question_key === questionKey &&

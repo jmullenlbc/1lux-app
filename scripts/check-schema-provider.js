@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 /**
- * check-schema-provider — the committed Prisma provider must stay "sqlite".
+ * check-schema-provider, the committed Prisma provider must stay "sqlite".
  *
  * amplify.yml patches it at build time:
  *   sed -i 's/provider = "sqlite"/provider = "postgresql"/' prisma/schema.prisma
  *
  * If "postgresql" ever gets committed, that sed matches nothing, the swap
- * silently no-ops, and prod builds against the wrong provider — while local dev
+ * silently no-ops, and prod builds against the wrong provider, while local dev
  * breaks for everyone at the same time. Cheap to assert, expensive to discover.
  */
 const fs = require('fs');
@@ -26,7 +26,7 @@ if (!m) {
 }
 
 if (m[1] !== 'sqlite') {
-  console.error(`\n❌ BUILD BLOCKED — committed Prisma provider is "${m[1]}", expected "sqlite".\n`);
+  console.error(`\n❌ BUILD BLOCKED: committed Prisma provider is "${m[1]}", expected "sqlite".\n`);
   console.error('   amplify.yml swaps sqlite → postgresql at build time. Committing');
   console.error('   "postgresql" makes that sed a no-op and breaks local dev.\n');
   console.error('   Fix: set provider = "sqlite" in prisma/schema.prisma before committing.\n');

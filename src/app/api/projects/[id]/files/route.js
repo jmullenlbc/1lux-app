@@ -88,7 +88,7 @@ export async function POST(request, { params }) {
 
   if (!VALID_TABS.includes(tab)) return NextResponse.json({ error: 'Invalid tab' }, { status: 400 });
 
-  // The bytes arrive one of two ways — as a multipart body (small files, and
+  // The bytes arrive one of two ways, as a multipart body (small files, and
   // local dev), or already sitting in S3 because the browser sent them straight
   // there to get past Amplify's ~4.4 MB front door. readUploadedFile hides the
   // difference; from here down nothing knows or cares which it was.
@@ -102,7 +102,7 @@ export async function POST(request, { params }) {
   const stored    = `${Date.now()}-${safeName}`;
   const storedKey = await putProjectFile(buffer, { projectId: params.id, tab, stored, contentType: file.type || 'application/octet-stream' });
 
-  // The staging copy under uploads/ has done its job. Best-effort — the 1-day
+  // The staging copy under uploads/ has done its job. Best-effort, the 1-day
   // lifecycle rule on that prefix is the backstop if this misses.
   await upload.cleanup();
 
@@ -149,7 +149,7 @@ export async function POST(request, { params }) {
       const update         = {};
 
       if (isCOI) {
-        // COI — parse expiry date and embed in tags as "COI_EXPIRY:YYYY-MM-DD"
+        // COI, parse expiry date and embed in tags as "COI_EXPIRY:YYYY-MM-DD"
         const { expiryDate } = parseCOIFields(textContent);
         if (expiryDate) {
           const expiryTag = `COI_EXPIRY:${expiryDate}`;
@@ -188,7 +188,7 @@ export async function POST(request, { params }) {
 
   // Schedule milestones (Design Schedule on Design Info, Construction Schedule
   // on CA) are no longer read here. Both come back null and the browser asks
-  // files/[fileId]/reparse for them right after this returns — see
+  // files/[fileId]/reparse for them right after this returns, see
   // src/lib/scheduleReadClient.js. The response shape is unchanged.
   const designScheduleUpdate = null;
   const scheduleUpdate       = null;

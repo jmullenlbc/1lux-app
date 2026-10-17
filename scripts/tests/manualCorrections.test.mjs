@@ -14,7 +14,7 @@
  *  1. The unit matrix could cover only part of a project (rows merged away, a
  *     second building's matrix collapsed into the first), and every figure
  *     hanging off it came back short by the same fraction.
- *  2. A misread figure was uncorrectable — every ladder reads
+ *  2. A misread figure was uncorrectable, every ladder reads
  *     `stated ?? counted ?? typed`, so a typed number was ignored whenever the
  *     drawings had said anything at all.
  *  3. Exterior amenity SF of zero made the $/SF question price at $0 whatever
@@ -138,7 +138,7 @@ test('once an amenity area exists the flag goes away', () => {
 // ── The undercount at its source: the merge ─────────────────────────────────
 
 test('a unit row whose type code did not come through is no longer deleted', () => {
-  // A blank code used to drop the row outright, taking its units with it — one
+  // A blank code used to drop the row outright, taking its units with it, one
   // of the ways a matrix ends up covering less than the whole project.
   const merged = mergeProposals([
     { fileName: 'bldg-a.pdf', proposal: { unitTypes: [
@@ -157,7 +157,7 @@ test('blank-code rows from different files never merge into each other', () => {
     { fileName: 'bldg-b.pdf', proposal: { unitTypes: [{ code: '', qty: 30, unitSf: 950, confidence: 0.9 }] } },
   ]);
   const total = (merged.unitTypes || []).reduce((s, r) => s + Number(r.qty || 0), 0);
-  assert.equal(total, 55, 'two buildings, two rows — not one overwriting the other');
+  assert.equal(total, 55, 'two buildings, two rows, not one overwriting the other');
 });
 
 // ── A correction has to reach the figures computed FROM it ──────────────────
@@ -194,7 +194,7 @@ test('correcting units alone says so plainly instead of inventing a remainder', 
 });
 
 test('a corrected unit SF is what the remainder is measured against', () => {
-  // Chosen so the remainder lands UNDER the 5% cap — if the cap were doing the
+  // Chosen so the remainder lands UNDER the 5% cap, if the cap were doing the
   // work, this would pass whatever number the arithmetic used.
   const r = q({ correctUnitsSf: '230000' });
   assert.equal(r.unitsSf.value, 230000);

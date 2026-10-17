@@ -1,7 +1,7 @@
 // Admin and user privileges, step 1: the six bugs found 2026-09-14.
 //
 // 1. A turned-off account kept working for up to 7 days, and a role change waited
-//    for the next sign-in — the login pass was trusted without reading the account.
+//    for the next sign-in, the login pass was trusted without reading the account.
 // 2. The Profile screen saved notification choices to a column that didn't exist.
 // 3. Change-order and ship-schedule emails called sendNotification() the wrong way.
 // 4. The playbook (and client standards, and five more routes) crashed on every
@@ -71,7 +71,7 @@ test('nothing calls sendNotification() with an email object', () => {
 // ── 4. Handlers that read a name they never defined ─────────────────────────
 
 // Both directions: handed `req` but reads `request.json()`, or handed `request`
-// but reads `req.url`. Only real uses count — the word inside a comment or a
+// but reads `req.url`. Only real uses count, the word inside a comment or a
 // message ("release request") is fine.
 test('no route handler reads the request under a name it was never given', () => {
   const USE = '(json|url|headers|formData|text|nextUrl|cookies|method|body|signal)';
@@ -98,7 +98,7 @@ test('the playbook route only uses names it defines', () => {
   assert.match(src, /canSeeAllData\(user\)/);
 });
 
-test('client standards — answers, pictures, fixtures, product options — are open to all staff', () => {
+test('client standards are open to all staff: answers, pictures, fixtures, product options', () => {
   for (const rel of [
     'src/app/api/clients/[id]/standards/concepts/route.js',
     'src/app/api/clients/[id]/standard-fixtures/route.js',

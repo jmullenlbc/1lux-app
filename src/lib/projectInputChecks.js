@@ -3,7 +3,7 @@
 // The conceptual budget engine treats null / missing inputs as zero, which
 // silently suppresses entire calculation sections without telling the user.
 // On 2026-06-18, Manuel's first run on "The Approach" landed 37% under the
-// source spreadsheet because he left ~9 Project Data fields blank — the
+// source spreadsheet because he left ~9 Project Data fields blank, the
 // engine produced $0 for Exterior, $0 for vanity, $0 for stairwell
 // landings, and the resulting budget was unsendable.
 //
@@ -60,7 +60,7 @@ export const CRITICAL_PROJECT_INPUTS = [
  * Given a projectData record, return the list of critical inputs that are
  * blank/null/missing. Returns empty array if all is well.
  *
- * Treats null, undefined, and '' as missing. Treats explicit 0 as filled —
+ * Treats null, undefined, and '' as missing. Treats explicit 0 as filled
  * the user actively said "zero" rather than skipped, which is meaningful
  * (and won't have been an accident the way leaving the field blank is).
  */
@@ -70,7 +70,7 @@ export function findMissingProjectInputs(projectData) {
     const v = projectData[check.field];
     const isBlank = (v === null || v === undefined || v === '');
     if (!isBlank) return false;
-    // If a fallback field is filled, the engine handles it — don't warn.
+    // If a fallback field is filled, the engine handles it, don't warn.
     if (check.alsoCheckField) {
       const fallback = projectData[check.alsoCheckField];
       const fallbackFilled =

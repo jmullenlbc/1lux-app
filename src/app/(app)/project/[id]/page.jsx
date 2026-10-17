@@ -56,7 +56,7 @@ export default async function ProjectHubPage({ params }) {
     (s, item) => s + (item.totalSavings || 0), 0
   );
 
-  // Every file's full extracted text used to ride along here — on a file-heavy
+  // Every file's full extracted text used to ride along here, on a file-heavy
   // job that is a megabyte or more of page the screen never shows past a
   // 280-character summary (Marmalade: 49 files, ~1 MB of text). Only the head
   // of each text travels now; a read that needs the whole thing fetches it.

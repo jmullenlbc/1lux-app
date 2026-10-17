@@ -3,7 +3,7 @@
  * Work history for one person, opened from the People tab (migration 0083).
  * LinkedIn is never read by the app: copy the Experience section off their
  * profile, paste it here, and "Read it" turns it into jobs. Jobs can also be
- * typed in by hand. Meeting Prep reads these rows. Archive only — nothing is
+ * typed in by hand. Meeting Prep reads these rows. Archive only, nothing is
  * deleted.
  */
 import { useState, useEffect } from 'react';

@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
  *
  * This is the door the Microsoft 365 sync (Graph) will knock on; a Sales Admin
  * or the cron secret can reach it in the meantime. A raw Graph event can be
- * posted as-is — it is recognised and translated here.
+ * posted as-is, it is recognised and translated here.
  *
  * Body: the event, plus any of
  *   format      'graph' | 'loose' | 'auto'   defaults to auto (it sniffs)

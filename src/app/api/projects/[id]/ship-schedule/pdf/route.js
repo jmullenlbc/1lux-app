@@ -18,7 +18,7 @@ const STATUS_LABELS = {
   REMOVED:            'Removed',
 };
 
-// GET /api/projects/[id]/ship-schedule/pdf — ILC-branded print-ready HTML
+// GET /api/projects/[id]/ship-schedule/pdf, ILC-branded print-ready HTML
 export async function GET(req, { params }) {
   const { error } = await requireAuth();
   if (error) return new Response('Unauthorized', { status: 401 });
@@ -86,7 +86,7 @@ export async function GET(req, { params }) {
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Ship Schedule — ${project?.name || ''}</title>
+<title>Ship Schedule: ${project?.name || ''}</title>
 <style>
 * { box-sizing:border-box; margin:0; padding:0; }
 body { font-family:'Helvetica Neue',Arial,sans-serif; font-size:9px; color:#231F20; background:#fff; }
@@ -173,11 +173,11 @@ td { padding:4px 6px; border-bottom:1px solid #f0f0f0; vertical-align:top; }
     </thead>
     <tbody>
       ${activeItems.length > 0 ? `
-        <tr class="section-row"><td colspan="14">Active — ${activeItems.length} Type${activeItems.length !== 1 ? 's' : ''}</td></tr>
+        <tr class="section-row"><td colspan="14">Active: ${activeItems.length} Type${activeItems.length !== 1 ? 's' : ''}</td></tr>
         ${rowsHtml(activeItems)}
       ` : '<tr><td colspan="14" style="text-align:center;padding:20px;color:#aaa;font-style:italic">No items in ship schedule</td></tr>'}
       ${removedItems.length > 0 ? `
-        <tr class="section-row"><td colspan="14">Removed from Bid — ${removedItems.length} Type${removedItems.length !== 1 ? 's' : ''}</td></tr>
+        <tr class="section-row"><td colspan="14">Removed from Bid: ${removedItems.length} Type${removedItems.length !== 1 ? 's' : ''}</td></tr>
         ${rowsHtml(removedItems, true)}
       ` : ''}
     </tbody>
@@ -185,7 +185,7 @@ td { padding:4px 6px; border-bottom:1px solid #f0f0f0; vertical-align:top; }
 
   <!-- Page footer -->
   <div class="page-footer">
-    <span>Confidential — ILC Studios LLC | 2301 Blake Street, Ste 100, Denver, CO 80205 | 720-248-8208</span>
+    <span>Confidential: ILC Studios LLC | 2301 Blake Street, Ste 100, Denver, CO 80205 | 720-248-8208</span>
     <span>Printed: ${today}</span>
   </div>
 </div>

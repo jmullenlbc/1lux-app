@@ -99,7 +99,7 @@ function parseRow(cells) {
   if (unitPrice && qty) {
     const expected = unitPrice * qty;
     if (Math.abs(expected - total) / total > 0.10) {
-      // Doesn't add up — maybe qty wasn't found correctly; infer it
+      // Doesn't add up, maybe qty wasn't found correctly; infer it
       qty = Math.round(total / unitPrice);
       qtyIdx = priceStart - 1; // treat as if qty was at priceStart-1
     }
@@ -126,7 +126,7 @@ function parseRow(cells) {
     type         = descCells[0];
     description  = descCells[1];
   } else if (descCells.length === 1) {
-    // Single cell — try to split: short prefix = type, rest = description
+    // Single cell, try to split: short prefix = type, rest = description
     const m = descCells[0].match(/^([A-Z0-9]{1,5})\s+(.+)$/);
     if (m) { type = m[1]; description = m[2]; }
     else description = descCells[0];
@@ -144,7 +144,7 @@ function parseRow(cells) {
   return { type, description, manufacturer, partNo, qty: qty || 1, unitPrice: unitPrice || total, total };
 }
 
-/** Main entry — call with Buffer from file upload. */
+/** Main entry, call with Buffer from file upload. */
 export async function parseBudgetLineItemsFromBuffer(buffer) {
   try {
     const pdfjsLib = await loadPdfjs();

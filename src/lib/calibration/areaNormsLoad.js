@@ -37,7 +37,7 @@ function trustOf(figures) {
 const TTL_MS = 5 * 60 * 1000;
 const cache = new Map(); // buildingType → { at, norms }
 
-/** areaNorms() for one building type, cached five minutes. Never throws — {} on failure. */
+/** areaNorms() for one building type, cached five minutes. Never throws, {} on failure. */
 export async function loadAreaNorms(buildingType) {
   if (!buildingType) return {};
   const hit = cache.get(buildingType);
@@ -76,7 +76,7 @@ export async function loadAreaChecks(projectId) {
 
 /**
  * Snapshot each area's dollars as "what the questionnaire said", once per
- * project — a later call is a no-op. from: 'web-request' | 'questionnaire'.
+ * project, a later call is a no-op. from: 'web-request' | 'questionnaire'.
  * Skipped while the budget is still empty. Never throws.
  */
 export async function takeAreaBaseline(projectId, from) {

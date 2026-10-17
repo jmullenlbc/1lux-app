@@ -1,5 +1,5 @@
 <!--
-  GENERATED FILE — do not edit by hand.
+  GENERATED FILE: do not edit by hand.
   Source: src/lib/mcp/catalog.js
   Regenerate: node scripts/generate-agents-md.mjs
   `npm run verify` fails if this file and the catalogue disagree.
@@ -15,7 +15,7 @@ not served at a public address.
 
 **Everything here is read-only.** There is no tool that creates, edits or deletes
 anything, and there never will be on this endpoint. If a question needs something
-changed, say what needs changing and who should change it — do not look for a way
+changed, say what needs changing and who should change it. Do not look for a way
 to do it here.
 
 ## What you can see
@@ -25,11 +25,11 @@ apply to every answer, and neither one is something you can argue with:
 
 - **Which rows.** You only ever see records that belong to whoever the key was
   issued to. A client sees their own jobs. Asking about somebody else's job
-  returns nothing at all — not an error, just nothing.
+  returns nothing at all: not an error, just nothing.
 - **Which columns.** Buy prices, margins and other internal figures are removed
   from the answer before you get it. They are not marked as removed; they are
   simply absent. Do not try to work them out from what is left, and do not filter
-  on a field you cannot see — that request is refused outright.
+  on a field you cannot see. That request is refused outright.
 
 If a tool refuses you, that is the answer. Say so plainly and move on; do not try
 the same question a different way.
@@ -42,14 +42,14 @@ and those names are the only valid `model` argument for every other tool. Then
 call and is recorded as a failed request.
 
 To find a record when you only have a name like "The Approach", use `search`
-rather than a filter — it looks across project names, project numbers and client
+rather than a filter. It looks across project names, project numbers and client
 names in one go.
 
 ## Limits
 
 - A query returns at most **100** rows, and **25** if you do not ask for a number.
   Ask a narrower question rather than paging through everything.
-- There is a per-minute cap on requests. If you hit it, wait — retrying
+- There is a per-minute cap on requests. If you hit it, wait. Retrying
   immediately just burns the allowance.
 - **Every call is recorded** against the person whose key you are using: which
   tool, which arguments, and whether it was refused. The answer itself is not
@@ -62,7 +62,7 @@ authenticated; 4 are ILC staff only and are refused to everybody else.
 
 ### `list_models`
 
-List the data objects available through this server, with a one-line description of each. Start here — the names returned are the only valid `model` arguments for the other tools.
+List the data objects available through this server, with a one-line description of each. Start here: the names returned are the only valid `model` arguments for the other tools.
 
 _Takes no arguments._
 
@@ -128,7 +128,7 @@ Everything about one project in a single call: the project, its client, its budg
 ### `get_pipeline`
 
 **ILC staff only.**
-The sales pipeline: projects with their probability, expected order date and contract value. ILC staff only — these fields are commercial position, not project facts.
+The sales pipeline: projects with their probability, expected order date and contract value. ILC staff only: these fields are commercial position, not project facts.
 
 | Argument | Type | Required | Notes |
 | --- | --- | --- | --- |
@@ -148,7 +148,7 @@ One client and all of their projects. ILC staff only.
 ### `get_calibration`
 
 **ILC staff only.**
-How the budget engine is performing against real figures: which rates are drifting, and which budget lines look like they are priced off the wrong thing. ILC staff only — this is the pricing engine talking about itself, and it is never available to a client or an outside caller.
+How the budget engine is performing against real figures: which rates are drifting, and which budget lines look like they are priced off the wrong thing. ILC staff only: this is the pricing engine talking about itself, and it is never available to a client or an outside caller.
 
 | Argument | Type | Required | Notes |
 | --- | --- | --- | --- |
@@ -162,7 +162,7 @@ How the budget engine is performing against real figures: which rates are drifti
 ### `get_commitments`
 
 **ILC staff only.**
-Everything ILC owes somebody, and everything somebody owes ILC, in one list. Composed from the four places obligations are actually recorded — internal tasks, confirmed follow-ups out of meeting and sales notes, the next step on a live deal, and open RFIs. There is no separate commitments table; closing an item on its own screen removes it from here. ILC staff only.
+Everything ILC owes somebody, and everything somebody owes ILC, in one list. Composed from the four places obligations are actually recorded: internal tasks, confirmed follow-ups out of meeting and sales notes, the next step on a live deal, and open RFIs. There is no separate commitments table; closing an item on its own screen removes it from here. ILC staff only.
 
 | Argument | Type | Required | Notes |
 | --- | --- | --- | --- |
@@ -184,7 +184,7 @@ Standard MCP over JSON-RPC 2.0 at `/api/mcp`, with your key as a bearer token:
 
 `initialize`, `tools/list` and `ping` work as the protocol specifies. `tools/list`
 returns only the tools you are allowed to call, so it is the honest list for you
-specifically — shorter than the one above if your key is not an ILC one.
+specifically, shorter than the one above if your key is not an ILC one.
 
 Keys are issued per person under **ILC Admin → AI Access Keys**, and a key never
 shows more than the person it belongs to could already see in the app.

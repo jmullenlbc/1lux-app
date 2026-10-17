@@ -1,10 +1,10 @@
 /**
  * How the Sales Notes list is laid out (Mike 9-25: it "just looks like an email
- * inbox"). Pure, no imports — the screen and the tests share it.
+ * inbox"). Pure, no imports, the screen and the tests share it.
  *
- *   Coming up   — a meeting still ahead, not published. Soonest first.
- *   Needs notes — a draft whose meeting has passed, or with no date. Newest first.
- *   Done        — published. Newest first.
+ *   Coming up, a meeting still ahead, not published. Soonest first.
+ *   Needs notes, a draft whose meeting has passed, or with no date. Newest first.
+ *   Done, published. Newest first.
  */
 const t = d => (d ? new Date(d).getTime() : null);
 

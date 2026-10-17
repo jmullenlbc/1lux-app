@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { requirePermission } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
-// PATCH — reorder line items: body = { order: [{ id, sortOrder }] }
+// PATCH, reorder line items: body = { order: [{ id, sortOrder }] }
 export async function PATCH(req, { params }) {
   const { error } = await requirePermission(req, 'editJobMoney'); // Construction, Operations, Finance, admins
   if (error) return error;

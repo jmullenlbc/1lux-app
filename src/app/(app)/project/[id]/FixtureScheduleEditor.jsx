@@ -9,7 +9,7 @@ import { FilterButton } from '@/components/ui/FilterPanel';
 import SortHeader from '@/components/ui/SortHeader';
 import { BTN_COMPACT, BTN_COMPACT_PRIMARY, BTN_PRIMARY, BTN_SECONDARY, CARD, INPUT, LABEL, MODAL } from '@/components/ui/tokens';
 
-// ── Location tags — matches Peer Review Matrix exactly ───────────────────────
+// ── Location tags, matches Peer Review Matrix exactly ───────────────────────
 const LOCATION_TAGS = [
   { id: 'units',    label: 'Units'         },
   { id: 'corridor', label: 'Corridor'      },
@@ -537,7 +537,7 @@ function ShareModal({ projectId, onClose }) {
             </>
           ) : (
             <>
-              {/* No link yet — create one */}
+              {/* No link yet, create one */}
               <div className="space-y-3">
                 <p className="text-sm text-slate-600">Create a shareable link to this fixture schedule. Share it with external design consultants.</p>
                 <div>
@@ -957,7 +957,7 @@ export default function FixtureScheduleEditor({ projectId, serviceType }) {
       )
     : rawItems;
 
-  // Apply conditions (all must match — AND logic)
+  // Apply conditions (all must match, AND logic)
   const activeConditions = conditions.filter(c => c.op === 'empty' || c.op === 'not_empty' || c.value.trim() !== '');
   const filteredItems = activeConditions.length === 0
     ? searchedItems
@@ -1148,7 +1148,7 @@ export default function FixtureScheduleEditor({ projectId, serviceType }) {
             </button>
           )}
 
-          {/* Parse from PDF — only for Peer Review / Bid Only */}
+          {/* Parse from PDF, only for Peer Review / Bid Only */}
           {!isReadOnly && isAiServiceType && (
             <button
               className={BTN_COMPACT}

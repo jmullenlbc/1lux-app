@@ -1,5 +1,5 @@
 /**
- * Stair landings and breezeway stairs — Mike 2026-09-14:
+ * Stair landings and breezeway stairs, Mike 2026-09-14:
  *   "regular stairwell = $200/landing (Up from $175/landing. We have seen a
  *   cost increase we need to change in master pricing)"
  *   Small breezeway (like Lowell + I76): "a 10-15% increase in cost"
@@ -11,7 +11,7 @@
  * average the price?"
  *
  * So: breezeway landings price at $200 × 1.125 (small) = $225, × 1.225 (long)
- * = $245, or — until someone picks off the drawings — the average, × 1.175 =
+ * = $245, or, until someone picks off the drawings, the average, × 1.175 =
  * $235. Interior vs breezeway is its own answer (corridors.stairType); unset,
  * it follows the building type.
  *
@@ -41,7 +41,7 @@ test('master sheet: $200 a landing; small 1.125 ($225), long 1.225 ($245); the f
   assert.deepEqual(PRICING.breezewayStair.storiesDefault, { garden: 3, stackedFlats: 3, gurban: 4 });
 });
 
-test('small is 10–15% over a plain landing, long is 20–25%, average sits halfway ($235)', () => {
+test('small is 10 to 15% over a plain landing, long is 20 to 25%, average sits halfway ($235)', () => {
   const plain = PRICING.corridors.stairwellPerLanding.product;
   assert.ok(SMALL / plain >= 1.10 && SMALL / plain <= 1.15);
   assert.ok(LONG / plain >= 1.20 && LONG / plain <= 1.25);

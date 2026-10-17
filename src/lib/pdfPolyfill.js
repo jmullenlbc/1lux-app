@@ -1,6 +1,6 @@
 // pdfjs-dist v5 uses Promise.withResolvers(), which only exists on Node 22+.
 // Amplify's serverless runtime may be on Node 18/20, where it's undefined and
-// pdfjs throws "Promise.withResolvers is not a function" — so EVERY PDF parser
+// pdfjs throws "Promise.withResolvers is not a function", so EVERY PDF parser
 // fails in production while working locally on newer Node. This polyfill makes it
 // available everywhere; it's a no-op on Node 22+.
 //

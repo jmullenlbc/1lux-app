@@ -4,7 +4,7 @@
 // reading a fraction of the library and nobody could see that from the screen.
 //
 //   1. The original was `take: 5, orderBy: createdAt asc` with no matching at
-//      all — the bot saw the five OLDEST Q&A pairs and nothing else, ever.
+//      all, the bot saw the five OLDEST Q&A pairs and nothing else, ever.
 //   2. The replacement searched, which was better, but still handed over the top
 //      five hits as ~1,600-character EXCERPTS, in two categories out of all of
 //      them, and threw away anything that did not match the query outright. A
@@ -15,8 +15,8 @@
 // … We need every character or everything we upload to do that."
 //
 // So this now sends the WHOLE library: every category, every active Q&A pair and
-// every readable document, each one whole. Relevance did not go away — it decides
-// the ORDER — but ordering is all it decides, and it only ever matters if the
+// every readable document, each one whole. Relevance did not go away, it decides
+// the ORDER, but ordering is all it decides, and it only ever matters if the
 // library grows past what one prompt can carry. See KNOWLEDGE_CHAR_BUDGET.
 
 import { prisma } from '@/lib/db';
@@ -26,7 +26,7 @@ import { searchTerms, scoreText, packKnowledge, KNOWLEDGE_CHAR_BUDGET } from './
  * Everything the bot is allowed to read, ranked best-first for this query.
  *
  * Note what is NOT here: no `take`, and no filter on score. A document with a
- * score of zero is still sent — it is knowledge somebody deliberately uploaded.
+ * score of zero is still sent, it is knowledge somebody deliberately uploaded.
  * Sorting only decides who goes first when there is not room for everyone.
  */
 async function rankedLibrary({ query = '', categories = null } = {}) {
@@ -38,7 +38,7 @@ async function rankedLibrary({ query = '', categories = null } = {}) {
       where:  { isActive: true, ...categoryFilter },
       select: { id: true, category: true, keywords: true, question: true, answer: true },
     }),
-    // status READY is not a preference — a FAILED document has no text to send.
+    // status READY is not a preference, a FAILED document has no text to send.
     prisma.botKnowledgeDoc.findMany({
       where:  { isActive: true, status: 'READY', ...categoryFilter },
       select: { id: true, category: true, title: true, description: true, fileName: true, fileType: true, text: true },
@@ -103,7 +103,7 @@ export async function knowledgeContextBlock(opts) {
 }
 
 /**
- * How much of the library actually reaches the bot — for the screen, so the
+ * How much of the library actually reaches the bot, for the screen, so the
  * answer to "is the bot really reading all of this?" is on the page rather than
  * in someone's memory of a conversation.
  *

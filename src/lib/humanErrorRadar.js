@@ -1,7 +1,7 @@
 /**
- * Human Error Radar — cross-document consistency checks.
+ * Human Error Radar, cross-document consistency checks.
  * Three engines: Quantity Radar, Specification Radar, Bid Radar.
- * No code knowledge required — purely data reconciliation.
+ * No code knowledge required, purely data reconciliation.
  */
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -78,9 +78,9 @@ export function runQuantityRadar(scheduleItems, takeoffData) {
     subtitle: 'Schedule ↔ Takeoff reconciliation',
     status:  !takeoffData ? 'SKIP' : !mainItems.length ? 'SKIP' : hasIssues ? 'FLAG' : 'PASS',
     summary: !takeoffData
-      ? 'No takeoff uploaded — upload a Countfire export to compare quantities'
+      ? 'No takeoff uploaded, upload a Countfire export to compare quantities'
       : !mainItems.length
-        ? 'No fixture schedule — add fixture types to compare against takeoff'
+        ? 'No fixture schedule, add fixture types to compare against takeoff'
         : hasIssues
           ? `${missingFromTakeoff.length} schedule type${missingFromTakeoff.length !== 1 ? 's' : ''} missing from takeoff · ${orphanTakeoffKeys.length} takeoff type${orphanTakeoffKeys.length !== 1 ? 's' : ''} missing from schedule`
           : `All ${mainItems.length} fixture types matched between schedule and takeoff`,
@@ -118,7 +118,7 @@ export function runSpecificationRadar(scheduleItems) {
         severity: 'FLAG',
         type,
         title:   'Duplicate type code',
-        message: `Type "${type}" appears ${count} times as a main fixture — should each have a unique type code`,
+        message: `Type "${type}" appears ${count} times as a main fixture. Each should have a unique type code`,
       });
     }
   }
@@ -140,7 +140,7 @@ export function runSpecificationRadar(scheduleItems) {
         severity: 'FLAG',
         type: rows.map(r => r.type).join(', '),
         title: 'Catalog number wattage conflict',
-        message: `Catalog "${cat}" appears on types ${rows.map(r => `${r.type}(${r.wattage ?? '?'}W)`).join(', ')} with different wattages — same catalog number cannot have different wattages`,
+        message: `Catalog "${cat}" appears on types ${rows.map(r => `${r.type}(${r.wattage ?? '?'}W)`).join(', ')} with different wattages. The same catalog number cannot have different wattages`,
       });
     }
   }
@@ -160,7 +160,7 @@ export function runSpecificationRadar(scheduleItems) {
         severity: 'WARN',
         type: `(${loc})`,
         title: 'CCT mix in same location',
-        message: `Location "${loc}" has fixtures with ${[...ccts].join('K, ')}K — mixed CCT in one space is usually unintentional`,
+        message: `Location "${loc}" has fixtures with ${[...ccts].join('K, ')}K, mixed CCT in one space is usually unintentional`,
       });
     }
   }
@@ -173,7 +173,7 @@ export function runSpecificationRadar(scheduleItems) {
         severity: 'WARN',
         type: item.type || '(no type)',
         title: 'Unusually high wattage',
-        message: `${w}W on Type ${item.type || '?'} — verify this is per fixture, not total load (possible data entry error)`,
+        message: `${w}W on Type ${item.type || '?'}, verify this is per fixture, not total load (possible data entry error)`,
       });
     }
   }
@@ -185,7 +185,7 @@ export function runSpecificationRadar(scheduleItems) {
       severity: 'WARN',
       type: noDesc.map(i => i.type || '?').join(', '),
       title: 'Missing fixture description',
-      message: `${noDesc.length} fixture type${noDesc.length !== 1 ? 's' : ''} have no description — schedule is incomplete`,
+      message: `${noDesc.length} fixture type${noDesc.length !== 1 ? 's' : ''} have no description, schedule is incomplete`,
     });
   }
 
@@ -200,9 +200,9 @@ export function runSpecificationRadar(scheduleItems) {
     summary: !mainItems.length
       ? 'No fixture schedule data to check'
       : flags > 0
-        ? `${flags} conflict${flags !== 1 ? 's' : ''} found in fixture schedule — review before issuing`
+        ? `${flags} conflict${flags !== 1 ? 's' : ''} found in fixture schedule, review before issuing`
         : warns > 0
-          ? `${warns} warning${warns !== 1 ? 's' : ''} — schedule may be incomplete`
+          ? `${warns} warning${warns !== 1 ? 's' : ''}, schedule may be incomplete`
           : `No internal contradictions found across ${mainItems.length} fixture types`,
     issues,
   };
@@ -216,7 +216,7 @@ export function runBidRadar(scheduleItems, bidMatrix, takeoffData) {
     return {
       id: 'bid-radar', title: 'Bid Radar', subtitle: 'Bid matrix vs. schedule',
       status: 'SKIP',
-      summary: 'No bid matrix yet — push the fixture schedule to Bid to enable this check',
+      summary: 'No bid matrix yet, push the fixture schedule to Bid to enable this check',
       issues: [], missingFromBid: [], orphanBidItems: [], qtyMismatches: [],
     };
   }
@@ -279,7 +279,7 @@ export function runBidRadar(scheduleItems, bidMatrix, takeoffData) {
       severity: 'WARN',
       title:    'Bid items referencing deleted schedule rows',
       items:    orphanBidItems.map(i => ({ type: i.type, detail: i.description })),
-      message:  `${orphanBidItems.length} bid item${orphanBidItems.length !== 1 ? 's' : ''} reference schedule rows that no longer exist — bid matrix may be stale`,
+      message:  `${orphanBidItems.length} bid item${orphanBidItems.length !== 1 ? 's' : ''} reference schedule rows that no longer exist, bid matrix may be stale`,
     });
   }
 
@@ -297,7 +297,7 @@ export function runBidRadar(scheduleItems, bidMatrix, takeoffData) {
       severity: 'WARN',
       title:    'Bid items missing pricing',
       items:    noPricing.map(i => ({ type: i.type, detail: i.description })),
-      message:  `${noPricing.length} bid item${noPricing.length !== 1 ? 's' : ''} have no client net pricing — budget totals will be incomplete`,
+      message:  `${noPricing.length} bid item${noPricing.length !== 1 ? 's' : ''} have no client net pricing, budget totals will be incomplete`,
     });
   }
 

@@ -1,5 +1,5 @@
 /**
- * The CRM and delivery record types — the things that record an OBLIGATION or a
+ * The CRM and delivery record types, the things that record an OBLIGATION or a
  * CONVERSATION, as opposed to a price.
  *
  * The registry started with money: projects, clients, change orders, budgets.
@@ -9,7 +9,7 @@
  * RFI it came from is reading half the file.
  *
  * ── Posture: every field here is ilc_only, on purpose ────────────────────────
- * Not caution-by-default — a deliberate read of what these rows are. A Task is
+ * Not caution-by-default, a deliberate read of what these rows are. A Task is
  * an instruction to an ILC employee. A Note is what was said in a room, often
  * about the client, sometimes about a competitor. A NoteAction is ILC's private
  * follow-up list. A Contact row is a named human being's mobile number and the
@@ -23,17 +23,17 @@
  *
  * That also means NONE of these objects appear in src/lib/mcp/scope.js. An
  * object with no scope entry is unreachable to a non-ILC caller rather than
- * unscoped — the fail-closed direction. Adding a scope path here would be the
+ * unscoped, the fail-closed direction. Adding a scope path here would be the
  * deliberate act of opening one of these up, and it would need Mike's say-so.
  *
  * Declaring the fields still buys the thing that was missing: an ILC agent
  * asking `describe_model` now gets a real answer for these five, and
- * `query_records` will reach them at all, which it would not before — the model
+ * `query_records` will reach them at all, which it would not before, the model
  * allowlist in guards.js is the ontology registry.
  */
 
 /**
- * Task — the general internal to-do. Not tied to a project; tied to a person.
+ * Task, the general internal to-do. Not tied to a project; tied to a person.
  */
 export const Task = {
   key:   'Task',
@@ -41,7 +41,7 @@ export const Task = {
   label: 'Task',
   description:
     'An internal ILC to-do with an owner and a due date. status is TODO | IN_PROGRESS | IN_REVIEW | DONE ' +
-    'and priority is LOW | MEDIUM | HIGH | URGENT. Not attached to a project — for project-bound work see ' +
+    'and priority is LOW | MEDIUM | HIGH | URGENT. Not attached to a project. For project-bound work see ' +
     'Project.nextActionType and RFI. tags is a JSON-as-string array of menu tag ids.',
 
   properties: {
@@ -63,7 +63,7 @@ export const Task = {
 };
 
 /**
- * Note — a sales activity or a project meeting, and everything said in it.
+ * Note, a sales activity or a project meeting, and everything said in it.
  *
  * Two note types share one table because they share one lifecycle: a draft
  * arrives (typed, or synced from the calendar), somebody publishes it, and only
@@ -120,7 +120,7 @@ export const Note = {
 };
 
 /**
- * SalesExpense (0129) — one thing a salesperson paid for while courting a
+ * SalesExpense (0129), one thing a salesperson paid for while courting a
  * client: the meal, the round of golf, the flight, the gift. A row either rides
  * on a sales note (noteId set; the "Amount spent" box) or stands alone.
  *
@@ -164,7 +164,7 @@ export const SalesExpense = {
 };
 
 /**
- * NoteAction — one follow-up pulled out of a note.
+ * NoteAction, one follow-up pulled out of a note.
  *
  * `status` is the whole story. SUGGESTED means the AI read it out of the text
  * and nobody has agreed yet; CONFIRMED means a human said yes and it is now a
@@ -177,7 +177,7 @@ export const NoteAction = {
   label: 'Note Action',
   description:
     'A follow-up item extracted from a note. kind is ACTION | INTEL. status is ' +
-    'SUGGESTED | CONFIRMED | DONE | DISMISSED — only CONFIRMED is an obligation anyone has agreed to. ' +
+    'SUGGESTED | CONFIRMED | DONE | DISMISSED. Only CONFIRMED is an obligation anyone has agreed to. ' +
     'type is a taxonomy id (INTRO_OUTBOUND, SETUP_MEAL, EXPECT_INTRO, …). contactId soft-links to a ' +
     'Contact when the person was matched; contactName is the name as written when they were not.',
 
@@ -215,7 +215,7 @@ export const NoteAction = {
 };
 
 /**
- * Contact — a human being. Table `ClientContact`, model `Contact` since the two
+ * Contact, a human being. Table `ClientContact`, model `Contact` since the two
  * people tables were merged (migration 0070).
  *
  * `clientId` is optional and always was after the merge: we meet people before
@@ -227,7 +227,7 @@ export const Contact = {
   model: 'contact',
   label: 'Contact',
   description:
-    'A person. clientId is optional — a contact can exist with no company, or with a typed-but-unlinked ' +
+    'A person. clientId is optional: a contact can exist with no company, or with a typed-but-unlinked ' +
     'employer in `company`. department is one of eight keys (CORPORATE | PRECONSTRUCTION | CONSTRUCTION | ' +
     'PROCUREMENT | DESIGN | DEVELOPMENT | ARCHITECT | INTERIOR_DESIGN). lastEmailReceivedAt and ' +
     'lastEmailSentAt are CACHES rebuilt from the mailbox and ignore mass sends, invites and auto-replies. ' +
@@ -276,7 +276,7 @@ export const Contact = {
 };
 
 /**
- * RFI — a question from the field that ILC owes an answer to.
+ * RFI, a question from the field that ILC owes an answer to.
  *
  * The one on this list with a hard clock. `dateDue` is a contractual date, and
  * `shipFlag` means an answer is holding up a shipment.
@@ -286,7 +286,7 @@ export const RFI = {
   model: 'rFI',
   label: 'RFI',
   description:
-    'A request for information on a project. status is OPEN | IN_REVIEW | RESPONDED | CLOSED — OPEN and ' +
+    'A request for information on a project. status is OPEN | IN_REVIEW | RESPONDED | CLOSED. OPEN and ' +
     'IN_REVIEW are outstanding. receivedFrom is the GC, the EC, or "ILC" when self-initiated. ' +
     'shipFlag true means an unanswered RFI is holding up a shipment. The draft* fields are the ' +
     'pre-written answer and its review state, not the sent answer.',

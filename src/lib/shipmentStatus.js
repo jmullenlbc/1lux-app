@@ -1,6 +1,6 @@
 /**
  * Derives Shipment status from which fields are populated.
- * Status is NEVER set manually — always call this and store the result.
+ * Status is NEVER set manually, always call this and store the result.
  *
  * PO_PLACED → LEAD_TIME_CONFIRMED → ESD_CONFIRMED → SHIPPED → DELIVERED
  * Always reflects the furthest milestone reached. Never goes backwards.
@@ -23,9 +23,9 @@ export const STATUS_META = {
 
 /**
  * Returns ESD warning level for a shipment.
- * 'red'   — ESD has passed and not yet DELIVERED
- * 'amber' — ESD is within 14 days and not yet SHIPPED or DELIVERED
- * null    — no warning
+ * 'red', ESD has passed and not yet DELIVERED
+ * 'amber', ESD is within 14 days and not yet SHIPPED or DELIVERED
+ * null, no warning
  */
 export function esdWarning({ esdDate, status }) {
   if (!esdDate) return null;

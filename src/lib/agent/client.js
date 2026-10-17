@@ -1,5 +1,5 @@
 /**
- * The one place a model call is made — Slice 4b of the Governed AI Layer.
+ * The one place a model call is made, Slice 4b of the Governed AI Layer.
  *
  * Slice 4a built the ledger (src/lib/agent/ledger.js). A ledger with nothing
  * feeding it is a table, so this is the feeder: a thin wrapper over the Anthropic
@@ -9,7 +9,7 @@
  * There are ~25 independent `new Anthropic({ apiKey: getAnthropicKey() })` calls
  * across ~30 files, plus four raw `fetch('https://api.anthropic.com/…')`. A
  * convention ("remember to log it") loses to 25 call sites every time, and the
- * loss is silent — the feature still works, it just stops being observable, and
+ * loss is silent, the feature still works, it just stops being observable, and
  * nobody notices until someone asks what the month cost.
  *
  * So the wrapper has to be *cheaper to adopt than to skip*. It is a drop-in:
@@ -18,7 +18,7 @@
  *     + const anthropic = agentClient('rfi.draft', { projectId, userId });
  *
  * Everything else about the call site is unchanged. `messages.create(...)` takes
- * the same arguments and returns the same object, because it IS the same object —
+ * the same arguments and returns the same object, because it IS the same object
  * the wrapper returns a Proxy over the real client, so streaming, `models`,
  * `beta`, and every SDK surface this repo does not use yet keep working without
  * this file having to know about them.
@@ -27,7 +27,7 @@
  * It is the dimension every operational question groups by: which task burned
  * the tokens, which task regressed, which task is quietly failing 20% of the time
  * and falling back to a default nobody notices. A model id cannot answer any of
- * those — six features share `claude-haiku-4-5`. Use a stable dotted name
+ * those, six features share `claude-haiku-4-5`. Use a stable dotted name
  * (`rfi.draft`, `schedule.parse`, `contract.analyze`); it is a grouping key, so
  * renaming one splits its history.
  *
@@ -38,7 +38,7 @@
  * lives here would double-count runs and hide the error rate the ledger exists to
  * surface.
  *
- * It also stores no prompts and no completions — see the ledger's own note. What
+ * It also stores no prompts and no completions, see the ledger's own note. What
  * is recorded is task, model, outcome, latency and token counts.
  *
  * @see src/lib/agent/ledger.js
@@ -48,7 +48,7 @@ import { recordRun } from './ledger.js';
 import { containsSealedDocument } from './untrusted.js';
 
 /**
- * The injection boundary's enforceable half — Step 19.2, applied to every call.
+ * The injection boundary's enforceable half, Step 19.2, applied to every call.
  *
  * A request that carries stranger-authored text may not also carry tools. This
  * is the control that survives the model being talked into something: an
@@ -69,7 +69,7 @@ function assertNoToolsOverUntrustedInput(params, task) {
 
   throw new Error(
     `agent client ("${task}"): a request carrying third-party document text may not also carry tools. ` +
-    'Extraction returns JSON and a separate, non-model code path writes it — see src/lib/agent/untrusted.js. ' +
+    'Extraction returns JSON and a separate, non-model code path writes it, see src/lib/agent/untrusted.js. ' +
     'Split this into a parse call and a write step.'
   );
 }
@@ -78,7 +78,7 @@ function assertNoToolsOverUntrustedInput(params, task) {
  * Wrap an existing Anthropic client so its `messages.create` is recorded.
  *
  * Exported separately from `agentClient()` so it can be tested against a fake
- * client under plain `node --test` — building a real one would drag in the `@`
+ * client under plain `node --test`, building a real one would drag in the `@`
  * alias, which is a bundler feature the test runner cannot resolve.
  *
  * @param {object} client            an Anthropic SDK instance (or anything shaped like one)
@@ -111,7 +111,7 @@ export function wrapClient(client, task, context = {}) {
           if (mProp === 'stream') {
             return (...args) => recordedStream(value.bind(mTarget), args, task, context);
           }
-          // `countTokens`, anything else — passed through untouched and
+          // `countTokens`, anything else, passed through untouched and
           // unrecorded. Wrapping something this file does not understand is how
           // a wrapper breaks a feature it was only meant to observe.
           return value.bind(mTarget);
@@ -151,7 +151,7 @@ async function recordedCreate(create, args, task, context) {
       outputTokens: result?.usage?.output_tokens ?? null,
       // 'max_tokens' here means the answer was truncated. It is not an error and
       // will not show up in the error rate, but it is the usual explanation for
-      // "the parser started failing" — so it is worth a column.
+      // "the parser started failing", so it is worth a column.
       stopReason:   result?.stop_reason || null,
       projectId:    context.projectId || null,
       userId:       context.userId || null,
@@ -177,7 +177,7 @@ async function recordedCreate(create, args, task, context) {
  * Run one `messages.stream` and record the outcome once the stream finishes.
  *
  * Streaming cannot be recorded the way `create` is. `stream()` returns
- * synchronously and the caller iterates it — there is no promise for this
+ * synchronously and the caller iterates it, there is no promise for this
  * wrapper to sit in front of, and putting one there would mean owning the
  * iteration, which is exactly the kind of "wrap what you don't understand" that
  * breaks a streaming route. So the streamer is returned untouched and the record
@@ -188,7 +188,7 @@ async function recordedCreate(create, args, task, context) {
  *   - The record is a floating promise. Unlike `create`, there is nothing left
  *     to await it into. If the process is frozen the moment the last chunk is
  *     flushed, the entry is lost. In practice a streaming response is not done
- *     until it has been consumed, so it normally lands — but a stream the caller
+ *     until it has been consumed, so it normally lands, but a stream the caller
  *     abandons half-way records nothing at all.
  *   - `finalMessage` is the only place usage totals exist, so a stream that
  *     errors mid-flight records the failure with no token counts.
@@ -257,7 +257,7 @@ export async function agentClient(task, context = {}) {
 
 /**
  * For the four call sites that POST to the REST endpoint directly rather than
- * through the SDK. Same ledger, same task names — otherwise those four calls are
+ * through the SDK. Same ledger, same task names, otherwise those four calls are
  * invisible and every cost total is quietly wrong.
  *
  * @param {Function} doFetch  a zero-arg function performing the fetch and

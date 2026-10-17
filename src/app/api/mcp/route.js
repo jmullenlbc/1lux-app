@@ -1,33 +1,33 @@
 /**
- * The Librarian — a governed, read-only API over ILC's data.
+ * The Librarian, a governed, read-only API over ILC's data.
  *
  * Slice 3 of the Governed AI Layer. The hard parts were built and unit-tested in
  * isolation; this file is the wiring, and it is deliberately thin so that every
  * security decision stays in the module that owns it:
  *
- *   src/lib/mcp/auth.js    — WHO is asking (bearer service token or session cookie)
- *   src/lib/mcp/audit.js   — WHETHER we may answer at all, and the record that we did
- *   src/lib/mcp/guards.js  — WHAT they may ask for (model allowlist, field
+ *   src/lib/mcp/auth.js, WHO is asking (bearer service token or session cookie)
+ *   src/lib/mcp/audit.js, WHETHER we may answer at all, and the record that we did
+ *   src/lib/mcp/guards.js, WHAT they may ask for (model allowlist, field
  *                            validation, row cap, timeout)
- *   src/lib/mcp/tools.js   — the read tools, each ending in a redaction
- *   src/lib/mcp/server.js  — JSON-RPC 2.0 framing
- *   src/lib/ontology/redact.js — WHICH FIELDS come back (allowlist, fails closed)
+ *   src/lib/mcp/tools.js, the read tools, each ending in a redaction
+ *   src/lib/mcp/server.js, JSON-RPC 2.0 framing
+ *   src/lib/ontology/redact.js, WHICH FIELDS come back (allowlist, fails closed)
  *
  * Every request runs the same steps in the same order, and the order is the design:
  *
- *   1. auditReady()   — no audit sink, no service. Refuse before authenticating,
+ *   1. auditReady(), no audit sink, no service. Refuse before authenticating,
  *                       because a 503 that reveals nothing is the correct answer
  *                       even to a valid token.
- *   2. resolveCaller() — 401 if unauthenticated. No degrading to a public view;
+ *   2. resolveCaller(), 401 if unauthenticated. No degrading to a public view;
  *                       a general read API refuses rather than guesses.
- *   2b. take()        — a per-caller ceiling, charged once per HTTP request and
+ *   2b. take(), a per-caller ceiling, charged once per HTTP request and
  *                       priced by the number of JSON-RPC messages so a batch
  *                       cannot buy extra calls. After auth, so an unauthenticated
  *                       stranger can never consume a real caller's allowance.
- *   3. checkModel()   — default deny against the ontology allowlist.
- *   4. findForbiddenFields() — reject the QUERY, not just the response. Filtering
+ *   3. checkModel(), default deny against the ontology allowlist.
+ *   4. findForbiddenFields(), reject the QUERY, not just the response. Filtering
  *                       on a field you cannot see is an oracle for its value.
- *   5. redactObject() — allowlist the response by declared sensitivity.
+ *   5. redactObject(), allowlist the response by declared sensitivity.
  *
  * ── Why read-only ────────────────────────────────────────────────────────────
  * There are no write tools here and there is no `prisma.$queryRaw`. The whole
@@ -35,7 +35,7 @@
  * a compromised token can do is read rows it was already cleared for, capped at
  * 100 at a time, and every attempt is in the audit log. Adding one write tool
  * forfeits that argument entirely, so writes go through the existing routes with
- * their own guards — and eventually through the Scribe (Slice 4).
+ * their own guards, and eventually through the Scribe (Slice 4).
  *
  * ── Two wire shapes, one implementation ──────────────────────────────────────
  * A real MCP client speaks JSON-RPC 2.0 over Streamable HTTP. The in-app Ask-AI
@@ -49,7 +49,7 @@
  * Both land in executeTool(). That is the point: the guards must have exactly one
  * implementation, or the second shape becomes the way around them.
  *
- * @see scripts/tests/mcp.test.mjs — live acceptance tests, incl. a CLIENT_VIEWER
+ * @see scripts/tests/mcp.test.mjs, live acceptance tests, incl. a CLIENT_VIEWER
  *      driving this endpoint over real HTTP to prove the boundary empirically.
  */
 import { NextResponse } from 'next/server';
@@ -65,7 +65,7 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 /**
- * The server card — and, to anyone who proves who they are, its tool catalogue.
+ * The server card, and, to anyone who proves who they are, its tool catalogue.
  *
  * The card itself is unauthenticated on purpose: an MCP client has to be able to
  * tell that this endpoint exists, what protocol it speaks and whether it is
@@ -78,7 +78,7 @@ export const runtime = 'nodejs';
  * internet: a stranger reading `get_calibration` and `get_commitments` on a
  * public URL learns that ILC keeps calibration data and an obligations ledger,
  * which is exactly the kind of thing we have said not to publish. A real MCP
- * client loses nothing — it authenticates and calls `tools/list`, or simply
+ * client loses nothing, it authenticates and calls `tools/list`, or simply
  * calls this same GET with its credential attached.
  *
  * What an authenticated caller sees is filtered to their audience, so a client
@@ -97,7 +97,7 @@ export async function GET(request) {
       maxLimit: MAX_LIMIT,
       queryTimeoutMs: QUERY_TIMEOUT_MS,
       // Per caller, per minute. Enforced per server instance rather than
-      // globally — see lib/mcp/rateLimit.js for why that is the honest claim.
+      // globally, see lib/mcp/rateLimit.js for why that is the honest claim.
       requestsPerMinute: limitPerMinute(),
     },
     // Said out loud so a client can see the catalogue is being withheld rather
@@ -105,7 +105,7 @@ export async function GET(request) {
     toolCount: TOOL_COUNT,
   };
 
-  // No credential is not an error here — it is the ordinary case for discovery.
+  // No credential is not an error here, it is the ordinary case for discovery.
   // Nothing about the attempt is disclosed either way.
   const resolved = await resolveCaller(request);
   if (!resolved.ok) return NextResponse.json(card);
@@ -146,7 +146,7 @@ export async function POST(request) {
 
   // 2b. Rate limit. Charged after parsing because a batch of N messages costs N,
   //     and before any tool runs so a refusal costs the database nothing. This is
-  //     a per-container counter, not a global quota — see lib/mcp/rateLimit.js.
+  //     a per-container counter, not a global quota, see lib/mcp/rateLimit.js.
   const cost = Array.isArray(body) ? Math.max(1, body.length) : 1;
   const budget = take(callerKey(caller), cost);
   if (!budget.ok) {
@@ -206,14 +206,14 @@ export async function POST(request) {
     const result = await executeTool({ name, args, caller });
     return NextResponse.json(result);
   } catch (err) {
-    // A guard rejection is the caller's own doing and is safe — and useful — to
+    // A guard rejection is the caller's own doing and is safe, and useful, to
     // describe. Anything else may carry column names or query fragments, which is
     // the schema disclosure the field guards exist to prevent, so it is replaced.
     // executeTool has already written both outcomes to the audit log.
     const isCallerError = err instanceof McpError;
     return NextResponse.json(
       { error: isCallerError ? err.message : 'The request could not be completed.' },
-      // 400 malformed / 403 refused — see the McpError doc comment in tools.js.
+      // 400 malformed / 403 refused, see the McpError doc comment in tools.js.
       { status: isCallerError ? (err.status || 400) : 500 },
     );
   }

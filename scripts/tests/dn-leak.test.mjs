@@ -1,12 +1,12 @@
 // Live audit of the outbound routes that carry buy price. Requires a running
-// dev server (`npm run dev:3000`) — run via `npm run verify:dn`.
+// dev server (`npm run dev:3000`), run via `npm run verify:dn`.
 //
 // Unit tests prove src/lib/redact.js works. This proves the routes actually USE
 // it, which is the half that failed before: the CO PDF route imported
 // requireAuth() and then ignored its error, and the CO share route stripped
 // originalDN while shipping the margin it is derived from.
 //
-// Everything here is disposable — a throwaway project, CO, share token and
+// Everything here is disposable, a throwaway project, CO, share token and
 // CLIENT_VIEWER, all deleted in after().
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
@@ -14,12 +14,13 @@ import { login, get, serverUp, BASE } from './_auth.mjs';
 import { assertNoIlcOnly } from '../../src/lib/redact.js';
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import { ensureE2eAdmin } from './_e2eAdmin.mjs';
 
 const prisma = new PrismaClient();
 
-// Admin login comes from the private .env, never typed here (this file is in git):
-//   E2E_ADMIN_EMAIL=...   E2E_ADMIN_PASSWORD=...
-const ADMIN        = { email: process.env.E2E_ADMIN_EMAIL, password: process.env.E2E_ADMIN_PASSWORD };
+// Admin login: E2E_ADMIN_EMAIL / E2E_ADMIN_PASSWORD from the private .env if set,
+// otherwise a local test admin with a fresh random password (_e2eAdmin.mjs).
+let ADMIN          = null;
 const VIEWER_EMAIL = 'dnleak-clientviewer@ilcstudios.test';
 const VIEWER_PW    = 'DnLeakTest2026!';
 
@@ -33,11 +34,11 @@ let ilc     = null;   // ILC_ADMIN session
 let viewer  = null;   // CLIENT_VIEWER session
 
 before(async () => {
-  assert.ok(await serverUp(), `no dev server at ${BASE} — run \`npm run dev:3000\` first`);
-  assert.ok(ADMIN.email && ADMIN.password, 'set E2E_ADMIN_EMAIL and E2E_ADMIN_PASSWORD in .env first');
+  assert.ok(await serverUp(), `no dev server at ${BASE}, run \`npm run dev:3000\` first`);
+  ADMIN = await ensureE2eAdmin(prisma);
 
   const admin = await prisma.user.findFirst({ where: { email: ADMIN.email } });
-  assert.ok(admin, `seeded admin ${ADMIN.email} not found — run \`npm run db:seed\``);
+  assert.ok(admin, `seeded admin ${ADMIN.email} not found, run \`npm run db:seed\``);
 
   await prisma.user.upsert({
     where:  { email: VIEWER_EMAIL },
@@ -116,7 +117,7 @@ test('public share link still returns the client-facing numbers it is for', asyn
 
 const pdfPath = (q = '') => `/api/projects/${fixture.projectId}/change-orders/${fixture.coId}/pdf${q}`;
 
-test('REGRESSION: CO PDF requires a session — it used to serve to anyone with the URL', async () => {
+test('REGRESSION: CO PDF requires a session, it used to serve to anyone with the URL', async () => {
   const { status } = await get(pdfPath('?hideInternalDN=false'), null);
   assert.equal(status, 401, `unauthenticated CO PDF returned ${status}, expected 401`);
 });
@@ -128,7 +129,7 @@ test('CO PDF hides DN by default even for ILC staff', async () => {
   assert.ok(!text.includes(String(DN_VALUE)), 'DN value rendered without being asked for');
 });
 
-test('CO PDF shows DN to ILC staff who explicitly ask — the internal view still works', async () => {
+test('CO PDF shows DN to ILC staff who explicitly ask, the internal view still works', async () => {
   const { status, text } = await get(pdfPath('?hideInternalDN=false'), ilc.cookie);
   assert.equal(status, 200);
   assert.ok(text.includes('Orig DN'), 'ILC staff lost the internal DN column');
@@ -144,7 +145,7 @@ test('REGRESSION: a logged-in CLIENT_VIEWER cannot opt into the DN column', asyn
 
 // ── Portal ───────────────────────────────────────────────────────────────────
 // These routes redact via Prisma `select` allowlists rather than redact(). That
-// is a legitimate second pattern — it never loads the field at all — but it has
+// is a legitimate second pattern, it never loads the field at all, but it has
 // to be verified the same way, or an added `include` reopens the hole silently.
 
 test('portal budget + change-order routes refuse unauthenticated callers', async () => {

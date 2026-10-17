@@ -5,8 +5,9 @@ import { getAnthropicKey } from '@/lib/anthropicKey';
 import { wrapClient } from '@/lib/agent/client';
 import { modelParams, textFrom } from '@/lib/aiModels';
 import { buildUntrustedPrompt, warnOnInjection } from '@/lib/agent/untrusted';
+import { stripDashes } from '@/lib/bot/emailStyle';
 
-// CATEGORY_CONTEXT — hints to the model about what each category means
+// CATEGORY_CONTEXT, hints to the model about what each category means
 const CATEGORY_CONTEXT = {
   FINISH:        'finish/color/texture specification',
   MODEL:         'model number or cutsheet accuracy',
@@ -23,7 +24,7 @@ const CATEGORY_CONTEXT = {
   OTHER:         'general reviewer comment',
 };
 
-// POST — generate or regenerate AI response for a review
+// POST, generate or regenerate AI response for a review
 export async function POST(req, { params }) {
   const { user, error } = await requireAuth();
   if (error) return error;
@@ -80,17 +81,17 @@ Write a concise, professional ILC Studios response to that reviewer comment (1-3
 
 Rules:
 - Directly address the specific concern raised
-- Authoritative but collaborative tone — you are the lighting designer of record
+- Authoritative but collaborative tone. You are the lighting designer of record
 - Reference the fixture type code (${typeCode}) if helpful
 - Use standard submittal response language (e.g. "Acknowledged.", "ILC to coordinate...", "Resubmitting with...")
 - Do NOT start with "Dear" or "Hello"
-- Do NOT use generic filler — address the actual comment
+- Do NOT use generic filler. Address the actual comment
 - If the reviewer flagged something that needs action, state what ILC will do
 - If it's informational/acknowledged, confirm understanding concisely
 
 Respond with ONLY the response text. No subject line, no signature, no preamble.`;
 
-  // The reviewer is an outside party — a city plan reviewer, an architect, a GC.
+  // The reviewer is an outside party, a city plan reviewer, an architect, a GC.
   // Their comment used to be interpolated straight into the prompt in quotes,
   // which is a delimiter a comment can close by typing a quote mark. It is now
   // fenced. This route drafts text that goes back out under ILC's name, so being
@@ -118,7 +119,7 @@ Respond with ONLY the response text. No subject line, no signature, no preamble.
       messages: [{ role: 'user', content: sealed.content }],
     });
 
-    responseBody = textFrom(msg)?.trim() || '';
+    responseBody = stripDashes(textFrom(msg)?.trim() || '');
   } catch (e) {
     console.error('Haiku response generation failed:', e.message);
     return NextResponse.json({ error: 'AI response generation failed. Try again.' }, { status: 500 });
@@ -145,7 +146,7 @@ Respond with ONLY the response text. No subject line, no signature, no preamble.
   return NextResponse.json({ response });
 }
 
-// PATCH — update response body or status
+// PATCH, update response body or status
 export async function PATCH(req, { params }) {
   const { user, error } = await requireAuth();
   if (error) return error;

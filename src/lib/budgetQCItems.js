@@ -1,5 +1,5 @@
 // Master list of Budget QC checklist items.
-// Never hardcode itemKey strings anywhere else — always import from here.
+// Never hardcode itemKey strings anywhere else, always import from here.
 
 export const BUDGET_QC_ITEMS = [
   // ── AUTO-CHECKS (system evaluates; human acknowledges if needed) ──────────

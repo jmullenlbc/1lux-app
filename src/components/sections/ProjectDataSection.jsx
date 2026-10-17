@@ -19,7 +19,7 @@ function formValue(projectData, key) {
   return projectData?.[key];
 }
 
-// Boxes that only apply to some building types (Mike 2026-09-13) — the same
+// Boxes that only apply to some building types (Mike 2026-09-13), the same
 // rule the public form and the budget engine use.
 const FIELD_ALLOWED = {
   numCarports: allowsCarports,
@@ -106,7 +106,7 @@ export default function ProjectDataSection({ projectId, projectData, responses =
   });
   const [dirty, setDirty] = useState(() => new Set());
 
-  // Reflect numbers written from OUTSIDE this form — a drawing upload
+  // Reflect numbers written from OUTSIDE this form, a drawing upload
   // committing to Project Info while this section is on screen. The form was
   // initialized once from the mount-time prop, so without this an upload's
   // numbers only appear after a full reload. Fields the user is mid-edit on
@@ -240,7 +240,7 @@ export default function ProjectDataSection({ projectId, projectData, responses =
       {/* the Summary. Selecting "No contingency" leaves the totals unchanged. */}
       <QuestionCard
         question="Should we hold a contingency line item in the budget?"
-        note="A contingency covers scope gaps discovered during design. Typical range: 5–10% of lighting subtotal. Recommended for early-stage budgets."
+        note="A contingency covers scope gaps discovered during design. Typical range: 5 to 10% of lighting subtotal. Recommended for early-stage budgets."
         options={[
           { value: 'none', label: 'No contingency',                          sub: 'Use only for late-stage CD budgets with high confidence', cost: 0 },
           { value: '5pct', label: '5% contingency',                          sub: 'Standard for DD-stage budgets', cost: 0 },

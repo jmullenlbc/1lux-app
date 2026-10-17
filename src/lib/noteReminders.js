@@ -1,11 +1,11 @@
 /**
- * noteReminders.js — deciding what a due sales-note reminder should do.
+ * noteReminders.js, deciding what a due sales-note reminder should do.
  *
  * ── Why this is not just written into the cron route ──
  * The route has to import `@/lib/db`, `@/lib/auth` and `next/server`, which
  * makes it unloadable outside a Next build and therefore untestable. The rules
- * below are the part that can actually be wrong — who gets nudged, what the
- * nudge says, and when a reminder is too old to be worth showing — so they live
+ * below are the part that can actually be wrong, who gets nudged, what the
+ * nudge says, and when a reminder is too old to be worth showing, so they live
  * here as one pure function with no imports, and the route stays a loop that
  * reads rows, calls this, and writes rows.
  */
@@ -36,9 +36,9 @@ function recipientsOf(action) {
  *
  * Pure. Returns one of three shapes, and never throws:
  *
- *   { do: 'skip',  reason }            — leave the row alone, look again tomorrow
- *   { do: 'stale', reason }            — stamp it so it stops coming back, tell nobody
- *   { do: 'send',  alert, reason }     — stamp it AND ring the bell with `alert`
+ *   { do: 'skip',  reason }, leave the row alone, look again tomorrow
+ *   { do: 'stale', reason }, stamp it so it stops coming back, tell nobody
+ *   { do: 'send',  alert, reason }, stamp it AND ring the bell with `alert`
  *
  * @param {object} action  a NoteAction with its `note` included
  * @param {object} [opts]
@@ -57,7 +57,7 @@ export function planNoteReminder(action, { now = new Date(), maxLateDays = MAX_L
   const recipients = recipientsOf(action);
   if (!recipients.length) return { do: 'skip', reason: 'note has no author' };
 
-  // Guard the raw value before constructing: `new Date(null)` is the epoch — a
+  // Guard the raw value before constructing: `new Date(null)` is the epoch, a
   // perfectly valid date that is due, and 56 years stale, so a row with no
   // reminder date would be stamped and thrown away instead of skipped.
   if (action.remindAt == null) return { do: 'skip', reason: 'no remindAt' };
@@ -69,7 +69,7 @@ export function planNoteReminder(action, { now = new Date(), maxLateDays = MAX_L
   if (remindAt < cutoff) return { do: 'stale', reason: `over ${maxLateDays} days late` };
 
   // Whoever the follow-up is about, in the order the bot is most likely to have
-  // got right. The fallback is deliberately vague rather than blank — "Reminder:"
+  // got right. The fallback is deliberately vague rather than blank, "Reminder:"
   // with nothing after it reads as a bug.
   const who  = action.contactName || action.targetName || action.company || 'a contact';
   const what = action.detail || action.rawText || 'a follow-up you set';

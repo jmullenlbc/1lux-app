@@ -1,7 +1,7 @@
 /**
  * Turning a calendar provider's event into the neutral shape the rules read.
  *
- * This is the ONE file that changes when the Microsoft calendar is connected —
+ * This is the ONE file that changes when the Microsoft calendar is connected
  * the twin of src/lib/email/normalize.js. Everything downstream (the title and
  * location reading in inPerson.js, the classifier, the note that gets created)
  * works off the neutral shape and never learns that Microsoft exists.

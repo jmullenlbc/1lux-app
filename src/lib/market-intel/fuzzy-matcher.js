@@ -51,9 +51,9 @@ export async function matchCandidates(candidateNames) {
   // We then apply our own confidence tiers with stricter thresholds
   const fuse = new Fuse(cache, {
     keys:               ['normalized'],
-    threshold:          0.28,       // was 0.35 — tighter initial filter
+    threshold:          0.28,       // was 0.35, tighter initial filter
     includeScore:       true,
-    minMatchCharLength: 5,          // was 4 — require at least 5 chars to match
+    minMatchCharLength: 5,          // was 4, require at least 5 chars to match
   });
 
   const results = [];

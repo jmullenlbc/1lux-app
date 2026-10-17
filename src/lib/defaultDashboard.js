@@ -2,12 +2,12 @@
  * Default dashboard widget configs.
  *
  * `DEFAULT_WIDGETS` (legacy, category/metric/viewBy) seeds the old /crm/dashboards.
- * `TEMPLATES_BY_SECTION` (new, field-picker dataSpec) seeds the universal engine —
+ * `TEMPLATES_BY_SECTION` (new, field-picker dataSpec) seeds the universal engine
  * these are the "template charts" every new admin default starts with. Both formats
  * coexist during the migration; the render route bridges any legacy widget.
  */
 
-// Field-picker templates for the universal dashboard engine — canonical list
+// Field-picker templates for the universal dashboard engine, canonical list
 // lives in prisma/seeds/dashboardTemplates.js so the seed and app never drift.
 export { TEMPLATES_BY_SECTION } from '../../prisma/seeds/dashboardTemplates';
 
@@ -41,7 +41,7 @@ export const DEFAULT_WIDGETS = [
   {
     // Mike, 2026-09-08: "We should see total combined revenue of a design fee
     // and product sales on a job." No pipeline filter, so a full-design job puts
-    // both of its boards on this chart — the bar total IS product sales plus
+    // both of its boards on this chart, the bar total IS product sales plus
     // design fees, and the split shows which half is which.
     name: 'Combined Revenue Forecast',
     category: 'REVENUE',
@@ -115,7 +115,7 @@ export const DEFAULT_WIDGETS = [
     position: 7,
   },
   {
-    // Was grouped by "lost reason", which no longer exists as a picked value —
+    // Was grouped by "lost reason", which no longer exists as a picked value
     // the reason is written out on the project. Grouped by organization instead,
     // which answers the question people actually ask about losses.
     name: 'Lost Project Analysis',

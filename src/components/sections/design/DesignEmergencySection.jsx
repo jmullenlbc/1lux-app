@@ -25,7 +25,7 @@ export default function DesignEmergencySection({
   const [saving, setSaving] = useState(false);
   useLiveAnswers(onLiveAnswers, 'emergency', ans); // Mike 10-15: sidebar moves before Next
   // What each answer costs (+ estimated labor), recomputed live as answers
-  // change — local answers only save on Next (Mike 2026-09-13).
+  // change, local answers only save on Next (Mike 2026-09-13).
   const qc = useMemo(
     () => calculateBudget(projectData, { ...(allSections || {}), emergency: { ...(allSections?.emergency || {}), ...ans } }, pricing || null).questionCosts || {},
     [projectData, allSections, ans, pricing],

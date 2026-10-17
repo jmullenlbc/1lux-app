@@ -1,5 +1,5 @@
 /**
- * composeOutreach.js — turn several confirmed asks for ONE contact into ONE email.
+ * composeOutreach.js, turn several confirmed asks for ONE contact into ONE email.
  *
  * Multiple action items can target the same person (e.g. "set up lunch" +
  * "get drawings for the new project"). Rather than draft an email per item, we
@@ -22,7 +22,7 @@ import { pickTemplate, templateSection } from '@/lib/bot/templatePick';
 export const OUTREACH_EMAIL_METHODS = new Set(['EMAIL', 'SEND_MATERIALS', 'SCHEDULE']);
 
 // Things THEY offered to do (reply, drawings, invite, intro) also go in the
-// recap email — thanked and confirmed, never demanded (Mike 9-25). They are
+// recap email, thanked and confirmed, never demanded (Mike 9-25). They are
 // watched for separately; see src/lib/followUp/.
 export const RECAP_EMAIL_METHODS = new Set([...OUTREACH_EMAIL_METHODS, ...Object.keys(WAIT_EXECUTORS)]);
 
@@ -105,8 +105,8 @@ function finish({ subject, body }, group, sender, emailKind) {
 
 // The knowledge library, whole, ordered around this contact and these asks.
 //
-// Added 2026-09-08. This is the OTHER email the sales bot writes — the one that
-// comes out of a sales note — and it was drafting with no knowledge at all while
+// Added 2026-09-08. This is the OTHER email the sales bot writes, the one that
+// comes out of a sales note, and it was drafting with no knowledge at all while
 // the follow-up drafter had it. Mike asked for the library to feed the sales bot;
 // feeding half of the sales bot is not that. Failure is non-fatal on purpose: a
 // knowledge query that throws must never cost us the email.
@@ -150,7 +150,7 @@ async function lessonsFor(emailKind, sender, userId) {
 
 /**
  * Compose ONE email covering all of a group's asks (AI, with a deterministic
- * fallback). Returns { subject, body, emailKind } — the caller also stores
+ * fallback). Returns { subject, body, emailKind }, the caller also stores
  * subject and body as aiSubject/aiBody so a person's later edits can be learned.
  */
 export async function composeContactEmail(group) {
@@ -192,7 +192,7 @@ Return ONLY JSON: {"subject": "...", "body": "..."}`;
   try {
     const Anthropic = (await import('@anthropic-ai/sdk')).default;
     // Recorded: see src/lib/agent/ledger.js. Composing a whole email and
-    // appending to one already edited are separate tasks on purpose — they have
+    // appending to one already edited are separate tasks on purpose, they have
     // different failure modes and the rollup should not average them together.
     const anthropic = wrapClient(new Anthropic({ apiKey: key }), 'bot.outreach.compose');
     const msg = await anthropic.messages.create({ ...modelParams('bot.outreach.compose'), max_tokens: 700, messages: [{ role: 'user', content: prompt }] });
@@ -205,7 +205,7 @@ Return ONLY JSON: {"subject": "...", "body": "..."}`;
   return finish(fallbackEmail(group, sender), group, sender, emailKind);
 }
 
-/** Compose extra paragraph(s) to APPEND to an email the human already edited —
+/** Compose extra paragraph(s) to APPEND to an email the human already edited
  * one short paragraph per new ask, in Mike's voice, no greeting/sign-off. */
 async function composeAppendParagraphs(group, newAsks) {
   const fallback = () => newAsks.map(a => a.detail).filter(Boolean).map(d => `• ${d}`).join('\n');
@@ -237,7 +237,7 @@ NO greeting and NO sign-off: this goes inside an email that already has them. Re
  * Compose/keep ONE email per contact covering ALL their confirmed outreach asks.
  * Recompose-aware: if a still-pending, un-edited draft already exists for the
  * group it's updated in place (so adding a 2nd ask doesn't make a 2nd email);
- * if the human already edited/sent it, a fresh draft is made. Idempotent — safe
+ * if the human already edited/sent it, a fresh draft is made. Idempotent, safe
  * to call automatically each time an ask is confirmed. Returns { draftId, count }.
  */
 export async function draftContactOutreach(noteId, contactId, ownerUserId, reviewWindowMinutes = 30) {
@@ -253,7 +253,7 @@ export async function draftContactOutreach(noteId, contactId, ownerUserId, revie
   const dById = new Map(drafts.map(d => [d.id, d]));
 
   // "Open" asks = not yet on any draft, or on a still-working one (pending OR
-  // paused). Asks already on a SENT/CANCELLED draft are done — never re-send them.
+  // paused). Asks already on a SENT/CANCELLED draft are done, never re-send them.
   const openAsks = group.actions.filter(a => !a.botDraftId || WORKING_DRAFT_STATUSES.has(dById.get(a.botDraftId)?.status));
   if (openAsks.length === 0) return { skipped: 'all already sent' };
 

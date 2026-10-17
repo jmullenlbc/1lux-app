@@ -1,9 +1,9 @@
 /**
- * calibration/capture.js — write calibration samples for a project.
+ * calibration/capture.js, write calibration samples for a project.
  *
  * The engine run is re-done here from the stored project (same inputs the
  * budget page uses, same pricing snapshot) so every capture is consistent
- * no matter which route triggered it. Rows the ENGINE wrote ('engine' —
+ * no matter which route triggered it. Rows the ENGINE wrote ('engine'
  * model figures, and the hand-built actuals that ride on the project itself,
  * e.g. exteriorManualItems.pathwayLighting) are replaced on every capture.
  * Rows a person recorded ('actual') are never touched here.
@@ -77,7 +77,7 @@ export async function captureProject(projectId, { defaultPricing } = {}) {
     prisma.calibrationSample.createMany({
       data: rows.map(({ pricingKey, ...r }) => ({
         projectId, ...r,
-        // pricingKey is derived, not stored — the report re-derives it from lineKey
+        // pricingKey is derived, not stored, the report re-derives it from lineKey
         note: [r.note, pricingKey ? `key:${pricingKey}` : null].filter(Boolean).join(' · ') || null,
       })),
     }),

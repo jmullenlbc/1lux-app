@@ -10,7 +10,7 @@
 // ─── WORK-EMAIL GATING ──────────────────────────────────────────────────────
 //
 // Mike, 2026-07-18: "gmail type addresses shouldn't be allowed. We should only
-// allow work addresses." This does double duty — the domain IS the client
+// allow work addresses." This does double duty, the domain IS the client
 // mapping key, and requiring a corporate domain is most of the spam defense
 // on a public form with no CAPTCHA.
 //
@@ -36,7 +36,7 @@ export const DISPOSABLE_EMAIL_DOMAINS = new Set([
   'getnada.com', 'temp-mail.org', 'dispostable.com', 'maildrop.cc',
 ]);
 
-/** Lowercase + trim. Does NOT strip subaddressing (`+tag`) — that's a real,
+/** Lowercase + trim. Does NOT strip subaddressing (`+tag`), that's a real,
  *  deliverable address and stripping it would break replies. */
 export function normalizeEmail(raw) {
   return String(raw ?? '').trim().toLowerCase();
@@ -52,7 +52,7 @@ export function parseEmailDomain(raw) {
 
 /**
  * Gate for the public form.
- * Returns { ok, code, domain, message } — `message` is user-facing.
+ * Returns { ok, code, domain, message }, `message` is user-facing.
  * Codes: OK | INVALID | FREE_EMAIL | DISPOSABLE
  */
 export function classifyIntakeEmail(raw) {
@@ -60,7 +60,7 @@ export function classifyIntakeEmail(raw) {
 
   // Intentionally permissive: one @, something either side, a dot in the
   // domain, no whitespace. Strict RFC 5322 validation rejects real addresses
-  // and buys nothing here — the review queue is the real filter.
+  // and buys nothing here, the review queue is the real filter.
   const shaped = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   if (!shaped) {
     return { ok: false, code: 'INVALID', domain: '', message: 'Please enter a valid email address.' };
@@ -83,7 +83,7 @@ export function classifyIntakeEmail(raw) {
 // ─── CLIENT RESOLUTION BY DOMAIN ────────────────────────────────────────────
 
 /**
- * Resolve a submitter's email domain to a Client. Pure — the caller supplies
+ * Resolve a submitter's email domain to a Client. Pure, the caller supplies
  * the candidate list.
  *
  * @param domain  e.g. "milenderwhite.com"
@@ -93,7 +93,7 @@ export function classifyIntakeEmail(raw) {
  *
  * `website` matching is a deliberate second tier, NOT a fallback we trust:
  * Client.website is free text and can hold anything. A website hit is returned
- * as a SUGGESTION (confidence 'low') for the reviewer to confirm — it must not
+ * as a SUGGESTION (confidence 'low') for the reviewer to confirm, it must not
  * auto-assign. Only an explicit emailDomains entry is authoritative.
  */
 export function resolveClientByDomain(domain, clients = []) {
@@ -136,7 +136,7 @@ export function websiteHost(raw) {
 /**
  * Normalize a PROJECT name for duplicate comparison.
  *
- * Deliberately NOT `market-intel/normalizer.js#normalizeName` — that one is
+ * Deliberately NOT `market-intel/normalizer.js#normalizeName`, that one is
  * tuned for company names and strips words like "development", "residential",
  * and "properties" as noise. For project names those words are meaningful:
  * "Lincoln Avenue" and "Lincoln Avenue Residential" are different jobs, and

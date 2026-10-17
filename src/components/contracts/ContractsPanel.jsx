@@ -1,6 +1,9 @@
 'use client';
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import PdfViewerModal from '@/components/ui/PdfViewerModal';
+import { FilterToolbar, FilterPanel } from '@/components/ui/FilterPanel';
+
+const TAG_FIELD = [{ key: 'tag', label: 'Tag', kind: 'pick' }];
 import { oversizeMessage, uploadErrorMessage, uploadThrowMessage } from '@/lib/uploadErrorMessage';
 import { appendUpload } from '@/lib/uploadClient';
 import { postParked } from '@/lib/parkedFetch';
@@ -374,7 +377,7 @@ function ContractFileRow({ file, projectId, onDelete, analysisOverride, onView =
     try {
       // Park-and-poll: the review runs in steps behind the front door, so a
       // 4-minute scanned contract no longer dies at 30 seconds. No client-side
-      // clock — the server says when it has given up (job_timeout).
+      // clock, the server says when it has given up (job_timeout).
       const res  = await postParked(`/api/projects/${projectId}/analyze-contract`, { fileId: file.id });
       const data = await res.json();
       if (!res.ok) {
@@ -428,7 +431,7 @@ function ContractFileRow({ file, projectId, onDelete, analysisOverride, onView =
             </a>
           )}
           <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
-            {/* Tag badges — skip internal COI_EXPIRY meta-tags */}
+            {/* Tag badges, skip internal COI_EXPIRY meta-tags */}
             {tags.filter(t => !t.startsWith('COI_EXPIRY:')).map(tag => {
               const m = tagMeta(tag);
               return (
@@ -458,7 +461,7 @@ function ContractFileRow({ file, projectId, onDelete, analysisOverride, onView =
 
         {/* Actions */}
         <div className="flex items-center gap-1.5 shrink-0">
-          {/* AI Review button — only for supply contracts with text */}
+          {/* AI Review button, only for supply contracts with text */}
           {hasSupply && file.textContent && (
             analysis ? (
               <button
@@ -655,6 +658,7 @@ export default function ContractsPanel({ projectId, initialFiles = [], onFileAdd
   const [uploadErrors, setUploadErrors] = useState([]);  // [{ id, msg }], shown until dismissed
   const [newAnalyses, setNewAnalyses] = useState({});   // fileId → analysis
   const [activeTag,   setActiveTag]   = useState(null);
+  const [filtersOpen, setFiltersOpen] = useState(false);
   const [viewingFile, setViewingFile] = useState(null); // PDF viewer
   const [archiveAsk,  setArchiveAsk]  = useState(null); // the file being asked about
   const [archiving,   setArchiving]   = useState(false);
@@ -678,7 +682,7 @@ export default function ContractsPanel({ projectId, initialFiles = [], onFileAdd
   async function doUpload(file, tag, aiReview) {
     const uid = `${Date.now()}-${Math.random()}`;
     const label = aiReview ? `${file.name} · uploading + AI review…` : file.name;
-    // Never let a failure be silent — say what went wrong and what to do about it.
+    // Never let a failure be silent, say what went wrong and what to do about it.
     const fail = (msg) => setUploadErrors(prev => [...prev, { id: uid, msg }]);
 
     const tooBig = oversizeMessage(file);
@@ -769,7 +773,7 @@ export default function ContractsPanel({ projectId, initialFiles = [], onFileAdd
     ? typeFilteredFiles.filter(f => parseTags(f.tags).includes(activeTag))
     : typeFilteredFiles;
 
-  // Stats — scoped to typeFilteredFiles
+  // Stats, scoped to typeFilteredFiles
   const reviewedCount = typeFilteredFiles.filter(f => f.analysisData || newAnalyses[f.id]).length;
   const supplyCount   = typeFilteredFiles.filter(f => parseTags(f.tags).some(isSupplyTag)).length;
 
@@ -829,7 +833,7 @@ export default function ContractsPanel({ projectId, initialFiles = [], onFileAdd
         </div>
       )}
 
-      {/* Upload failures — stay on screen until dismissed so nothing fails silently */}
+      {/* Upload failures, stay on screen until dismissed so nothing fails silently */}
       {uploadErrors.length > 0 && (
         <div className="space-y-1.5">
           {uploadErrors.map(err => (
@@ -847,7 +851,7 @@ export default function ContractsPanel({ projectId, initialFiles = [], onFileAdd
 
       {/* ── Grouped sections (supplyOnly) or flat list (designOnly / all) ──────── */}
       {supplyOnly ? (() => {
-        // Split files into three buckets — tagged COI/SOV go to their own section only
+        // Split files into three buckets, tagged COI/SOV go to their own section only
         const coiFiles      = typeFilteredFiles.filter(f => parseTags(f.tags).includes('COI'));
         const sovFiles      = typeFilteredFiles.filter(f => parseTags(f.tags).includes('SOV'));
         const contractFiles = typeFilteredFiles.filter(f => !parseTags(f.tags).includes('COI') && !parseTags(f.tags).includes('SOV'));
@@ -936,24 +940,15 @@ export default function ContractsPanel({ projectId, initialFiles = [], onFileAdd
                   <span className="text-xs text-slate-400">· {reviewedCount}/{supplyCount} reviewed</span>
                 )}
                 {presentTags.length > 0 && (
-                  <div className="flex flex-wrap items-center gap-1 ml-auto">
-                    <button onClick={() => setActiveTag(null)}
-                      className={`px-2 py-0.5 rounded-full text-[11px] font-semibold border transition-colors ${!activeTag ? 'bg-slate-700 border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'}`}>
-                      All
-                    </button>
-                    {presentTags.map(tag => {
-                      const m = tagMeta(tag);
-                      const count = files.filter(f => parseTags(f.tags).includes(tag)).length;
-                      return (
-                        <button key={tag} onClick={() => setActiveTag(prev => prev === tag ? null : tag)}
-                          className={`px-2 py-0.5 rounded-full text-[11px] font-semibold border transition-colors ${activeTag === tag ? 'bg-orange-500 border-orange-500 text-white' : `bg-white ${m.color} hover:opacity-80`}`}>
-                          {m.label} {count}
-                        </button>
-                      );
-                    })}
-                  </div>
+                  <FilterToolbar className="ml-auto" count={activeTag ? 1 : 0} open={filtersOpen}
+                    onToggle={() => setFiltersOpen(o => !o)} onClear={() => setActiveTag(null)} />
                 )}
               </div>
+              {presentTags.length > 0 && (
+                <FilterPanel open={filtersOpen} fields={TAG_FIELD} filters={{ tag: activeTag || '' }}
+                  choices={{ tag: presentTags.map(tag => [tag, `${tagMeta(tag).label} (${files.filter(f => parseTags(f.tags).includes(tag)).length})`]) }}
+                  onChange={(_, v) => setActiveTag(v || null)} className="m-3" />
+              )}
               {visibleFiles.length > 0
                 ? visibleFiles.map(f => (
                     <ContractFileRow key={f.id} file={f} projectId={projectId} onDelete={deleteFile}

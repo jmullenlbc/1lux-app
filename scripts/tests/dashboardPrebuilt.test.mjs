@@ -11,7 +11,7 @@ import { prebuiltKey, missingPrebuilt, hiddenCards } from '../../src/lib/dashboa
 
 const TEMPLATES = [
   { name: 'Things Needing a Look', dataSpec: { kind: 'verification' } },
-  { name: 'Pricing Calibration — Rate Drift', dataSpec: { kind: 'calibration', report: 'rateDrift' } },
+  { name: 'Pricing Calibration: Rate Drift', dataSpec: { kind: 'calibration', report: 'rateDrift' } },
   { name: 'Drift by Building Type', dataSpec: { kind: 'calibration', report: 'modelVsActualByBuilding' } },
   { name: 'Won deals by month', dataSpec: { terms: [{ field: 'x', agg: 'sum' }] } },
 ];
@@ -33,7 +33,7 @@ test('an ordinary chart, a blank spec and junk are not prebuilt', () => {
 test('a missing prebuilt card is added, an ordinary chart never is', () => {
   const add = missingPrebuilt(TEMPLATES, [], []);
   assert.deepEqual(add.map(t => t.name), [
-    'Things Needing a Look', 'Pricing Calibration — Rate Drift', 'Drift by Building Type',
+    'Things Needing a Look', 'Pricing Calibration: Rate Drift', 'Drift by Building Type',
   ]);
 });
 

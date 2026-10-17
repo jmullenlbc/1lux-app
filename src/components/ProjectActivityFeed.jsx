@@ -1,5 +1,13 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
+import { FilterToolbar, FilterPanel } from '@/components/ui/FilterPanel';
+
+const FILTER_FIELDS = [
+  { key: 'module', label: 'Module', kind: 'pick' },
+  { key: 'user',   label: 'User',   kind: 'pick' },
+  { key: 'from',   label: 'From',   kind: 'date' },
+  { key: 'to',     label: 'To',     kind: 'date' },
+];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -179,6 +187,7 @@ export default function ProjectActivityFeed({ projectId }) {
   const [selectedModule, setSelectedModule] = useState(null);
   const [selectedUser, setSelectedUser]     = useState(null);
   const [dateRange, setDateRange]           = useState({ from: null, to: null });
+  const [filtersOpen, setFiltersOpen]       = useState(false);
 
   const fetchActivities = useCallback(async (opts = {}) => {
     const { append = false, afterCursor = null } = opts;
@@ -311,7 +320,7 @@ export default function ProjectActivityFeed({ projectId }) {
       <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
         <div>
           <h3 className="text-sm font-semibold text-slate-800">Project History</h3>
-          <p className="text-xs text-slate-400 mt-0.5">Every change, upload, and update — tracked automatically</p>
+          <p className="text-xs text-slate-400 mt-0.5">Every change, upload, and update, tracked automatically</p>
         </div>
         <button
           onClick={() => fetchActivities()}
@@ -325,73 +334,29 @@ export default function ProjectActivityFeed({ projectId }) {
       </div>
 
       {/* Filter bar */}
-      <div className="px-6 py-4 bg-slate-50 border-b border-slate-100 flex flex-wrap items-end gap-4">
-        {/* Module filter */}
-        <div className="flex flex-col gap-1">
-          <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Module</label>
-          <select
-            value={selectedModule || ''}
-            onChange={e => setSelectedModule(e.target.value || null)}
-            className="px-3 py-1.5 border border-slate-200 rounded-lg text-sm text-slate-700 bg-white hover:border-slate-300 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-100"
-          >
-            <option value="">All modules</option>
-            {Object.entries(MODULE_OPTIONS).map(([key, label]) => (
-              <option key={key} value={key}>{label}</option>
-            ))}
-          </select>
-        </div>
-
-        {/* User filter */}
-        <div className="flex flex-col gap-1">
-          <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">User</label>
-          <select
-            value={selectedUser || ''}
-            onChange={e => setSelectedUser(e.target.value || null)}
-            className="px-3 py-1.5 border border-slate-200 rounded-lg text-sm text-slate-700 bg-white hover:border-slate-300 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-100"
-          >
-            <option value="">All users</option>
-            {uniqueUsers.map((user, idx) => (
-              <option key={idx} value={user.name || user.email}>
-                {user.name || user.email}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Date range filters */}
-        <div className="flex flex-col gap-1">
-          <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">From</label>
-          <input
-            type="date"
-            value={dateRange.from || ''}
-            onChange={e => setDateRange({ ...dateRange, from: e.target.value || null })}
-            className="px-3 py-1.5 border border-slate-200 rounded-lg text-sm text-slate-700 bg-white hover:border-slate-300 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-100"
-          />
-        </div>
-
-        <div className="flex flex-col gap-1">
-          <label className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">To</label>
-          <input
-            type="date"
-            value={dateRange.to || ''}
-            onChange={e => setDateRange({ ...dateRange, to: e.target.value || null })}
-            className="px-3 py-1.5 border border-slate-200 rounded-lg text-sm text-slate-700 bg-white hover:border-slate-300 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-100"
-          />
-        </div>
-
-        {/* Clear button */}
-        {(selectedModule || selectedUser || dateRange.from || dateRange.to) && (
-          <button
-            onClick={() => {
-              setSelectedModule(null);
-              setSelectedUser(null);
-              setDateRange({ from: null, to: null });
-            }}
-            className="px-3 py-1.5 text-xs font-medium text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
-          >
-            Clear filters
-          </button>
-        )}
+      <div className="px-6 py-3 bg-slate-50 border-b border-slate-100">
+        <FilterToolbar
+          count={[selectedModule, selectedUser, dateRange.from, dateRange.to].filter(Boolean).length}
+          open={filtersOpen}
+          onToggle={() => setFiltersOpen(o => !o)}
+          onClear={() => { setSelectedModule(null); setSelectedUser(null); setDateRange({ from: null, to: null }); }}
+        />
+        <FilterPanel
+          open={filtersOpen}
+          fields={FILTER_FIELDS}
+          filters={{ module: selectedModule, user: selectedUser, from: dateRange.from, to: dateRange.to }}
+          choices={{
+            module: Object.entries(MODULE_OPTIONS),
+            user: [...new Set(uniqueUsers.map(u => u.name || u.email))],
+          }}
+          onChange={(key, v) => {
+            const val = v || null;
+            if (key === 'module') setSelectedModule(val);
+            else if (key === 'user') setSelectedUser(val);
+            else setDateRange(r => ({ ...r, [key]: val }));
+          }}
+          className="bg-white"
+        />
       </div>
 
       <div className="divide-y divide-slate-50">

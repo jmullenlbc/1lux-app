@@ -4,7 +4,7 @@ import { prisma } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
-// GET — all INTEL items across notes, searchable + filterable.
+// GET, all INTEL items across notes, searchable + filterable.
 // Query params: q (free text), contactId, company, status (default: not DISMISSED).
 export async function GET(request) {
   const { user, error } = await requireAuth();

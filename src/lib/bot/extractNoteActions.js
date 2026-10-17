@@ -1,5 +1,5 @@
 /**
- * extractNoteActions.js — turns a note's prose into structured actions + intel.
+ * extractNoteActions.js, turns a note's prose into structured actions + intel.
  * Mirrors the followUpDrafter Anthropic pattern.
  *
  * The taxonomy is admin-controlled (NoteActionType table). The caller loads the
@@ -29,8 +29,8 @@ export function resolveContact(name, candidates) {
 
 /**
  * @param {object} note  { title, body }
- * @param {Array}  candidateContacts  [{ id, name }]  — for soft contact resolution
- * @param {Array}  actionTypes  active NoteActionType rows [{ key, label, kind, description }] — defaults to DEFAULT_ACTION_TYPES
+ * @param {Array}  candidateContacts  [{ id, name }], for soft contact resolution
+ * @param {Array}  actionTypes  active NoteActionType rows [{ key, label, kind, description }], defaults to DEFAULT_ACTION_TYPES
  * @returns {Array} NoteAction-shaped objects (no ids) ready to persist
  */
 export async function extractNoteActions(note, candidateContacts = [], actionTypes = null) {
@@ -57,7 +57,7 @@ export async function readNote(note, candidateContacts = [], actionTypes = null,
   const VALID = new Set(types.map(t => t.key));
 
   const typeList = types
-    .map(t => `- ${t.key} (${t.kind}): ${t.label}${t.description ? ` — ${t.description}` : ''}`)
+    .map(t => `- ${t.key} (${t.kind}): ${t.label}${t.description ? `: ${t.description}` : ''}`)
     .join('\n');
 
   const prompt = `You extract structured items from a sales/relationship meeting note. The note is a terse to-do / next-steps list. The note itself follows below, inside the marked block.
@@ -66,7 +66,7 @@ Classify each meaningful line into exactly one type below. The type names the ME
 ${typeList}
 
 Rules:
-- ACTIONS are follow-ups/to-dos. INTEL is a FACT about a person or company (NOT a to-do) — e.g. "Acme does student housing out of St. Louis".
+- ACTIONS are follow-ups/to-dos. INTEL is a FACT about a person or company (NOT a to-do), e.g. "Acme does student housing out of St. Louis".
 - Pick the type that matches HOW the follow-up should happen: emailing → EMAIL, texting → TEXT, calling → CALL, setting up a meeting/coffee/golf → SCHEDULE, waiting for someone to introduce me → EXPECT_INTRO, sending a deck/DocSend/pricing → SEND_MATERIALS, adding someone to a list (e.g. golf league) → ADD_TO_LIST, an internal ILC to-do → INTERNAL_TASK.
 - For EXPECT_INTRO: "contact" = the person who will make the intro; "target" = the third party being introduced.
 - Things the OTHER person said they would do are their own types, so the app can watch the inbox for them: they will send drawings / plans / a set / files, or send jobs for peer review → EXPECT_DRAWINGS; they will send a calendar invite or set up the next meeting themselves → EXPECT_INVITE; they will get back to me / check and reply / let me know → EXPECT_REPLY. Things MIKE will do stay EMAIL / SEND_MATERIALS / SCHEDULE.
@@ -89,7 +89,7 @@ Return ONLY a JSON array. Each element:
       'bot.note.extractActions',
       { projectId: note?.projectId || null, userId: note?.createdById || null },
     );
-    // Mike types these notes, so the note is *mostly* ours — but a meeting note
+    // Mike types these notes, so the note is *mostly* ours, but a meeting note
     // routinely has a client's email pasted into it, and the old form wrapped the
     // body in `"""`, which any pasted content containing `"""` closes for free.
     // The output of this call schedules bot actions, so a line that reads as an

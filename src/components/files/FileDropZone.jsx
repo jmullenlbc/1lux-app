@@ -1,6 +1,12 @@
 'use client';
 import { useState, useRef, useCallback, useMemo } from 'react';
 import PdfViewerModal from '@/components/ui/PdfViewerModal';
+import { FilterToolbar, FilterPanel } from '@/components/ui/FilterPanel';
+
+const FILE_FILTER_FIELDS = [
+  { key: 'tag', label: 'Tag',    kind: 'pick' },
+  { key: 'ai',  label: 'Ask AI', kind: 'pick' },
+];
 import { oversizeMessage, uploadErrorMessage, uploadThrowMessage } from '@/lib/uploadErrorMessage';
 import { appendUpload } from '@/lib/uploadClient';
 import { afterUploadReads } from '@/lib/scheduleReadClient';
@@ -182,6 +188,7 @@ export default function FileDropZone({ projectId, tab, initialFiles = [], onFile
   const [askBulk,      setAskBulk]      = useState(false);
   const [activeTag,    setActiveTag]    = useState(null);
   const [aiFilter,     setAiFilter]     = useState(null); // null | 'readable' | 'unreadable'
+  const [filtersOpen,  setFiltersOpen]  = useState(false);
   const [viewingFile,  setViewingFile]  = useState(null);
   const [uploadErrors, setUploadErrors] = useState([]); // [{ id, msg }], shown until dismissed
   const inputRef = useRef(null);
@@ -211,7 +218,7 @@ export default function FileDropZone({ projectId, tab, initialFiles = [], onFile
 
   async function doUpload(file, tags) {
     const uid  = `${Date.now()}-${Math.random()}`;
-    // Never let a failure be silent — say what went wrong and what to do about it.
+    // Never let a failure be silent, say what went wrong and what to do about it.
     const fail = (msg) => setUploadErrors(prev => [...prev, { id: uid, msg }]);
 
     const tooBig = oversizeMessage(file);
@@ -376,7 +383,7 @@ export default function FileDropZone({ projectId, tab, initialFiles = [], onFile
         </div>
       )}
 
-      {/* Upload failures — stay on screen until dismissed so nothing fails silently */}
+      {/* Upload failures, stay on screen until dismissed so nothing fails silently */}
       {uploadErrors.length > 0 && (
         <div className="mt-3 space-y-1">
           {uploadErrors.map(err => (
@@ -395,48 +402,21 @@ export default function FileDropZone({ projectId, tab, initialFiles = [], onFile
         </div>
       )}
 
-      {/* Tag filter chips */}
-      {files.length > 0 && presentTags.length > 0 && (
-        <div className="flex flex-wrap items-center gap-1.5 mt-4">
-          <button
-            onClick={() => setActiveTag(null)}
-            className={`px-3 py-1 rounded-full text-xs font-semibold border transition-colors ${!activeTag ? 'bg-slate-700 border-slate-700 text-white' : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'}`}
-          >
-            All
-          </button>
-          {presentTags.map(tag => (
-            <button
-              key={tag}
-              onClick={() => setActiveTag(prev => prev === tag ? null : tag)}
-              className={`px-3 py-1 rounded-full text-xs font-semibold border transition-colors ${activeTag === tag ? 'bg-orange-500 border-orange-500 text-white' : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'}`}
-            >
-              {tag}
-              <span className={`ml-1 ${activeTag === tag ? 'text-amber-100' : 'text-slate-400'}`}>
-                {files.filter(f => parseTags(f.tags).includes(tag)).length}
-              </span>
-            </button>
-          ))}
-        </div>
-      )}
-
-      {/* AI readability filter */}
-      {files.length > 0 && (readableCount > 0 || unreadableCount > 0) && (
-        <div className="flex items-center gap-2 mt-2">
-          <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Ask AI:</span>
-          <button
-            onClick={() => setAiFilter(prev => prev === 'readable' ? null : 'readable')}
-            className={`px-2.5 py-0.5 rounded-full text-[11px] font-semibold border transition-colors ${aiFilter === 'readable' ? 'bg-green-500 border-green-500 text-white' : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'}`}
-          >
-            ● Can read · {readableCount}
-          </button>
-          {unreadableCount > 0 && (
-            <button
-              onClick={() => setAiFilter(prev => prev === 'unreadable' ? null : 'unreadable')}
-              className={`px-2.5 py-0.5 rounded-full text-[11px] font-semibold border transition-colors ${aiFilter === 'unreadable' ? 'bg-slate-500 border-slate-500 text-white' : 'bg-white border-slate-200 text-slate-400 hover:border-slate-300'}`}
-            >
-              ● Can't read · {unreadableCount}
-            </button>
-          )}
+      {/* Filter: tag and whether Ask AI can read the file */}
+      {files.length > 0 && (presentTags.length > 0 || readableCount > 0 || unreadableCount > 0) && (
+        <div className="mt-4">
+          <FilterToolbar count={(activeTag ? 1 : 0) + (aiFilter ? 1 : 0)} open={filtersOpen}
+            onToggle={() => setFiltersOpen(o => !o)} onClear={() => { setActiveTag(null); setAiFilter(null); }} />
+          <FilterPanel
+            open={filtersOpen}
+            fields={FILE_FILTER_FIELDS.filter(fl => fl.key !== 'tag' || presentTags.length > 0)}
+            filters={{ tag: activeTag || '', ai: aiFilter || '' }}
+            choices={{
+              tag: presentTags.map(tag => [tag, `${tag} (${files.filter(fi => parseTags(fi.tags).includes(tag)).length})`]),
+              ai: [['readable', `Can read (${readableCount})`], ...(unreadableCount > 0 ? [['unreadable', `Can't read (${unreadableCount})`]] : [])],
+            }}
+            onChange={(key, v) => (key === 'tag' ? setActiveTag(v || null) : setAiFilter(v || null))}
+          />
         </div>
       )}
 

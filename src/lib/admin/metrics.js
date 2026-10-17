@@ -1,5 +1,5 @@
 /**
- * Backend operations metrics — who is using the app, what they're uploading,
+ * Backend operations metrics, who is using the app, what they're uploading,
  * and what is breaking.
  *
  * ── Why this is one module and not three route handlers ──────────────────────
@@ -15,8 +15,8 @@
  * dashboard. (This file used to say `amplify.yml` runs `prisma db push
  * --accept-data-loss`. It runs `prisma migrate deploy`, and `db push` against
  * production would drop tables no migration has declared.) The
- * one thing that genuinely needs storage — a day-over-day snapshot, which cannot
- * be reconstructed after the fact — goes into the existing `SystemConfig` k/v
+ * one thing that genuinely needs storage, a day-over-day snapshot, which cannot
+ * be reconstructed after the fact, goes into the existing `SystemConfig` k/v
  * table under a `usage.rollup.<date>` key.
  *
  * ── Why bucketing happens in JS, not SQL ─────────────────────────────────────
@@ -28,12 +28,12 @@
  *
  * ── What is NOT here ─────────────────────────────────────────────────────────
  * No file contents, no prompts, no completions, no dealer-net anything. This is
- * an operational view — counts, sizes, timings, outcomes. A dashboard that
+ * an operational view, counts, sizes, timings, outcomes. A dashboard that
  * displayed the artifacts would be a second copy of everything sensitive the app
  * touches, sitting behind one more page that has to be gated correctly forever.
  *
- * @see src/app/api/admin/metrics/route.js  — the dashboard's reader
- * @see src/app/api/cron/usage-rollup/route.js — the scheduled writer
+ * @see src/app/api/admin/metrics/route.js, the dashboard's reader
+ * @see src/app/api/cron/usage-rollup/route.js, the scheduled writer
  * @see scripts/tests/adminMetrics.test.mjs
  */
 
@@ -88,7 +88,7 @@ function tally(rows, key) {
  * @param {Date}   [opts.since]
  * @param {Date}   [opts.until]
  * @param {function} [opts.readLedger] async () => ledger entries; injected for the
- *                   same reason — `@/lib/agent/ledger` is an `@`-aliased import
+ *                   same reason, `@/lib/agent/ledger` is an `@`-aliased import
  *                   that plain `node --test` cannot resolve.
  */
 export async function collectMetrics(prisma, opts = {}) {
@@ -106,7 +106,7 @@ export async function collectMetrics(prisma, opts = {}) {
     prisma.drawingFile.findMany({
       where:  { createdAt: window },
       select: { createdAt: true },
-    }).catch(() => []),   // optional table — absent in older databases
+    }).catch(() => []),   // optional table, absent in older databases
     prisma.pipelineUpload.findMany({
       where:  { createdAt: window },
       select: { createdAt: true, rowCount: true, uploadedById: true },
@@ -221,7 +221,7 @@ function summariseErrors(bugs, ledger, since, until) {
     agentErrors:    agentErrors.length,
     agentErrorRate: ledger.length ? agentErrors.length / ledger.length : 0,
     agentErrorsByTask: tally(agentErrors, 'task'),
-    // Deliberately capped and only ever the message — never params or output.
+    // Deliberately capped and only ever the message, never params or output.
     recentAgentErrors: agentErrors.slice(-20).reverse().map(e => ({
       at: e.at, task: e.task, model: e.model, error: e.error,
     })),
@@ -273,7 +273,7 @@ export function rollupKey(date) {
  *
  * The dashboard can always recompute detail from live tables; what it cannot do
  * is recompute *history*, because the JSONL agent ledger does not survive a
- * Lambda and rows get deleted. So the snapshot keeps totals only — small enough
+ * Lambda and rows get deleted. So the snapshot keeps totals only, small enough
  * that a year of them is a few hundred KB in `SystemConfig`, and free of anything
  * that would make it a second store of sensitive data.
  */

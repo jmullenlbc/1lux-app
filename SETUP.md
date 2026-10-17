@@ -1,4 +1,4 @@
-# ILC Studios — Lighting Budget Tool
+# ILC Studios, Lighting Budget Tool
 
 ## First-Time Setup (One Time Only)
 
@@ -61,7 +61,7 @@ Then open your browser to: **http://localhost:3000**
 
 | Role      | Can Do                                               |
 |-----------|------------------------------------------------------|
-| ILC_ADMIN | Everything — manage all users, pricing logic is internal |
+| ILC_ADMIN | Everything, manage all users, pricing logic is internal |
 | ADMIN     | Invite users, view all their company's projects      |
 | USER      | Create and manage their own projects                 |
 
@@ -81,8 +81,8 @@ Then open your browser to: **http://localhost:3000**
 ## Deploying to AWS (When Ready)
 
 When ready to go live, the app can be deployed to:
-- **AWS Amplify** (simplest — connects to your GitHub, auto-deploys)
+- **AWS Amplify** (simplest, connects to your GitHub, auto-deploys)
 - **EC2** (more control)
-- **Vercel** (easiest of all — free tier available)
+- **Vercel** (easiest of all, free tier available)
 
-Database will switch from SQLite to **PostgreSQL (AWS RDS)** — just update the `.env` file.
+Database will switch from SQLite to **PostgreSQL (AWS RDS)**, just update the `.env` file.

@@ -1,5 +1,5 @@
-// What a fixture-schedule share link may show and change. The link is public —
-// whoever holds the URL is an outsider — so this is an allowlist, never a denylist:
+// What a fixture-schedule share link may show and change. The link is public
+// whoever holds the URL is an outsider, so this is an allowlist, never a denylist:
 // a column added to FixtureScheduleItem later stays private until someone adds it here.
 //
 // Found 2026-09-15: the link returned every column (internalNotes included), and an
@@ -13,7 +13,7 @@ export const SHARED_FIXTURE_FIELDS = Object.freeze([
 const MAX_CELL = 2000;
 
 // One fixture row as an outsider sees it: its id (needed to save an edit) plus the
-// allowlisted columns. Nothing else — no internal notes, AI flags, links or dates.
+// allowlisted columns. Nothing else, no internal notes, AI flags, links or dates.
 export function publicFixtureItem(item) {
   const out = { id: item.id };
   for (const key of SHARED_FIXTURE_FIELDS) out[key] = item[key] ?? null;

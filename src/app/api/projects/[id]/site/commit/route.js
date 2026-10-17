@@ -32,7 +32,7 @@ export async function POST(request, { params }) {
   // The panel only offers the site fields, but the panel is in a browser. The
   // set of columns this route may write is defined once in `siteFields.js` and
   // enforced here, so a crafted payload cannot use the site extractor as a
-  // general-purpose writer into Project Info — most pointedly into `numUnits`,
+  // general-purpose writer into Project Info, most pointedly into `numUnits`,
   // which the unit matrix owns and a human has already signed off on.
   const write = {};          // ProjectData columns (numbers)
   const projectWrite = {};   // Project columns (today: buildingType)
@@ -138,7 +138,7 @@ export async function POST(request, { params }) {
       // The runId arrives from the browser, so it is checked against this project
       // before it can attach a verdict to somebody else's extraction.
       if (!run || run.projectId !== params.id) {
-        console.warn(`[site/commit] runId ${runId} does not belong to project ${params.id} — no verdict recorded.`);
+        console.warn(`[site/commit] runId ${runId} does not belong to project ${params.id}, no verdict recorded.`);
       } else {
         // Diffed against the model's ORIGINAL output as stored, not against
         // anything the client claims it changed.
@@ -166,7 +166,7 @@ export async function POST(request, { params }) {
   ]);
   // The questionnaires replace their working copy of Project Info with this
   // row, and the engine reads the building type off it as `buildingTypeKey`
-  // (see wizard/page.jsx) — so it rides along here, or an apply would drop
+  // (see wizard/page.jsx), so it rides along here, or an apply would drop
   // the type until the next reload. The live site-feature rows ride the same
   // way, as the engine's `siteFeatures` array.
   const siteFeatures = siteFeaturesForEngine(featureRows);

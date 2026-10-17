@@ -1,5 +1,5 @@
 /**
- * Phase 3 driver analysis — the guard rails, not the arithmetic.
+ * Phase 3 driver analysis, the guard rails, not the arithmetic.
  *
  * What these pin down is the thing that would actually hurt: saying something
  * confident off three jobs, dropping a job, or telling somebody to change a
@@ -34,7 +34,7 @@ test('nothing is reported until there are enough jobs behind it', () => {
 
 test('a line priced off the wrong thing gets found, and the right thing gets named', () => {
   // Pathway dollars follow the LOT, exactly $2/SF. The unit count is noise
-  // that happens to move in the same general direction — which is precisely
+  // that happens to move in the same general direction, which is precisely
   // the trap a plain correlation would fall into.
   const lots   = [40000, 55000, 62000, 31000, 90000, 47000];
   const units  = [210,   180,   340,   150,   260,   400];
@@ -65,7 +65,7 @@ test('a line already priced off the right thing stays quiet', () => {
 test('a job is counted once no matter how many samples it has on a line', () => {
   const base = [1, 2, 3, 4, 5].flatMap(i =>
     project(`p${i}`, { units: i * 100, netLotSf: i * 5000, pathwayActual: i * 5000 * 2 }));
-  // Same job, a second actual on the same line — a re-captured figure.
+  // Same job, a second actual on the same line, a re-captured figure.
   const dupes = base.concat([
     { projectId: 'p1', lineKey: 'exterior.pathway', quantity: 100, actualAmount: 10000, modelAmount: 1000 },
   ]);
@@ -153,7 +153,7 @@ test('an empty card says whether nothing is wrong or nothing is known', async ()
   const blank = runCalibrationWidget({ kind: 'calibration', report: 'driverSuggestions' }, []);
   assert.match(blank.table.empty, /Not enough jobs/);
 
-  // Six jobs, all already priced off the right thing — a genuinely clean bill.
+  // Six jobs, all already priced off the right thing, a genuinely clean bill.
   const units = [210, 180, 340, 150, 260, 400];
   const clean = units.flatMap((u, i) =>
     project(`p${i}`, { units: u, netLotSf: 40000 + i * 3000, pathwayActual: u * 300 }));

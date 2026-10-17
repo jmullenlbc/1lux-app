@@ -18,7 +18,7 @@ export function controlsMathOf(b) {
 
 const money = v => '$' + Math.round(v).toLocaleString('en-US');
 
-/** "$0.30/SF × 623,594 SF = $187,078 — capped at $190,000 …" or null. */
+/** "$0.30/SF × 623,594 SF = $187,078, capped at $190,000 …" or null. */
 export function controlsMathWords(cm) {
   if (!cm || !(cm.perSf > 0) || !(cm.sf > 0)) return null;
   const rate = '$' + Number(cm.perSf).toFixed(2) + '/SF';

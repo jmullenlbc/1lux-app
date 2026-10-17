@@ -14,12 +14,12 @@ export const dynamic = 'force-dynamic';
  *
  * So: nothing here deletes anything, ever. Putting an item away writes a row,
  * bringing it back stamps that same row, and both directions are readable
- * afterwards. "Not easily" is the card's job — the archive sits behind a small
+ * afterwards. "Not easily" is the card's job, the archive sits behind a small
  * closed line at the bottom of it and is only fetched when somebody opens it.
  * This route is the whole of it.
  */
 
-// GET — everything that has been put away and not brought back, newest first.
+// GET, everything that has been put away and not brought back, newest first.
 //
 // Each row is checked against a fresh run of the five checks so the screen can
 // say whether the thing is still true. That matters: most buried items are
@@ -48,7 +48,7 @@ export async function GET() {
     const current = live.get(r.itemKey);
     return {
       key:       r.itemKey,
-      // Prefer the wording the checks produce right now — a project renamed
+      // Prefer the wording the checks produce right now, a project renamed
       // since the bury should read by its current name. Fall back to the copy
       // taken when it was put away, which is all that is left once the record
       // behind it has been fixed.
@@ -66,7 +66,7 @@ export async function GET() {
   return NextResponse.json({ items });
 }
 
-// POST { key } — bring one back onto the card.
+// POST { key }, bring one back onto the card.
 //
 // An update, not a delete. The row survives with a restoredAt stamp on it, so
 // who put it away and when is still on file, and the SHOWN row is left alone so

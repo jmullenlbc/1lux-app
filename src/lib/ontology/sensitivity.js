@@ -1,19 +1,19 @@
 /**
- * Sensitivity — what data is this?
+ * Sensitivity, what data is this?
  *
  * A property of a FIELD. Not to be confused with trust tier (how much autonomy
  * an AI task has earned), which is a property of a TASK TYPE and lives in the
  * Scribe half of the system. They never mix.
  *
- *   public     — safe for anyone holding a share link
- *   client_ok  — safe for an authenticated client/portal contact
- *   ilc_only   — logged-in ILC staff only. Buy price and ILC-internal annotation.
+ *   public, safe for anyone holding a share link
+ *   client_ok, safe for an authenticated client/portal contact
+ *   ilc_only, logged-in ILC staff only. Buy price and ILC-internal annotation.
  *
  * The default for an undeclared field is `ilc_only`. That is the whole point:
  * widening later is a one-line change, narrowing after a leak is a phone call
  * to a client.
  *
- * `NEVER_READABLE` is a different axis and sits above all of this — credentials
+ * `NEVER_READABLE` is a different axis and sits above all of this, credentials
  * and share tokens are not "ILC-only", they are not readable by ANY audience
  * through this layer, including an ILC admin. An ILC admin can already see a
  * user's role and email through the app; what they cannot do is pull a bcrypt
@@ -49,7 +49,7 @@ const CLEARANCE = Object.freeze({
 
 /**
  * Fields that are never returned to anyone through the ontology/MCP layer,
- * regardless of audience. Enumerated explicitly rather than pattern-matched —
+ * regardless of audience. Enumerated explicitly rather than pattern-matched
  * a regex over field names produced three false positives on this schema
  * (`mustChangePassword`, `buildingFootprintSf`, `isAlternate`) and a pattern
  * that is wrong in either direction is worse than a list someone has to update.
@@ -63,11 +63,11 @@ export const NEVER_READABLE = Object.freeze(new Set([
   'password',
   'inviteToken',         // User, ProjectExternalContact
   'inviteTokenExpiresAt',
-  'accessToken',         // EmailAccount — a live mailbox OAuth token
+  'accessToken',         // EmailAccount, a live mailbox OAuth token
   'refreshToken',        // EmailAccount
   // ── share-link tokens: possession IS authorization ──
   'token',               // ProjectShare, ClientStandardsShare, FixtureScheduleShare, ChangeOrderShare
-  'openToken',           // NotificationLog — email open-tracking pixel token
+  'openToken',           // NotificationLog, email open-tracking pixel token
   // ── infrastructure secrets ──
   'webhookSubId',        // EmailAccount
 ]));

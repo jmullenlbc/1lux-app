@@ -12,7 +12,7 @@
  * the `archivedAt: null` lives here, once, rather than in fifteen call sites.
  *
  * Writes go through `writeSiteFeature`: archive the live row(s) of that kind,
- * then create the new one. A value of 0 archives and creates nothing — that is
+ * then create the new one. A value of 0 archives and creates nothing, that is
  * how "none" is recorded (Mike: no guess when absent; 0 unless found or typed).
  */
 import {
@@ -83,7 +83,7 @@ export function isSiteFeatureRowKey(key) {
 /**
  * Archive the live row(s) of this kind and write the new one.
  * `client` may be a transaction. Returns the created row, or null when the
- * value was 0 (archived only — "none").
+ * value was 0 (archived only, "none").
  */
 export async function writeSiteFeature(client, projectId, { type, count = null, lengthFt = null, source, sheet = null, label = null, lengthAssumed = false }) {
   if (!SITE_FEATURE_TYPES.includes(type)) throw new Error(`Unknown site feature type: ${type}`);

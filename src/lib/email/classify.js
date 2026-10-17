@@ -4,7 +4,7 @@
  * Mike's rule for the two Last Email fields on a person: they must ignore mass
  * emails, calendar invites and replies. A mass email is one with **25 or more
  * people on it** (Mike, 2026-09-06). What is left is a genuine one-to-one (or
- * small-group) email that somebody actually sat down and wrote — which is what
+ * small-group) email that somebody actually sat down and wrote, which is what
  * "when did we last really talk to them" means.
  *
  * Everything in this file is pure: no database, no network, and nothing that
@@ -147,7 +147,7 @@ export function isCalendarInvite(message) {
   return false;
 }
 
-/** An out-of-office, a bounce, a read receipt — a machine, not a person. */
+/** An out-of-office, a bounce, a read receipt, a machine, not a person. */
 export function isAutomated(message) {
   if (!message) return false;
   const headers = message.headers || {};
@@ -166,7 +166,7 @@ export function isAutomated(message) {
  * false, `reasons` says why in words, so a person looking at the screen can be
  * told "we have emailed them, but only on mass sends" instead of nothing.
  *
- * Every message is still STORED. Only the two dates are filtered — otherwise we
+ * Every message is still STORED. Only the two dates are filtered, otherwise we
  * could never change our minds about a rule without re-syncing the mailbox.
  */
 export function classifyEmail(message, { massEmailMinPeople = MASS_EMAIL_MIN_PEOPLE } = {}) {

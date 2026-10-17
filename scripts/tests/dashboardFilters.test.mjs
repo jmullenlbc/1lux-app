@@ -4,7 +4,7 @@
  * Two separate promises are pinned here:
  *
  *   1. A filter you pick on the screen actually narrows the query. Three of them
- *      did not — Pipeline was thrown away, Service Type was offered in a spelling
+ *      did not, Pipeline was thrown away, Service Type was offered in a spelling
  *      the database has never held, and Project Status pointed at a column that
  *      does not exist and made the chart fail to load.
  *
@@ -42,12 +42,12 @@ test('filtering to the Design board narrows to design service types', () => {
 });
 
 test('the seeded Design Fee Forecast filter (operator "is") narrows too', () => {
-  // This is the shape stored in defaultDashboard.js — a plain string, not an array.
+  // This is the shape stored in defaultDashboard.js, a plain string, not an array.
   const where = filtersToWhere([{ field: 'pipeline', operator: 'is', value: 'DESIGN' }]);
   assert.deepEqual(where, DESIGN_WHERE);
 });
 
-test('filtering to Procurement does not narrow — every project sells product', () => {
+test('filtering to Procurement does not narrow, every project sells product', () => {
   assert.deepEqual(filtersToWhere([{ field: 'pipeline', operator: 'is', value: 'PROCUREMENT' }]), {});
 });
 
@@ -120,7 +120,7 @@ test('combined revenue is the design fee plus the product sales', () => {
   assert.equal(combinedRevenue(BID_ONLY_JOB),    100_000);
 });
 
-test('each board carries its own status — won on one, open on the other', () => {
+test('each board carries its own status: won on one, open on the other', () => {
   const [proc, design] = boardRows(FULL_DESIGN_JOB);
   assert.equal(proc.status,   'OPEN');
   assert.equal(design.status, 'WON');

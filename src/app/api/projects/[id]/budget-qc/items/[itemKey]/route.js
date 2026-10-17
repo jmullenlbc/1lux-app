@@ -20,7 +20,7 @@ export async function PATCH(req, { params }) {
     where: { projectId: params.id },
     select: { id: true, assignedToId: true },
   });
-  if (!checklist) return NextResponse.json({ error: 'Checklist not found — load the QC strip first' }, { status: 404 });
+  if (!checklist) return NextResponse.json({ error: 'Checklist not found, load the QC strip first' }, { status: 404 });
 
   // Permission: ILC_ADMIN or assigned reviewer
   const isAdmin = isSuperAdmin(user.role) || user.role === 'SUPER_ADMIN';

@@ -6,12 +6,12 @@
  * and they disagree with each other in a completely predictable way. Measured
  * on BECK's Virgin Hotel Fox Park set (2026-08-18), same building, same month:
  *
- *   Guestroom matrix  G0.06/G0.07  105,903 SF   NET   — room polygons, inside face
- *   Code summary      LS0.01       221,022 SF   CODE  — inside perimeter of ext. walls
- *   Program breakdown A-811/A-812  233,050 SF   GROSS — outside face, wall-to-wall
+ *   Guestroom matrix  G0.06/G0.07  105,903 SF   NET, room polygons, inside face
+ *   Code summary      LS0.01       221,022 SF   CODE, inside perimeter of ext. walls
+ *   Program breakdown A-811/A-812  233,050 SF   GROSS, outside face, wall-to-wall
  *
  * All three are correct. They answer different questions. Feeding the wrong one
- * into a $/SF rate is a silent 5–8% error in the budget with nothing visibly
+ * into a $/SF rate is a silent 5 to 8% error in the budget with nothing visibly
  * broken, which is the most expensive kind of mistake this app can make.
  *
  * The ratios, both derived independently on that set:
@@ -25,7 +25,7 @@
  * "AVG AREA" vs "ACTUAL AREA". Regex reads those exactly, for free, the same way
  * every time, and can show its work. A model asked "is this net or gross?" gives
  * a confident answer either way and we would have no idea why. The model is
- * still used for what it is good at — pulling numbers out of a table — and this
+ * still used for what it is good at, pulling numbers out of a table, and this
  * module decides what those numbers MEAN.
  *
  * Pure: no IO, no model, no DB. Safe to import from a client component.
@@ -37,7 +37,7 @@
  * Page-level scoring for "does this sheet carry a building area table".
  *
  * Validated 2026-08-18 against the full 442-page Fox Park 100% DD set: the
- * top-ranked page out of 442 was page 3, sheet G0.02 "BUILDING STATISTICS" —
+ * top-ranked page out of 442 was page 3, sheet G0.02 "BUILDING STATISTICS"
  * the correct answer. Scan cost was 105 seconds for the whole set.
  *
  * Weights are ordered by how decisive the phrase is, not how common. A literal
@@ -54,7 +54,7 @@ export const AREA_MARKERS = [
 
 /**
  * The program categories our questionnaire asks for. A page mentioning several
- * of them is describing the building's makeup rather than one room — the single
+ * of them is describing the building's makeup rather than one room, the single
  * best signal that we are looking at a whole-building table.
  */
 const PROGRAM_CATEGORIES =
@@ -67,20 +67,20 @@ const SHEET_NO = /\b([A-Z]{1,3}-?\d{1,3}(?:\.\d{1,2})?)\b/g;
  * Words that turn a sheet-number-shaped token into something else entirely.
  *
  * Real failure, Fox Park DD page 4: we reported "sheet PL100". There is no sheet
- * PL100 in that set. It came out of the architect's address block — "1001 17TH
+ * PL100 in that set. It came out of the architect's address block, "1001 17TH
  * STREET SUITE PL100 DENVER, CO". A reviewer sent to a sheet that does not exist
  * loses more time than one given no sheet number at all.
  */
 const ADDRESS_CONTEXT = /\b(SUITE|STE|UNIT|FLOOR|FL|RM|ROOM|BLDG|BUILDING|APT|BOX)\b\.?\s*$/i;
 
 /**
- * Pages that name every sheet in the set — the drawing index.
+ * Pages that name every sheet in the set, the drawing index.
  *
  * Real failure, Fox Park DD page 2: sheet G0.01 SHEET INDEX scored 70 and was
  * classified as a code area at 0.75 confidence, which is above the review
  * threshold, so a 5.4% uplift would have been applied silently. An index matches
  * every marker we look for because it prints the TITLE of every sheet in the set
- * — "LIFE SAFETY PLAN", "AREA PLAN", "GUESTROOM MIX" — without carrying a single
+ * "LIFE SAFETY PLAN", "AREA PLAN", "GUESTROOM MIX", without carrying a single
  * number. It is the one page in a set guaranteed to look like all of them.
  */
 const INDEX_HEADING = /\b(SHEET|DRAWING)\s*(INDEX|LIST)\b|\bINDEX OF DRAWINGS\b|\bLIST OF DRAWINGS\b/i;
@@ -89,7 +89,7 @@ const INDEX_HEADING = /\b(SHEET|DRAWING)\s*(INDEX|LIST)\b|\bINDEX OF DRAWINGS\b|
  * The counts are wide apart on purpose, measured on the Fox Park DD set:
  *   G0.01 SHEET INDEX          345 distinct sheet-number-shaped tokens
  *   every real sheet in the set  ≤ 14
- * And the 14 are not sheet numbers at all — they are IBC occupancy groups
+ * And the 14 are not sheet numbers at all, they are IBC occupancy groups
  * (A-1, A-2, S-1, R-1) and detail bubbles, which happen to be the same shape.
  * So a heading plus a modest count is safe, and a huge count needs no heading.
  */
@@ -104,7 +104,7 @@ export function looksLikeSheetIndex(text) {
   const all = String(text).match(SHEET_NO) ?? [];
   const distinct = new Set(all.filter(t => /^[A-Z]{1,3}-?\d/.test(t))).size;
 
-  // The heading alone is not enough — a real drawing may say "SEE SHEET INDEX".
+  // The heading alone is not enough, a real drawing may say "SEE SHEET INDEX".
   if (INDEX_HEADING.test(text) && distinct >= INDEX_WITH_HEADING) return true;
   return distinct >= INDEX_ON_COUNT_ALONE;
 }
@@ -142,7 +142,7 @@ export function findAreaNumbers(text, min = 10000) {
  * block is laid out. Title blocks sit at the END of the extracted stream far more
  * often than the start, so later anchors are tried first. Address fragments are
  * rejected outright. Returns null rather than guessing when nothing is
- * convincing — a wrong sheet number sends a reviewer to the wrong page.
+ * convincing, a wrong sheet number sends a reviewer to the wrong page.
  */
 export function sheetNumberOf(text) {
   if (!text) return null;
@@ -206,7 +206,7 @@ export function scoreAreaPage(text) {
   score += Math.min(categories, 7) * 5;
 
   // Does the page actually carry numbers we can read? BECK's A-811 program
-  // breakdown scores 90 and contains zero readable figures — the table is vector
+  // breakdown scores 90 and contains zero readable figures, the table is vector
   // art, so only the Revit layer names and the title block survive as text. That
   // page must be reported as "found but unreadable", never as an answer.
   const numbers = findAreaNumbers(text).length;
@@ -243,7 +243,7 @@ export function findAreaSheets(pages, limit = 3) {
 /**
  * Evidence table. Each entry is [regex, weight, plain-English label].
  *
- * The labels are written for a reviewer to read, not for a developer — they are
+ * The labels are written for a reviewer to read, not for a developer, they are
  * shown in the UI as the reason for the verdict, so "the sheet says 'AVG AREA',
  * which is a per-room net figure" has to stand on its own.
  */
@@ -259,13 +259,13 @@ export const BASIS_EVIDENCE = {
   net: [
     [/NET (RENTABLE|LEASABLE|AREA|SF)/i,    35, 'says "Net" area'],
     [/\bN\.?R\.?S\.?F\.?\b|\bNSF\b/,        30, 'uses NRSF/NSF (net rentable)'],
-    [/(AVG|AVERAGE)\.?\s*AREA/i,            30, 'lists "Avg Area" per room type — a net room figure'],
+    [/(AVG|AVERAGE)\.?\s*AREA/i,            30, 'lists "Avg Area" per room type, a net room figure'],
     [/RENTABLE|LEASABLE/i,                  20, 'says "rentable/leasable"'],
     [/(ROOM|UNIT|GUESTROOM)\s*(SCHEDULE|MATRIX|MIX)/i, 15, 'is a room/unit schedule (measured inside face)'],
     [/INSIDE FACE|CLEAR AREA/i,             25, 'measured to the inside face of walls'],
   ],
   code: [
-    [/ACTUAL AREA/i,                        40, 'says "Actual Area" — the code-summary figure'],
+    [/ACTUAL AREA/i,                        40, 'says "Actual Area", the code-summary figure'],
     [/ALLOWABLE AREA/i,                     35, 'sits next to "Allowable Area" (a code table)'],
     [/TABLE 506|IBC|\bIFC\b|CHAPTER 5/i,    25, 'cites the building code area tables'],
     [/LIFE SAFETY/i,                        20, 'is a life-safety sheet'],
@@ -284,7 +284,7 @@ const FOCUS_RADIUS = 900;
 
 /**
  * A label printed within this many characters BEFORE the number is that
- * number's own label — the cell heading, not page wording. Architects label
+ * number's own label, the cell heading, not page wording. Architects label
  * table cells, so "TOTAL BUILDING GSF   233,919 SF" is as close to a direct
  * statement as a drawing ever gives us, and it has to outweigh a competing
  * phrase further up the sheet. Three-to-one does that without making it
@@ -330,7 +330,7 @@ function collectEvidence(text) {
  * Narrow a page down to the table a specific number sits in.
  *
  * Real failure, Fox Park DD page 3 (G0.02 BUILDING STATISTICS): that ONE page
- * carries two tables with two different bases — a guestroom mix listing "AVG
+ * carries two tables with two different bases, a guestroom mix listing "AVG
  * AREA" per room type (net) and, below it, "GROSS BUILDING AREA … TOTAL BUILDING
  * GSF 233,919 SF" (gross). Judging the whole page gives a 50/50 blend and a
  * meaningless verdict. Judging the text around the number we actually took gives
@@ -361,7 +361,7 @@ export function focusAroundNumber(text, n, radius = FOCUS_RADIUS) {
  * Decide whether a page's areas are gross, net, or code area.
  *
  * @param {string} text
- * @param {object} [opts] { near } — a stated square footage. When given, only the
+ * @param {object} [opts] { near }, a stated square footage. When given, only the
  *   text around that number on the page is judged (see focusAroundNumber). Falls
  *   back to the whole page when the number is not found.
  * @returns {{basis:'gross'|'net'|'code'|'unknown', confidence:number,
@@ -369,10 +369,10 @@ export function focusAroundNumber(text, n, radius = FOCUS_RADIUS) {
  *            focused:boolean}}
  *
  * Confidence combines two honest things and nothing else:
- *   share    — how much of the total evidence points at the winner. A sheet with
+ *   share, how much of the total evidence points at the winner. A sheet with
  *              both "GROSS SF" and "AVG AREA" on it genuinely IS ambiguous and
  *              should not score high just because one side edged ahead.
- *   strength — how strong the winning evidence is in absolute terms. One weak
+ *   strength, how strong the winning evidence is in absolute terms. One weak
  *              hit is not the same as an explicit "BUILDING GROSS SF" heading.
  */
 export function classifyAreaBasis(text, opts = {}) {
@@ -385,7 +385,7 @@ export function classifyAreaBasis(text, opts = {}) {
   const hits = collectEvidence(text);
 
   // Which phrase is the number's OWN label: the nearest one printed just before
-  // it. Nearest, not "any within reach" — on a tight sheet two labels can both
+  // it. Nearest, not "any within reach", on a tight sheet two labels can both
   // be close, and only the last one before the number is the cell heading.
   const owning = new Set();
   for (const a of anchors) {
@@ -415,7 +415,7 @@ export function classifyAreaBasis(text, opts = {}) {
     if (!best.has(key) || best.get(key).weight < weight) best.set(key, { ...hit, weight });
   }
 
-  // Strongest reason first — evidence[0] is what the reviewer is shown.
+  // Strongest reason first, evidence[0] is what the reviewer is shown.
   for (const hit of [...best.values()].sort((a, b) => b.weight - a.weight)) {
     scores[hit.kind] += hit.weight;
     evidence[hit.kind].push(hit.label);
@@ -451,13 +451,13 @@ export function classifyAreaBasis(text, opts = {}) {
 /**
  * How much to add to get from a net or code figure to true building gross.
  *
- * gardenWalkUp — Mike's original +5% rule. Validated on Trailhead: the sum of
+ * gardenWalkUp, Mike's original +5% rule. Validated on Trailhead: the sum of
  *   collected spaces × 1.05 = 139,969 against footprint × 3 = 138,896, a 0.8%
  *   match. Simple rectangles, few shafts, thin structure.
- * midRise — measured at 8.7% twice on Fox Park (see the file header). Elevator
+ * midRise, measured at 8.7% twice on Fox Park (see the file header). Elevator
  *   banks, rated stair cores, shafts and thicker structure all live in the gap
  *   between the program blocks and the gross figure.
- * code — 233,050 ÷ 221,022 = 1.054 on Fox Park. The code figure is measured to
+ * code, 233,050 ÷ 221,022 = 1.054 on Fox Park. The code figure is measured to
  *   the INSIDE perimeter of the exterior walls, so it misses only the exterior
  *   wall thickness, which is why it is a smaller correction than net→gross.
  */
@@ -491,7 +491,7 @@ export function toGross(sf, basis, opts = {}) {
 
   if (basis === 'gross') {
     return { value: n, factor: 1, adjusted: false, profile,
-      note: 'The drawing states this as gross building SF — used as-is.' };
+      note: 'The drawing states this as gross building SF, used as-is.' };
   }
 
   if (basis === 'net') {
@@ -513,7 +513,7 @@ export function toGross(sf, basis, opts = {}) {
 
   return {
     value: n, factor: 1, adjusted: false, profile,
-    note: 'We could not tell from the drawing whether this area is gross or net — it was left exactly as stated.',
+    note: 'We could not tell from the drawing whether this area is gross or net. It was left exactly as stated.',
   };
 }
 
@@ -533,7 +533,7 @@ export function toGross(sf, basis, opts = {}) {
  * not tell what the basis is, or we could but not confidently. Both mean a human
  * should look, which is exactly what the red is for.
  *
- * The classification is anchored to the number wherever possible — see
+ * The classification is anchored to the number wherever possible, see
  * focusAroundNumber. A sheet can carry a net table and a gross table side by
  * side, so "what does this page say" is the wrong question; "what does the table
  * this number came from say" is the right one.
@@ -568,7 +568,7 @@ export function resolveGrossSf(statedSf, sourceText, opts = {}) {
 /**
  * The threshold for "fill it in quietly" vs "fill it in and turn it red".
  *
- * 0.75 rather than 0.5 on purpose. Getting this wrong is a 5–8% budget error
+ * 0.75 rather than 0.5 on purpose. Getting this wrong is a 5 to 8% budget error
  * that nothing else in the app will catch, so the cost of an unnecessary red
  * flag (someone glances at it) is far below the cost of a missed one.
  */
@@ -577,8 +577,8 @@ export const CONFIDENT_ENOUGH = 0.75;
 /** Plain-English one-liner for the reviewer. No jargon, no percentages of percentages. */
 export function describeBasis(basis, confidence, evidence = []) {
   const pct = Math.round((confidence ?? 0) * 100);
-  const why = evidence.length ? ` — the sheet ${evidence[0]}` : '';
-  if (basis === 'unknown') return 'Could not tell whether this is gross or net — please check the drawing.';
+  const why = evidence.length ? `, the sheet ${evidence[0]}` : '';
+  if (basis === 'unknown') return 'Could not tell whether this is gross or net. Please check the drawing.';
 
   // Below the threshold the reader needs to hear the doubt first, not a verdict
   // with a small number after it. "Probably gross, 44% confident" is a different
@@ -590,5 +590,5 @@ export function describeBasis(basis, confidence, evidence = []) {
   if (basis === 'gross') return `${lead} gross (wall-to-wall) building SF, ${pct}% confident${why}.${tail}`;
   if (basis === 'net')   return `${lead} net (inside-face) area, ${pct}% confident${why}. Uplifted to gross.${tail}`;
   if (basis === 'code')  return `${lead} a code-summary area, ${pct}% confident${why}. Uplifted to gross.${tail}`;
-  return 'Could not tell whether this is gross or net — please check the drawing.';
+  return 'Could not tell whether this is gross or net. Please check the drawing.';
 }

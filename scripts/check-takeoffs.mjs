@@ -12,7 +12,7 @@ files.forEach(f => {
   console.log('\n' + f.originalName);
   console.log('  tags:', f.tags);
   console.log('  takeoffData:', data
-    ? `${Object.keys(data).length} types — sample: ${JSON.stringify(Object.entries(data).slice(0, 4))}`
+    ? `${Object.keys(data).length} types, sample: ${JSON.stringify(Object.entries(data).slice(0, 4))}`
     : 'NULL ← not parsed');
 });
 

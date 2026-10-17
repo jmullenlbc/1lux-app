@@ -57,7 +57,7 @@ export default function UnitsSection({ responses, projectData, allSections, pric
   const [saving, setSaving] = useState(false);
   useLiveAnswers(onLiveAnswers, 'units', ans); // Mike 10-15: sidebar moves before Next
   // What each answer costs (+ estimated labor), recomputed live as answers
-  // change — local answers only save on Next (Mike 2026-09-13).
+  // change, local answers only save on Next (Mike 2026-09-13).
   const qc = useMemo(
     () => calculateBudget(projectData, { ...(allSections || {}), units: { ...(allSections?.units || {}), ...ans } }, pricing || null).questionCosts || {},
     [projectData, allSections, ans, pricing],
@@ -72,7 +72,7 @@ export default function UnitsSection({ responses, projectData, allSections, pric
   // The master net adder per fan, mirroring the engine: the conceptual fan
   // price and the design fan levels are both GROSS on the sheet, so the disk
   // credit comes off either one ($175 − $35 = $140 at conceptual, at today's
-  // sheet — the figure is whatever /admin/pricing holds, never typed here).
+  // sheet, the figure is whatever /admin/pricing holds, never typed here).
   const fanDiskCredit   = P.fans?.diskCredit ?? 35;
   const fanConceptual   = Number(P.fans?.conceptualPerFan) > 0
     ? Math.max(0, Number(P.fans.conceptualPerFan) - fanDiskCredit)
@@ -119,7 +119,7 @@ export default function UnitsSection({ responses, projectData, allSections, pric
       payload.fanLightKit     = null;
       payload.fanSupplemental = null;
     } else {
-      // A design budget always carries its fan level — that is what moves the
+      // A design budget always carries its fan level, that is what moves the
       // engine off the flat conceptual $175 and onto the level's real price.
       payload.fanLevel = ans.fanLevel || 'medium';
     }

@@ -12,7 +12,7 @@ export async function POST(req) {
 
   return NextResponse.json({
     ok: true,
-    message: 'Queue processing not yet active — Phase B',
+    message: 'Queue processing not yet active: Phase B',
     processed: 0,
   });
 }

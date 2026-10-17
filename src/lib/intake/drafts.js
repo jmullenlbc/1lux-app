@@ -1,5 +1,5 @@
 /**
- * Unfinished public conceptual budgets — the server-side copy.
+ * Unfinished public conceptual budgets, the server-side copy.
  *
  * Mike, 2026-09-15: "People need to be able to fill out a budget and come back
  * to it somehow" and "Yes we should see it abandoned." The wizard keeps a copy
@@ -8,7 +8,7 @@
  * the same inputs are saved to a ConceptualDraft row so
  *
  *   1. staff see the unfinished budget on the intake queue as a lead, and
- *   2. a resume link (?resume=<token>) can bring the draft back on any device —
+ *   2. a resume link (?resume=<token>) can bring the draft back on any device
  *      built, but hidden until Microsoft email is hooked up.
  *
  * This file is the PURE part: packing the browser's draft into a bounded,
@@ -20,9 +20,9 @@
  * clamped: strings are cut to a length, answers to the questionnaire's own
  * options, figures to digits, step ids to the wizard's step list.
  *
- * @see src/app/api/intake/draft/route.js         — save / load
- * @see src/app/api/admin/intake/drafts/[id]/route.js — staff "Put away"
- * @see prisma/migrations/0087_conceptual_drafts   — the tables
+ * @see src/app/api/intake/draft/route.js, save / load
+ * @see src/app/api/admin/intake/drafts/[id]/route.js, staff "Put away"
+ * @see prisma/migrations/0087_conceptual_drafts, the tables
  */
 import { INTAKE_QUESTIONS, FIGURE_KEYS, CLUBHOUSE_ANSWERS, POOL_KEY, POOL_ANSWERS } from './questionnaire.js';
 
@@ -57,7 +57,7 @@ export const ABANDONED_AFTER_MS = 24 * 60 * 60 * 1000;
 /** The merged drawing read is the one big value; same ceiling as rawPayload. */
 export const MAX_DRAWINGS_CHARS = 200_000;
 
-/** Field-row ceilings — the questionnaire has ~20 questions and ~20 figures. */
+/** Field-row ceilings, the questionnaire has ~20 questions and ~20 figures. */
 const MAX_FIELDS = 200;
 const MAX_FIELD_KEY = 60;
 
@@ -174,7 +174,7 @@ export function packDraft(draft) {
 }
 
 /**
- * The stored row back into the shape the wizard restores from — the same
+ * The stored row back into the shape the wizard restores from, the same
  * object it keeps in localStorage, so one restore path serves both.
  *
  * @param {object} row     ConceptualDraft
@@ -228,7 +228,7 @@ export function unpackDraft(row, fields = []) {
 /**
  * Which field rows to write, given what is stored and what just arrived:
  * every incoming field is set; a stored key that no longer arrives is blanked
- * to '' — the row stays (nothing is ever deleted), it just reads as unset.
+ * to '', the row stays (nothing is ever deleted), it just reads as unset.
  *
  * @returns {Array<{kind,key,value}>} the full set of writes
  */

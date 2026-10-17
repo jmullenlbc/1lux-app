@@ -1,7 +1,7 @@
 /**
  * Turning a Microsoft message into something we can file against a person.
  *
- * The pure halves only — reading a provider message, and working out which of
+ * The pure halves only, reading a provider message, and working out which of
  * our people were on it and in what capacity. The database half is exercised by
  * the app itself; these are the rules that must not drift.
  */
@@ -135,7 +135,7 @@ test('a recipient is filed as TO, which is what makes it an email we sent', () =
   assert.deepEqual(roles, [{ contactId: 'contact-sam', role: 'TO' }]);
 });
 
-test('a mass send still links the people on it — it just does not count', () => {
+test('a mass send still links the people on it, it just does not count', () => {
   const to = Array.from({ length: 40 }, (_, i) => `p${i}@dev.com`);
   const message = { from: 'mike@ilcstudios.com', to, subject: 'Holiday party' };
   assert.equal(classifyEmail(message).counts, false);

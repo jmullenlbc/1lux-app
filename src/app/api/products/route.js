@@ -5,7 +5,7 @@ import { prisma } from '@/lib/db';
 export async function GET(request) {
   const { user, error } = await requireAuth();
   if (error) return error;
-  // Products carry ILC's buy price (cost). Staff only — never a contractor.
+  // Products carry ILC's buy price (cost). Staff only, never a contractor.
   if (isClientViewer(user.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   const { searchParams } = new URL(request.url);

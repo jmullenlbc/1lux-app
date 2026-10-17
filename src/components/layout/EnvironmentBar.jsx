@@ -1,5 +1,5 @@
 'use client';
-// The STAGING stripe across the top of every page on the staging copy — the
+// The STAGING stripe across the top of every page on the staging copy, the
 // login and public pages too. Live shows nothing. See src/lib/appEnv.js.
 import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';

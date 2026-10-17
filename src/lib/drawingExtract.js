@@ -7,7 +7,7 @@
  * you end up with the public tool and the internal tool disagreeing about the
  * same PDF. Same rule we apply to shared business numbers in `pipeline.js`.
  *
- * Everything here is project-less and DB-less — it takes a buffer and a
+ * Everything here is project-less and DB-less, it takes a buffer and a
  * filename, and returns data. Nothing is persisted. That is what makes it
  * callable from an unauthenticated route where nothing should be written until
  * a human accepts the submission.
@@ -33,7 +33,7 @@ export const ACCEPTED_EXTS = ['pdf', 'xlsx', 'xls'];
  * the parse came back empty with no indication why.
  *
  * Now we select the most relevant windows instead of the first ones, and allow
- * a larger budget — still bounded, because every character is paid for.
+ * a larger budget, still bounded, because every character is paid for.
  */
 const MAX_CHARS = 30000;
 
@@ -62,7 +62,7 @@ const RELEVANCE_SIGNALS = [
   [/\b(avg|average)\s*(unit)?\s*(sf|size)\b/gi, 6],
   [/\b\d{3,5}\s*sf\b/gi, 3],
   // Area-sheet signals. Weighted ABOVE the generic area phrases above because
-  // finding the sheet is only half the job — the window carrying the net/gross
+  // finding the sheet is only half the job, the window carrying the net/gross
   // label has to survive into the 30k budget, or `classifyAreaBasis` gets handed
   // text that never mentioned the basis and correctly answers "unknown".
   [/\b(program|area)\s*breakdown\b/gi, 30],
@@ -122,7 +122,7 @@ export function selectRelevantText(text, maxChars = MAX_CHARS) {
     return true;
   }
 
-  // Pass 1 — guarantee coverage. For each strong signal, reserve its single
+  // Pass 1, guarantee coverage. For each strong signal, reserve its single
   // best window first, so a rare-but-decisive phrase is never crowded out by
   // a pile of common ones.
   for (let s = 0; s < RELEVANCE_SIGNALS.length; s++) {
@@ -133,7 +133,7 @@ export function selectRelevantText(text, maxChars = MAX_CHARS) {
     if (best) take(best);
   }
 
-  // Pass 2 — fill the remaining budget by score.
+  // Pass 2, fill the remaining budget by score.
   for (const w of [...windows].sort((a, b) => b.score - a.score)) {
     if (w.score === 0) break;           // nothing relevant left
     take(w);
@@ -181,7 +181,7 @@ export async function xlsxToText(buffer) {
  * nft cannot trace it. Every route that reaches this function must be listed in
  * `outputFileTracingIncludes` in next.config.mjs, or text extraction silently
  * returns nothing in production while working perfectly in local dev. This has
- * already broken prod once — `scripts/check-runtime-assets.mjs` guards it.
+ * already broken prod once, `scripts/check-runtime-assets.mjs` guards it.
  */
 export async function extractPdfPages(source, opts = {}) {
   const {
@@ -201,7 +201,7 @@ export async function extractPdfPages(source, opts = {}) {
     // already opened. The second form is what makes 400 MB sets readable: the
     // caller opens them by byte range (see pdfRange.js) so the whole file is
     // never in memory, and hands us the doc. Everything below is identical
-    // either way — a doc is a doc.
+    // either way, a doc is a doc.
     const doc = isPdfDoc(source)
       ? source
       : await (await loadPdfjs()).getDocument(pdfDocOptions(source)).promise;
@@ -211,30 +211,30 @@ export async function extractPdfPages(source, opts = {}) {
     let stoppedEarly = false;
 
     // The first page this call has NOT read. A staged read resumes from it, so
-    // it has to move forward on every outcome except one -- see the catch.
+    // it has to move forward on every outcome except one, see the catch.
     let nextPage = fromPage;
 
     // True when the read was cut short by the memory/byte brake rather than by
     // this slice running out of time. The two are NOT the same thing and the
-    // caller must not confuse them -- see `nextPage` in the return below.
+    // caller must not confuse them, see `nextPage` in the return below.
     let braked = false;
 
     for (let i = fromPage; i <= limit; i++) {
       // `i > fromPage`, deliberately: every slice must attempt at least one
       // page. Opening a big set by byte range can itself eat the whole slice
       // budget, and a slice that reads nothing hands back the same `nextPage`
-      // it was given -- so the browser asks again, gets nothing again, and the
+      // it was given, so the browser asks again, gets nothing again, and the
       // read never finishes. One page per slice is the floor that guarantees
       // the loop always moves forward.
       if (i > fromPage && Date.now() - started > timeBudgetMs) { stoppedEarly = true; break; }
       // A second brake, used by the ranged reader: stop once we have pulled
-      // more bytes than we are willing to hold. Time alone is not enough — a
+      // more bytes than we are willing to hold. Time alone is not enough, a
       // fast connection can drag a 400 MB set into memory well inside the time
       // budget, which is the exact failure this whole path exists to prevent.
       //
       // The mandatory first page is exempt here too (2026-09-15). The brake is
       // latched and measures the WHOLE process, so on a busy Lambda it is often
-      // already on the moment a big set has been opened — before a single page
+      // already on the moment a big set has been opened, before a single page
       // has been looked at. Lone Tree Ranch's 85 MB architectural set came back
       // "no readable text layer" that way: zero pages read, then judged blank.
       // One bounded page is the floor that lets the caller tell "too big to
@@ -244,12 +244,12 @@ export async function extractPdfPages(source, opts = {}) {
 
       // Bounded, because a page read can hang rather than fail. When pages are
       // fetched by byte range, pdfjs asks storage for bytes and then waits for
-      // them with no timeout of its own — so one bad fetch parks here forever
+      // them with no timeout of its own, so one bad fetch parks here forever
       // and the budget check above, which only runs BETWEEN pages, never gets
       // another turn. Whatever pages we already have are worth more than a
       // request that dies on a Lambda timeout with nothing to show.
       const left = timeBudgetMs - (Date.now() - started);
-      // The mandatory page — the one every slice must attempt — always gets a
+      // The mandatory page, the one every slice must attempt, always gets a
       // full-size window, even when the slice's budget arrived shrunken (a
       // staged read charges the file-open time against it). The step-over rule
       // below treats "timed out with nothing read" as a broken page, and that
@@ -316,7 +316,7 @@ export async function extractPdfPages(source, opts = {}) {
  *
  * Was a flat 60 for a long time, which quietly capped every large set: the
  * Fox Park 100% DD set is 442 pages, so 86% of it was never read. Two bounds
- * now, and the time one is the real one — a 400-page cap that takes four minutes
+ * now, and the time one is the real one, a 400-page cap that takes four minutes
  * is a timeout, not a feature. Whichever hits first wins, and the caller is told
  * via `stoppedEarly` so it can say so instead of silently returning less.
  *
@@ -386,17 +386,17 @@ export async function extractDrawingText(buffer, fileName, opts = {}) {
     const text = pages.map(p => p.text).join('\n').trim();
     if (!text || text.trim().length < 30) {
       // Cut short by the memory brake with most of the set unread: we do not
-      // KNOW it has no text layer — we know we could not hold it open. Say
+      // KNOW it has no text layer, we know we could not hold it open. Say
       // that, with the page count, instead of blaming the drawing. The caller
       // still sends it on to the vision read, exactly like no_text_layer.
       const total = scan.totalPages ?? 0;
       if (scan.braked && pages.length < total) {
         return {
           ok: false, code: 'too_big_to_read', scan,
-          message: `This drawing set is too large for our reader to hold open — only ${pages.length} of ${total} pages could be read, and no text was found on ${pages.length === 1 ? 'it' : 'them'}. A smaller PDF with just the site plan, area summary and unit matrix sheets reads best.`,
+          message: `This drawing set is too large for our reader to hold open. Only ${pages.length} of ${total} pages could be read, and no text was found on ${pages.length === 1 ? 'it' : 'them'}. A smaller PDF with just the site plan, area summary and unit matrix sheets reads best.`,
         };
       }
-      // Overwhelmingly this means a scanned/plotted drawing with no text layer —
+      // Overwhelmingly this means a scanned/plotted drawing with no text layer
       // very common for site plans. Say so plainly rather than "parse failed".
       //
       // `scan` rides along but `pages` deliberately does not: a caller that is
@@ -425,21 +425,21 @@ Extract the residential unit type breakdown from the provided text. Ignore drawi
 legends, revision notes, and anything unrelated to unit types and square footage.
 
 Hotels: treat KEYS exactly like units. A hotel room matrix (KING, QUEEN/QUEEN, suites, with key counts)
-IS a unit matrix — room types are unit types, key quantities are unit quantities, and a printed
+IS a unit matrix: room types are unit types, key quantities are unit quantities, and a printed
 "TOTAL KEYS" or "KEY COUNT" is the statedTotalUnits.
 
-Return ONLY valid JSON matching this exact schema — no markdown, no explanation:
+Return ONLY valid JSON matching this exact schema, no markdown, no explanation:
 {
   "unitTypes": [
     {
-      "code": "string — the row's own designation exactly as printed (e.g. A1, Unit 2-1 Type A, 2BR-K); unique per row",
+      "code": "string, the row's own designation exactly as printed (e.g. A1, Unit 2-1 Type A, 2BR-K); unique per row",
       "label": "string or null",
       "qty": number,
       "unitSf": number or null,
       "bedrooms": number or null,
       "bathrooms": number or null,
       "balconies": number or null,
-      "confidence": number (0.0–1.0)
+      "confidence": number (0.0 to 1.0)
     }
   ],
   "projectTotals": {
@@ -457,7 +457,7 @@ Return ONLY valid JSON matching this exact schema — no markdown, no explanatio
     "buildingType": "string or null"
   },
   "granularity": "PER_UNIT or PER_TYPE or PROJECT_TOTAL_ONLY",
-  "overallConfidence": number (0.0–1.0),
+  "overallConfidence": number (0.0 to 1.0),
   "notes": "string describing anything ambiguous"
 }
 
@@ -465,44 +465,44 @@ Rules:
 - Per-type matrices: each row is a unit type with a quantity. Roll up in your head to verify totals.
 - Per-unit matrices: each row is one unit; group them by type code.
 - code: copy the row's own name or designation exactly as printed ("Unit 3-1", "Unit 3-2 Type A", "A1",
-  "KING"). NEVER reduce it to a bedroom count — "Unit 3-1" and "Unit 3-2" are two different types and
+  "KING"). NEVER reduce it to a bedroom count: "Unit 3-1" and "Unit 3-2" are two different types and
   must keep two different codes; a "Type A" (accessible) variant is its own type too. Every row in
   unitTypes must have a code different from every other row. If a matrix truly names its rows by
   bedroom count alone, make each code unique by appending the unit SF (e.g. "3BR 1,120 SF").
-- balconies: 0 or 1 — does ONE unit of this type have a balcony/patio? Never more than 1 per unit, and
+- balconies: 0 or 1: does ONE unit of this type have a balcony/patio? Never more than 1 per unit, and
   never a square footage. A "Balcony SF" or "Patio/Balcony Area" column with a number above 0 means 1;
   blank, "-" or 0 means 0. Not shown anywhere → null.
 - bathrooms: whole bathrooms per unit; a half bath counts as a whole one (1.5 → 2).
 - Bedrooms: use the bedroom column if present; otherwise infer from the type code (e.g. "2BR" → 2, "1BR" → 1, "STUDIO" → 0).
 - confidence per row: how confident you are in this row's data. 1.0 = exact numbers clearly stated; 0.5 = inferred/ambiguous.
-- If a column is missing entirely, set that field to null for all rows — do not guess.
+- If a column is missing entirely, set that field to null for all rows. Do not guess.
 - grossInteriorSf: the best STATED whole-building square footage on the document. Prefer, in order:
   (1) a program/area breakdown total ("BUILDING GROSS SF"), (2) a cover-sheet or code-summary grand
   total ("TOTAL BUILDING GSF", "GBA", "ACTUAL AREA"), (3) a room/unit schedule total. Do NOT add up
-  per-floor areas yourself — report only what is printed.
-- perBuildingGross: many sets print NO whole-project total, only a TOTAL per building — a code-analysis
+  per-floor areas yourself. Report only what is printed.
+- perBuildingGross: many sets print NO whole-project total, only a TOTAL per building, a code-analysis
   or building-data block reading "BUILDING A: 87,781 SF / BUILDING B: 87,781 SF / ...". Copy each stated
   per-building TOTAL here verbatim: name as printed ("BUILDING A"), grossSf as printed. Only whole-building
-  totals belong here — never per-floor lines, never footprints or "max area per floor", and never a figure
-  you computed. Do NOT sum these into grossInteriorSf — leave grossInteriorSf null when no whole-project
+  totals belong here, never per-floor lines, never footprints or "max area per floor", and never a figure
+  you computed. Do NOT sum these into grossInteriorSf. Leave grossInteriorSf null when no whole-project
   total is printed; downstream code does the arithmetic and shows its work. When you fill this in, set
   grossSfLabel to the heading of the block these came from (e.g. "PROPOSED TOTAL AREA") and grossSfSheet
   to that sheet. null when the document states no per-building totals.
 - grossSfLabel: the LITERAL heading printed above or beside that number, copied exactly as it appears
-  — "BUILDING GROSS SF", "TOTAL ACTUAL AREA", "NET RENTABLE", "AVG AREA". Copy it verbatim, including
+  such as "BUILDING GROSS SF", "TOTAL ACTUAL AREA", "NET RENTABLE", "AVG AREA". Copy it verbatim, including
   abbreviations and punctuation. Do not normalise, expand, or interpret it.
   This matters more than it looks: architects publish the same building at three different totals
   (net room polygons, code area inside the exterior walls, and true gross to the outside face) and
-  they differ by 5–8%. Downstream code decides which one this is FROM THIS LABEL, so a paraphrased
-  label is worse than no label. If nothing is printed near the number, return null — never invent one.
+  they differ by 5 to 8%. Downstream code decides which one this is FROM THIS LABEL, so a paraphrased
+  label is worse than no label. If nothing is printed near the number, return null. Never invent one.
 - grossSfSheet: the sheet number that figure came from (e.g. "G0.02", "A-811", "LS0.01"), or null.
 - corridorSf: CORRIDOR / CIRCULATION square footage as PRINTED in an area table, program breakdown or
-  code-area summary — a line labelled "CORRIDOR", "CORRIDORS", "CIRCULATION", "COMMON CIRCULATION",
-  "HALLWAY(S)", "CORRIDORS & STAIRS", "CORRIDOR/STAIR", "CIRCULATION & STAIRS" or "COMMON AREA – CIRCULATION".
+  code-area summary: a line labelled "CORRIDOR", "CORRIDORS", "CIRCULATION", "COMMON CIRCULATION",
+  "HALLWAY(S)", "CORRIDORS & STAIRS", "CORRIDOR/STAIR", "CIRCULATION & STAIRS" or "COMMON AREA - CIRCULATION".
   If the table prints one such line per floor or per building with no total, add up ONLY those printed
   lines and say so in notes. Never estimate it, never take a percentage of gross, and never fold in
   amenity, leasing, BOH, garage or unit areas. null when no such line is printed.
-- bohSf: BACK OF HOUSE square footage as PRINTED in an area table or program breakdown — a line labelled
+- bohSf: BACK OF HOUSE square footage as PRINTED in an area table or program breakdown: a line labelled
   "BOH", "BACK OF HOUSE", "SUPPORT", "SERVICE", or the sum of itemized support rooms printed there
   (mechanical, electrical, trash, storage, maintenance, bike, janitor, riser, elevator machine, IT/telecom).
   Only rooms with a printed area count; never estimate one, never take a percentage of gross, and never
@@ -517,7 +517,7 @@ Rules:
   notes). Private unit balconies and terraces are NOT amenity. Never estimate, never measure, never take a
   percentage. null when no amenity column or amenity area line is printed.
 - statedTotalUnits: the total unit count as PRINTED on the document ("TOTAL UNITS: 364", a matrix total row,
-  a cover-sheet project summary). Do NOT add up the rows yourself to fill this in — null is the correct answer
+  a cover-sheet project summary). Do NOT add up the rows yourself to fill this in, null is the correct answer
   when the document does not state a total. This field exists so the row quantities can be checked against
   the document, and a value you computed cannot check anything.`;
 
@@ -536,7 +536,7 @@ export const EXTRACT_PROMPT_VERSION = 'unitMatrix-2026-09-24b';
  * Which JOB this drawing is, in src/lib/aiModels.js terms.
  *
  * A clean unit-matrix table is a small, bounded read. A dense or "combined" set
- * is the case Mike means by "for drawings it is so much more accurate" — the
+ * is the case Mike means by "for drawings it is so much more accurate", the
  * numbers are buried in a wall of sheet text, and that is where the big reader
  * earns its cost. The split is unchanged; only the two models it selects moved
  * up a tier, and they now live in one table instead of in this line.
@@ -547,7 +547,7 @@ export function pickJob(text, fileName) {
   return noisy ? 'drawing.unitMatrix' : 'drawing.unitMatrix.clean';
 }
 
-/** The model id chosen for a drawing — kept for logging and for the tests. */
+/** The model id chosen for a drawing, kept for logging and for the tests. */
 export function pickModel(text, fileName) {
   return modelParams(pickJob(text, fileName)).model;
 }
@@ -567,7 +567,7 @@ export async function parseUnitMatrix(text, fileName, anthropic, ctx = {}) {
   const params = modelParams(job);
   const model  = params.model;
 
-  // This function is reachable from the PUBLIC intake route — anyone on the
+  // This function is reachable from the PUBLIC intake route, anyone on the
   // internet can hand it a PDF, and the filename is theirs too. That makes it the
   // single most exposed model call in the app, so the drawing text goes inside a
   // fence rather than after a colon. See src/lib/agent/untrusted.js.
@@ -593,14 +593,14 @@ export async function parseUnitMatrix(text, fileName, anthropic, ctx = {}) {
     return { ok: false, code: 'extraction_failed', message: 'Extraction failed. Please try again.' };
   }
 
-  // Strip code fences defensively — models add them despite instructions.
+  // Strip code fences defensively, models add them despite instructions.
   const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
 
   let parsed;
   try {
     parsed = JSON.parse(cleaned);
   } catch {
-    console.error('unit matrix — bad JSON:', raw.slice(0, 500));
+    console.error('unit matrix, bad JSON:', raw.slice(0, 500));
     return { ok: false, code: 'bad_output', message: 'Could not read the extraction result.' };
   }
 
@@ -619,9 +619,9 @@ export async function parseUnitMatrix(text, fileName, anthropic, ctx = {}) {
  * Split out from the model call on purpose. The model's job is to read numbers
  * off a table; deciding what a number MEANS is a fixed-label lookup that regex
  * does perfectly, for free, identically every time, and can show its work. See
- * the header of src/lib/areaSheet.js for the measured 5–8% this is worth.
+ * the header of src/lib/areaSheet.js for the measured 5 to 8% this is worth.
  *
- * Mutates nothing — returns a new proposal.
+ * Mutates nothing, returns a new proposal.
  */
 export function attachAreaBasis(proposal, { pages, text } = {}) {
   const totals = proposal?.projectTotals;
@@ -652,7 +652,7 @@ export function attachAreaBasis(proposal, { pages, text } = {}) {
   // that have nothing to do with each other. Whichever candidate carries this
   // number is the one whose wording applies to it.
   //
-  // A summed total is printed nowhere, so it can't be located — locate its
+  // A summed total is printed nowhere, so it can't be located, locate its
   // first ADDEND instead: the per-building figures share one block, and the
   // block's wording is what tells us the basis of all of them.
   const locate = summed != null ? Number(buildings[0].grossSf) : stated;
@@ -660,14 +660,14 @@ export function attachAreaBasis(proposal, { pages, text } = {}) {
   if (Number.isFinite(locate) && locate > 0) {
     sourcePage = candidates.find(c => focusAroundNumber(byPage.get(c.page) ?? '', locate)) ?? null;
     if (!sourcePage) {
-      // Not on any candidate sheet — check the rest of the set before giving up.
+      // Not on any candidate sheet, check the rest of the set before giving up.
       const anywhere = (pages ?? []).find(p => focusAroundNumber(p.text ?? '', locate));
       if (anywhere) sourcePage = { page: anywhere.page, sheetNo: sheetNumberOf(anywhere.text), offSheet: true };
     }
   }
 
   // What the classifier reads, most trustworthy first:
-  //   1. the label the model copied off the sheet — the closest thing to a
+  //   1. the label the model copied off the sheet, the closest thing to a
   //      direct quote of the number's own heading,
   //   2. the page the number is printed on,
   //   3. the best-scoring area sheet, when we could not locate the number,
@@ -683,10 +683,10 @@ export function attachAreaBasis(proposal, { pages, text } = {}) {
   });
 
   // The reviewer must see that this total is OUR arithmetic, not a printed
-  // number — Mike's standing rule prefers what the architect states, so a
+  // number, Mike's standing rule prefers what the architect states, so a
   // computed total always says exactly what was added up.
   const sumNote = summed != null
-    ? 'No whole-project total is printed — this is the sum of the stated per-building totals: ' +
+    ? 'No whole-project total is printed. This is the sum of the stated per-building totals: ' +
       buildings.map(b => `${String(b.name || 'building').trim()} ${Number(b.grossSf).toLocaleString('en-US')}`).join(' + ') +
       ` = ${summed.toLocaleString('en-US')} SF. `
     : '';
@@ -694,7 +694,7 @@ export function attachAreaBasis(proposal, { pages, text } = {}) {
   // Found the sheet but could not read the table. BECK's A-811 program breakdown
   // scores 90 and yields nothing: the table is vector art, so only the Revit
   // layer names survive as text. Saying "no area sheet" would be false and saying
-  // nothing would be worse — the reviewer is told which sheet to open by hand.
+  // nothing would be worse, the reviewer is told which sheet to open by hand.
   const unreadable = candidates.length > 0 && candidates.every(c => !c.readable);
 
   return {
@@ -710,7 +710,7 @@ export function attachAreaBasis(proposal, { pages, text } = {}) {
       grossSfNote:       resolved.note,
       // Both screens append "Read from sheet X." after this, so it is left out here.
       grossSfSummary:    unreadable
-        ? sumNote + 'The area sheet is a picture, not text — its table could not be read. ' +
+        ? sumNote + 'The area sheet is a picture, not text, so its table could not be read. ' +
           'Please check the square footage against that sheet.'
         : sumNote + resolved.summary,
       grossSfUnreadable: unreadable,

@@ -17,7 +17,7 @@ export const dynamic = 'force-dynamic';
  * `requireAdmin` also lets in Company Admins and anyone in Operations. Every
  * admin is ILC staff (Mike, 2026-09-14: only internal people can be admins), so
  * this is not about keeping outsiders out: it is an engineering view that spans
- * every project and client at once — who is uploading what, which modules break —
+ * every project and client at once, who is uploading what, which modules break
  * and it stays on `isSuperAdmin` (SUPER_ADMIN | ILC_ADMIN).
  */
 export async function GET(request) {
@@ -44,7 +44,7 @@ export async function GET(request) {
     });
 
     // Historical snapshots, so the dashboard can draw a trend that predates the
-    // current ledger file. Missing days are simply absent — the UI treats gaps as
+    // current ledger file. Missing days are simply absent, the UI treats gaps as
     // "not recorded", never as zero, because a Lambda that never ran and a day
     // with no activity are different facts.
     const keys = [];

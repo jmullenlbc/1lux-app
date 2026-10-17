@@ -9,13 +9,13 @@
  * There are TWO counting rules, and Mike settled which goes where (2026-09-06:
  * "it should be 2 wins but the wins per client should only count 1 per project"):
  *
- *  1. PER BOARD — `dealCounts`. A project sits on the Procurement board always,
+ *  1. PER BOARD, `dealCounts`. A project sits on the Procurement board always,
  *     and also on the Design board when its service type is Full Design or
  *     Design Assist. Each board carries its own status, so a design job counts
  *     once per board. This is what a pipeline's own numbers mean: win a design
  *     job on both boards and that is two wins on the boards.
  *
- *  2. PER PROJECT — `clientDealCounts`. On a client record (and on a person),
+ *  2. PER PROJECT, `clientDealCounts`. On a client record (and on a person),
  *     one project is one deal, however many boards it rides. One job for a
  *     client is one win for that client, never two.
  *
@@ -119,7 +119,7 @@ export function dealLossReasons(projects = []) {
 
 // ── JSON-as-string helpers ───────────────────────────────────────────────────
 // orgTypes / developerTypes / projectTypes are stored as JSON arrays in a text
-// column — the established convention on Client. These read them safely.
+// column, the established convention on Client. These read them safely.
 
 export function parseList(value) {
   if (Array.isArray(value)) return value;
@@ -195,13 +195,13 @@ export function formatPhone(value) {
   if (digits.length === 11 && digits.startsWith('1')) {
     return `+1 (${digits.slice(1, 4)}) ${digits.slice(4, 7)}-${digits.slice(7)}`;
   }
-  return raw;   // international or partial — leave exactly as typed
+  return raw;   // international or partial, leave exactly as typed
 }
 
 /**
  * Deal counts for one person, from their ProjectContact links.
  *
- * Counted per PROJECT, not per board — a person is attached to a job, not to a
+ * Counted per PROJECT, not per board, a person is attached to a job, not to a
  * pipeline, so one job they worked is one deal against their name.
  *
  * ONLY the jobs they were the main point of contact on. A project can carry
@@ -223,7 +223,7 @@ export function contactDealCounts(contact) {
  * The same four numbers, but with the jobs behind them.
  *
  * Mike, 2026-09-09, on the person row: he wants the Open / Won / Lost /
- * Abandoned numbers to name the jobs — hovering shows them, clicking opens them
+ * Abandoned numbers to name the jobs, hovering shows them, clicking opens them
  * on the same screen. Counting and listing therefore have to come from one
  * place, or a number could disagree with the list it opens. `contactDealCounts`
  * is the lengths of these buckets, never a second count.
@@ -245,12 +245,12 @@ export function contactDealProjects(contact) {
  * Where a person works, and whether we actually know.
  *
  * Two different things can be true and they are not the same problem:
- *  - 'none'   — we have no employer at all for them. Since the people merge, a
+ *  - 'none', we have no employer at all for them. Since the people merge, a
  *               person survives their company being deleted, so this can now
  *               happen on its own and needs to be visible.
- *  - 'typed'  — somebody typed an employer name but never picked the client
+ *  - 'typed', somebody typed an employer name but never picked the client
  *               record, so nothing on that person rolls up to the company.
- *  - 'linked' — attached to a real client. Normal.
+ *  - 'linked', attached to a real client. Normal.
  *
  * Mike, 2026-09-09: "we need to flag a person with no company."
  */

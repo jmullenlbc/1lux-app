@@ -48,8 +48,8 @@ export function isSettableContactDepartment(key) {
   return CONTACT_DEPARTMENT_KEYS.includes(key);
 }
 
-// Turns whatever is already in the database — or whatever a spreadsheet import
-// hands us — into one of our keys. Case, spaces, hyphens and the two common
+// Turns whatever is already in the database, or whatever a spreadsheet import
+// hands us, into one of our keys. Case, spaces, hyphens and the two common
 // spellings of "pre-construction" are all forgiven. Returns null when nothing
 // matches, so the caller decides whether to keep the raw text or drop it.
 const ALIASES = {
@@ -74,7 +74,7 @@ export function normalizeContactDepartment(raw, { labelFallback = false } = {}) 
 
 // What the API stores when a screen sends a department. One of our keys passes
 // straight through, a spelling we recognise is converted, and anything we do
-// not recognise is kept EXACTLY AS TYPED — a bulk import must never silently
+// not recognise is kept EXACTLY AS TYPED, a bulk import must never silently
 // wipe somebody's department just because it used a word we had not seen.
 export function cleanDepartment(raw) {
   if (raw === null || raw === undefined) return null;
@@ -85,7 +85,7 @@ export function cleanDepartment(raw) {
 }
 
 // The dropdown for ONE person. Mike's eight, plus a blank, plus whatever this
-// person already holds if it is not one of the eight — a legacy key like
+// person already holds if it is not one of the eight, a legacy key like
 // FINANCE, or a word an import left as typed. Without that last part, opening
 // the menu on such a person would show the first option and quietly move them.
 export function departmentOptions(current) {
@@ -95,7 +95,7 @@ export function departmentOptions(current) {
     label: contactDepartmentLabel(current) + (LABEL_BY_KEY[current] ? '' : ' (old)'),
   }];
   return [
-    { value: '', label: '— Department —' },
+    { value: '', label: 'Department' },
     ...CONTACT_DEPARTMENTS.map(d => ({ value: d.key, label: d.label })),
     ...extra,
   ];

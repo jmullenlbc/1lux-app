@@ -1,7 +1,7 @@
 // ── Master Types seed ─────────────────────────────────────────────────────────
 // Source: Trackvia ILC_-_Master_Types_2026-05-21.csv (37 canonical records)
 // is_unit_type: true for types that appear in the unit drawing palette
-// ER is not in the Trackvia export but exists in ILCSpec data — added here.
+// ER is not in the Trackvia export but exists in ILCSpec data, added here.
 
 const UNIT_TYPE_CODES = new Set(['C','D','F','G','L','P','S','UC','V','W','X','Z']);
 

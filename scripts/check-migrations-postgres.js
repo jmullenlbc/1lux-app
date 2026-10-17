@@ -6,11 +6,11 @@
  *
  * Why this exists:
  *   schema.prisma always says `provider = "sqlite"` (so local dev works
- *   without Docker — see CLAUDE.md). If a dev runs `npx prisma migrate dev`
+ *   without Docker, see CLAUDE.md). If a dev runs `npx prisma migrate dev`
  *   locally, Prisma reads the sqlite provider and emits SQLite-flavored
  *   migration SQL (DATETIME, BOOLEAN DEFAULT 0/1). Amplify then sed-patches
  *   the schema to postgresql and runs `prisma migrate deploy` against the
- *   real Postgres database — where DATETIME isn't a recognized type and
+ *   real Postgres database, where DATETIME isn't a recognized type and
  *   BOOLEAN DEFAULT 0 is a syntax error. Result: deploy aborts mid-migration.
  *
  *   This exact failure killed Mike's Sunday June 7 push of the Proposals
@@ -19,7 +19,7 @@
  * Exit 1 fails the Amplify build so broken migrations are never deployed.
  *
  * The fix for any flagged file: generate the migration against the
- * postgres-flavored schema (`npm run db:migrate:new -- <name>`), OR
+ * postgres-flavored schema (`npm run db:migrate:new, <name>`), OR
  * manually replace:
  *     DATETIME                       -> TIMESTAMP(3)
  *     BOOLEAN ... DEFAULT 0          -> BOOLEAN ... DEFAULT false
@@ -146,7 +146,7 @@ for (const file of files) {
 }
 
 if (findings.length > 0) {
-  console.error('\n❌ BUILD BLOCKED — migrations contain SQLite-only SQL that will fail on PostgreSQL:\n');
+  console.error('\n❌ BUILD BLOCKED: migrations contain SQLite-only SQL that will fail on PostgreSQL:\n');
   const byFile = new Map();
   for (const f of findings) {
     if (!byFile.has(f.file)) byFile.set(f.file, []);
@@ -166,7 +166,7 @@ if (findings.length > 0) {
   console.error('which fails when Amplify runs `prisma migrate deploy` against PostgreSQL.');
   console.error('');
   console.error('To fix: edit each file listed above and apply the replacements shown.');
-  console.error('For the next migration, generate it against a Postgres provider — either:');
+  console.error('For the next migration, generate it against a Postgres provider, either:');
   console.error('  a) temporarily change schema.prisma provider to "postgresql", run prisma migrate dev,');
   console.error('     then change it back to "sqlite", OR');
   console.error('  b) use `npx prisma migrate diff --from-migrations prisma/migrations \\');

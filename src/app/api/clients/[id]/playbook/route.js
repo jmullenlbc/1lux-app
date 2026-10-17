@@ -24,7 +24,7 @@ const WRITABLE = [
   'engagementLeadTime', 'budgetCadence', 'submittalTurnaround', 'typicalSdToCd', 'rfiResponseExpectation', 'timeframeNotes',
 ];
 
-// ── GET — scalars + all normalized collections ────────────────────────────────
+// ── GET, scalars + all normalized collections ────────────────────────────────
 export async function GET(req, { params }) {
   const { user, error } = await requireAuth(req);
   if (error) return error;
@@ -41,7 +41,7 @@ export async function GET(req, { params }) {
   return NextResponse.json({ playbook: playbook || null, assignments, distribution, notes });
 }
 
-// ── PUT — partial save: only the keys present in the body are touched ──────────
+// ── PUT, partial save: only the keys present in the body are touched ──────────
 // Body: { scalars?, relationships?, assignments?, distribution?, notes? }
 export async function PUT(req, { params }) {
   const { user, error } = await requireAuth(req);
@@ -52,7 +52,7 @@ export async function PUT(req, { params }) {
   const clientId = params.id;
   const body = await req.json();
 
-  // 1) Scalars (partial upsert — only provided fields)
+  // 1) Scalars (partial upsert, only provided fields)
   if (body.scalars && typeof body.scalars === 'object') {
     const data = {};
     for (const f of WRITABLE) if (f in body.scalars) data[f] = body.scalars[f] ?? null;
@@ -63,7 +63,7 @@ export async function PUT(req, { params }) {
     }
   }
 
-  // 2) Assignments — upsert each provided role (clears contact when empty)
+  // 2) Assignments, upsert each provided role (clears contact when empty)
   if (Array.isArray(body.assignments)) {
     for (const a of body.assignments) {
       if (!a?.role) continue;
@@ -75,7 +75,7 @@ export async function PUT(req, { params }) {
     }
   }
 
-  // 4) Distribution — replace the full list for this client
+  // 4) Distribution, replace the full list for this client
   if (Array.isArray(body.distribution)) {
     await prisma.$transaction([
       prisma.playbookDistribution.deleteMany({ where: { clientId } }),
@@ -85,7 +85,7 @@ export async function PUT(req, { params }) {
     ]);
   }
 
-  // 5) Notes — replace the full list for this client
+  // 5) Notes, replace the full list for this client
   if (Array.isArray(body.notes)) {
     await prisma.$transaction([
       prisma.playbookNote.deleteMany({ where: { clientId } }),

@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
  *
  * Powers the "Things Needing a Look" card on the Main dashboard.
  *
- * Everything is worked out live — no problem is ever stored, so fixing a record
+ * Everything is worked out live, no problem is ever stored, so fixing a record
  * makes the item disappear on the next load with nothing to clean up. The only
  * rows this reads and writes are the two facts a live recompute cannot know:
  * whether an item has been put in front of anyone before (SHOWN), and whether
@@ -38,7 +38,7 @@ export async function GET() {
   // upsert rather than createMany({ skipDuplicates }) for two reasons: two people
   // can open the dashboard at the same moment, and the unique index would turn
   // the second insert into a 500; and skipDuplicates is a Postgres-only option in
-  // Prisma 5 — it throws outright on the SQLite dev database. This is at most five
+  // Prisma 5, it throws outright on the SQLite dev database. This is at most five
   // rows a load, so the loop costs nothing.
   if (fresh.length) {
     await Promise.all(fresh.map(itemKey => prisma.verificationAction.upsert({

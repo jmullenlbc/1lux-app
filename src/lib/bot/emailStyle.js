@@ -12,6 +12,12 @@
  * Pure: no imports, safe anywhere.
  */
 
+/**
+ * One line for every AI prompt that writes prose a person reads. Streaming
+ * replies (the chat boxes) cannot be cleaned after the fact, so they get this.
+ */
+export const NO_DASHES_RULE = '\n\nWriting style: never use em dashes, en dashes or double hyphens. Use a comma, a colon or a new sentence instead. Write number ranges as "2 to 3".';
+
 /** Replace every em dash, en dash and double dash with plain punctuation. */
 export function stripDashes(text) {
   if (text == null) return text;

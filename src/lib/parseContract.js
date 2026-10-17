@@ -27,7 +27,7 @@ function toIso(year, month, day) {
 const MONTH_RE = '(?:january|february|march|april|may|june|july|august|september|october|november|december|jan|feb|mar|apr|jun|jul|aug|sep|oct|nov|dec)';
 const DOLLAR_RE = /\$\s*([\d,]+(?:\.\d{1,2})?)/i;
 
-// Ordered by specificity — first match wins
+// Ordered by specificity, first match wins
 const VALUE_PATTERNS = [
   // "Contract Sum ... $X" (AIA B101)
   /contract\s+sum[^$\n]{0,80}\$\s*([\d,]+(?:\.\d{1,2})?)/i,
@@ -63,7 +63,7 @@ function extractValue(text) {
     const m = flat.match(pattern);
     if (m) {
       const num = parseFloat(m[1].replace(/,/g, ''));
-      // Sanity: contract values are typically $1,000 – $50,000,000
+      // Sanity: contract values are typically $1,000 to $50,000,000
       if (num >= 1000 && num <= 50_000_000) return num;
     }
   }
@@ -116,7 +116,7 @@ const DATE_PATTERNS = [
     re: /(?:date|signed|executed)\s*:?\s*(\d{4})-(\d{2})-(\d{2})/i,
     fn: m => toIso(m[1], m[2], m[3]),
   },
-  // Standalone "Month Day, Year" near top of doc (first 2000 chars) — fallback
+  // Standalone "Month Day, Year" near top of doc (first 2000 chars), fallback
   {
     re: new RegExp(`(${MONTH_RE})\\s+(\\d{1,2})(?:st|nd|rd|th)?\\s*,\\s*(\\d{4})`,'i'),
     fn: m => toIso(m[3], parseMonth(m[1]), m[2]),
@@ -153,7 +153,7 @@ export function parseChangeOrderAmount(text) {
   if (!text || text.length < 10) return null;
   const flat = text.replace(/\r?\n/g, ' ');
 
-  // "TOTAL CHANGE -$X" or "TOTAL CHANGE $X" (ILC line-item CO — most specific)
+  // "TOTAL CHANGE -$X" or "TOTAL CHANGE $X" (ILC line-item CO, most specific)
   let m = flat.match(/\btotal\s+change\s+(-?)\$\s*([\d,]+(?:\.\d{1,2})?)/i);
   if (m) return toSigned(m[1], m[2]);
 
@@ -161,7 +161,7 @@ export function parseChangeOrderAmount(text) {
   m = flat.match(/\btotal\s+(-?)\$\s*([\d,]+(?:\.\d{1,2})?)/i);
   if (m) return toSigned(m[1], m[2]);
 
-  // "TOTAL [WORDS] $X" — e.g. "TOTAL SALES TAX INCREASE $4,521.81"
+  // "TOTAL [WORDS] $X", e.g. "TOTAL SALES TAX INCREASE $4,521.81"
   m = flat.match(/\btotal\s+(?:[a-zA-Z]+\s+){1,6}\$\s*([\d,]+(?:\.\d{1,2})?)/i);
   if (m) return parseFloat(m[1].replace(/,/g, ''));
 
@@ -184,7 +184,7 @@ const COI_EXPIRY_PATTERNS = [
     re: new RegExp(`expir(?:ation|y|es?)\\s*(?:date)?\\s*:?\\s*(${MONTH_RE})\\s+(\\d{1,2})(?:st|nd|rd|th)?\\s*,?\\s*(\\d{4})`, 'i'),
     fn: m => toIso(m[3], parseMonth(m[1]), m[2]),
   },
-  // "Policy Period: 01/01/2025 to 01/01/2026" — take the TO date
+  // "Policy Period: 01/01/2025 to 01/01/2026", take the TO date
   {
     re: /policy\s+period[^:]{0,20}:?\s*[\d\/]+\s+to\s+(\d{1,2})\/(\d{1,2})\/(\d{2,4})/i,
     fn: m => { const yr = m[3].length === 2 ? '20' + m[3] : m[3]; return toIso(yr, m[1], m[2]); },

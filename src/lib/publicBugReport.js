@@ -6,7 +6,7 @@
  * length-capped, non-strings become blank, NUL bytes are stripped (Postgres
  * rejects them in text columns), and only http(s) page URLs are kept.
  *
- * Kept dependency-free and alias-free so `node --test` can load it directly —
+ * Kept dependency-free and alias-free so `node --test` can load it directly
  * see scripts/tests/publicBugReport.test.mjs.
  */
 
@@ -18,7 +18,12 @@ export const LIMITS = {
   userAgent:   500,
   viewport:    20,
   title:       80,
+  step:        80,
+  projectName: 200,
 };
+
+// A ConceptualDraft id (cuid). Anything else is dropped, never looked up.
+const DRAFT_ID_RE = /^[a-z0-9]{10,40}$/i;
 
 // Deliberately loose: something@something.something. The email is only for a
 // human to follow up with, so a strict parser would just turn real people away.
@@ -58,6 +63,7 @@ export function cleanPublicBugReport(body) {
   }
 
   const pageUrl = clampText(b.pageUrl, LIMITS.pageUrl);
+  const draftId = clampText(b.draftId, 80);
 
   return {
     ok: true,
@@ -69,6 +75,10 @@ export function cleanPublicBugReport(body) {
       pageUrl:       /^https?:\/\//i.test(pageUrl) ? pageUrl : null,
       browserInfo:   clampText(b.userAgent, LIMITS.userAgent) || null,
       viewport:      clampText(b.viewport, LIMITS.viewport) || null,
+      // Where in the wizard (Mike 10-17: the report links to the budget).
+      draftId:       DRAFT_ID_RE.test(draftId) ? draftId : null,
+      step:          clampText(b.step, LIMITS.step) || null,
+      projectName:   clampText(b.projectName, LIMITS.projectName) || null,
     },
   };
 }

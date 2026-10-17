@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * check-sensitivity-coverage — the ontology is a claim about the real schema.
+ * check-sensitivity-coverage, the ontology is a claim about the real schema.
  *
  * The registry in src/lib/ontology/ is hand-written; prisma/schema.prisma is
  * pushed separately. Nothing structurally prevents them from drifting apart, and
@@ -22,7 +22,7 @@
  * Read via `Prisma.dmmf.datamodel`, not by parsing schema.prisma. The DMMF is
  * generated from the schema and is always in sync with the client that the app
  * actually runs; a regex over the .prisma file is a second parser that can be
- * wrong. (It was — two attempts at regexing this file returned zero models
+ * wrong. (It was, two attempts at regexing this file returned zero models
  * before switching to the DMMF.)
  *
  *   node scripts/check-sensitivity-coverage.mjs
@@ -94,16 +94,16 @@ for (const key of objectKeys) {
 //
 // Patterns, not a list, because the point is to catch the column added next
 // month that nobody told this file about. Explicit regexes rather than one broad
-// one — a single loose pattern produced three false positives on this schema
+// one, a single loose pattern produced three false positives on this schema
 // (`mustChangePassword`, `buildingFootprintSf`, `isAlternate`).
 // ─────────────────────────────────────────────────────────────────────────────
 const MONEY_PATTERNS = [
-  { re: /(^|[a-z])DN([A-Z]|$)/,        why: 'dealer net — ILC buy price' },
-  { re: /^dn[A-Z]/,                    why: 'dealer net — ILC buy price' },
+  { re: /(^|[a-z])DN([A-Z]|$)/,        why: 'dealer net, ILC buy price' },
+  { re: /^dn[A-Z]/,                    why: 'dealer net, ILC buy price' },
   { re: /margin/i,                     why: 'margin reverses every CN into a DN' },
-  { re: /(^|[a-z])[Aa]dder(s)?([A-Z]|$)/, why: 'pricing adder — ILC internal' },
+  { re: /(^|[a-z])[Aa]dder(s)?([A-Z]|$)/, why: 'pricing adder, ILC internal' },
   { re: /^cost$|_cost$|[a-z]Cost$/,    why: 'buy cost' },
-  { re: /[Ss]napshot$/,                why: 'frozen rate blob — typically contains margin' },
+  { re: /[Ss]napshot$/,                why: 'frozen rate blob, typically contains margin' },
   { re: /internalNotes/,               why: 'ILC-internal annotation' },
   { re: /rfqStatus|salesRep/,          why: 'ILC procurement state' },
 ];
@@ -113,7 +113,7 @@ const MONEY_PATTERNS = [
  * is a decision someone made on purpose; an unreviewed match is an error.
  */
 const ACKNOWLEDGED = new Map([
-  ['ProjectData.salesTaxPct',    'a tax rate the client is quoted — not ILC pricing'],
+  ['ProjectData.salesTaxPct',    'a tax rate the client is quoted, not ILC pricing'],
   ['ProjectData.freightPct',     'quoted to the client on the budget'],
   ['ProjectData.warehousingPct', 'quoted to the client on the budget'],
 ]);
@@ -134,7 +134,7 @@ for (const model of models) {
     if (ACKNOWLEDGED.has(path)) continue;
 
     if (!isRegistered) {
-      unregisteredHits.push(`${path} — ${hit.why}`);
+      unregisteredHits.push(`${path}: ${hit.why}`);
       continue;
     }
 
@@ -163,7 +163,7 @@ if (unregisteredHits.length) {
 for (const w of warnings) console.warn(`   ⚠ ${w}`);
 
 if (errors.length) {
-  console.error('\n❌ BUILD BLOCKED — ontology / schema drift:\n');
+  console.error('\n❌ BUILD BLOCKED: ontology / schema drift:\n');
   for (const e of errors) console.error(`   ${e}\n`);
   process.exit(1);
 }

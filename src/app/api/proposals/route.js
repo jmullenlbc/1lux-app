@@ -19,7 +19,7 @@ async function snapshotRates() {
   return Object.keys(snap).length ? snap : { SR_DESIGNER: 180, DESIGNER: 115, SALES: 160, OUTSOURCE: 115 };
 }
 
-// GET /api/proposals — list with optional filters
+// GET /api/proposals, list with optional filters
 export async function GET(req) {
   const { user, error } = await requireAuth(req);
   if (error) return error;
@@ -45,7 +45,7 @@ export async function GET(req) {
   return NextResponse.json({ proposals });
 }
 
-// POST /api/proposals — create proposal + PROSPECT project (the project IS the
+// POST /api/proposals, create proposal + PROSPECT project (the project IS the
 // pipeline row on both boards; there is no separate Deal record any more)
 export async function POST(req) {
   const { user, error } = await requireAuth(req);
@@ -82,7 +82,7 @@ export async function POST(req) {
       projectRecord = await tx.project.findUnique({ where: { id: existingProjectId } });
       if (!projectRecord) throw new Error('Project not found');
     } else {
-      // Create PROSPECT project — it IS the pipeline entity. It appears in the
+      // Create PROSPECT project, it IS the pipeline entity. It appears in the
       // Procurement + Design boards by serviceType; stages default to Qualified /
       // Design Qualified. No separate Deal records (merged into the project).
       projectRecord = await tx.project.create({
@@ -107,7 +107,7 @@ export async function POST(req) {
         templateId:    templateId || null,
         type,
         status:        'DRAFT',
-        title:         title || `${usedName} — ${type.replace(/_/g, ' ')}`,
+        title:         title || `${usedName}: ${type.replace(/_/g, ' ')}`,
         clientName:    clientName || null,
         location:      location  || null,
         docBody:       template?.docBody || '',

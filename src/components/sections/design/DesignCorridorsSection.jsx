@@ -9,7 +9,7 @@ import { priceOverride, calculateBudget } from '@/lib/calculations';
 import { breezewayStairPackage, BREEZEWAY_STYLES } from '@/lib/stairLandings';
 import StairTypeQuestions from '@/components/sections/StairTypeQuestions';
 
-// Static fallbacks — live values come from the master pricing prop (see P below).
+// Static fallbacks, live values come from the master pricing prop (see P below).
 const DISK_RATES     = { 6: 0.40, 7: 0.35, 8: 0.30, 9: 0.28, 10: 0.25, 11: 0.23, 12: 0.23 };
 const RECESSED_RATES = { 6: 3.00, 7: 2.625, 8: 2.25, 9: 2.10, 10: 1.875, 11: 1.725, 12: 1.725 };
 
@@ -47,7 +47,7 @@ export default function DesignCorridorsSection({
   const [saving, setSaving] = useState(false);
   useLiveAnswers(onLiveAnswers, "corridors", ans); // Mike 10-15: sidebar moves before Next
   // What each answer costs (+ estimated labor), recomputed live as answers
-  // change — local answers only save on Next (Mike 2026-09-13).
+  // change, local answers only save on Next (Mike 2026-09-13).
   const qc = useMemo(
     () => calculateBudget(projectData, { ...(allSections || {}), corridors: { ...(allSections?.corridors || {}), ...ans } }, pricing || null).questionCosts || {},
     [projectData, allSections, ans, pricing],
@@ -68,7 +68,7 @@ export default function DesignCorridorsSection({
   const fixtureRate = ans.fixtureType === 'recessed' ? recessedRate : diskRate;
   const corridorProduct = corridorSf * fixtureRate;
 
-  // Stairwell product — breezeway stairs price each landing at the small, long
+  // Stairwell product, breezeway stairs price each landing at the small, long
   // or average breezeway multiple (same helper the engine uses).
   const STAIR_EACH  = P.corridors?.stairwellPerLanding?.product ?? 200;
   const STAIR_ELEV  = P.designCorridors?.stairwellElevatedAdder ?? 50;
@@ -163,8 +163,8 @@ export default function DesignCorridorsSection({
         <p className="font-semibold mb-1">Fire-Rating Housing</p>
         <p>
           Recessed fixtures in fire-rated corridor ceilings require 1-hour rated housings
-          (IC-rated, air-tight). Surface-mount disks avoid this requirement entirely —
-          factor into fixture type selection below.
+          (IC-rated, air-tight). Surface-mount disks avoid this requirement entirely.
+          Factor into fixture type selection below.
         </p>
       </div>
 
@@ -275,7 +275,7 @@ export default function DesignCorridorsSection({
         }}
       />
 
-      {/* Recessed accents — manual quantity entered right here */}
+      {/* Recessed accents, manual quantity entered right here */}
       <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
         <p className="text-xs font-semibold text-amber-900 mb-1">Recessed Accent Downlights</p>
         <p className="text-xs text-amber-800 mb-3">

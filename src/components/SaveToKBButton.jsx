@@ -65,7 +65,7 @@ export default function SaveToKBButton({ title, content, severity = 'FLAG', sugg
   if (phase === 'error') {
     return (
       <span className="text-[10px] text-red-500 flex items-center gap-1">
-        Save failed —
+        Save failed,
         <button onClick={() => setPhase('idle')} className="underline hover:no-underline">retry</button>
       </span>
     );
@@ -79,7 +79,7 @@ export default function SaveToKBButton({ title, content, severity = 'FLAG', sugg
           onChange={e => setSelectedCat(e.target.value)}
           className="text-[10px] border border-slate-200 rounded-md px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-blue-400 max-w-[160px]"
         >
-          <option value="">— category —</option>
+          <option value="">Category</option>
           {categories.map(c => (
             <option key={c.key} value={c.key}>{c.label}</option>
           ))}

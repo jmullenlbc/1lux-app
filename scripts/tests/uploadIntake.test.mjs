@@ -31,7 +31,7 @@ const form = (entries) => {
   };
 };
 
-// ── The multipart path — what every route did before the change ─────────────
+// ── The multipart path, what every route did before the change ─────────────
 
 test('a file in the request body comes back with its bytes, name and type', async () => {
   const got = await readUploadedFile(form([['file', fileLike('CD Schedule.pdf', 500)]]));
@@ -69,7 +69,7 @@ test('a missing type falls back rather than producing undefined', async () => {
 
 test('cleanup on the multipart path is a harmless no-op', async () => {
   const got = await readUploadedFile(form([['file', fileLike('a.pdf', 10)]]));
-  await got.cleanup(); // must not throw — there is nothing staged to delete
+  await got.cleanup(); // must not throw, there is nothing staged to delete
 });
 
 // ── The direct-to-S3 path ───────────────────────────────────────────────────
@@ -97,7 +97,7 @@ test('several files in the body all come back, in order', async () => {
   assert.deepEqual(got.files.map(f => f.buffer.length), [10, 20, 30]);
 });
 
-test('one oversized file fails the whole set — a partial drawing set is worse than none', async () => {
+test('one oversized file fails the whole set: a partial drawing set is worse than none', async () => {
   const got = await readUploadedFiles(form([
     ['files', fileLike('A1.pdf', 10)],
     ['files', fileLike('A2.pdf', 9999)],

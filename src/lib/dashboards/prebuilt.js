@@ -1,9 +1,9 @@
-// Prebuilt dashboard cards — the ones that arrive on their own.
+// Prebuilt dashboard cards, the ones that arrive on their own.
 //
 // A template with a `dataSpec.kind` (Things Needing a Look, the pricing-
 // calibration set) is added to every dashboard at load time, so a new card
 // reaches everybody without anyone rebuilding their dashboard. Mike, 2026-09-11:
-// "Make it stick" — taking one off has to last, which means the load has to know
+// "Make it stick", taking one off has to last, which means the load has to know
 // what was taken off. That list lives in DashboardHiddenWidget, keyed by
 // prebuiltKey() below.
 //
@@ -46,7 +46,7 @@ export function missingPrebuilt(templates, widgets, hiddenKeys = []) {
 
 // Cards that were taken off this dashboard and could be put back, with their
 // template titles. A key with no template any more (a retired card) is left
-// out — there is nothing to put back.
+// out, there is nothing to put back.
 export function hiddenCards(templates, hiddenKeys = []) {
   const byKey = new Map();
   for (const t of templates || []) {

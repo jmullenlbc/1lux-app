@@ -369,9 +369,36 @@ export default function QcBoardClient({ reports: initial, users, currentUser, fo
               {active.pageUrl && (
                 <div className="flex justify-between gap-3">
                   <span className="text-slate-500 shrink-0">Page</span>
-                  <span className="font-mono text-[11px] text-blue-600 truncate text-right">
+                  {/* The page the report came from, one click away (Mike 10-17). */}
+                  <a href={active.pageUrl} target="_blank" rel="noopener noreferrer"
+                    title={active.pageUrl}
+                    className="font-mono text-[11px] text-blue-600 hover:underline truncate text-right">
                     {String(active.pageUrl).replace(/^https?:\/\//, '')}
-                  </span>
+                  </a>
+                </div>
+              )}
+              {active.projectId && (
+                <div className="flex justify-between gap-3">
+                  <span className="text-slate-500 shrink-0">Project</span>
+                  <a href={`/project/${active.projectId}`} target="_blank" rel="noopener noreferrer"
+                    className="text-blue-600 hover:underline truncate text-right">
+                    {active.projectName || 'Open project'}
+                  </a>
+                </div>
+              )}
+              {active.pageState?.budgetLink && (
+                <div className="flex justify-between gap-3">
+                  <span className="text-slate-500 shrink-0">Budget</span>
+                  <a href={active.pageState.budgetLink} target="_blank" rel="noopener noreferrer"
+                    className="text-blue-600 hover:underline truncate text-right">
+                    {active.pageState.budgetName || 'Open the budget'}{active.pageState.step ? `, ${active.pageState.step}` : ''}
+                  </a>
+                </div>
+              )}
+              {!active.pageState?.budgetLink && active.pageState?.step && (
+                <div className="flex justify-between gap-3">
+                  <span className="text-slate-500 shrink-0">Step</span>
+                  <span className="truncate text-right">{active.pageState.step}</span>
                 </div>
               )}
               {active.browserInfo && (

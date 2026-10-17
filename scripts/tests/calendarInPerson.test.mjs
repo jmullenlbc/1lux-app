@@ -4,7 +4,7 @@
  * Mike, 2026-09-07: "when we sync with Microsoft the system should know it's in
  * person through a title or location."
  *
- * These run against pure functions — no database, no network, no Microsoft. They
+ * These run against pure functions, no database, no network, no Microsoft. They
  * are the layer that has to work when there is no API key and no rules set up.
  */
 import { test } from 'node:test';
@@ -186,7 +186,7 @@ test('a nothing title with a real address is still read as in person', () => {
   const v = classifyByTitleAndLocation({ title: 'Hold', location: '1717 McKinney Ave, Dallas' });
   assert.equal(v.isInPerson,   true);
   assert.equal(v.activityType, 'OTHER');
-  // Weak on purpose — the AI layer gets a chance to do better than this.
+  // Weak on purpose, the AI layer gets a chance to do better than this.
   assert.ok(v.confidence < 85, `expected a low-confidence read, got ${v.confidence}`);
 });
 
@@ -323,7 +323,7 @@ test('a Teams invite about a trip is a call, not a day on the road', () => {
 
 test('a trip is counted in days, and overlapping trips are only counted once', () => {
   const d = s => new Date(s);
-  // An all-day block's end date is the morning after — 3 nights is 3 days.
+  // An all-day block's end date is the morning after, 3 nights is 3 days.
   assert.equal(travelDays(d('2026-05-04T00:00:00Z'), d('2026-05-07T00:00:00Z'), { isAllDay: true }), 3);
   // A same-day flight is one day, not zero.
   assert.equal(travelDays(d('2026-05-04T09:00:00Z'), d('2026-05-04T11:00:00Z')), 1);
@@ -449,7 +449,7 @@ test('a booking an app wrote is not a second meeting', () => {
 
 test('a meal Mike titled himself is still a meal', () => {
   // The narrow patterns matter: these are real meetings, not app confirmations,
-  // and the overlap rule — not the stop-list — is what stops a double count.
+  // and the overlap rule, not the stop-list, is what stops a double count.
   for (const title of ['Dinner reservation at Guard and Grace', 'Lunch — Greystar',
                        'Dinner with Cliff']) {
     assert.equal(isAutoBooking({ title }).autoBooking, false, `${title} should not read as a booking`);
@@ -474,9 +474,9 @@ test('a hotel PROJECT is not a hotel stay', () => {
   assert.equal(activityTypeFromTitle('Site visit - Virgin Hotel'), 'SITE_VISIT');
 });
 
-test('one meeting per time period — the mixer listed three times counts once', () => {
-  // The real listings sit minutes apart — the tee times in his calendar are
-  // 3:10p and 3:20p — which is why the window is half an hour and not longer.
+test('one meeting per time period: the mixer listed three times counts once', () => {
+  // The real listings sit minutes apart, the tee times in his calendar are
+  // 3:10p and 3:20p, which is why the window is half an hour and not longer.
   const at = (h, m, mins) => ({ start: new Date(Date.UTC(2025, 4, 8, h, m)),
                                 end: new Date(Date.UTC(2025, 4, 8, h, m + mins)) });
   const events = [

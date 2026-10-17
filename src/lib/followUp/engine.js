@@ -1,5 +1,5 @@
 /**
- * Follow-up watch — the database side (Mike 9-25).
+ * Follow-up watch, the database side (Mike 9-25).
  *
  *  - matchEmailToWaits: an email just came in. Does it close any step we were
  *    waiting on from that person (reply, drawings, invite, intro)? If so the
@@ -7,7 +7,7 @@
  *  - matchEventToWaits: same, for a calendar invite the person organized.
  *  - sendDueWaitReminders: the daily sweep. Steps still open whose rung is due
  *    get ONE "still waiting on…" draft per person per note (Bot Queue, a human
- *    sends it — nothing is sent automatically) and a bell for the note's owner,
+ *    sends it, nothing is sent automatically) and a bell for the note's owner,
  *    then move to the next rung, or stop after the last one.
  *
  * Takes `prisma` as an argument and uses relative imports only, so the tests
@@ -53,7 +53,7 @@ async function openWaits(prisma, contactIds) {
     where:   { kind: 'ACTION', status: 'CONFIRMED', fulfilledAt: null, contactId: { in: contactIds } },
     include: { note: { select: { id: true, title: true, meetingDate: true, isPublished: true, archivedAt: true, createdById: true, calendarRef: true, activityType: true, owners: { select: { userId: true } } } } },
   });
-  // Includes are not covered by the archive filter — check by hand.
+  // Includes are not covered by the archive filter, check by hand.
   const live = rows.filter(a => a.note?.isPublished && !a.note?.archivedAt);
   const types = await typesByKey(prisma, live.map(a => a.type));
   return live.map(a => ({ a, type: types.get(a.type) })).filter(x => isWaitExecutor(x.type?.executor));
@@ -71,7 +71,7 @@ async function withdrawSettledNudges(prisma, draftIds, now) {
     if (open > 0) continue;
     await prisma.botDraft.updateMany({
       where: { id, status: 'PENDING_REVIEW' },
-      data:  { status: 'CANCELLED', cancelledAt: now, classificationReason: 'Withdrawn — they did it before this went out' },
+      data:  { status: 'CANCELLED', cancelledAt: now, classificationReason: 'Withdrawn: they did it before this went out' },
     });
   }
 }
@@ -151,7 +151,7 @@ export async function matchEventToWaits(prisma, event, { notify = defaultNotify 
 }
 
 /**
- * Date of the rung this step is on — the first one for a fresh step, the next
+ * Date of the rung this step is on, the first one for a fresh step, the next
  * unused one for a step picked up again after a pause. Null when the ladder is
  * used up or empty.
  */
@@ -178,7 +178,7 @@ export async function sendDueWaitReminders(prisma, {
   const due = rows.filter(a => isWaitExecutor(types.get(a.type)?.executor));
   log.due = due.length;
 
-  // A draft note or one with no owner: leave it — tomorrow may be different.
+  // A draft note or one with no owner: leave it, tomorrow may be different.
   const ready = due.filter(a => a.note?.isPublished && !a.note?.archivedAt && ownerIdsOf(a.note).length);
   log.skipped = due.length - ready.length;
 

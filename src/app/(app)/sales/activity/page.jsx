@@ -72,7 +72,7 @@ function rangeStart(dateRange) {
     d.setMonth(0, 1);
     d.setHours(0, 0, 0, 0);
   } else if (dateRange === 'lastyear') {
-    // Jan 1 of previous year — end filter handled separately
+    // Jan 1 of previous year, end filter handled separately
     d.setFullYear(d.getFullYear() - 1, 0, 1);
     d.setHours(0, 0, 0, 0);
   }
@@ -108,7 +108,7 @@ function computeStats(notes, dateRange, selectedUserId = 'all', expenses = []) {
   }
 
   const filtered = notes.filter(n => {
-    // Only finished notes count — a draft (incl. every calendar draft) is not activity yet.
+    // Only finished notes count, a draft (incl. every calendar draft) is not activity yet.
     if (!n.isPublished) return false;
     const d = new Date(n.meetingDate || n.createdAt);
     const inRange = d >= cutoff && (!ceiling || d <= ceiling);

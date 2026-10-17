@@ -1,11 +1,11 @@
 /**
- * Per-person MCP keys — the parts that can be tested without a database.
+ * Per-person MCP keys, the parts that can be tested without a database.
  *
  * `resolveApiKey` takes the prisma client as an argument for exactly this
  * reason: the interesting failures (revoked key, switched-off owner, unknown
  * key) are all decisions made on a row, and a fake row proves the decision
- * better than a seeded database does. The live end of it — that a key really
- * does authenticate over HTTP and really does resolve to its owner's audience —
+ * better than a seeded database does. The live end of it, that a key really
+ * does authenticate over HTTP and really does resolve to its owner's audience
  * is proved in scripts/tests/mcp.test.mjs against a running server.
  *
  * Run: node --test scripts/tests/mcpApiKeys.test.mjs
@@ -96,7 +96,7 @@ test('a live key resolves to its owner', async () => {
   assert.equal(resolved.user.role, 'USER');
 });
 
-test('a key carries its owner role verbatim — including CLIENT_VIEWER', async () => {
+test('a key carries its owner role verbatim, including CLIENT_VIEWER', async () => {
   // The whole point of per-user keys: a key never grants more than its owner
   // has. If this ever returned an elevated role, handing a key to a client
   // would hand them the ILC view of every job.

@@ -20,7 +20,7 @@
  *
  * Two of those steps look similar and are not. `findForbiddenFields` + `redactObject`
  * decide WHICH FIELDS; `rowScope` decides WHICH ROWS. Field redaction alone let a
- * CLIENT_VIEWER enumerate every project and client in the business — perfectly
+ * CLIENT_VIEWER enumerate every project and client in the business, perfectly
  * redacted, and completely listed. See src/lib/mcp/scope.js.
  */
 import { prisma } from '@/lib/db';
@@ -44,8 +44,8 @@ import { CATALOG } from './catalog.js';
  *
  * `status` separates the two things a caller can get wrong, which are not the
  * same thing and should not read the same in an audit log:
- *   400 — the request is malformed (unknown tool, bad JSON, missing id).
- *   403 — the request is well-formed and refused (this field, this object, this
+ *   400, the request is malformed (unknown tool, bad JSON, missing id).
+ *   403, the request is well-formed and refused (this field, this object, this
  *         audience). A 403 is the boundary doing its job, and it is what
  *         scripts/tests/mcp.test.mjs asserts on.
  */
@@ -78,7 +78,7 @@ function requireAudience(toolName, caller) {
 }
 
 /**
- * The row filter for this caller on this object — or a refusal if there is none.
+ * The row filter for this caller on this object, or a refusal if there is none.
  *
  * The refusal reads identically to the `canReadObject` one on purpose. "Client is
  * registered but has no scope path" and "Client is not readable by you" are
@@ -94,7 +94,7 @@ function scopeOrDeny(objectKey, caller) {
 /**
  * `parseObjectArg` throws a plain Error, because guards.js cannot import McpError
  * from this file without a cycle. An unclassified error is treated as OURS by
- * every layer above — logged as `status: 'error'`, answered with 500, and
+ * every layer above, logged as `status: 'error'`, answered with 500, and
  * counted against the server in any reliability check. But `where: "{broken"` is
  * the caller's typo, not an outage. Reclassify at the boundary.
  */
@@ -107,7 +107,7 @@ function parseClause(value, label) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Tier 1 — introspection
+// Tier 1, introspection
 // ─────────────────────────────────────────────────────────────────────────────
 
 const list_models = {
@@ -137,7 +137,7 @@ const describe_model = {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Tier 2 — generic reads
+// Tier 2, generic reads
 // ─────────────────────────────────────────────────────────────────────────────
 
 const query_records = {
@@ -206,7 +206,7 @@ const get_record = {
 
     // findFirst, not findUnique: findUnique takes only a unique key, so there is
     // nowhere to AND the scope in. An out-of-scope id therefore reads as "no such
-    // record" rather than "not yours", which is also the better answer to give —
+    // record" rather than "not yours", which is also the better answer to give
     // "not yours" confirms the id exists.
     const scopedWhere = applyScope({ id: args.id }, scopeOrDeny(obj.key, caller));
 
@@ -270,7 +270,7 @@ const search = {
       },
       // AND, so the OR cannot escape the scope. Spreading these together would
       // have produced `{ OR: [...], createdById }`, which Prisma reads as
-      // (name matches OR number matches) AND mine — correct by luck, not design.
+      // (name matches OR number matches) AND mine, correct by luck, not design.
       // A caller-supplied top-level OR in a future revision would not be.
       scopeOrDeny('Project', caller),
     );
@@ -292,11 +292,11 @@ const search = {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Tier 3 — curated shapes
+// Tier 3, curated shapes
 //
 // These exist because the generic tools make an agent do four round trips to
 // answer one obvious question. They are convenience over the same primitives,
-// with the same redaction — not a privileged path.
+// with the same redaction, not a privileged path.
 // ─────────────────────────────────────────────────────────────────────────────
 
 const get_project_360 = {
@@ -308,8 +308,8 @@ const get_project_360 = {
       : args.name ? { name: { contains: String(args.name) } }
       : fail('Provide one of projectId, projectNumber or name.');
 
-    // The widest read in the file — project, client, every change order, every
-    // line item — so it is the one that most needs the row filter. A name like
+    // The widest read in the file, project, client, every change order, every
+    // line item, so it is the one that most needs the row filter. A name like
     // "the" would otherwise hand a client the first matching project in the
     // database, whoever it belongs to.
     const scopedWhere = applyScope(where, scopeOrDeny('Project', caller));
@@ -320,7 +320,7 @@ const get_project_360 = {
         include: {
           client: true,
           projectData: true,
-          // Sporadic site features (dog park, courts, …) — live rows only, so a
+          // Sporadic site features (dog park, courts, …), live rows only, so a
           // bot sees the same list the Project Data grid shows.
           siteFeatures: { where: { archivedAt: null }, orderBy: { createdAt: 'asc' } },
           changeOrders: { include: { optionGroups: { include: { lineItems: true } } } },
@@ -401,7 +401,7 @@ const get_calibration = {
 
     if (view === 'drift' || view === 'both') {
       // The same rows the dashboard table shows, minus the per-project
-      // breakdown — a bot asking "which rates are drifting" wants the lines,
+      // breakdown, a bot asking "which rates are drifting" wants the lines,
       // not a list of every job behind each one.
       out.driftReviewPct = DRIFT_REVIEW_PCT;
       out.drift = rateDriftReport(samples)
@@ -469,7 +469,7 @@ export { McpError };
 /**
  * Rebuild a caller-supplied `include` from the object's declared links only.
  *
- * Not a filter over what they sent — a reconstruction from the allowlist. That
+ * Not a filter over what they sent, a reconstruction from the allowlist. That
  * difference matters: `include: { user: { select: { passwordHash: true } } }`
  * cannot survive a rebuild that only knows how to emit link names, whereas a
  * filter has to anticipate every shape Prisma accepts. Nested selects are

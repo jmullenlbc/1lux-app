@@ -7,10 +7,10 @@
  * asked what, and a read API with no log is a read API nobody can reason about
  * after the fact.
  *
- * The complication is that the natural home for this — an `McpQueryLog` table —
+ * The complication is that the natural home for this, an `McpQueryLog` table
  * is a schema change, and schema changes go to production only as a numbered
  * migration: `amplify.yml` runs `prisma migrate deploy`. (Never `db push`
- * against production — it would drop the ContactLegacy backup table.)
+ * against production, it would drop the ContactLegacy backup table.)
  *
  * So the sink is swappable, resolved once per process, in this order:
  *
@@ -80,13 +80,13 @@ export function auditReady() {
  * Record one tool call.
  *
  * Never throws. A failed audit write must not take down the response that was
- * already computed — but it is logged to stderr so a silently-degrading sink is
+ * already computed, but it is logged to stderr so a silently-degrading sink is
  * visible in CloudWatch rather than invisible.
  *
  * `params` is stored as a JSON string and is deliberately NOT redacted: it is
  * the question, not the answer, and knowing that someone asked to filter by
  * `dnPerUnit` is exactly what an audit log is for. Row counts are recorded
- * instead of rows — the log is a record of access, not a second copy of the data.
+ * instead of rows, the log is a record of access, not a second copy of the data.
  */
 export async function logQuery({
   caller,
@@ -123,7 +123,7 @@ export async function logQuery({
       await fs.appendFile(AUDIT_FILE, JSON.stringify(entry) + '\n', 'utf8');
     }
   } catch (err) {
-    console.error('[mcp/audit] failed to record query — the read still happened:', err?.message || err);
+    console.error('[mcp/audit] failed to record query, the read still happened:', err?.message || err);
   }
 }
 

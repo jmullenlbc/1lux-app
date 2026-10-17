@@ -155,8 +155,8 @@ export async function GET(request, { params }) {
     </div>` : '';
 
   const totalsRows = [
-    rawLighting > 0 ? `<tr><td style="text-align:right;color:${GREY};padding:2px 8px">Subtotal — Lighting</td><td style="text-align:right;font-family:'Courier New',monospace;padding:2px 8px;min-width:100px">${esc(fmtMoney(rawLighting))}</td></tr>` : '',
-    rawControls > 0 ? `<tr><td style="text-align:right;color:${GREY};padding:2px 8px">Subtotal — Controls</td><td style="text-align:right;font-family:'Courier New',monospace;padding:2px 8px">${esc(fmtMoney(rawControls))}</td></tr>` : '',
+    rawLighting > 0 ? `<tr><td style="text-align:right;color:${GREY};padding:2px 8px">Subtotal: Lighting</td><td style="text-align:right;font-family:'Courier New',monospace;padding:2px 8px;min-width:100px">${esc(fmtMoney(rawLighting))}</td></tr>` : '',
+    rawControls > 0 ? `<tr><td style="text-align:right;color:${GREY};padding:2px 8px">Subtotal: Controls</td><td style="text-align:right;font-family:'Courier New',monospace;padding:2px 8px">${esc(fmtMoney(rawControls))}</td></tr>` : '',
     freightAmt > 0  ? `<tr><td style="text-align:right;color:${GREY};padding:2px 8px">Freight (${(freightPctVal * 100).toFixed(0)}%)</td><td style="text-align:right;font-family:'Courier New',monospace;padding:2px 8px">${esc(fmtMoney(freightAmt))}</td></tr>` : '',
     warehousingAmt > 0 ? `<tr><td style="text-align:right;color:${GREY};padding:2px 8px">Warehousing (${(warehousingPctVal * 100).toFixed(0)}%)</td><td style="text-align:right;font-family:'Courier New',monospace;padding:2px 8px">${esc(fmtMoney(warehousingAmt))}</td></tr>` : '',
     salesTaxAmt > 0 ? `<tr><td style="text-align:right;color:${GREY};padding:2px 8px">Sales Tax (${(salesTaxPctVal * 100).toFixed(2)}%)</td><td style="text-align:right;font-family:'Courier New',monospace;padding:2px 8px">${esc(fmtMoney(salesTaxAmt))}</td></tr>` : '',
@@ -280,7 +280,7 @@ ${rawTotal > 0 ? `
 
 <!-- Footer -->
 <div style="margin-top:14px;padding-top:5px;border-top:1px solid #d0d0d0;display:flex;justify-content:space-between;font-size:6.5pt;color:#999">
-  <span>Confidential — ILC Studios LLC &nbsp;|&nbsp; 2301 Blake Street, Ste 100, Denver, CO 80205 &nbsp;|&nbsp; 720-248-8208</span>
+  <span>Confidential: ILC Studios LLC &nbsp;|&nbsp; 2301 Blake Street, Ste 100, Denver, CO 80205 &nbsp;|&nbsp; 720-248-8208</span>
   <span>Printed: ${esc(printDate)}</span>
 </div>
 
@@ -333,7 +333,7 @@ ${rawTotal > 0 ? `
   </div>
 
   <div style="padding-top:5px;border-top:1px solid #d0d0d0;display:flex;justify-content:space-between;font-size:6.5pt;color:#999">
-    <span>Confidential — ILC Studios LLC &nbsp;|&nbsp; 2301 Blake Street, Ste 100, Denver, CO 80205 &nbsp;|&nbsp; 720-248-8208</span>
+    <span>Confidential: ILC Studios LLC &nbsp;|&nbsp; 2301 Blake Street, Ste 100, Denver, CO 80205 &nbsp;|&nbsp; 720-248-8208</span>
     <span>Printed: ${esc(printDate)}</span>
   </div>
 

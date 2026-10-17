@@ -1,10 +1,10 @@
 /**
- * Project — the root object almost everything else hangs off.
+ * Project, the root object almost everything else hangs off.
  *
  * Sensitivity posture: a client sees WHAT and WHERE and WHEN. Everything about
  * how ILC prices, forecasts or staffs the job is `ilc_only`. Probability
  * fields, contract values and the pricing snapshot are commercial position, not
- * project facts — a developer who can read our win probability is reading our
+ * project facts, a developer who can read our win probability is reading our
  * negotiating hand.
  *
  * Anything not listed here is `ilc_only` by default and is simply absent from a
@@ -25,7 +25,7 @@ export const Project = {
     name:          { type: 'string',   sensitivity: 'client_ok' },
     buildingType:  { type: 'string',   sensitivity: 'client_ok' },
     projectType:   { type: 'string',   sensitivity: 'client_ok' },
-    projectSubtype:{ type: 'string',   sensitivity: 'client_ok', desc: 'BUILDING_TYPES key under Project Type — garden | wrap | podium …' },
+    projectSubtype:{ type: 'string',   sensitivity: 'client_ok', desc: 'BUILDING_TYPES key under Project Type: garden | wrap | podium …' },
     budgetType:    { type: 'string',   sensitivity: 'client_ok', desc: 'conceptual | design | peerReview' },
     serviceType:   { type: 'string',   sensitivity: 'client_ok', desc: 'fullDesign | designAssist | peerReview | bid' },
     phase:         { type: 'string',   sensitivity: 'client_ok' },
@@ -54,18 +54,18 @@ export const Project = {
     probabilityToWin:         { type: 'int',     sensitivity: 'ilc_only' },
     probabilityToMoveForward: { type: 'int',     sensitivity: 'ilc_only' },
     expectedOrderDate:        { type: 'datetime',sensitivity: 'ilc_only' },
-    expectedContractExecutionDate: { type: 'datetime', sensitivity: 'ilc_only', desc: 'the day the contract is signed — sits above Expected Order Date' },
+    expectedContractExecutionDate: { type: 'datetime', sensitivity: 'ilc_only', desc: 'the day the contract is signed, sits above Expected Order Date' },
     proposalSentDate:         { type: 'datetime',sensitivity: 'ilc_only' },
     budgetSentDate:           { type: 'datetime',sensitivity: 'ilc_only' },
     procurementStage:         { type: 'string',  sensitivity: 'ilc_only' },
     designStage:              { type: 'string',  sensitivity: 'ilc_only' },
     procurementStatus:        { type: 'string',  sensitivity: 'ilc_only' },
     designStatus:             { type: 'string',  sensitivity: 'ilc_only' },
-    // Why we lost. Never widen these — the reason we lost a job to a competitor
+    // Why we lost. Never widen these, the reason we lost a job to a competitor
     // is the last thing that should reach the client we lost it to.
     procurementStatusReason:  { type: 'string',  sensitivity: 'ilc_only', desc: 'required note when set to LOST or ABANDONED' },
     designStatusReason:       { type: 'string',  sensitivity: 'ilc_only', desc: 'required note when set to LOST or ABANDONED' },
-    // Frozen rate blob — contains marginPct. Never widen this.
+    // Frozen rate blob, contains marginPct. Never widen this.
     pricingSnapshot:          { type: 'json',    sensitivity: 'ilc_only', globalDeny: true, desc: 'JSON-as-string rate snapshot; contains margin' },
     // ── ILC internal workflow ──
     salesOwnerId:    { type: 'string',  sensitivity: 'ilc_only' },

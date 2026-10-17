@@ -2,7 +2,7 @@
  * The bridge between what a site plan says and what Project Info stores.
  *
  * ── Why this is its own module ───────────────────────────────────────────────
- * `siteVision.js` reads a drawing and reports it in the drawing's own words —
+ * `siteVision.js` reads a drawing and reports it in the drawing's own words
  * "16.50 Ac", "PROVIDED 680", "CLUBHOUSE 4,200 SF". Project Info stores
  * `lotSf`, `numSurfaceParking`, `interiorAmenitySf`. Those are not the same
  * vocabulary, and the translation between them is a decision (does "amenity SF"
@@ -11,7 +11,7 @@
  *
  * Putting that translation here, pure and alone, buys three things:
  *   1. `autoChecks.js` can reconcile lot area without importing `siteVision.js`,
- *      which statically pulls in @napi-rs/canvas — a native binary that has no
+ *      which statically pulls in @napi-rs/canvas, a native binary that has no
  *      business inside a unit test or inside the checks module.
  *   2. The acre → SF conversion has exactly one home. The vision prompt is told
  *      NOT to convert ("If only acres are given, still fill lotAcres and leave
@@ -21,19 +21,19 @@
  *      written to a project by this extractor, no matter what the model returns.
  *
  * ── What is deliberately NOT proposed ────────────────────────────────────────
- * `numUnits` — the unit matrix owns it. A site plan's "324 D.U." is genuinely
+ * `numUnits`, the unit matrix owns it. A site plan's "324 D.U." is genuinely
  * useful, but as a CHECK against a matrix a human already accepted, not as a
  * second writer to the same field. Two extractors racing for one number is how
  * an accepted value gets silently overwritten by a less careful read. It is
  * reconciled in autoChecks.js and shown to the reviewer; it is never written.
  *
- * `numExteriorDoors`, `buildingFootprintSf` — not on a site data block, and not
+ * `numExteriorDoors`, `buildingFootprintSf`, not on a site data block, and not
  * countable by eye without violating the one rule the vision prompt is built on.
  *
  * Pure: no IO, no model, no clock.
  *
- * @see src/lib/siteVision.js        — the extraction this translates
- * @see src/lib/agent/autoChecks.js  — the arithmetic that grades it
+ * @see src/lib/siteVision.js, the extraction this translates
+ * @see src/lib/agent/autoChecks.js, the arithmetic that grades it
  * @see scripts/tests/siteFields.test.mjs
  */
 import { estimateStairLandings, BREEZEWAY_STYLES } from './stairLandings.js';
@@ -44,7 +44,7 @@ import { SITE_FEATURE_TYPES, SITE_FEATURE_LABELS, LINEAR_SITE_FEATURES, normaliz
  *
  * The whole module turns on this. `Number(null)` is `0` and `Number.isFinite(0)`
  * is `true`, so the obvious guard silently converts "the drawing did not say"
- * into "the drawing said zero" — which is the exact failure this file exists to
+ * into "the drawing said zero", which is the exact failure this file exists to
  * prevent, since a blank Project Info field is visible in the missing-inputs
  * warning and a zero prices at $0 indistinguishably from a real one.
  */
@@ -58,7 +58,7 @@ export function stated(v) {
 export const ACRE_SF = 43560;
 
 /**
- * The engine's building-type keys — the same nine as BUILDING_TYPES in
+ * The engine's building-type keys, the same nine as BUILDING_TYPES in
  * src/lib/utils.js, listed here so this module stays free of UI imports.
  * Anything the drawing reader returns that is not one of these is not a type.
  */
@@ -73,7 +73,7 @@ export const BUILDING_TYPE_KEYS = [
  * The reader is asked for the key itself ("garden", "podium" …), but it is a
  * model reading a title block, and the older reads on file are free text
  * ("3-STORY GARDEN WALK-UP"). Both are accepted; anything that does not
- * resolve is null, never a default — a wrong type re-prices the stair
+ * resolve is null, never a default, a wrong type re-prices the stair
  * package, the wall packs and the controls cap all at once.
  */
 export function buildingTypeKeyFromText(raw) {
@@ -90,7 +90,7 @@ export function buildingTypeKeyFromText(raw) {
   if (t.includes('podium'))                                          return 'podium';
   if (t.includes('wrap'))                                            return 'wrap';
   if (t.includes('gurban') || t.includes('urban garden'))            return 'gurban';
-  // A 4–5 story garden / walk-up IS a gurban — that is the whole distinction.
+  // A 4 to 5 story garden / walk-up IS a gurban, that is the whole distinction.
   if ((t.includes('garden') || t.includes('walk')) && /\b[45]\b|\b[45] ?stor/.test(t)) return 'gurban';
   if (t.includes('garden') || t.includes('walk up') || t.includes('walkup') || t.includes('breezeway')) return 'garden';
   return null;
@@ -112,8 +112,8 @@ const BUILDING_TYPE_LABELS = {
  * Land consumed by ONE surface stall including its share of drive aisle.
  *
  * Standard site-planning figure: a 9x18 stall is 162 SF, and 90-degree parking
- * with a 24' two-way aisle lands around 300–350 SF per stall all-in. 300 is the
- * low end on purpose — this number is only ever used to prove that a stall count
+ * with a 24' two-way aisle lands around 300 to 350 SF per stall all-in. 300 is the
+ * low end on purpose, this number is only ever used to prove that a stall count
  * CANNOT fit on a lot, so the check should fire on "1,200 stalls on a 2-acre
  * site", never on an efficiently laid-out one.
  */
@@ -122,7 +122,7 @@ export const SURFACE_STALL_SF = 300;
 /**
  * Lot area in square feet, from whichever field the drawing filled.
  *
- * `lotSf` wins when both are present — a stated SF figure was read as digits,
+ * `lotSf` wins when both are present, a stated SF figure was read as digits,
  * while acreage on these drawings is usually a hand-lettered decimal, which is
  * the single most misread thing on the page (16.56 / 16.86 against a true
  * 16.50 across three render resolutions).
@@ -157,18 +157,18 @@ export function stallBreakdown(vision) {
  * The Project Info fields this extractor is allowed to propose.
  *
  * `read` pulls the value out of the vision output. Returning null means "the
- * drawing did not say", which is a first-class answer here — the whole vision
+ * drawing did not say", which is a first-class answer here, the whole vision
  * prompt is built around returning null rather than estimating, and a field that
  * arrives null must stay out of the proposal rather than be written as zero. A
  * blank field in Project Info is visible in the missing-inputs warning; a zero
  * is indistinguishable from a real zero and silently prices at $0.
  *
- * @see src/lib/projectInputChecks.js — three of these are on the critical list
+ * @see src/lib/projectInputChecks.js, three of these are on the critical list
  */
 export const SITE_FIELD_DEFS = [
   {
     // The one non-numeric field. It lives on Project (buildingType), not on
-    // ProjectData — the commit route routes it there. Mike 2026-09-05: "can't
+    // ProjectData, the commit route routes it there. Mike 2026-09-05: "can't
     // you analyze the site and look for something in the drawings that says
     // what it is?" The reader is given decision rules (breezeway + 3 stories
     // = garden, podium level = podium, …) and returns one engine key or null.
@@ -182,7 +182,7 @@ export const SITE_FIELD_DEFS = [
       return {
         value: key,
         note: `Read as ${BUILDING_TYPE_LABELS[key]}${raw && raw !== key ? ` (the drawing said "${raw}")` : ''}. ` +
-              'Drives the stair package (breezeway vs enclosed), building wall packs and the controls cap — confirm it.',
+              'Drives the stair package (breezeway vs enclosed), building wall packs and the controls cap. Confirm it.',
       };
     },
   },
@@ -216,7 +216,7 @@ export const SITE_FIELD_DEFS = [
       // The engine prices most interior scopes per square foot, so this one
       // figure scales more dollars than any other field on this list. The
       // prompt asks for the GROSS total when a sheet prints both gross and
-      // net, but the two labels sit a line apart on a crowded area summary --
+      // net, but the two labels sit a line apart on a crowded area summary
       // the reviewer confirms which one actually got read.
       return { ...r, note: 'Read as the stated TOTAL BUILDING GROSS square footage, not net or rentable. Confirm the label on the drawing.' };
     },
@@ -233,7 +233,7 @@ export const SITE_FIELD_DEFS = [
         value: lot.sf,
         // The reviewer sees the arithmetic, not just its result.
         note: lot.from === 'lotAcres'
-          ? `Converted from ${lot.acres} acres x ${ACRE_SF.toLocaleString()} SF. Hand-lettered acreage is the most misread figure on a site plan — confirm it.`
+          ? `Converted from ${lot.acres} acres x ${ACRE_SF.toLocaleString()} SF. Hand-lettered acreage is the most misread figure on a site plan. Confirm it.`
           : null,
       };
     },
@@ -258,7 +258,7 @@ export const SITE_FIELD_DEFS = [
       if (r) return r;
       const c = num(v?.carportsCounted);
       if (!c) return null;
-      return { ...c, note: 'COUNTED off the site plan (carport bays, or canopy areas ÷ 189 SF a stall) — no carport count was written. Confirm the count.' };
+      return { ...c, note: 'COUNTED off the site plan (carport bays, or canopy areas ÷ 189 SF a stall). No carport count was written. Confirm the count.' };
     },
   },
   {
@@ -277,13 +277,13 @@ export const SITE_FIELD_DEFS = [
       // walk-up fallback to size building wallpacks, so a wrong count changes
       // fixture quantities. Site data blocks also often include a standalone
       // clubhouse in their building total, and Project Info's definition
-      // excludes it — hence the reviewer prompt.
-      if (r) return { ...r, note: 'Drives building wallpack counts and the stair-landing multiply. Confirm it counts residential buildings only — a standalone clubhouse should not be included.' };
+      // excludes it, hence the reviewer prompt.
+      if (r) return { ...r, note: 'Drives building wallpack counts and the stair-landing multiply. Confirm it counts residential buildings only. A standalone clubhouse should not be included.' };
       // Nothing written: the building labels counted on the site plan
       // ("BLDG 1" … "BLDG 4"), flagged as a count.
       const c = num(v?.buildingsCounted);
       if (!c) return null;
-      return { ...c, note: 'COUNTED from the building labels on the site plan — no building count was written. Drives wallpacks and the stair-landing multiply; confirm it.' };
+      return { ...c, note: 'COUNTED from the building labels on the site plan. No building count was written. Drives wallpacks and the stair-landing multiply; confirm it.' };
     },
   },
   {
@@ -302,7 +302,7 @@ export const SITE_FIELD_DEFS = [
       // A stair count off the drawings is what ONE building shows (a code
       // summary or a floor plan describes one building), so it is per
       // building and multiplied by the building count (Mike 2026-09-16: "We
-      // counted 48, you counted 17" — buildings × stairs × (2N−1)).
+      // counted 48, you counted 17", buildings × stairs × (2N−1)).
       const est = estimateStairLandings({
         stories:           v?.stories ?? v?.storiesCounted,
         stairsPerBuilding: v?.egressStairwells ?? v?.egressStairwellsCounted,
@@ -317,7 +317,7 @@ export const SITE_FIELD_DEFS = [
       const note = [
         est.how,
         est.flag,
-        !est.estimated && counted ? 'Built on a COUNTED story or stair figure — confirm it before accepting.' : null,
+        !est.estimated && counted ? 'Built on a COUNTED story or stair figure. Confirm it before accepting.' : null,
       ].filter(Boolean).join(' ');
       return { value: est.landings, note };
     },
@@ -329,7 +329,7 @@ export const SITE_FIELD_DEFS = [
     critical: true,
     read: (v) => {
       const r = num(v?.amenitySf);
-      // "AMENITY AREA" on a site plan is usually the outdoor programme — pool
+      // "AMENITY AREA" on a site plan is usually the outdoor programme, pool
       // deck, courtyard, dog run. Usually is not always, so it is labelled as an
       // assumption rather than presented as a reading.
       if (r) return { ...r, note: 'Read as the outdoor amenity area. If this figure is the indoor amenity, clear it here and enter it in Project Info instead.' };
@@ -339,7 +339,7 @@ export const SITE_FIELD_DEFS = [
       // it says how it found its scale and asks to be confirmed.
       const m = num(v?.exteriorAmenitySfMeasured);
       if (!m) return null;
-      return { ...m, note: `Measured off the sheet (scale basis: ${SCALE_BASIS_LABELS[v?.scaleBasis] || 'not stated'}) — pool enclosure plus the hardscape touching the clubhouse. Confirm before accepting.` };
+      return { ...m, note: `Measured off the sheet (scale basis: ${SCALE_BASIS_LABELS[v?.scaleBasis] || 'not stated'}): pool enclosure plus the hardscape touching the clubhouse. Confirm before accepting.` };
     },
   },
   {
@@ -386,13 +386,13 @@ export const SCALE_BASIS_LABELS = {
   scale:     'the printed scale',
   dimension: 'a printed dimension',
   stall:     'a standard 9 ft parking stall',
-  door:      'a 3 ft door — the weakest rung, check it',
+  door:      'a 3 ft door, the weakest rung, check it',
 };
 
 /**
  * The site features (dog park, courtyard, ...) the read found, as proposal
- * rows alongside the numbers. They are not ProjectData columns — the commit
- * route writes each accepted one as its own SiteFeature row — so they carry
+ * rows alongside the numbers. They are not ProjectData columns, the commit
+ * route writes each accepted one as its own SiteFeature row, so they carry
  * a `siteFeature.<type>` key the allowlist recognises on its own.
  *
  * @param {object} vision        output of extractSiteData()
@@ -444,7 +444,7 @@ export function siteFeatureTypeFromKey(key) {
  * route writes.
  *
  * Every row starts unchecked-by-nothing: `value` is the model's proposal and
- * `include` is a suggestion, not a decision. Nothing here writes anything — the
+ * `include` is a suggestion, not a decision. Nothing here writes anything, the
  * human ticking boxes in the panel is the write.
  *
  * @param {object} vision  output of extractSiteData()

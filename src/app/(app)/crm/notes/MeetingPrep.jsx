@@ -1,9 +1,9 @@
 'use client';
 /**
- * Meeting Prep panel on a sales note. Shows the latest brief — 3–5 talking
- * points, each with chips naming the facts it rests on — and the facts
+ * Meeting Prep panel on a sales note. Shows the latest brief, 3 to 5 talking
+ * points, each with chips naming the facts it rests on, and the facts
  * themselves, folded away. "Prep for this meeting" builds a new one.
- * autoRun: build one by itself when none exists yet — an upcoming meeting with
+ * autoRun: build one by itself when none exists yet, an upcoming meeting with
  * something linked, so the Prep tab is never empty the day before (Mike 9-25).
  * Internal only; the route refuses a CLIENT_VIEWER. Budgets and sale totals
  * can appear; DN and buy price never do.
@@ -48,7 +48,7 @@ export default function MeetingPrep({ noteId, autoRun = false }) {
     }
   }, [noteId]);
 
-  // Once the saved brief has loaded and there is none, build one — once per note.
+  // Once the saved brief has loaded and there is none, build one, once per note.
   useEffect(() => {
     if (!autoRun || loading || brief || busy || autoRanRef.current === noteId) return;
     autoRanRef.current = noteId;
@@ -89,7 +89,7 @@ export default function MeetingPrep({ noteId, autoRun = false }) {
 
       {!loading && !brief && !error && (
         <p className="mt-2 text-xs text-slate-500">
-          Pulls what the CRM already knows about the people, companies and deals on this note — the jobs we have with them, their budgets, open follow-ups and recent news — and suggests a few talking points.
+          Pulls what the CRM already knows about the people, companies and deals on this note: the jobs we have with them, their budgets, open follow-ups and recent news. It also suggests a few talking points.
         </p>
       )}
 

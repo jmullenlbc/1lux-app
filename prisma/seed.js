@@ -7,10 +7,10 @@ const { TEMPLATES_BY_SECTION }  = require('./seeds/dashboardTemplates');
 
 // ── Universal dashboard defaults ──────────────────────────────────────────────
 // Create the admin-default dashboard per section (Main / Sales / Pre-Con) with
-// its template widgets — only if one doesn't already exist, so we never clobber
+// its template widgets, only if one doesn't already exist, so we never clobber
 // a default an admin has since customized. Idempotent: safe on every deploy.
 async function seedDashboards(prisma, createdById) {
-  if (!prisma.dashboard) { console.log('⚠ Dashboards: prisma.dashboard not in schema — skipping'); return; }
+  if (!prisma.dashboard) { console.log('⚠ Dashboards: prisma.dashboard not in schema, skipping'); return; }
   const SECTION_NAME = { MAIN: 'Main Dashboard', SALES: 'Sales Dashboard', BUDGET: 'Pre-Con Dashboard' };
   let created = 0;
   for (const [section, templates] of Object.entries(TEMPLATES_BY_SECTION)) {
@@ -62,7 +62,7 @@ const KB_CATEGORIES = [
 ];
 
 // ── Knowledge Base seed entries ───────────────────────────────────────────────
-// Stable IDs make every upsert idempotent — safe to run on every deploy.
+// Stable IDs make every upsert idempotent, safe to run on every deploy.
 // To hide an entry without deleting it, set isActive: false in the update block.
 
 const KB_ENTRIES = [
@@ -87,15 +87,15 @@ const KB_ENTRIES = [
 <h2>2. Create Project in Revit</h2>
 <ul>
   <li>New Project from Template</li>
-  <li>Navigate to the <strong>3 – REVIT</strong> folder on the drive (SOFTWARE folder)</li>
-  <li>Use the most current model — current version shown in parentheses after the year</li>
+  <li>Navigate to the <strong>3- REVIT</strong> folder on the drive (SOFTWARE folder)</li>
+  <li>Use the most current model, current version shown in parentheses after the year</li>
   <li>Floor Plan Level 1 → delete everything except the Section and Elevation</li>
   <li>Ceiling Plan Level 1 → delete everything except the Section and Elevation</li>
 </ul>
 <h2>3. Link the Arch Model</h2>
 <ul>
   <li>Manage tab → <strong>Manage Links</strong> → Insert Revit Links from BIM 360</li>
-  <li>Positioning: <em>Auto – By Shared Coordinates</em></li>
+  <li>Positioning: <em>Auto - By Shared Coordinates</em></li>
 </ul>
 <h2>4. Save the Model</h2>
 <ul>
@@ -126,8 +126,8 @@ const KB_ENTRIES = [
   <li>Adjust view plane on each view as needed (Associated Level)</li>
   <li>Tag rooms</li>
   <li>Delete all extra sheets not in use</li>
-  <li>Rename views to match Architectural view names — <em>do not rename the Level, only the View</em></li>
-  <li>Can also use <strong>DiRoots – View Manager</strong> for bulk renaming</li>
+  <li>Rename views to match Architectural view names, <em>do not rename the Level, only the View</em></li>
+  <li>Can also use <strong>DiRoots View Manager</strong> for bulk renaming</li>
 </ul>
 <h2>8. Set Up First Sheet</h2>
 <ul>
@@ -148,7 +148,7 @@ const KB_ENTRIES = [
   <li><strong>"S" type linear</strong> for ceiling mounted</li>
   <li><strong>"W" type linear</strong> for wall mounted</li>
   <li>Show correct linear length</li>
-  <li>Use porcelain socket and lamp for cost-effective solution — EC to provide; check with Procurement on purchasing</li>
+  <li>Use porcelain socket and lamp for cost-effective solution, EC to provide; check with Procurement on purchasing</li>
 </ul>
 <h3>Wall Mounts</h3>
 <ul>
@@ -231,7 +231,7 @@ async function main() {
     }
     console.log(`✓ KB categories ready (${KB_CATEGORIES.length})`);
   } else {
-    console.log('⚠ KB categories: prisma.kbCategory not in schema — skipping');
+    console.log('⚠ KB categories: prisma.kbCategory not in schema, skipping');
   }
 
   // ── Knowledge Base entries ───────────────────────────────────────────────────
@@ -251,21 +251,21 @@ async function main() {
       console.log('✓ KB entry ready:', entry.title);
     }
   } else if (!prisma.designStandard) {
-    console.log('⚠ KB entries: prisma.designStandard not in schema — skipping');
+    console.log('⚠ KB entries: prisma.designStandard not in schema, skipping');
   }
 
   // ── Master Types ─────────────────────────────────────────────────────────────
   if (prisma.masterType) {
     await seedMasterTypes(prisma);
   } else {
-    console.log('⚠ Master types: prisma.masterType not in schema — skipping');
+    console.log('⚠ Master types: prisma.masterType not in schema, skipping');
   }
 
   // ── ILC Specs ────────────────────────────────────────────────────────────────
   if (prisma.iLCSpec) {
     await seedILCSpecs(prisma);
   } else {
-    console.log('⚠ ILC specs: prisma.iLCSpec not in schema — skipping');
+    console.log('⚠ ILC specs: prisma.iLCSpec not in schema, skipping');
   }
 
   // ── Proposal Rates + Default Templates ───────────────────────────────────────
@@ -282,7 +282,7 @@ async function main() {
     }
     console.log(`✓ Roadmap priorities ready (${ROADMAP_PRIORITIES.length})`);
   } else {
-    console.log('⚠ Roadmap priorities: prisma.roadmapPriority not in schema — skipping');
+    console.log('⚠ Roadmap priorities: prisma.roadmapPriority not in schema, skipping');
   }
 
   // ── Universal dashboard defaults (Main / Sales / Pre-Con) ────────────────────

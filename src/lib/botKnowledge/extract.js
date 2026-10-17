@@ -1,13 +1,13 @@
 // Turn an uploaded file into text the bot can search.
 //
-// Server-only — it reaches for pdfjs, XLSX and Tesseract. The pure helpers it
+// Server-only, it reaches for pdfjs, XLSX and Tesseract. The pure helpers it
 // leans on live in ./text.js, which is where the unit tests point.
 //
 // Everything here is bounded on purpose. Amplify's front door kills any request
 // running longer than ~30 seconds with an empty 504 (see CLAUDE.md), and OCR is
 // slow enough to hit that on its own. So page counts are capped, OCR is capped
 // much harder, and a file that runs past the cap comes back with the text we did
-// get plus an honest note saying it was truncated — never a silent half-read.
+// get plus an honest note saying it was truncated, never a silent half-read.
 
 import path from 'path';
 import { createRequire } from 'module';
@@ -24,8 +24,8 @@ export const MAX_OCR_PAGES  = 5;    // OCR: seconds a page, and the 30s wall is 
 //
 // Page counts alone stopped being enough when the size limit went from 4 MB to
 // 25 MB (Mike, 2026-09-07: "we should make it up to 25mbs like email"). A page
-// is not a fixed amount of work — a dense drawing sheet can cost fifty times
-// what a page of a Word document does — so 120 pages of the wrong document can
+// is not a fixed amount of work, a dense drawing sheet can cost fifty times
+// what a page of a Word document does, so 120 pages of the wrong document can
 // still run past the front door's ~30 second limit, and a request that does
 // that dies with an empty 504 and no row written at all.
 //
@@ -34,7 +34,7 @@ export const MAX_OCR_PAGES  = 5;    // OCR: seconds a page, and the 30s wall is 
 // vanished" into "we read the first 40 pages of it".
 export const READ_BUDGET_MS = 20_000;
 
-// OCR cannot be interrupted once started — it is one call into Tesseract that
+// OCR cannot be interrupted once started, it is one call into Tesseract that
 // blocks until it is done. So it is not started at all unless there is enough
 // of the budget left to finish inside it.
 const OCR_NEEDS_MS = 12_000;
@@ -88,19 +88,19 @@ async function extractPdf(buffer, clock) {
       text:      layer.text,
       pageCount: layer.pageCount,
       note:      truncated
-        ? `Read the first ${layer.readPages} of ${layer.pageCount} pages — the rest was too long to read in one go.`
+        ? `Read the first ${layer.readPages} of ${layer.pageCount} pages. The rest was too long to read in one go.`
         : null,
     };
   }
 
   // Nothing readable in the text layer means it is a scan. Look at the pixels,
-  // but only for the first few pages — a scanned 200-page set is not something
+  // but only for the first few pages, a scanned 200-page set is not something
   // to OCR inside a web request.
   if (clock.remaining() < OCR_NEEDS_MS) {
     return {
       text: '', pageCount: layer.pageCount,
       note: 'This PDF is a scan and it is too large to read the text off the image in one go. '
-          + 'It is saved — add a description so the bot knows what it is, or drop in a smaller part of it.',
+          + 'It is saved. Add a description so the bot knows what it is, or drop in a smaller part of it.',
     };
   }
 
@@ -117,7 +117,7 @@ async function extractPdf(buffer, clock) {
   return {
     text:      ocrText,
     pageCount: layer.pageCount,
-    note:      `Scanned PDF — text was read off the image${layer.pageCount > MAX_OCR_PAGES ? `, first ${MAX_OCR_PAGES} pages only` : ''}.`,
+    note:      `Scanned PDF: text was read off the image${layer.pageCount > MAX_OCR_PAGES ? `, first ${MAX_OCR_PAGES} pages only` : ''}.`,
   };
 }
 
@@ -146,7 +146,7 @@ async function extractWord(buffer, fileName) {
 
   const xml = readZipEntry(buffer, 'word/document.xml');
   if (!xml) {
-    return { text: '', note: 'This does not look like a Word file inside — no document found in it.' };
+    return { text: '', note: 'This does not look like a Word file inside. No document found in it.' };
   }
   return { text: docxXmlToText(xml.toString('utf8')), note: null };
 }
@@ -175,7 +175,7 @@ async function extractImage(buffer, clock) {
   if (clock.remaining() < OCR_NEEDS_MS) {
     return {
       text: '',
-      note: 'This image is too large to read the text off in one go. It is saved — add a description so the bot knows what it is.',
+      note: 'This image is too large to read the text off in one go. It is saved. Add a description so the bot knows what it is.',
     };
   }
 
@@ -186,7 +186,7 @@ async function extractImage(buffer, clock) {
   if (!isUsefulText(text)) {
     return {
       text: '',
-      note: 'No readable text was found in this image. It is saved, but the bot has nothing to quote from it — add a description so it knows what this is.',
+      note: 'No readable text was found in this image. It is saved, but the bot has nothing to quote from it. Add a description so it knows what this is.',
     };
   }
   return { text, note: 'Text was read off the image.' };
@@ -197,13 +197,13 @@ async function extractImage(buffer, clock) {
 /**
  * Read whatever was uploaded.
  *
- * Always resolves — a file that cannot be read comes back as
+ * Always resolves, a file that cannot be read comes back as
  * { status: 'FAILED', note } rather than throwing, because the file has already
  * been stored by then and losing the row would lose the file with it.
  *
  * `budgetMs` is how long the reading may take before it stops and reports what
  * it got. It exists so a big file can never take the whole request down with it
- * — see READ_BUDGET_MS above.
+ * see READ_BUDGET_MS above.
  */
 export async function extractDocumentText(buffer, fileName, mimeType, { budgetMs } = {}) {
   const fileType = detectFileType(fileName, mimeType);

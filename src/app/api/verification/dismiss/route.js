@@ -12,7 +12,7 @@ export const dynamic = 'force-dynamic';
  *
  * Mike, 2026-09-10: "I think it's fine if one person says that's fine to a card
  * and it goes away for everyone and it's archived. I don't think these cards
- * should ever get deleted." So this is a bury, not a delete — the row is the
+ * should ever get deleted." So this is a bury, not a delete, the row is the
  * archive, and `/api/verification/archive` reads it back out.
  *
  * The reason this route re-runs the checks instead of just writing a key: once
@@ -25,7 +25,7 @@ export const dynamic = 'force-dynamic';
  * upsert, not create: two people can press this on the same item at the same
  * moment, and the unique index would turn the second one into a 500. It also
  * covers the case of an item that was put away, brought back, and put away
- * again — the same row is reused and `restoredAt` is cleared.
+ * again, the same row is reused and `restoredAt` is cleared.
  */
 export async function POST(req) {
   const { user, error } = await requireAuth();

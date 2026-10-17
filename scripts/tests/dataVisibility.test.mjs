@@ -5,12 +5,12 @@
  * projects list and an empty clients list. Every record in the system had been
  * created by somebody else, and sixty-odd routes each carried their own copy
  * of "you may look at this if you are an admin OR you made it". The rule is
- * now one function — canSeeAllData — and everything defers to it.
+ * now one function, canSeeAllData, and everything defers to it.
  *
  * Two things are worth pinning:
  *
  *   1. The function itself. Every internal role sees everything; the external
- *      CLIENT_VIEWER role does not. That last part is not a preference — buy
+ *      CLIENT_VIEWER role does not. That last part is not a preference, buy
  *      and DN pricing is on these records and contractors must never reach it.
  *
  *   2. That nobody quietly puts the old rule back. A new route written by
@@ -18,7 +18,7 @@
  *      scans the route tree for ownership tests that are not guarded by the
  *      client-viewer check.
  *
- * auth.js cannot be imported here — it pulls in next/headers, which only
+ * auth.js cannot be imported here, it pulls in next/headers, which only
  * exists inside a Next request. So the function is read out of the source file
  * and evaluated on its own, which also means the test fails if somebody
  * renames or deletes it.

@@ -1,5 +1,5 @@
 /**
- * Unit Selections — the five decorative fixtures everybody argues about.
+ * Unit Selections, the five decorative fixtures everybody argues about.
  *
  * Island pendant (p1), bath vanity (v1), balcony sconce (ew1), unit-entry
  * corridor sconce (w1) and the ceiling fan (f1). This file answers three
@@ -9,7 +9,7 @@
  *   eligibleOptions(category, facts) which fixtures may a person even see?
  *   reconcileCategory(...)           did the three of them agree?
  *
- * It is PURE — no database, no @/ aliases — so every awkward branch can be run
+ * It is PURE, no database, no @/ aliases, so every awkward branch can be run
  * under plain Node in scripts/tests/unitSelections.test.mjs. The one function
  * that needs rows, resolveFacts(), lives next door in index.js.
  *
@@ -27,7 +27,7 @@
  *         1. an override typed on this survey
  *         2. the per-question price box the design wizard already offers
  *            (kitchenPendantsPrice, vanityPrice, balconyPrice, fansPrice,
- *            unitSconcePrice) — blank means "use the master sheet"
+ *            unitSconcePrice), blank means "use the master sheet"
  *         3. the master pricing sheet price for the answer that was chosen,
  *            divided by how many fixtures that answer buys
  *         4. ClientStandardFixture.priceTarget for the matching type code
@@ -127,7 +127,7 @@ const HOUSE_DEFAULT_ANSWER = Object.freeze({
 
 /**
  * The answer a skipped fixture runs on once somebody adds it back from the
- * survey ("Not in this job — add it?"). Medium finish, the smallest count,
+ * survey ("Not in this job, add it?"). Medium finish, the smallest count,
  * so the target reads off the master sheet like any other answer.
  */
 const ADDED_ANSWER = Object.freeze({
@@ -159,11 +159,11 @@ function round2(n) {
  * The master-sheet gross price for ONE fixture of this answer.
  *
  * Two families need a word of explanation:
- *   v1 bathBarLow — priced at 0 because a low-finish bath bar is already inside
+ *   v1 bathBarLow, priced at 0 because a low-finish bath bar is already inside
  *                   the base $/SF. The fixture is still worth the credit, so
  *                   the credit is the target. A target of $0 would hide every
  *                   option there is.
- *   f1            — one price per fan, straight off the master sheet, gross.
+ *   f1, one price per fan, straight off the master sheet, gross.
  *                   Mike, 2026-09-16: there is never a coded fan price.
  */
 function sheetPricePerFixture(catKey, answer, pricing, count) {
@@ -181,7 +181,7 @@ function sheetPricePerFixture(catKey, answer, pricing, count) {
 }
 
 /**
- * Turn what a project already said into the facts a survey runs on. Pure — no
+ * Turn what a project already said into the facts a survey runs on. Pure, no
  * database, so the awkward branches (the 6'-8" rule, the budget cut) can be
  * tested on their own.
  *
@@ -204,7 +204,7 @@ export function deriveFacts({ answers = {}, pricing = null, clientTargets = {}, 
     let answer = raw || HOUSE_DEFAULT_ANSWER[cat.key];
     let spec = ANSWERS[cat.key][answer];
     // Added back on this survey although the questionnaire said no. The
-    // questionnaire itself is never written — the survey remembers it.
+    // questionnaire itself is never written, the survey remembers it.
     const added = (!spec || spec.skip) && (overrides?.include || []).includes(cat.key);
     if (added) { answer = ADDED_ANSWER[cat.key]; spec = ANSWERS[cat.key][answer]; }
 
@@ -283,7 +283,7 @@ export function deriveFacts({ answers = {}, pricing = null, clientTargets = {}, 
 /**
  * Which options a person may see for one category, and which were taken away.
  *
- * The order of the cuts is deliberate — the reason a fixture is missing should
+ * The order of the cuts is deliberate, the reason a fixture is missing should
  * be the most fundamental one that applies, so a wet-rating failure is reported
  * as a wet-rating failure even if the fixture is also too expensive.
  *
@@ -332,7 +332,7 @@ export function eligibleOptions(category, facts, options = []) {
       continue;
     }
 
-    // 5. budget. Measured against the cheapest finish still offered — if any
+    // 5. budget. Measured against the cheapest finish still offered, if any
     //    finish lands inside the target, the fixture is buyable.
     if (target !== null) {
       const prices = (option.finishes || [])
@@ -391,7 +391,7 @@ export function fanFinish(response, derived) {
  * Three people's answers for one category, turned into one result row.
  *
  * Nothing is averaged. If they disagree the row SAYS they disagree and a person
- * decides — that is the whole reason this feature exists.
+ * decides, that is the whole reason this feature exists.
  */
 export function reconcileCategory(category, responses = []) {
   const picks = [];
@@ -423,7 +423,7 @@ export function reconcileCategory(category, responses = []) {
     ...rejects.filter(r => r.optionId === winnerId),
   ];
 
-  // Somebody who only said no is still somebody who took part — a rejection is
+  // Somebody who only said no is still somebody who took part, a rejection is
   // a disagreement, and counting only the pickers would report it as SINGLE.
   const participants = new Set([...picks, ...rejects].map(r => r.respondentName)).size;
   let agreement;

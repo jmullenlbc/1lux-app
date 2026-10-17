@@ -21,14 +21,14 @@ const BATCH_SIZE = 10;
 
 /**
  * Our jobs, for name-matching against article text. Loaded once per poll rather
- * than once per article — a poll reads hundreds of items and the list does not
+ * than once per article, a poll reads hundreds of items and the list does not
  * change while it runs.
  *
  * ── Every job, including the ones we lost ──
  * This used to skip LOST and ABANDONED on the reasoning that a dead job is not
  * news. Mike's call, 2026-08-24: include them. A job we lost is a building that
  * is still going up with somebody else's fixtures in it, and finding out it
- * broke ground — or stalled, or changed hands — is worth more than finding out
+ * broke ground, or stalled, or changed hands, is worth more than finding out
  * about a job we already have. The bid being over does not make the building
  * uninteresting.
  *
@@ -107,7 +107,7 @@ async function processItem(item, projects = []) {
       matchStatus:    autoLink  ? 'AUTO_LINKED'
                     : suggested ? 'SUGGESTED'
                     : 'UNREVIEWED',
-      // The id is stored for a suggestion too — a suggestion with no pointer to
+      // The id is stored for a suggestion too, a suggestion with no pointer to
       // what was suggested is not reviewable. What keeps a guess from reading as
       // a fact is projectMatchStatus, which anything showing this on a project's
       // own record must filter on.

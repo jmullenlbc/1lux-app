@@ -12,7 +12,7 @@ async function assertEdit(dashboardId, user) {
   return ok ? null : NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 }
 
-// PATCH — edit a widget (name, chartType, width, dataSpec, or position for drag)
+// PATCH, edit a widget (name, chartType, width, dataSpec, or position for drag)
 export async function PATCH(request, { params }) {
   const { user, error } = await requireAuth();
   if (error) return error;
@@ -39,10 +39,10 @@ export async function PATCH(request, { params }) {
   return NextResponse.json({ widget });
 }
 
-// DELETE — remove a widget.
+// DELETE, remove a widget.
 //
 // A prebuilt card (dataSpec.kind set) is re-added automatically on every load,
-// so removing one also records that this dashboard does not want it — otherwise
+// so removing one also records that this dashboard does not want it, otherwise
 // it is back on the next load (Mike, 2026-09-11: "Make it stick"). An upsert,
 // because createMany's duplicate-skipping is Postgres-only and throws in dev.
 export async function DELETE(request, { params }) {

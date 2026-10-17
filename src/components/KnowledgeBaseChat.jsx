@@ -1,5 +1,6 @@
 'use client';
 import { useState, useRef, useEffect } from 'react';
+import { OPEN_AI, useClaimAi, useHelperEvent } from '@/components/layout/helperEvents';
 
 // ── Markdown renderer (shared with ProjectChat) ───────────────────────────────
 
@@ -126,6 +127,10 @@ export default function KnowledgeBaseChat() {
   const [input,    setInput]    = useState('');
   const [loading,  setLoading]  = useState(false);
 
+  // Opened from the sidebar's Ask AI (no floating button, Mike 10-17).
+  useClaimAi();
+  useHelperEvent(OPEN_AI, () => setOpen(o => !o));
+
   const bottomRef = useRef(null);
   const inputRef  = useRef(null);
 
@@ -199,20 +204,6 @@ export default function KnowledgeBaseChat() {
 
   return (
     <>
-      {/* Floating button */}
-      {!open && (
-        <button
-          onClick={() => setOpen(true)}
-          className="fixed bottom-6 right-6 z-40 flex items-center gap-2 px-4 py-3 rounded-2xl bg-violet-700 hover:bg-violet-600 text-white shadow-xl transition-all hover:scale-105"
-        >
-          {/* Book + sparkle icon */}
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
-          </svg>
-          <span className="text-sm font-semibold">Ask Standards AI</span>
-        </button>
-      )}
-
       {/* Chat panel */}
       {open && (
         <div

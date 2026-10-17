@@ -5,7 +5,7 @@ import Link from 'next/link';
 
 // The strip across the top of an archived company or project. Archived
 // records drop out of every list, but a bookmark or an old link still opens
-// the page — this says why it is missing everywhere else, and puts it back.
+// the page, this says why it is missing everywhere else, and puts it back.
 const RESTORE_URL = {
   client:  id => `/api/clients/${id}`,
   project: id => `/api/projects/${id}`,

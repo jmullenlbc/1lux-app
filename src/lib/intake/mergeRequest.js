@@ -9,7 +9,7 @@
  *   • both say DIFFERENT things                          → a conflict. Shown side
  *     by side, and the job's answer is kept unless a person picks the request's.
  *
- * The project name is never touched — the job is already called something.
+ * The project name is never touched, the job is already called something.
  *
  * Pure: rows in, plan out. The routes do the reading and the writing.
  */
@@ -53,7 +53,7 @@ export function planMerge(project, request) {
 /**
  * What to write to the job. `choices` is { [field]: 'request' } for the
  * conflicts where a person picked the request's answer; any conflict not named
- * keeps the job's. Returns { data, filled, replaced, kept } — the three lists
+ * keeps the job's. Returns { data, filled, replaced, kept }, the three lists
  * are labels, for the note left on the request.
  */
 export function applyMerge(plan, choices = {}, project = {}) {
@@ -74,7 +74,7 @@ export function applyMerge(plan, choices = {}, project = {}) {
   }
 
   // The one-line "Denver, CO" the rest of the app shows. Only rewritten when it
-  // was blank or was itself built from the old city/state — never when somebody
+  // was blank or was itself built from the old city/state, never when somebody
   // typed something of their own into it.
   if ('city' in data || 'state' in data) {
     const oldCity  = project.city  || '';

@@ -1,6 +1,9 @@
 'use client';
 import { useState, useMemo } from 'react';
 import { TAB_ACTIVE, TAB_INACTIVE } from '@/components/ui/tokens';
+import { FilterToolbar, FilterPanel } from '@/components/ui/FilterPanel';
+
+const CATEGORY_FIELD = [{ key: 'category', label: 'Category', kind: 'pick' }];
 
 const CATEGORY_META = {
   database: { label: 'Database',      color: 'bg-blue-100 text-blue-700',    dot: 'bg-blue-500' },
@@ -83,6 +86,7 @@ function CommitRow({ c }) {
 export default function TechStackClient({ deps, commits, nodeVersion }) {
   const [activeTab,    setActiveTab]    = useState('overview');
   const [catFilter,    setCatFilter]    = useState('all');
+  const [filtersOpen,  setFiltersOpen]  = useState(false);
   const [commitSearch, setCommitSearch] = useState('');
 
   const filteredCommits = useMemo(() => {
@@ -255,18 +259,11 @@ export default function TechStackClient({ deps, commits, nodeVersion }) {
                 placeholder="Search commits…"
                 className="flex-1 min-w-48 text-xs border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500"
               />
-              <div className="flex gap-1 flex-wrap">
-                <button onClick={() => setCatFilter('all')}
-                  className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors ${catFilter === 'all' ? "bg-orange-50 border border-orange-400 text-orange-700" : "bg-white border border-slate-300 text-slate-700 hover:bg-slate-50"}`}>
-                  All
-                </button>
-                {Object.entries(CATEGORY_META).filter(([k]) => k !== 'other').map(([k, v]) => (
-                  <button key={k} onClick={() => setCatFilter(k === catFilter ? 'all' : k)}
-                    className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-colors ${catFilter === k ? "bg-orange-50 border border-orange-400 text-orange-700" : ` border border-transparent hover:opacity-80`}`}>
-                    {v.label}
-                  </button>
-                ))}
-              </div>
+              <FilterToolbar count={catFilter === 'all' ? 0 : 1} open={filtersOpen} onToggle={() => setFiltersOpen(o => !o)}
+                onClear={() => setCatFilter('all')} shown={filteredCommits.length} total={(commits || []).length} noun="commits" />
+              <FilterPanel open={filtersOpen} fields={CATEGORY_FIELD} filters={{ category: catFilter === 'all' ? '' : catFilter }}
+                choices={{ category: Object.entries(CATEGORY_META).filter(([k]) => k !== 'other').map(([k, v]) => [k, v.label]) }}
+                onChange={(_, v) => setCatFilter(v || 'all')} className="basis-full mt-0" />
             </div>
 
             {/* Commit list */}

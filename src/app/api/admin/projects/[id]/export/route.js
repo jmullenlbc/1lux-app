@@ -17,7 +17,7 @@ import { SITE_FEATURE_INCLUDE, engineProjectData } from '@/lib/siteFeatureRows';
 // Super-admin only because it surfaces fields that aren't normally exposed
 // (raw answer JSON, pricing tables, internal flags). Built so we can grab
 // any project's complete state in one click for budget retests and bug
-// reproductions — see the June 18 conversation that prompted this.
+// reproductions, see the June 18 conversation that prompted this.
 
 export async function GET(request, { params }) {
   const { user, error } = await requireAuth(request);

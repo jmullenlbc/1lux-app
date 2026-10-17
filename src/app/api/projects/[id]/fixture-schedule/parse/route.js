@@ -20,7 +20,7 @@ import { runParkedJob, readJobRequest, jobError, uploadToJobArgs, loadJobUpload 
 export const maxDuration = 300;
 
 // Resolve pdfjs's bundled standard fonts (same setup as scheduleExtract.js / ocr.js).
-// Without this, getTextContent can throw in Amplify's serverless runtime — which is
+// Without this, getTextContent can throw in Amplify's serverless runtime, which is
 // why prod parsing fails while local works. See scheduleExtract.js for the full note.
 let FONTS_URL = null;
 try {
@@ -35,15 +35,15 @@ Respond ONLY with a valid JSON array. No prose, no markdown, no code fences.
 Each element in the array is one fixture type row.
 
 Required fields (use null if not found):
-- type_code: string — the fixture type identifier. This is ALWAYS the short code in the
-  FIRST (leftmost) column of the schedule — typically 1–6 characters (e.g. "D1", "GBM",
+- type_code: string, the fixture type identifier. This is ALWAYS the short code in the
+  FIRST (leftmost) column of the schedule, typically 1 to 6 characters (e.g. "D1", "GBM",
   "C2", "SA-6", "P3 (ALT)", "WM"). Never use a longer label or description from a secondary
   column as the type_code, even if it looks like a code (e.g. "WM_WALL PACK" is NOT a
-  type_code — the real type_code would be the short identifier to its left, like "WM" or "GBM").
-- location: string — the space or area tag
-- description: string — fixture description
-- manufacturer: string — manufacturer name. Use "TBD" if the schedule shows TBD. Null if not present.
-- catalog_number: string — full catalog number as it appears, including any
+  type_code, the real type_code would be the short identifier to its left, like "WM" or "GBM").
+- location: string, the space or area tag
+- description: string, fixture description
+- manufacturer: string, manufacturer name. Use "TBD" if the schedule shows TBD. Null if not present.
+- catalog_number: string, full catalog number as it appears, including any
   multi-part strings joined with ' + '. Do NOT split multi-part numbers.
   Preserve the original delimiter exactly. Use "TBD" if TBD. Null if not present.
 
@@ -58,7 +58,7 @@ Optional fields (use null if not found):
 - notes: string
 
 Confidence field (always required):
-- confidence: number between 0.0 and 1.0 — your confidence that this row
+- confidence: number between 0.0 and 1.0, your confidence that this row
   was correctly extracted and mapped. Use 0.5 or below if:
   - the type code is ambiguous or unclear
   - manufacturer and catalog number appear to be in the same cell and you had to split them
@@ -72,7 +72,7 @@ Special handling rules:
   Set type_code exactly as it appears. Do not merge alternates with their primary fixture.
 - OR-EQUAL / MULTI-MANUFACTURER rows: When a single fixture type lists multiple manufacturers
   as acceptable alternates (separated by semicolons, slashes, "or", line breaks, or similar
-  delimiters), split them into SEPARATE rows — one row per manufacturer.
+  delimiters), split them into SEPARATE rows, one row per manufacturer.
   The first manufacturer listed is the basis of design (isAlternate omitted or false).
   Each subsequent manufacturer becomes its own row with the SAME type_code and confidence 0.6.
   Example: "W1" with "AXIS LIGHTING: ARLED SERIES; PRUDENTIAL: P23 SERIES; FOCAL POINT" becomes:
@@ -148,7 +148,7 @@ async function getOrCreateDraft(projectId) {
 }
 
 // POST /api/projects/[id]/fixture-schedule/parse
-// multipart/form-data: file (PDF, 1–3 pages)
+// multipart/form-data: file (PDF, 1 to 3 pages)
 export async function POST(request, { params }) {
   const { user, error } = await requireAuth();
   if (error) return error;
@@ -177,7 +177,7 @@ export async function POST(request, { params }) {
 
 /**
  * The read itself. Soft failures stay 200 bodies with an `error` string and
- * zero counts — the editor branches on `data.error && data.importedCount === 0`.
+ * zero counts, the editor branches on `data.error && data.importedCount === 0`.
  * Anything unexpected becomes the same "Server error" body the route always
  * sent, just as a parked 500 now.
  */
@@ -203,11 +203,11 @@ async function parseSchedule(args, { projectId, user }) {
 
   if (numPages > 3) {
     throw jobError(400, {
-      error: 'Please upload only the fixture schedule pages — max 3 pages. Extract those pages from the full drawing set first.',
+      error: 'Please upload only the fixture schedule pages, max 3 pages. Extract those pages from the full drawing set first.',
     });
   }
 
-  // Store the source PDF (non-critical — parse continues even if storage fails)
+  // Store the source PDF (non-critical, parse continues even if storage fails)
   let storedPath = null;
   try {
     const uploadDir = path.join(process.cwd(), 'uploads', projectId, 'fixture-schedule-parse');
@@ -235,7 +235,7 @@ async function parseSchedule(args, { projectId, user }) {
     );
     // A contractor's fixture schedule is third-party text, so the instructions
     // and the document go in separate, labelled halves rather than either side
-    // of a `---`. The file name is inside the fence too — it arrives from the
+    // of a `---`. The file name is inside the fence too, it arrives from the
     // same upload. See src/lib/agent/untrusted.js.
     const sealed = buildUntrustedPrompt({
       instructions: AI_PARSE_PROMPT,
@@ -270,7 +270,7 @@ async function parseSchedule(args, { projectId, user }) {
     try {
       rows = JSON.parse(clean);
     } catch {
-      // Truncated response — recover all complete objects before the cutoff
+      // Truncated response, recover all complete objects before the cutoff
       const lastClose = clean.lastIndexOf('},');
       const lastCloseAlt = clean.lastIndexOf('}]');
       const cutAt = Math.max(lastClose, lastCloseAlt);
@@ -278,7 +278,7 @@ async function parseSchedule(args, { projectId, user }) {
         const partial = clean.slice(0, lastClose !== -1 ? lastClose + 1 : cutAt + 1) + ']';
         try {
           rows = JSON.parse(partial);
-          console.warn(`PDF parse: response was truncated — recovered ${rows.length} rows`);
+          console.warn(`PDF parse: response was truncated, recovered ${rows.length} rows`);
         } catch {
           throw new Error('AI response was truncated and could not be recovered. Try a PDF with fewer fixture types or split across multiple uploads.');
         }
@@ -292,7 +292,7 @@ async function parseSchedule(args, { projectId, user }) {
     // ── Post-processing: fix malformed type codes ─────────────────────────────
     // Edge case: AI grabs a label like "WM_WALL PACK" instead of the short code
     // "WM" or "GBM" when the catalog number also contains the type code string.
-    // Rule: a valid type code is 1–8 alphanumeric chars with at most one hyphen.
+    // Rule: a valid type code is 1 to 8 alphanumeric chars with at most one hyphen.
     // If type_code contains spaces or underscores, it grabbed the wrong column.
     const VALID_TYPE_CODE = /^[A-Z0-9]{1,8}(-[A-Z0-9]+)?(\s*\(ALT\))?$/i;
     rows = rows.map(r => {
@@ -347,7 +347,7 @@ async function parseSchedule(args, { projectId, user }) {
     const isAlt      = !!(r.type_code && /alt/i.test(r.type_code));
     if (aiFlagged) flaggedCount++;
 
-    // Detect alternateOf — if "P3 (ALT)", alternateOf = "P3"
+    // Detect alternateOf, if "P3 (ALT)", alternateOf = "P3"
     let alternateOf = null;
     if (isAlt && r.type_code) {
       alternateOf = r.type_code.replace(/[\s\-_(]+alt[)]*$/i, '').trim() || null;
@@ -387,7 +387,7 @@ async function parseSchedule(args, { projectId, user }) {
 
   } catch (e) {
     if (e?.isJobError) throw e;
-    // Safety net — always a JSON body so the client never gets an empty 500
+    // Safety net, always a JSON body so the client never gets an empty 500
     console.error('fixture-schedule/parse unhandled error:', e.message);
     throw jobError(500, {
       error: `Server error: ${e.message}`,

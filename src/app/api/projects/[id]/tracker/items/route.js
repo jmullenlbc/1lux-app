@@ -9,7 +9,7 @@ async function getTracker(projectId, user) {
   return prisma.submittalTracker.findUnique({ where: { projectId } });
 }
 
-// POST — add one item (manual) or bulk import (array)
+// POST, add one item (manual) or bulk import (array)
 export async function POST(request, { params }) {
   const { user, error } = await requireAuth();
   if (error) return error;
@@ -57,7 +57,7 @@ export async function POST(request, { params }) {
   return NextResponse.json({ item }, { status: 201 });
 }
 
-// DELETE — clear all items (before re-import)
+// DELETE, clear all items (before re-import)
 export async function DELETE(request, { params }) {
   const { user, error } = await requireAuth();
   if (error) return error;

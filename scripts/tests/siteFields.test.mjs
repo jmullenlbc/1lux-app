@@ -1,7 +1,7 @@
 /**
  * The translation between what a site plan says and what Project Info stores.
  *
- * Pure arithmetic and mapping — no model, no database, no canvas. The cases
+ * Pure arithmetic and mapping, no model, no database, no canvas. The cases
  * that matter are the ones where a field must NOT be proposed: a number the
  * drawing did not state must stay absent rather than arrive as a zero, because
  * a blank Project Info field is visible in the missing-inputs warning and a zero
@@ -103,7 +103,7 @@ test('fields the drawing did not state are absent, not zero', () => {
   assert.ok(!('numSurfaceParking' in rows), 'a null read must not become a written zero');
 });
 
-test('the unit count is never proposed — the unit matrix owns it', () => {
+test('the unit count is never proposed: the unit matrix owns it', () => {
   // A site plan's "324 D.U." is real evidence, but as a CHECK against a matrix a
   // human already accepted, never as a second writer to the same field.
   const rows = byKey(proposeSiteFields({ totalUnits: 324, lotAcres: 16.5 }));
@@ -111,7 +111,7 @@ test('the unit count is never proposed — the unit matrix owns it', () => {
   assert.ok(!writableSiteKeys().includes('numUnits'));
 });
 
-test('the building count is proposed and writable — it sizes wallpacks', () => {
+test('the building count is proposed and writable: it sizes wallpacks', () => {
   // Switched on 2026-08-16 (Mike's yes). calculations.js uses numBuildings
   // ahead of the walk-up fallback for building wallpack quantities.
   const rows = byKey(proposeSiteFields({ buildingCount: 7 }));
@@ -176,7 +176,7 @@ test('a stated building gross SF is proposed into grossSf', () => {
   assert.ok(writableSiteKeys().includes('grossSf'), 'the commit route may write it');
 });
 
-test('no stated gross SF proposes nothing — never a zero', () => {
+test('no stated gross SF proposes nothing, never a zero', () => {
   const rows = byKey(proposeSiteFields({ grossSf: null, totalUnits: 300 }));
   assert.equal(rows.grossSf, undefined);
 });
@@ -221,7 +221,7 @@ test('free text off older reads still resolves to a key', () => {
   assert.equal(buildingTypeKeyFromText('3-STORY GARDEN WALK-UP'), 'garden');
   assert.equal(buildingTypeKeyFromText('Garden style apartments'), 'garden');
   assert.equal(buildingTypeKeyFromText('breezeway walk-up'), 'garden');
-  assert.equal(buildingTypeKeyFromText('4-story garden'), 'gurban', 'a 4–5 story garden IS a gurban');
+  assert.equal(buildingTypeKeyFromText('4-story garden'), 'gurban', 'a 4 to 5 story garden IS a gurban');
   assert.equal(buildingTypeKeyFromText('5 story walk-up'), 'gurban');
   assert.equal(buildingTypeKeyFromText('Urban Garden'), 'gurban');
   assert.equal(buildingTypeKeyFromText('TOWNHOMES'), 'townHouses');
@@ -279,7 +279,7 @@ test('the building type steers the code-minimum stair estimate (breezeway packs 
   const untyped   = byKey(proposeSiteFields(base)).numEgressStairwells.value;
   assert.equal(corridor, untyped, 'no type falls back to the corridor factor');
   assert.ok(breezeway > corridor, `garden ${breezeway} should out-count corridor ${corridor}`);
-  // Townhouse stairs are private — nothing shared to light.
+  // Townhouse stairs are private, nothing shared to light.
   const town = byKey(proposeSiteFields({ ...base, buildingType: 'townHouses' })).numEgressStairwells.value;
   assert.equal(town, 0);
 });

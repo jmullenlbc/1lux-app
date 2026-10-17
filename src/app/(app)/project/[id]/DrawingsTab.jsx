@@ -199,7 +199,7 @@ function UploadModal({ projectId, onUploaded, onClose }) {
           {/* Phase tag */}
           <div>
             <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
-              Phase tag <span className="font-normal normal-case text-slate-400">— optional, can be added later</span>
+              Phase tag: <span className="font-normal normal-case text-slate-400">optional, can be added later</span>
             </label>
             <div className="flex flex-wrap gap-1.5">
               {PHASE_TAGS.map(t => (
@@ -216,7 +216,7 @@ function UploadModal({ projectId, onUploaded, onClose }) {
 
           {/* Notes */}
           <div>
-            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Notes <span className="font-normal normal-case text-slate-500">— optional</span></label>
+            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Notes: <span className="font-normal normal-case text-slate-500">optional</span></label>
             <textarea
               value={notes}
               onChange={e => setNotes(e.target.value)}
@@ -395,7 +395,7 @@ function DrawingFileRow({ file, projectId, onDeleteSubmission }) {
           <text x="12" y="18" textAnchor="middle" fill="currentColor" fontSize="6" fontWeight="bold">PDF</text>
         </svg>
 
-        {/* Filename — click to open markup viewer */}
+        {/* Filename, click to open markup viewer */}
         <button
           onClick={() => setMarkupOpen(true)}
           className="flex-1 text-sm text-slate-800 hover:text-orange-600 transition-colors text-left truncate"
@@ -568,7 +568,7 @@ export default function DrawingsTab({ projectId }) {
         </div>
       )}
 
-      {/* Flat file list — one row per file across all submissions */}
+      {/* Flat file list, one row per file across all submissions */}
       {!loading && submissions.length > 0 && (() => {
         // Flatten all files, attaching parent submission metadata to each
         const allFiles = submissions.flatMap(s =>

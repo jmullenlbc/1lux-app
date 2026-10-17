@@ -1,5 +1,5 @@
 /**
- * Which sales meetings the before-the-meeting sweep preps. Pure — safe in tests.
+ * Which sales meetings the before-the-meeting sweep preps. Pure, safe in tests.
  *
  * A draft sales note with a meeting in the next two days and no brief built in
  * the last day. Notes with nothing linked are skipped by the builder itself

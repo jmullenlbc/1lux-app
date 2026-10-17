@@ -17,7 +17,7 @@ async function gate(request, projectId) {
   return { user, project };
 }
 
-// GET — this building type's area ranges ($ per unit) and this project's
+// GET, this building type's area ranges ($ per unit) and this project's
 // original-questionnaire snapshot + "It's right" marks.
 export async function GET(request, { params }) {
   const { error, project } = await gate(request, params.id);
@@ -27,7 +27,7 @@ export async function GET(request, { params }) {
   return NextResponse.json({ buildingType: type, norms: type && norms[type] ? { [type]: norms[type] } : {}, checks });
 }
 
-// POST { area, amount } — "It's right": the area's dollars were looked at.
+// POST { area, amount }, "It's right": the area's dollars were looked at.
 // It stays quiet until the area moves off that figure again.
 export async function POST(request, { params }) {
   const { error, user, project } = await gate(request, params.id);

@@ -2,10 +2,10 @@
  * Migration: add meetingDate, meetingLink, attendees columns to MeetingNote table.
  * Also ensures the MeetingNote table exists if it was never created.
  *
- * Run ONCE (safe to re-run — uses IF NOT EXISTS / ADD COLUMN logic):
+ * Run ONCE (safe to re-run, uses IF NOT EXISTS / ADD COLUMN logic):
  *   node scripts/migrate-meeting-notes.mjs
  *
- * You can run this while the dev server is running — it uses raw SQLite.
+ * You can run this while the dev server is running, it uses raw SQLite.
  */
 import { PrismaClient } from '@prisma/client';
 
@@ -51,7 +51,7 @@ async function run() {
       );
       console.log(`  ✓ Added column: ${col.name}`);
     } else {
-      console.log(`  – Column already exists: ${col.name}`);
+      console.log(`  • Column already exists: ${col.name}`);
     }
   }
 

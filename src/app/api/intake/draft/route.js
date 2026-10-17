@@ -17,13 +17,13 @@ export const dynamic = 'force-dynamic';
 /**
  * PUBLIC, UNAUTHENTICATED save / load of an unfinished conceptual budget.
  *
- * POST { token?, draftId?, editorEmail?, draft }  — save. Creates a
+ * POST { token?, draftId?, editorEmail?, draft }, save. Creates a
  *   ConceptualDraft the first time and returns its resume token; with a token,
  *   updates that row instead. Since 0132 a budget opened from the company
  *   portal (/conceptual_budget/my-budgets) carries no token: it sends its
  *   draftId and the editor's work email, and the row is theirs to edit when
  *   that email's domain is the budget's domain. The row is only ever the
- *   visitor's INPUTS (packDraft) — never a price, never the pricing model.
+ *   visitor's INPUTS (packDraft), never a price, never the pricing model.
  *   Field rows are set or blanked, never deleted.
  *
  *   Every save that moves a value writes a ConceptualDraftSave row (who, when,
@@ -31,8 +31,8 @@ export const dynamic = 'force-dynamic';
  *   see what changed (Mike 10-16). A colleague's save never overwrites the
  *   creator's name, email or company: those columns stay as they were.
  *
- * GET ?token=            — load the draft behind a resume link.
- * GET ?id=&as=           — load it for a colleague from the portal.
+ * GET ?token=, load the draft behind a resume link.
+ * GET ?id=&as=, load it for a colleague from the portal.
  *
  * A token that is unknown, already submitted, or put away by staff answers
  * 404 so the wizard drops it and starts a fresh row on the next change.
@@ -45,7 +45,7 @@ const MAX_BODY_CHARS = 220_000; // drawings ceiling (200k) plus the rest
 
 const GONE = () => NextResponse.json({ error: 'That saved budget is no longer available.' }, { status: 404 });
 
-/** The lead columns staff scan the list by — from the same takeoff the estimate uses. */
+/** The lead columns staff scan the list by, from the same takeoff the estimate uses. */
 function leadColumns(packed) {
   try {
     const answers = {};
@@ -218,7 +218,7 @@ export async function GET(req) {
   if (!tokenHash) return GONE();
   const row = await prisma.conceptualDraft.findUnique({ where: { tokenHash }, include: { fields: true } });
   if (!row || row.submissionId || row.archivedAt) return GONE();
-  // Inputs only — the row holds nothing else, and unpackDraft builds the
+  // Inputs only, the row holds nothing else, and unpackDraft builds the
   // wizard's own shape from it.
   return NextResponse.json({ draft: unpackDraft(row, row.fields), draftId: row.id });
 }

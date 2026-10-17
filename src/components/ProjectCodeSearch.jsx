@@ -93,7 +93,7 @@ export default function ProjectCodeSearch({ projectContext = {} }) {
   const containerRef = useRef(null);
   const inputRef     = useRef(null);
 
-  // Auto-scroll the chat container — only if the user is already near the bottom
+  // Auto-scroll the chat container, only if the user is already near the bottom
   // (within 150px), so manual scroll-up is never fought during streaming.
   useEffect(() => {
     const el = containerRef.current;
@@ -159,7 +159,7 @@ export default function ProjectCodeSearch({ projectContext = {} }) {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSearch(); }
   }
 
-  // Context chips — show location, building type, and any set code editions
+  // Context chips, show location, building type, and any set code editions
   const { codes = {} } = projectContext;
   const codeChips = [
     codes.iecc   ? `IECC ${codes.iecc}`   : null,
@@ -230,7 +230,7 @@ export default function ProjectCodeSearch({ projectContext = {} }) {
                   {chip}
                 </span>
               ))}
-              <span className="text-[10px] text-violet-400 ml-1">— answers are scoped to this project</span>
+              <span className="text-[10px] text-violet-400 ml-1">Answers are scoped to this project</span>
             </div>
           )}
 
@@ -320,7 +320,7 @@ export default function ProjectCodeSearch({ projectContext = {} }) {
               )}
             </div>
             <p className="text-[10px] text-slate-400 mt-1.5">
-              ASHRAE 90.1 · IBC · IECC · NEC — answers include section citations
+              ASHRAE 90.1 · IBC · IECC · NEC. Answers include section citations
             </p>
           </div>
         </div>

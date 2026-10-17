@@ -39,11 +39,11 @@ export async function POST(req) {
 
     for (const { project, rule, daysSinceActivity } of staleProjects) {
       try {
-        // Skip if a contact still has an unpublished (draft) Sales Note — human is mid-note.
+        // Skip if a contact still has an unpublished (draft) Sales Note, human is mid-note.
         const contactIds = (project.client?.contacts || []).map(c => c.id).filter(Boolean);
         if (await hasDraftNote(contactIds)) {
           log.skipped++;
-          log.errors.push({ project: project.name, reason: 'Contact has unpublished Sales Note — waiting for human to publish' });
+          log.errors.push({ project: project.name, reason: 'Contact has unpublished Sales Note, waiting for human to publish' });
           continue;
         }
 
@@ -61,7 +61,7 @@ export async function POST(req) {
         const recipientUserId = project.salesOwner?.id;
         if (!recipientUserId) {
           log.skipped++;
-          log.errors.push({ project: project.name, reason: 'No Sales Owner assigned — cannot route draft' });
+          log.errors.push({ project: project.name, reason: 'No Sales Owner assigned, cannot route draft' });
           continue;
         }
 
@@ -78,7 +78,7 @@ export async function POST(req) {
             reviewWindowMinutes,
             reviewExpiresAt:     reviewWindowMinutes > 0 ? new Date(Date.now() + reviewWindowMinutes * 60 * 1000) : null,
             draftModel:          modelFor('bot.followUp'),
-            classificationReason: `Project stale ${daysSinceActivity}d — rule: ${rule.name}`,
+            classificationReason: `Project stale ${daysSinceActivity}d, rule: ${rule.name}`,
           },
         });
 
@@ -86,7 +86,7 @@ export async function POST(req) {
           data: {
             userId:    recipientUserId,
             type:      'BOT_DRAFT_READY',
-            title:     `Follow-up draft ready — ${project.name}`,
+            title:     `Follow-up draft ready: ${project.name}`,
             message:   `Bot drafted a follow-up to ${result.toName || result.toEmail} (project stale ${daysSinceActivity} days)`,
             link:      `/sales/bot-queue?tab=follow-ups`,
             dedupeKey: `bot-draft-${project.id}-${new Date().toISOString().slice(0, 10)}`,

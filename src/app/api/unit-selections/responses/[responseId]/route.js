@@ -5,7 +5,7 @@
  * at a time and this route saves a whole form.
  *
  * `finish` is not stored as an answer anybody gives. It is worked out from what
- * they picked — see deriveFinish — and `finishOverride` is the escape hatch for
+ * they picked, see deriveFinish, and `finishOverride` is the escape hatch for
  * when a person says outright "make it all bronze". Fans stay white unless
  * somebody says otherwise, which is `fanHoldWhite`.
  */
@@ -48,7 +48,7 @@ export async function PATCH(request, { params }) {
   if (body.styleChoice !== undefined)    data.styleChoice = body.styleChoice ? String(body.styleChoice) : null;
   if (body.finishOverride !== undefined) data.finishOverride = body.finishOverride ? String(body.finishOverride) : null;
   if (body.fanHoldWhite !== undefined)   data.fanHoldWhite = !!body.fanHoldWhite;
-  // Notes are {category: "free text"}. Whatever is sent replaces the lot —
+  // Notes are {category: "free text"}. Whatever is sent replaces the lot
   // the screen always holds the whole object.
   if (body.notes !== undefined) {
     data.notes = typeof body.notes === 'string' ? body.notes : JSON.stringify(body.notes || {});

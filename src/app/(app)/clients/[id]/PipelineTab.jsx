@@ -153,7 +153,7 @@ export default function PipelineTab({ clientId, canEdit = false }) {
       const isProject    = name && !/\(\d+\)\s*$/.test(name) && (startDate || buildingType || gc);
       if (!isProject) {
         // section-header row (e.g. "New Construction (72)", "Rehab (38)") flips the
-        // running type. Only the name column counts — a stray "Revenue - Rehab"
+        // running type. Only the name column counts, a stray "Revenue - Rehab"
         // column header must not trip it.
         const t = name.toLowerCase();
         if (t.includes('rehab'))                 currentType = 'Rehab';
@@ -229,7 +229,7 @@ export default function PipelineTab({ clientId, canEdit = false }) {
                     value={mapping[f.key] ?? ''}
                     onChange={e => setMapping(m => ({ ...m, [f.key]: e.target.value === '' ? '' : Number(e.target.value) }))}
                     className={`${INPUT} flex-1 px-2 py-1.5 text-xs`}>
-                    <option value="">— none —</option>
+                    <option value="">None</option>
                     {headers.map((h, i) => <option key={i} value={i}>{h}</option>)}
                   </select>
                 </div>

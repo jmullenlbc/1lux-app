@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 /**
- * check-source-tracked — nothing under src/ or prisma/migrations/ may be invisible to git.
+ * check-source-tracked, nothing under src/ or prisma/migrations/ may be invisible to git.
  *
  * ── Why this gate exists ──
  * .gitignore held the line `uploads/`. Git applies a pattern with no leading
  * slash to a directory of that name ANYWHERE in the tree, so it did not just
- * ignore the runtime scratch folder at the repo root — it also swallowed
+ * ignore the runtime scratch folder at the repo root, it also swallowed
  * src/app/api/uploads/. The direct-to-S3 presign route was written there. It
  * worked locally, passed every test, passed the build, was "deployed", and
  * returned 404 in production, because it was never in the commit. Nothing
@@ -18,7 +18,7 @@
  * the wrong place, and both are worth stopping for.
  *
  * Escape hatch: put a genuinely-local file somewhere else. There is no
- * allowlist on purpose — an allowlist is how the next one gets waved through.
+ * allowlist on purpose, an allowlist is how the next one gets waved through.
  */
 import { execSync } from 'node:child_process';
 
@@ -47,8 +47,8 @@ if (ignored.length) {
   }
   console.error(`
 These will never be committed and never reach production, however well they
-work locally. Either fix the .gitignore rule — a pattern needs a leading slash
-to mean "at the repo root only" — or move the file out of src/ and prisma/migrations/.`);
+work locally. Either fix the .gitignore rule, a pattern needs a leading slash
+to mean "at the repo root only", or move the file out of src/ and prisma/migrations/.`);
   process.exit(1);
 }
 

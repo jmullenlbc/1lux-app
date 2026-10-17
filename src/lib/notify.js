@@ -1,11 +1,11 @@
 /**
- * Notification dispatcher — single entry point for all notification logic.
+ * Notification dispatcher, single entry point for all notification logic.
  *
  * All triggers call sendNotification() or queueDigestEvent().
  *
  * ── Two audiences, two channels ──
  * EXTERNAL means email to the client. That is STUBBED until Microsoft Outlook
- * is integrated, and there is no way around it — we cannot send mail we have no
+ * is integrated, and there is no way around it, we cannot send mail we have no
  * mailbox for.
  *
  * INTERNAL means us. It used to mean only a `NotificationLog` row: an audit
@@ -45,7 +45,7 @@ export function escapeHtml(text) {
 }
 
 // One email to one person, already written. Exported for the screens that send
-// a document by hand (change order, ship schedule) — they used to call
+// a document by hand (change order, ship schedule), they used to call
 // sendNotification() with an email in the wrong shape, so nothing went out.
 export async function sendEmail({ to, subject, html }) {
   if (process.env.NOTIFY_DRY_RUN !== 'false') {
@@ -92,7 +92,7 @@ function buildEmailFromType(type, payload, projectName, pixelUrl) {
       return constructionDeadline({ projectName, milestone: payload.milestone, date: payload.date, daysOut: payload.daysOut, pixelUrl });
     default:
       return {
-        subject: `[ILC Studios] Update — ${projectName}`,
+        subject: `[ILC Studios] Update: ${projectName}`,
         html: `<p>${type.replace(/_/g, ' ')}</p>`,
       };
   }
@@ -163,7 +163,7 @@ export async function sendNotification(projectId, notificationType, payload = {}
     const meta = NOTIFICATION_TYPES[notificationType];
     await notifyProjectOwners(projectId, {
       type:      notificationType,
-      title:     `${meta?.label || notificationType} — ${projectName}`,
+      title:     `${meta?.label || notificationType}: ${projectName}`,
       message:   summarizePayload(payload),
       link:      `/project/${projectId}`,
       // Namespaced per project+type so the same event cannot ring twice, but
@@ -215,7 +215,7 @@ export async function queueDigestEvent(projectId, notificationType, payload = {}
 }
 
 /**
- * Fire a threshold notification — deduplicates by dedupeKey.
+ * Fire a threshold notification, deduplicates by dedupeKey.
  * dedupeKey must be unique per project+type+time-window.
  * Example: `${projectId}:CONSCHED_1M:constructionEndDate:2026-05`
  */

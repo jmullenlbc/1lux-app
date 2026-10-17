@@ -1,5 +1,5 @@
 /**
- * Unit Selections — "pick a look".
+ * Unit Selections, "pick a look".
  *
  * A look is a style name. Choosing one picks, for every fixture still in play,
  * the first fixture on offer in that style, so a person gets a whole answer in

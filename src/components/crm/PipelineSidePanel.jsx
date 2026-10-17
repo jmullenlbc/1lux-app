@@ -1,6 +1,6 @@
 'use client';
 /**
- * The pipeline side panel — edit a job's sales fields without leaving the board.
+ * The pipeline side panel, edit a job's sales fields without leaving the board.
  *
  * Mike, 2026-09-09: "So we don't have to go into a project and come back, go into
  * a project, come back." Clicking a card on the pipeline used to navigate away
@@ -24,9 +24,9 @@ import { PROJECT_TYPES, projectTypeLabel, serviceTypeOptions, serviceTypeLabel, 
 import { useBuyoutDays } from '@/lib/useBuyoutDays';
 import { LABEL, INPUT } from '@/components/ui/tokens';
 
-const PROJECT_TYPE_OPTIONS = [{ value: '', label: '— Select —' }, ...PROJECT_TYPES];
+const PROJECT_TYPE_OPTIONS = [{ value: '', label: 'Select' }, ...PROJECT_TYPES];
 // Mike 9-19: the subtype is the fixed building-type list the app already has (Garden, Wrap, Podium …).
-const PROJECT_SUBTYPE_OPTIONS = [{ value: '', label: '— Select —' }, ...BUILDING_TYPES];
+const PROJECT_SUBTYPE_OPTIONS = [{ value: '', label: 'Select' }, ...BUILDING_TYPES];
 const contactName = c => c?.name || [c?.firstName, c?.lastName].filter(Boolean).join(' ') || c?.email || '—';
 const fmtDate = v => (v ? new Date(v).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : null);
 
@@ -38,7 +38,7 @@ const money = v => (v == null || v === '' ? null : `$${Number(v).toLocaleString(
 
 /**
  * One field. Reads as plain text until you click it, then becomes an input or a
- * dropdown and saves on blur — the same click-to-edit behaviour as the project
+ * dropdown and saves on blur, the same click-to-edit behaviour as the project
  * screen, so nothing new has to be learned to use it.
  */
 // A stored date that will not parse must not take the whole screen down
@@ -118,11 +118,11 @@ function Field({ label, displayValue, rawValue, onSave, select, options = [], ty
 }
 
 /**
- * Lead Person — the one person on the project whose record the win/loss
+ * Lead Person, the one person on the project whose record the win/loss
  * counts on (ProjectContact.isLead). Maram 9-17 wants it in the popup with a
  * way to add a person right here. Search is against the whole people list
  * (the project's company first when it has one), and picking someone both
- * attaches them and makes them the lead — the API stands the old lead down.
+ * attaches them and makes them the lead, the API stands the old lead down.
  */
 function LeadPersonField({ project, onError }) {
   const [links, setLinks]     = useState(null);
@@ -177,7 +177,7 @@ function LeadPersonField({ project, onError }) {
             className={`text-left w-full text-sm font-semibold rounded px-1 -mx-1 hover:bg-orange-50 transition-colors ${lead ? 'text-slate-800' : 'text-slate-300'}`}>
             {links === null ? <span className="text-slate-300">…</span> : lead ? (
               <>{contactName(lead)}{lead.title && <span className="font-normal text-slate-400"> · {lead.title}</span>}</>
-            ) : '— none yet —'}
+            ) : 'None yet'}
           </button>
         ) : (
           <div className="border border-orange-400 rounded-lg p-2">
@@ -270,7 +270,7 @@ export default function PipelineSidePanel({ project, onClose, onUpdate }) {
     if (!res.ok) { setError(data.error || 'That did not save.'); return; }
 
     // The API hands back the project without the client / owner names the board
-    // shows, so put the owner's name back on before the card re-renders —
+    // shows, so put the owner's name back on before the card re-renders
     // otherwise changing the owner blanks the name until the page is reloaded.
     const saved = { ...data.project };
     if (field === 'salesOwnerId') {
@@ -291,7 +291,7 @@ export default function PipelineSidePanel({ project, onClose, onUpdate }) {
   const buyout       = useBuyoutDays(project.id, `${project.procurementStage}|${project.designStage}`);
   const outOfSync    = stagesOutOfSync(project);
   const ownerId      = project.salesOwnerId ?? project.salesOwner?.id ?? '';
-  const ownerOptions = [{ value: '', label: '— Unassigned —' }, ...salesUsers.map(u => ({ value: u.id, label: u.name || u.email }))];
+  const ownerOptions = [{ value: '', label: 'Unassigned' }, ...salesUsers.map(u => ({ value: u.id, label: u.name || u.email }))];
   const ownerName    = salesUsers.find(u => u.id === ownerId)?.name || (ownerId ? project.salesOwner?.name : null);
   // The team seats, read-only here. Editing them belongs on the project screen
   // where the full company list is already loaded.
@@ -301,7 +301,7 @@ export default function PipelineSidePanel({ project, onClose, onUpdate }) {
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end">
-      {/* Clicking off the panel closes it — the board is still right there. */}
+      {/* Clicking off the panel closes it, the board is still right there. */}
       <div className="absolute inset-0 bg-slate-900/20" onClick={onClose} />
 
       <div
@@ -384,7 +384,7 @@ export default function PipelineSidePanel({ project, onClose, onUpdate }) {
             rawValue={project.projectSubtype ?? ''} onSave={p('projectSubtype')} select options={PROJECT_SUBTYPE_OPTIONS} />
           <Field label="Service Type" displayValue={serviceTypeLabel(project.serviceType)}
             rawValue={project.serviceType || ''} onSave={p('serviceType')} select
-            options={[{ value: '', label: '— Select —' }, ...serviceTypeOptions(project.serviceType)]} />
+            options={[{ value: '', label: 'Select' }, ...serviceTypeOptions(project.serviceType)]} />
           <LeadPersonField project={project} onError={setError} />
 
           <Rule label="Revenue" />
@@ -393,8 +393,8 @@ export default function PipelineSidePanel({ project, onClose, onUpdate }) {
           <Field label="Design Fee Total ($)" displayValue={money(project.designContractValue)}
             rawValue={project.designContractValue ?? ''} onSave={pMoney('designContractValue')} />
           <Field label="Total Combined ($)" displayValue={money(combined)} readOnly accent="text-blue-600" />
-          <Field label={`${WEIGHTED_REVENUE_LABEL} — Product`} displayValue={money(Math.round(weightedProc))} readOnly accent="text-blue-600" />
-          {isDesign && <Field label={`${WEIGHTED_REVENUE_LABEL} — Design`} displayValue={money(Math.round(weightedDes))} readOnly accent="text-blue-600" />}
+          <Field label={`${WEIGHTED_REVENUE_LABEL}: Product`} displayValue={money(Math.round(weightedProc))} readOnly accent="text-blue-600" />
+          {isDesign && <Field label={`${WEIGHTED_REVENUE_LABEL}: Design`} displayValue={money(Math.round(weightedDes))} readOnly accent="text-blue-600" />}
 
           <Rule label="Forecast" />
           <Field label="Probability to Win (%)" displayValue={project.probabilityToWin != null ? `${project.probabilityToWin}%` : null}

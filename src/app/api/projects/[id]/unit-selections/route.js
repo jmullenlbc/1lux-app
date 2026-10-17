@@ -1,11 +1,11 @@
 /**
  * One project's unit selection survey.
  *
- * GET   — the current survey, the facts it runs on, and the fixtures each
+ * GET, the current survey, the facts it runs on, and the fixtures each
  *         category may offer once the budget and the code rules have had their
  *         say. Everything the screen needs, in one answer.
- * POST  — start a survey. Freezes the facts as they are today.
- * PATCH — change what the survey assumes (the entry sconce mounting height, the
+ * POST, start a survey. Freezes the facts as they are today.
+ * PATCH, change what the survey assumes (the entry sconce mounting height, the
  *         island length, a typed dollar target) and refreeze.
  *
  * ── The frozen facts ────────────────────────────────────────────────────────
@@ -26,7 +26,7 @@ import { CATEGORIES, CATEGORY_KEYS, RESPONSE_SHAPE, eligibleOptions, resolveFact
 
 export const dynamic = 'force-dynamic';
 
-/** Body scalars plus live finishes. No dnPrice — see the header. */
+/** Body scalars plus live finishes. No dnPrice, see the header. */
 const OPTION_SHAPE = {
   id: true, category: true, name: true, bodyKey: true,
   shape: true, style: true, dimLabel: true,

@@ -2,9 +2,9 @@
  * Construction schedule milestone extractor.
  *
  * Two complementary approaches:
- *  1. classifyActivity(name) — fast keyword classifier for structured row-by-row
+ *  1. classifyActivity(name), fast keyword classifier for structured row-by-row
  *     parsing (Primavera / MS Project / Asta exports where you have activity names).
- *  2. parseScheduleMilestones(text) — proximity scanner for unstructured PDF text
+ *  2. parseScheduleMilestones(text), proximity scanner for unstructured PDF text
  *     (finds keyword near a date on the same/adjacent lines).
  *
  * The AI extractor in files/route.js is the primary path for uploads; these are
@@ -297,7 +297,7 @@ export function parseScheduleMilestones(text) {
     .map(m => ({ id: m.id, label: m.label, date: found[m.id].date }));
 }
 
-// ── Legacy wrapper — keeps any existing callers working ───────────────────────
+// ── Legacy wrapper, keeps any existing callers working ───────────────────────
 export function parseScheduleFields(text) {
   const milestones = parseScheduleMilestones(text);
   const get = (id) => milestones.find(m => m.id === id)?.date ?? null;

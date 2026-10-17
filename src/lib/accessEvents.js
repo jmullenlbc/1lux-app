@@ -8,7 +8,7 @@
 // permission for PERMISSION rows, `fromValue` / `toValue` are plain text. A
 // department added is (null → key); removed is (key → null). Never deleted.
 //
-// A password is never written here in any form — a reset row carries no values.
+// A password is never written here in any form, a reset row carries no values.
 //
 // No `@/` imports here so the tests can load this file directly.
 import { DEPARTMENT_LABEL } from './departments.js';

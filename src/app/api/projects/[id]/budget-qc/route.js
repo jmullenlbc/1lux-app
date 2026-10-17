@@ -11,7 +11,7 @@ export async function GET(req, { params }) {
   const { user, error } = await requireAuth();
   if (error) return error;
 
-  // Ensure checklist + all item rows exist (upsert pattern — safe to call multiple times)
+  // Ensure checklist + all item rows exist (upsert pattern, safe to call multiple times)
   let checklist = await prisma.budgetQCChecklist.findUnique({
     where:   { projectId: params.id },
     include: {
@@ -66,7 +66,7 @@ export async function GET(req, { params }) {
   // Run auto-checks (never cached)
   const autoChecks = await runAutoChecks(params.id, prisma);
 
-  // Build summary — auto-pass items count toward total even before DB-checked
+  // Build summary, auto-pass items count toward total even before DB-checked
   let checkedCount = 0;
   const itemsOut = checklist.items.map(dbItem => {
     const def = BUDGET_QC_ITEMS.find(d => d.key === dbItem.itemKey);

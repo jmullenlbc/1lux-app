@@ -19,7 +19,7 @@ export default async function CodeSearchPage() {
     const index = JSON.parse(fs.readFileSync(indexPath, 'utf-8'));
     codeMeta = index.codes;
   } catch {
-    // Silently fail — client will handle empty state
+    // Silently fail, client will handle empty state
   }
 
   return <CodeSearchClient codeMeta={codeMeta} />;

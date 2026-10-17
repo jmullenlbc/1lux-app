@@ -40,7 +40,7 @@ test('the request past the limit is refused, with a real Retry-After', () => {
   assert.equal(r.retryAfterSeconds, 59);
 });
 
-test('Retry-After is never zero — a client told to retry now just gets refused again', () => {
+test('Retry-After is never zero: a client told to retry now just gets refused again', () => {
   process.env.MCP_RATE_LIMIT_PER_MINUTE = '1';
   take('k', 1, T0);
   // One millisecond before the window closes: the true wait rounds to 0s.
@@ -49,7 +49,7 @@ test('Retry-After is never zero — a client told to retry now just gets refused
   assert.ok(r.retryAfterSeconds >= 1, 'a client was told to retry in zero seconds');
 });
 
-test('a refusal costs nothing — hammering cannot extend your own lockout', () => {
+test('a refusal costs nothing: hammering cannot extend your own lockout', () => {
   // The failure this pins: if a refused request still recorded a timestamp, a
   // client retrying every second would keep pushing its own window forward and
   // never recover. That turns a one-minute overage into a permanent outage.
@@ -63,13 +63,13 @@ test('a refusal costs nothing — hammering cannot extend your own lockout', () 
   assert.equal(take('k', 1, T0 + WINDOW_MS + 1).ok, true, 'the caller never recovered');
 });
 
-test('the window slides — old requests stop counting one at a time', () => {
+test('the window slides: old requests stop counting one at a time', () => {
   process.env.MCP_RATE_LIMIT_PER_MINUTE = '2';
   take('k', 1, T0);
   take('k', 1, T0 + 30_000);
   assert.equal(take('k', 1, T0 + 40_000).ok, false, 'a third request inside the window was allowed');
 
-  // The first expires at T0 + 60s. Room for exactly one more, not two — this is
+  // The first expires at T0 + 60s. Room for exactly one more, not two, this is
   // what a fixed one-minute bucket would get wrong.
   assert.equal(take('k', 1, T0 + WINDOW_MS + 1).ok, true);
   assert.equal(take('k', 1, T0 + WINDOW_MS + 2).ok, false, 'the window reset wholesale instead of sliding');
@@ -134,9 +134,9 @@ test('the default is high enough that a busy caller is never throttled', () => {
   }
 });
 
-test('the tracking map is bounded — a spray of keys cannot grow it forever', () => {
+test('the tracking map is bounded: a spray of keys cannot grow it forever', () => {
   for (let i = 0; i < 6_000; i += 1) take(`key-${i}`, 1, T0 + i);
   assert.ok(trackedCallers() <= 5_000, `tracking ${trackedCallers()} callers`);
-  // Evicting somebody's history must never deny them — it only forgets.
+  // Evicting somebody's history must never deny them, it only forgets.
   assert.equal(take('key-0', 1, T0).ok, true);
 });

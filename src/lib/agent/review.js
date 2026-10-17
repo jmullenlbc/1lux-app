@@ -1,10 +1,10 @@
 /**
- * The governance decision — where Steps 16, 17 and 18 meet.
+ * The governance decision, where Steps 16, 17 and 18 meet.
  *
  * A feature that has just gotten an extraction back from a model calls this
  * ONCE and is told two things: may I write this, and does a human need to see
- * it. Everything else — running the deterministic checks, looking up what this
- * task type has earned, opening a queue row — happens in here.
+ * it. Everything else, running the deterministic checks, looking up what this
+ * task type has earned, opening a queue row, happens in here.
  *
  * ── Why one call and not three ───────────────────────────────────────────────
  * The alternative is every feature running its own checks, computing its own
@@ -15,18 +15,18 @@
  *
  * ── Failing safe, and what that costs ────────────────────────────────────────
  * If the store cannot record the run, a Tier 0 task returns `shouldWrite: false`.
- * That is the whole point of Tier 0 — nothing gets filed without a signature, and
+ * That is the whole point of Tier 0, nothing gets filed without a signature, and
  * a run that was never recorded can never be signed. It means a broken store
  * blocks supervised writes, which is a real cost, and it is the correct trade:
  * the alternative is writing AI output into project records with a review row
  * that does not exist, which looks identical to a reviewed write forever after.
  *
  * Tiers 1 and 2 have already earned the right to write, so a store failure there
- * degrades to "written but unrecorded" — logged loudly, not blocked.
+ * degrades to "written but unrecorded", logged loudly, not blocked.
  *
- * @see src/lib/agent/autoChecks.js   — Step 16
- * @see src/lib/agent/reviewStore.js  — Step 17's storage
- * @see src/lib/agentTrust.js         — Step 18
+ * @see src/lib/agent/autoChecks.js, Step 16
+ * @see src/lib/agent/reviewStore.js, Step 17's storage
+ * @see src/lib/agentTrust.js, Step 18
  * @see scripts/tests/agentReview.test.mjs
  */
 import { runAutoChecks } from './autoChecks.js';
@@ -37,11 +37,11 @@ import { verdictHistory } from './reviewStore.js';
 /**
  * @param {object}   p
  * @param {string}   p.taskType       'vision.fixtureTagDetect' | 'review.contract' | ...
- * @param {object}   p.output         the parsed model output — stored for review
+ * @param {object}   p.output         the parsed model output, stored for review
  * @param {string}   [p.promptVersion] bump this and the task type resets to Tier 0
  * @param {object}   [p.context]      data the deterministic checks reconcile against
  * @param {string}   [p.inputSummary] hash + descriptor from summariseInput(). NEVER the document.
- * @param {() => number} [p.rng]      injectable for tests — the Tier 2 audit sample
+ * @param {() => number} [p.rng]      injectable for tests, the Tier 2 audit sample
  *
  * @returns {{shouldWrite: boolean, needsReview: boolean, flagOnly: boolean,
  *           sampled: boolean, runId: string|null, tier: object, autoChecks: object,
@@ -90,7 +90,7 @@ export async function submitAgentOutput({
   if (!rec.stored) {
     console.error(
       `[agent/review] "${taskType}" output could not be recorded for review` +
-      (blockedByStore ? ' — WRITE BLOCKED (supervised tier).' : ' — writing anyway (earned tier), but unrecorded.')
+      (blockedByStore ? '. WRITE BLOCKED (supervised tier).' : ', writing anyway (earned tier), but unrecorded.')
     );
   }
 
@@ -106,7 +106,7 @@ export async function submitAgentOutput({
     autoChecks,
     status,
     why: blockedByStore
-      ? 'Supervised tier and the review row could not be stored — refusing to write unsigned output.'
+      ? 'Supervised tier and the review row could not be stored, refusing to write unsigned output.'
       : decision.why,
   };
 }

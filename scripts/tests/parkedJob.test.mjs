@@ -1,5 +1,5 @@
 /**
- * Park-and-poll for the in-app AI reads — the shared wrapper both halves.
+ * Park-and-poll for the in-app AI reads, the shared wrapper both halves.
  *
  * Mike, 2026-09-18: "match the public page across all drawing uploads in the
  * system. Or else we will hit timeout errors in other places."
@@ -113,7 +113,7 @@ test('server: a parked failure comes back with the status and body the route alw
 test('server: a poll during a live run says waiting; a stale run is started again; the cap gives an honest 504', async () => {
   const { deps, states, attempts, tick } = memStore();
   let ran = 0;
-  // A run that never parks anything — the Lambda died mid-way.
+  // A run that never parks anything, the Lambda died mid-way.
   const run = async () => { ran += 1; await deps.putScanAttempt(currentKey, { stage: 'run', startedAt: deps.now(), kicks: ran }); throw new Error('simulated'); };
   let currentKey;
 
@@ -235,7 +235,7 @@ test('browser: start → waiting → answer, and the answer is swept', async () 
 test('browser: an empty hang-up mid-poll is retried; the route\'s own error comes back with its status', async () => {
   const { fetch, calls } = scriptedFetch([
     [200, { jobKey: 'scans/k1.json.gz', queued: true }],
-    [504, null],                                   // Amplify's empty 504 — the server is still running
+    [504, null],                                   // Amplify's empty 504, the server is still running
     [422, { error: 'no_text', message: 'No text layer.' }],
     [204, null],
   ]);
@@ -264,7 +264,7 @@ test('browser: an inline answer (no store) and a plain 4xx pass straight through
   assert.deepEqual(r2.data, { error: 'Forbidden' });
   assert.equal(denied.calls.length, 1);
 
-  // A hang-up on the START is not survivable — nothing was written down.
+  // A hang-up on the START is not survivable, nothing was written down.
   const dead = scriptedFetch([[504, null]]);
   const r3 = await postParked('/api/x', {}, { fetch: dead.fetch });
   assert.equal(r3.status, 504);

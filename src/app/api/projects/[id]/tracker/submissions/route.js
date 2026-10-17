@@ -10,7 +10,7 @@ async function getTracker(projectId, user) {
   return prisma.submittalTracker.findUnique({ where: { projectId } });
 }
 
-// POST — create a new submission round
+// POST, create a new submission round
 // Body: { name, submittedDate, notes, specs: [{itemId, manufacturer, modelNumber}] }
 export async function POST(request, { params }) {
   const { user, error } = await requireAuth();

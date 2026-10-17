@@ -1,5 +1,5 @@
 /**
- * Work history — the one model call. Pasted LinkedIn text in, job rows out.
+ * Work history, the one model call. Pasted LinkedIn text in, job rows out.
  *
  * The paste is sealed as untrusted text: it is whatever the person wrote on
  * their own profile, and any of it can read like an instruction. See

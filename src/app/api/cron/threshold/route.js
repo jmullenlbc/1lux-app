@@ -4,7 +4,7 @@ import { sendThresholdNotification, queueDigestEvent } from '@/lib/notify';
 
 /**
  * GET /api/cron/threshold
- * Daily 8am ET — checks all threshold conditions across active projects.
+ * Daily 8am ET, checks all threshold conditions across active projects.
  * Protected by x-cron-secret header.
  * Triggered by AWS EventBridge Scheduler: cron(0 13 * * ? *)
  *

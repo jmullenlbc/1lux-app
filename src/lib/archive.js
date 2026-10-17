@@ -16,7 +16,7 @@
 //
 // No `@/` imports here so the tests can load this file directly.
 //
-// 2026-09-11, migration 0076 — project files, drawing sets, budget matrix
+// 2026-09-11, migration 0076, project files, drawing sets, budget matrix
 // versions and products joined them (Mike: "yes drawings and budgets and
 // products should be archive only"). These four are hidden from findFirst as
 // well: code asks for "the latest schedule file" or "the newest budget" with a
@@ -33,7 +33,7 @@ export const ARCHIVABLE_DOCUMENTS = ['projectFile', 'drawingSubmission', 'manufa
 // Records that may never be deleted through the app's database client, even by
 // code written later. Deleting one of these throws. Conceptual budget
 // submissions and questionnaire answers have no archive columns because no
-// screen deletes them — this is what keeps it that way (Mike, 2026-09-11:
+// screen deletes them, this is what keeps it that way (Mike, 2026-09-11:
 // "like budget matrix, conceptual budget, design questionnaire I don't want to
 // be deleted"). Drawing files ride with their drawing set.
 // Bug reports joined 2026-09-12 (migration 0079): archived from the QC board,

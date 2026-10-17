@@ -1,5 +1,5 @@
 // Unit tests for the agent ledger and the client wrapper that feeds it.
-// Pure node:test — no dev server, no database. Run via `npm run verify:units`.
+// Pure node:test, no dev server, no database. Run via `npm run verify:units`.
 //
 // The wrapper is tested against a FAKE Anthropic client rather than a real one:
 // building a real one needs the `@` alias, which is a bundler feature the test
@@ -42,8 +42,8 @@ const tailSince = async (mark) => (await readLedgerTail(200)).filter(e => e.task
 /**
  * Wait for a stream's ledger entry to land, then return the entries.
  *
- * The record is a floating promise by necessity — once the streamer is handed to
- * the caller there is nothing left to await it into — so a test has to wait for
+ * The record is a floating promise by necessity, once the streamer is handed to
+ * the caller there is nothing left to await it into, so a test has to wait for
  * it somehow. This used to be a single `await setImmediate`, which assumes the
  * whole record path (sink resolution, then a real file append) completes inside
  * one macrotask tick. It usually does, and under the parallel load of the full
@@ -51,7 +51,7 @@ const tailSince = async (mark) => (await readLedgerTail(200)).filter(e => e.task
  * on its own every time. A gate that fails one run in three teaches people to
  * re-run it rather than read it, which is worse than no gate.
  *
- * Polling asserts the same claim — the finished stream IS recorded — without
+ * Polling asserts the same claim, the finished stream IS recorded, without
  * pinning it to a tick count. It returns as soon as the entry appears, so the
  * passing path costs a millisecond, and the timeout is a real failure.
  */
@@ -104,7 +104,7 @@ function fakeStreamingClient() {
   return { streamer, client: { messages: { stream: () => streamer } } };
 }
 
-test('a stream is returned untouched — the wrapper never owns the iteration', () => {
+test('a stream is returned untouched: the wrapper never owns the iteration', () => {
   const { streamer, client } = fakeStreamingClient();
   const returned = wrapClient(client, 'test.stream').messages.stream({ model: 'm' });
   assert.equal(returned, streamer, 'the wrapper substituted its own object for the streamer');
@@ -133,7 +133,7 @@ test('a stream that errors is recorded as an error, exactly once', async () => {
   wrapClient(client, 'test.stream.err').messages.stream({ model: 'claude-haiku-4-5' });
 
   streamer.emit('error', new Error('upstream exploded'));
-  // A stream can emit both — the record must not double-count.
+  // A stream can emit both, the record must not double-count.
   streamer.emit('finalMessage', { usage: { input_tokens: 1, output_tokens: 1 } });
 
   await waitForLedger('test.stream.err');
@@ -150,7 +150,7 @@ test('a stream that errors is recorded as an error, exactly once', async () => {
 test('the wrapper always attaches an error listener, so a stream failure cannot go unhandled', () => {
   const { streamer, client } = fakeStreamingClient();
   wrapClient(client, 'test.stream.unhandled').messages.stream({ model: 'm' });
-  // Without a listener the SDK's emitter throws on 'error' — the wrapper would
+  // Without a listener the SDK's emitter throws on 'error', the wrapper would
   // then crash the very request it was only meant to observe.
   assert.ok(streamer.listenerCount('error') >= 1);
 });
@@ -192,11 +192,11 @@ test('a failed call is recorded AND rethrown unchanged', async () => {
   await assert.rejects(
     () => client.messages.create({ model: 'claude-haiku-4-5', messages: [] }),
     /overloaded_error/,
-    'the wrapper swallowed the error — this layer observes, it does not decide',
+    'the wrapper swallowed the error. This layer observes, it does not decide',
   );
 
   const [entry] = await tailSince(task);
-  assert.ok(entry, 'a failed call was not recorded — errors are the interesting ones');
+  assert.ok(entry, 'a failed call was not recorded. Errors are the interesting ones');
   assert.equal(entry.status, 'error');
   assert.match(entry.error, /overloaded_error/);
 });
@@ -217,7 +217,7 @@ test('no prompt or completion text is ever written to the ledger', async () => {
   assert.ok(!raw.includes(SECRET), 'prompt or completion text reached the ledger');
 });
 
-test('an error message is truncated — it can carry an echoed prompt', async () => {
+test('an error message is truncated, it can carry an echoed prompt', async () => {
   const task = `test.trunc.${process.pid}`;
   const client = wrapClient(fakeClient({ throws: new Error('x'.repeat(5000)) }), task);
   await assert.rejects(() => client.messages.create({ model: 'm', messages: [] }));
@@ -235,7 +235,7 @@ test('a table write that throws does not fail the call it was observing', async 
   //
   // The client is INJECTED. Without that seam this test passed while quietly
   // exercising the file sink, because `loadPrisma()` cannot resolve the `@` alias
-  // under node --test and returns null — so the throwing `create` below was never
+  // under node --test and returns null, so the throwing `create` below was never
   // reached and the assertion proved nothing.
   _resetSinkForTests();
   let attempted = false;
@@ -246,7 +246,7 @@ test('a table write that throws does not fail the call it was observing', async 
   assert.equal(resolveSink(brokenPrisma), SINK.PRISMA);
 
   await assert.doesNotReject(() => recordRun({ task: 'test.broken', model: 'm' }));
-  assert.ok(attempted, 'the Prisma branch was never taken — this test was not testing it');
+  assert.ok(attempted, 'the Prisma branch was never taken, this test was not testing it');
 
   _resetSinkForTests();
 });
@@ -254,7 +254,7 @@ test('a table write that throws does not fail the call it was observing', async 
 test('a memoised Prisma sink with no client degrades instead of dereferencing null', async () => {
   // The sink is memoised once per process; the client is resolved per call. A
   // script that reaches the PRISMA branch and then runs where `@/lib/db` will not
-  // resolve used to hit `null.agentRun` and lose the entry to the catch — which
+  // resolve used to hit `null.agentRun` and lose the entry to the catch, which
   // reads in the logs as a database fault rather than "no client here".
   _resetSinkForTests();
   assert.equal(resolveSink({ agentRun: { create: async () => {} } }), SINK.PRISMA);
@@ -310,7 +310,7 @@ test('summarise rolls up by task, which is the dimension every question asks abo
 });
 
 test('summarise tolerates the nulls a real ledger contains', () => {
-  // Every numeric column is nullable — a call that failed before the API
+  // Every numeric column is nullable, a call that failed before the API
   // answered has no token counts at all.
   const [row] = summarise([{ task: 't', status: 'ok', inputTokens: null, outputTokens: null, durationMs: null }]);
   assert.equal(row.inputTokens, 0);

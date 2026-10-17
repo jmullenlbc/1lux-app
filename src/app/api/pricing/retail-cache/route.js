@@ -5,7 +5,7 @@ import { normalizeKey } from '@/lib/pricingIntelligence';
 
 // GET /api/pricing/retail-cache?items=[{manufacturer,partNumber}]
 // Returns cached retail prices for a batch. Called as background useEffect
-// after budget items load — never blocks the initial render.
+// after budget items load, never blocks the initial render.
 export async function GET(req) {
   const { user, error } = await requireAuth();
   if (error) return error;
@@ -26,7 +26,7 @@ export async function GET(req) {
     partNorm:  normalizeKey(i.partNumber),
   }));
 
-  // Batch fetch — one query for all requested pairs
+  // Batch fetch, one query for all requested pairs
   const cached = await prisma.productPriceCache.findMany({
     where: {
       OR: normalized.map(n => ({

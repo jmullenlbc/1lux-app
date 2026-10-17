@@ -5,7 +5,7 @@ import { getOutreachGroups, draftContactOutreach } from '@/lib/bot/composeOutrea
 
 export const dynamic = 'force-dynamic';
 
-// GET — pending outreach groups for this note (confirmed asks per contact).
+// GET, pending outreach groups for this note (confirmed asks per contact).
 export async function GET(request, { params }) {
   const { error } = await requireAuth();
   if (error) return error;
@@ -18,7 +18,7 @@ export async function GET(request, { params }) {
   });
 }
 
-// POST — compose ONE email for a contact's group and queue it. Body: { contactId }
+// POST, compose ONE email for a contact's group and queue it. Body: { contactId }
 export async function POST(request, { params }) {
   const { error } = await requireAuth();
   if (error) return error;

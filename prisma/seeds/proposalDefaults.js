@@ -76,7 +76,7 @@ const PEER_REVIEW_DOC = `<h2>Scope of Services</h2>
 <h2>Acceptance</h2>
 <p>This proposal is valid for 60 days from <strong>{effectiveDate}</strong>.</p>`;
 
-// ── Full Design tasks — mirrors "Full service fee breakdown" sheet exactly ────
+// ── Full Design tasks, mirrors "Full service fee breakdown" sheet exactly ────
 // sr=Senior Designer, des=Designer, sales=Sales, out=Outsource Designer
 const FULL_DESIGN_TASKS = [
   // GENERAL
@@ -155,7 +155,7 @@ const FULL_DESIGN_TASKS = [
   { area: 'Construction Admin', task: 'Coordination meetings',           sortOrder: 60, srHours: 0,    designerHours: 2,  salesHours: 0, outsourceHours: 0 },
 ];
 
-// ── Design Assist tasks — mirrors "Design assist fee breakdown" sheet exactly ─
+// ── Design Assist tasks, mirrors "Design assist fee breakdown" sheet exactly ─
 // Pre-Con / Sales column maps to salesHours; no outsource column in this sheet
 const DESIGN_ASSIST_TASKS = [
   // GENERAL
@@ -198,7 +198,7 @@ const DESIGN_ASSIST_TASKS = [
   // EXIT SIGNS
   { area: 'Exit Signs', task: 'Download and review EE drawings for exit sign layouts', sortOrder: 29, srHours: 0, designerHours: 0, salesHours: 0, outsourceHours: 0 },
   // TAKEOFFS
-  { area: 'Takeoffs', task: 'Submission takeoffs (3–4 submissions)',               sortOrder: 30, srHours: 0, designerHours: 0, salesHours: 0, outsourceHours: 0 },
+  { area: 'Takeoffs', task: 'Submission takeoffs (3 to 4 submissions)',               sortOrder: 30, srHours: 0, designerHours: 0, salesHours: 0, outsourceHours: 0 },
   // CONTROLS
   { area: 'Controls', task: 'Create controls narrative',                           sortOrder: 31, srHours: 0,   designerHours: 0, salesHours: 0, outsourceHours: 0 },
   { area: 'Controls', task: 'Review controls SOO from EE',                         sortOrder: 32, srHours: 0,   designerHours: 0, salesHours: 0, outsourceHours: 0 },
@@ -228,7 +228,7 @@ const PEER_REVIEW_TASKS = [
 const TEMPLATES = [
   {
     id:              'tmpl-full-design-standard',
-    name:            'Full Design — Standard',
+    name:            'Full Design: Standard',
     type:            'FULL_DESIGN',
     isDefault:       true,
     isActive:        true,
@@ -240,7 +240,7 @@ const TEMPLATES = [
   },
   {
     id:              'tmpl-design-assist-standard',
-    name:            'Design Assist — Standard',
+    name:            'Design Assist: Standard',
     type:            'DESIGN_ASSIST',
     isDefault:       true,
     isActive:        true,
@@ -252,7 +252,7 @@ const TEMPLATES = [
   },
   {
     id:              'tmpl-peer-review-standard',
-    name:            'Peer Review — Standard',
+    name:            'Peer Review: Standard',
     type:            'PEER_REVIEW',
     isDefault:       true,
     isActive:        true,
@@ -266,7 +266,7 @@ const TEMPLATES = [
 
 async function seedProposalDefaults(prisma, adminUserId) {
   if (!prisma.proposalRate) {
-    console.log('⚠ Proposal rates: proposalRate not in schema — skipping');
+    console.log('⚠ Proposal rates: proposalRate not in schema, skipping');
     return;
   }
 

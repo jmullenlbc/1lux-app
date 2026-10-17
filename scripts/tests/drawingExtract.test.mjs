@@ -1,6 +1,6 @@
 /**
  * Unit tests for the shared drawing-extraction core.
- * Covers the pure logic only — no model calls, no file IO.
+ * Covers the pure logic only, no model calls, no file IO.
  * Run: node --test scripts/tests/drawingExtract.test.mjs
  */
 import { test } from 'node:test';
@@ -22,7 +22,7 @@ test('accepted and image extension lists do not overlap', () => {
 
 test('pickModel escalates on size and on telling filenames', () => {
   // 2026-08-19: the two tiers moved up and now come from src/lib/aiModels.js.
-  // 2026-08-28: they landed on the SAME model -- every drawing read is Fable 5
+  // 2026-08-28: they landed on the SAME model, every drawing read is Fable 5
   // now, by rule (see DRAWING_JOBS). So this no longer asserts that the two
   // differ; the JOB split still exists and still matters, because the accuracy
   // history is kept per job and a dense set is not the same task as a tidy
@@ -248,7 +248,7 @@ test('same code across files, same SF, different qty is STILL a real disagreemen
 
 // REVERSED 2026-09-15. This used to assert that a blank-code row was DROPPED
 // (`length, 0`). It was written to stop blank rows landing in one bucket and
-// overwriting each other — a real hazard — but dropping them solved it by
+// overwriting each other, a real hazard, but dropping them solved it by
 // deleting the units, which is how Lone Tree Ranch Test v1 came back with 294
 // bedrooms against a hand count of 472 (Mike, 2026-09-15: "It read units wrong
 // on a project I just tested ... Way off there").
@@ -370,7 +370,7 @@ test('overall confidence averages across files', () => {
 
 // ─── SITE DATA IN THE MERGE ─────────────────────────────────────────────────
 // A vision-read site plan arrives as { kind: 'site_data', siteData, unitTypes: [] }.
-// Before 2026-08-16 the merge silently dropped siteData — the visitor was told
+// Before 2026-08-16 the merge silently dropped siteData, the visitor was told
 // their site plan was read while its numbers went nowhere.
 
 const site = (fields, conf = 0.9) => ({
@@ -434,7 +434,7 @@ test('empty input and null proposals are safe', () => {
 // ─── GROSS SF TRAVELS AS A BUNDLE ───────────────────────────────────────────
 // The number and the verdict about what the number MEANS have to stay attached.
 // Merging them field-by-field would pair one file's square footage with another
-// file's basis — a number and an explanation of a different number.
+// file's basis, a number and an explanation of a different number.
 
 const withGross = (sf, basis, conf, extra = {}) => ({
   unitTypes: [],
@@ -537,7 +537,7 @@ test('per-building totals sum in code when no whole-project total is printed', (
   const t = out.projectTotals;
   assert.equal(t.grossSfSummed, true);
   assert.equal(t.grossSfStated, 87781 + 87781 + 96746 + 91721);   // 364,029
-  // The page says GROSS BUILDING AREA right by the addends — no adjustment.
+  // The page says GROSS BUILDING AREA right by the addends, no adjustment.
   assert.equal(t.grossInteriorSf, 364029);
   assert.match(t.grossSfSummary, /sum of the stated per-building totals/);
   assert.match(t.grossSfSummary, /Building A 87,781 \+ Building B 87,781 \+ Building C 96,746 \+ Building D 91,721 = 364,029 SF/);
@@ -583,7 +583,7 @@ test('per-building addends travel with the winning gross bundle through a merge'
 
 // ─── KEPT SHEETS ────────────────────────────────────────────────────────────
 // The compressed images of the pages we read. A GC can send up to five PDFs in
-// one go, so the merge has to gather the kept sheets from all of them — and say
+// one go, so the merge has to gather the kept sheets from all of them, and say
 // which file each one came from, because "page 3" means nothing across five sets.
 
 test('kept sheets are gathered from every file, labelled with the file', () => {
@@ -659,7 +659,7 @@ test('slices resume where the last one stopped and cover the set exactly once', 
 test('a slice whose budget is already gone still reads one page', async () => {
   // Opening a 60 MB set by byte range can itself outlast the slice budget. If
   // that meant reading nothing, the browser would ask again, get nothing again,
-  // and the read would never finish -- which is the bug this guards.
+  // and the read would never finish, which is the bug this guards.
   const r = await extractPdfPages(fakeDoc(5, 2), { fromPage: 2, timeBudgetMs: 0 });
   assert.equal(r.pages.length, 1);
   assert.equal(r.pages[0].page, 2);
@@ -700,7 +700,7 @@ test('a brake that comes on mid-read keeps every page banked before it', async (
 
 test('a braked read that found no text is reported as too big, not as a blank scan', async () => {
   // One page of a 33-sheet set, no text on it, brake on: we do not know the
-  // set has no text layer — we know we could not hold it open. The message
+  // set has no text layer, we know we could not hold it open. The message
   // says which, and the route still sends it on to the vision read.
   const blankDoc = { ...fakeDoc(33), async getPage() { return { getTextContent: async () => ({ items: [] }), cleanup() {} }; } };
   const r = await extractDrawingText(blankDoc, 'ARCH.pdf', { shouldStop: () => true });
@@ -745,7 +745,7 @@ test('the page cap ends the read rather than asking for pages that do not exist'
 test('a page whose fetches never answer is raced out, not waited on forever', async () => {
   // Measured on production with the Skyline Ridge set (2026-09-02): one
   // page's range fetches sat past the front door's ~28s and the request died
-  // as an empty 504 — because getPage() sat OUTSIDE the timeout race, which
+  // as an empty 504, because getPage() sat OUTSIDE the timeout race, which
   // guarded only getTextContent. The window has to cover the whole page,
   // from "ask for it" to "have its text".
   const doc = {

@@ -118,7 +118,7 @@ function initials(name) {
   return name.split(' ').map(p => p[0]).join('').toUpperCase().slice(0, 2);
 }
 
-// "Meal" covers a work breakfast, lunch or dinner — Mike's rule, 2026-09-07.
+// "Meal" covers a work breakfast, lunch or dinner, Mike's rule, 2026-09-07.
 // "Travel" is a day on the road to see clients, counted in days not meetings.
 const CHECKIN_ACTIVITY_TYPES = ['COFFEE','MEAL','HAPPY_HOUR','GOLF','SITE_VISIT','TRAVEL','CALL','EMAIL','TEXT','EVENT','OTHER'];
 const CHECKIN_ACTIVITY_META = {

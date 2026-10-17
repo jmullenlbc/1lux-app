@@ -1,10 +1,10 @@
 // Browser side of the direct-to-S3 upload flow. Client-safe: no server-only
-// imports, no AWS SDK — the browser just PUTs bytes to a presigned URL.
+// imports, no AWS SDK, the browser just PUTs bytes to a presigned URL.
 //
 // Usage:
 //   const sent = await uploadDirect(file, { onProgress });
-//   if (sent) → { key } — hand the key to the parse route instead of the file
-//   if null  → presigning unavailable (local dev) — use the classic multipart
+//   if (sent) → { key }, hand the key to the parse route instead of the file
+//   if null  → presigning unavailable (local dev), use the classic multipart
 //              path, which has no front-door cap there
 //
 // Throws on real failures (oversized, unsupported type, network) with a
@@ -17,15 +17,15 @@
 const PART_BYTES = 5 * 1024 * 1024;
 
 // How many times one request may be retried before we give up on it. A network
-// drop is the failure we are actually retrying: whatever caused it -- a wifi
-// handoff, a carrier timeout, a router with an itchy trigger on long uploads --
+// drop is the failure we are actually retrying: whatever caused it, a wifi
+// handoff, a carrier timeout, a router with an itchy trigger on long uploads
 // is almost always gone a few seconds later.
 const RETRY_DELAYS_MS = [2000, 5000, 12000];
 
 // ── Reading the file BEFORE sending it ──────────────────────────────────────
 //
 // On a phone, "the file" is often not on the phone. Android hands the browser
-// a live pipe to wherever it really lives -- Google Drive, most often -- and
+// a live pipe to wherever it really lives, Google Drive, most often, and
 // the bytes are pulled down WHILE the upload runs. When that pipe stalls or
 // the cloud app hiccups, the send dies partway and it is indistinguishable
 // from a dropped connection: same on wifi or cellular, same at home or on a
@@ -37,7 +37,7 @@ const RETRY_DELAYS_MS = [2000, 5000, 12000];
 // failure surfaces here with a message that says what to actually do, and
 // every later read (including each 5 MB part) comes from memory, where
 // nothing can change or stall underneath it. Past the ceiling we stream as
-// before -- holding hundreds of MB in a phone's memory is its own crash.
+// before, holding hundreds of MB in a phone's memory is its own crash.
 const BUFFER_CEILING_BYTES = 64 * 1024 * 1024;
 
 export async function materialize(file) {
@@ -50,7 +50,7 @@ export async function materialize(file) {
   }
   if (!buf || buf.byteLength !== file.size) {
     const err = new Error(
-      "Your phone couldn't read this file all the way through — that usually "
+      "Your phone couldn't read this file all the way through. That usually "
       + 'means it lives in Google Drive or another cloud app and never finished '
       + 'coming down. Save it to your phone first (in Drive: ⋮ → Download), '
       + 'then try again. (U6)');
@@ -69,7 +69,7 @@ export async function materialize(file) {
  * re-grabs the lock every time the page comes back into view, until the
  * returned release function is called.
  *
- * Browsers without wake lock get exactly the old behaviour -- every failure
+ * Browsers without wake lock get exactly the old behaviour, every failure
  * here is swallowed on purpose.
  */
 export function holdScreenAwake() {
@@ -132,7 +132,7 @@ export async function uploadDirect(file, { onProgress, scope = 'intake' } = {}) 
 // Small file: one PUT, retried on a network drop.
 //
 // Big file: one PUT PER PART, each retried on its own. This is the difference
-// that matters. Mike's upload died about 10% into a set on wifi (2026-08-29) --
+// that matters. Mike's upload died about 10% into a set on wifi (2026-08-29)
 // the transfer started fine and the connection dropped partway, which used to
 // kill the whole file because a single PUT has no smaller unit to fall back
 // to. In parts, that same drop costs one 8 MB chunk, which is resent
@@ -240,7 +240,7 @@ export function stoppedAtTheSamePlace(stops) {
 //
 // Four different things can go wrong between picking a file and reading it,
 // and they used to print the same sentence: "Upload failed, check your
-// connection." That sentence is worse than useless -- it sends someone to
+// connection." That sentence is worse than useless, it sends someone to
 // check their wifi when the real problem was elsewhere, and it tells us
 // nothing when a GC reports it.
 //
@@ -256,16 +256,16 @@ export function describeDrop(stats, stops) {
   const part  = stats.parts > 1 ? `, part ${stats.part} of ${stats.parts}` : '';
   const verdict = stoppedAtTheSamePlace(stops)
     ? `It stopped at the same point all ${stops.length} times, so this is a limit somewhere `
-      + `on the way — not a weak signal. Send the file to precon@ilcstudios.com and we'll take it from there.`
+      + `on the way, not a weak signal. Send the file to precon@ilcstudios.com and we'll take it from there.`
     : 'Please try again on a stronger connection.';
-  return `The connection dropped ${where}${part} — ${mb(stats.sentBytes)} sent over ${secs}s, `
+  return `The connection dropped ${where}${part}: ${mb(stats.sentBytes)} sent over ${secs}s, `
        + `across ${stops.length} tries. ${verdict} (U3)`;
 }
 
 // One PUT. XMLHttpRequest instead of fetch for two reasons: upload progress
 // events, and it STREAMS from disk rather than reading the whole thing into
 // memory first. That second one is what lets a phone send a 300 MB drawing set
-// at all -- the browser never holds the file.
+// at all, the browser never holds the file.
 function putOnce(url, body, contentType, onProgress) {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
@@ -283,7 +283,7 @@ function putOnce(url, body, contentType, onProgress) {
       err.retryable = true;   // the one failure a retry can actually fix
       reject(err);
     };
-    xhr.ontimeout = () => reject(new Error('The upload timed out. Please try again — a strong connection helps with a big set. (U4)'));
+    xhr.ontimeout = () => reject(new Error('The upload timed out. Please try again. A strong connection helps with a big set. (U4)'));
     // Matches the slip's own expiry (PRESIGN_TTL_SECONDS in uploadStorage.js).
     // A 400 MB set over a job-site connection at 2 Mbps takes ~27 minutes; a
     // timeout shorter than the slip would kill a transfer that was going fine.
@@ -297,9 +297,9 @@ function putOnce(url, body, contentType, onProgress) {
 //
 // Puts `file` into `form` the best way available, and returns how it travelled:
 //
-//   'direct'    — went straight to S3; the form carries only a key, so the
+//   'direct', went straight to S3; the form carries only a key, so the
 //                 request sails through Amplify's 4 MB front door
-//   'multipart' — the file itself is in the form, as it always was. Happens in
+//   'multipart', the file itself is in the form, as it always was. Happens in
 //                 local dev (no bucket) and for types we don't presign
 //                 (images, Word docs). Local dev has no front-door cap.
 //
@@ -313,7 +313,7 @@ const PRESIGNABLE_EXT = ['pdf', 'xlsx', 'xls'];
 
 // The bot's library reads more than drawings and schedules, so its drop zone can
 // send more than they can. Must stay in step with KNOWLEDGE_PRESIGNABLE in
-// uploadStorage.js — an extension listed here but not there gets a slip refused
+// uploadStorage.js, an extension listed here but not there gets a slip refused
 // and quietly falls back to the form body, which caps out at 4 MB in prod.
 const KNOWLEDGE_EXT = [
   ...PRESIGNABLE_EXT,
@@ -338,7 +338,7 @@ export async function appendUpload(form, file, { onProgress, scope = 'project' }
       sent = await uploadDirect(file, { onProgress, scope });
     } catch (err) {
       if ((file.size || 0) > FRONT_DOOR_BYTES) throw err;
-      sent = null; // small enough to go the old way — no need to bother the user
+      sent = null; // small enough to go the old way, no need to bother the user
     }
     if (sent) {
       form.append('uploadKey', sent.key);

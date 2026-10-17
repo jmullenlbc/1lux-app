@@ -1,20 +1,20 @@
 /**
- * Trust tiers — Step 18 of the Governed AI Layer, Slice 4b.
+ * Trust tiers, Step 18 of the Governed AI Layer, Slice 4b.
  *
  * How much autonomy has a given task type actually EARNED, measured from human
  * verdicts rather than asserted in a config file.
  *
- *   Tier 0 — Supervised. Output goes to a human before it is written to a
+ *   Tier 0, Supervised. Output goes to a human before it is written to a
  *            project record. The default for every new task type.
- *   Tier 1 — Auto-edit.  Written, flagged `aiFlagged`, surfaced for review.
+ *   Tier 1, Auto-edit.  Written, flagged `aiFlagged`, surfaced for review.
  *            Earned at ≥10 verdicts and ≥90% accepted.
- *   Tier 2 — Auto-write. Written silently — but a 10% random sample still goes
+ *   Tier 2, Auto-write. Written silently, but a 10% random sample still goes
  *            to review, forever. Earned at ≥20 verdicts and ≥95% accepted.
  *
  * ── Three rules that matter more than the thresholds ─────────────────────────
  *
  * **Trust goes down.** Two non-accepted verdicts in the last five runs drops the
- * type one tier. Trust that cannot fall isn't trust — it's a permission somebody
+ * type one tier. Trust that cannot fall isn't trust, it's a permission somebody
  * forgot to revoke. The demotion window is short (5) on purpose: a type that has
  * built up 200 clean verdicts should still lose autonomy the week it starts
  * getting things wrong, not once the long-run average finally sags.
@@ -33,16 +33,16 @@
  * ── Why the sampling is here and not at the call site ────────────────────────
  * Tier 2's 10% sample is the only thing that keeps a fully-autonomous task type
  * measurable. Left to each caller it would be implemented three different ways
- * and dropped in the fourth, and its absence is invisible — a task with no
+ * and dropped in the fourth, and its absence is invisible, a task with no
  * samples looks exactly like a task that is doing fine.
  *
- * @see src/lib/agent/reviewStore.js — where verdicts come from
+ * @see src/lib/agent/reviewStore.js, where verdicts come from
  * @see scripts/tests/agentTrust.test.mjs
  */
 // Relative, not `@/lib/...`, on purpose: scripts/tests/agentTrust.test.mjs imports
 // this file under plain Node, which does not know the `@/` alias.
 //
-// This makes the module server-only — reviewStore reaches node:crypto — so the
+// This makes the module server-only, reviewStore reaches node:crypto, so the
 // review-queue UI takes tier labels as plain props rather than importing TIER_LABEL.
 // A client component importing this file fails the webpack build outright.
 import { verdictHistory } from './agent/reviewStore.js';
@@ -75,7 +75,7 @@ const DEMOTION_THRESHOLD = 2;
 export const TIER_2_SAMPLE_RATE = 0.10;
 
 /**
- * Compute the tier from a verdict history. Pure — no store, no clock, no IO.
+ * Compute the tier from a verdict history. Pure, no store, no clock, no IO.
  *
  * @param {string} taskType
  * @param {Array<{verdict: string}>} history oldest → newest, already filtered to
@@ -98,19 +98,19 @@ export function computeTier(taskType, history = []) {
   if (PERMANENT_TIER_0.includes(taskType)) {
     return {
       ...base, tier: TIER.SUPERVISED, label: TIER_LABEL[0], permanent: true,
-      reason: 'Permanently supervised — legal exposure. A human signs this one regardless of accuracy.',
+      reason: 'Permanently supervised: legal exposure. A human signs this one regardless of accuracy.',
     };
   }
 
   let tier = TIER.SUPERVISED;
   let reason = verdicts.length
-    ? `${verdicts.length} verdict${verdicts.length === 1 ? '' : 's'} at ${pct(acceptRate)} accepted — not yet ${PROMOTION[1].minVerdicts} verdicts at ${pct(PROMOTION[1].minAcceptRate)}.`
+    ? `${verdicts.length} verdict${verdicts.length === 1 ? '' : 's'} at ${pct(acceptRate)} accepted, not yet ${PROMOTION[1].minVerdicts} verdicts at ${pct(PROMOTION[1].minAcceptRate)}.`
     : 'No verdicts yet at this prompt version. Every new task type starts supervised.';
 
   for (const rule of PROMOTION) {
     if (verdicts.length >= rule.minVerdicts && acceptRate >= rule.minAcceptRate) {
       tier = rule.tier;
-      reason = `${verdicts.length} verdicts at ${pct(acceptRate)} accepted — clears ${rule.minVerdicts} / ${pct(rule.minAcceptRate)}.`;
+      reason = `${verdicts.length} verdicts at ${pct(acceptRate)} accepted, clears ${rule.minVerdicts} / ${pct(rule.minAcceptRate)}.`;
       break;
     }
   }
@@ -123,7 +123,7 @@ export function computeTier(taskType, history = []) {
     tier -= 1;
     return {
       ...base, tier, label: TIER_LABEL[tier], demoted: true,
-      reason: `Demoted — ${recentBad} non-accepted verdicts in the last ${recent.length}. ${reason}`,
+      reason: `Demoted: ${recentBad} non-accepted verdicts in the last ${recent.length}. ${reason}`,
     };
   }
 
@@ -139,7 +139,7 @@ export function computeTier(taskType, history = []) {
  *
  * @param {object} tierInfo   from computeTier()
  * @param {boolean|null} autoCheckPass
- * @param {() => number} rng  injectable for tests — the Tier 2 sample is random
+ * @param {() => number} rng  injectable for tests, the Tier 2 sample is random
  */
 export function needsReview(tierInfo, autoCheckPass = null, rng = Math.random) {
   if (autoCheckPass === false) {
@@ -149,7 +149,7 @@ export function needsReview(tierInfo, autoCheckPass = null, rng = Math.random) {
     return { review: true, why: tierInfo.permanent ? 'Permanently supervised task type.' : 'Supervised tier.' };
   }
   if (tierInfo.tier === TIER.AUTO_EDIT) {
-    return { review: true, flagOnly: true, why: 'Auto-edit — written and flagged, surfaced for review.' };
+    return { review: true, flagOnly: true, why: 'Auto-edit: written and flagged, surfaced for review.' };
   }
   if (rng() < TIER_2_SAMPLE_RATE) {
     return { review: true, sampled: true, why: `Auto-write, but caught by the ${pct(TIER_2_SAMPLE_RATE)} audit sample.` };

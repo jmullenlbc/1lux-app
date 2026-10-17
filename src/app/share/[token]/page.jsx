@@ -29,7 +29,7 @@ export default async function SharePage({ params }) {
   const budget     = calculateBudget(projectData, sections, pricing);
   const pd         = projectData;
 
-  // No percentages on the contractor's copy — the dollars only (Mike, 2026-09-17:
+  // No percentages on the contractor's copy, the dollars only (Mike, 2026-09-17:
   // "Yes hide them"). The rate behind them stays a staff-only figure.
   const today          = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 

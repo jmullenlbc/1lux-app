@@ -5,7 +5,7 @@
  * Steps the AI finds are saved CONFIRMED, not SUGGESTED, so publishing is the
  * one click that starts everything: the recap email is drafted, and anything
  * that is theirs to do (reply, drawings, invite, intro) starts being watched.
- * Nothing is sent — every email waits in the Bot Queue for a person. A step
+ * Nothing is sent, every email waits in the Bot Queue for a person. A step
  * that is wrong is dismissed on the Notes tab, and its draft goes with it on
  * the next publish.
  *

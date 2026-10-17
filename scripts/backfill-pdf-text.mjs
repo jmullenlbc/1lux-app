@@ -94,10 +94,10 @@ async function main() {
 
       if (text) {
         await prisma.projectFile.update({ where: { id: file.id }, data: { textContent: text } });
-        console.log(`  → OK [${method}] — ${text.length.toLocaleString()} chars\n`);
+        console.log(`  → OK [${method}], ${text.length.toLocaleString()} chars\n`);
         updated++;
       } else {
-        console.log(`  → EMPTY — no text extracted\n`);
+        console.log(`  → EMPTY, no text extracted\n`);
         empty++;
       }
     } catch (e) {

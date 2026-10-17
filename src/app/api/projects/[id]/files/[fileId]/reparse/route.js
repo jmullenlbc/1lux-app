@@ -11,7 +11,7 @@ import { runParkedJob, readJobRequest, jobError } from '@/lib/parkedJob';
 
 /**
  * Park-and-poll (src/lib/parkedJob.js). Reading a full construction schedule
- * takes ~30s on an 84-page P6 export — right at Amplify's front door. The
+ * takes ~30s on an 84-page P6 export, right at Amplify's front door. The
  * first request only writes the job down; the polls run it and collect it.
  *
  * This is now the ONE place schedule milestones are read. The upload route
@@ -28,7 +28,7 @@ function scheduleKindOf(file) {
   if (file?.tab === 'designInfo' && tags.includes('Design Schedule')) return 'design';
   if (file?.tab === 'ca' && tags.includes('Construction Schedule')) return 'construction';
   // An untagged file on CA or Design Info that someone asks to reparse by hand
-  // still gets the construction read — that is what this route always did.
+  // still gets the construction read, that is what this route always did.
   return file?.tab === 'designInfo' ? 'design' : 'construction';
 }
 
@@ -57,7 +57,7 @@ export async function POST(request, { params }) {
 
 /**
  * The read itself. Soft failures (no text, no dates) come back as 200 bodies
- * with an `error` string and an empty list, exactly as before — the schedule
+ * with an `error` string and an empty list, exactly as before, the schedule
  * card shows that string next to the file.
  */
 async function readSchedule({ fileId }, { projectId, user }) {
@@ -104,7 +104,7 @@ async function readConstructionSchedule(record, { projectId, user }) {
     { projectId, userId: user.id },
   );
 
-  // Prefer the stored object — S3 since the file-storage migration. Files uploaded
+  // Prefer the stored object, S3 since the file-storage migration. Files uploaded
   // BEFORE that migration only ever lived on a Lambda's ephemeral disk, so their
   // bytes are gone for good; fall back to the row text extracted at upload time so
   // an old file can still be reparsed without asking for a re-upload.

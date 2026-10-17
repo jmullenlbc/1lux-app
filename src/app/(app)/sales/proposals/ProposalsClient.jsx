@@ -201,7 +201,7 @@ function AddProjectModal({ onClose, onCreated }) {
           type:        form.type,
           templateId:  form.templateId || null,
           adderPct:    Number(form.adderPct) || 10,
-          title:       `${form.projectName.trim()} — ${PROPOSAL_TYPES.find(t => t.value === form.type)?.label}`,
+          title:       `${form.projectName.trim()}: ${PROPOSAL_TYPES.find(t => t.value === form.type)?.label}`,
         }),
       });
       const data = await res.json();
@@ -272,7 +272,7 @@ function AddProjectModal({ onClose, onCreated }) {
               <div>
                 <label className={labelCls}>Template (optional)</label>
                 <select value={form.templateId} onChange={e => set('templateId', e.target.value)} className={inputCls}>
-                  <option value="">Blank — no template</option>
+                  <option value="">Blank, no template</option>
                   {filteredTemplates.map(t => (
                     <option key={t.id} value={t.id}>{t.name}{t.isDefault ? ' ★' : ''}</option>
                   ))}

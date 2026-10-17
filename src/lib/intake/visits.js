@@ -1,17 +1,17 @@
 /**
- * Visitor tracking for the public /conceptual_budget page — the pure half.
+ * Visitor tracking for the public /conceptual_budget page, the pure half.
  *
  * Mike, 2026-09-16: "build the tracking feature, it would be hugely helpful."
  *
  * What is kept about a stranger is deliberately small: the SITE they came
- * from (never the full address — a search or mail link can carry a name), the
+ * from (never the full address, a search or mail link can carry a name), the
  * three campaign tags a marketing link carries, phone / tablet / desktop, and
  * how far through the wizard they got. No IP address and no browser string are
  * stored; `visitorKey` is a one-way hash of the two, so a second visit from the
  * same place reads as "returning" without us holding anything that identifies
  * anyone. A visit only gets a name when that person saves a draft or submits.
  *
- * No database, no request objects — the route hands in plain strings, so every
+ * No database, no request objects, the route hands in plain strings, so every
  * rule here is unit-tested (scripts/tests/intakeVisits.test.mjs).
  */
 import { createHash } from 'node:crypto';
@@ -75,7 +75,7 @@ export function stepIndexOf(stepId) {
   return STEP_IDS.indexOf(id === 'figures' ? 'drawings' : id);
 }
 
-/** The furthest step wins — going Back must not move a visitor backwards. */
+/** The furthest step wins, going Back must not move a visitor backwards. */
 export function furthestStep(current, incoming) {
   const a = stepIndexOf(current), b = stepIndexOf(incoming);
   if (b < 0) return a < 0 ? { stepReached: STEP_IDS[0], stepIndex: 0 } : { stepReached: current, stepIndex: a };

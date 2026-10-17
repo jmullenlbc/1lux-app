@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * check-shared-metrics — stops the same business question getting two answers.
+ * check-shared-metrics, stops the same business question getting two answers.
  *
  * Real incident (2026-07-18): the CRM stats bar computed win rate as
  * `won / (won + lost)` while the dashboards used a different denominator. On the
@@ -16,7 +16,7 @@ const ROOT = 'src';
 
 // Files legitimately allowed to touch the primitives. Everything here either IS
 // the source of truth, or reads/writes the raw columns (a Prisma select is not a
-// re-derivation) — never a component computing its own number.
+// re-derivation), never a component computing its own number.
 const ALLOW = new Set([
   'src/lib/pipeline.js',                       // the single source of truth
   'src/lib/dashboards/fieldCatalog.js',        // imports the status sets to build measures
@@ -27,7 +27,7 @@ const ALLOW = new Set([
   'src/app/api/pipeline/route.js',             // Prisma select of the raw columns
   'src/lib/dashboardEngine.js',                // legacy engine; maps the old deal shape (bridge only)
   // Declares the column and classifies it ilc_only. The ontology is a
-  // DESCRIPTION of the schema — it has no arithmetic in it at all, and naming a
+  // DESCRIPTION of the schema, it has no arithmetic in it at all, and naming a
   // field is the opposite of re-deriving it. Without this entry the rule blocks
   // us from ever marking pipelineProbability as sensitive, which is backwards.
   'src/lib/ontology/objects/project.js',
@@ -40,12 +40,12 @@ const RULES = [
     // a file that mentions both outcomes AND divides counts is deriving a rate
     test: src => /['"]WON['"]/.test(src) && /['"]LOST['"]/.test(src)
               && /\.length\s*\/|\/\s*\(?\s*\w*(won|lost|decided)\w*\.length/i.test(src),
-    msg: 'derives a win rate locally — import { winRate } from "@/lib/pipeline" instead',
+    msg: 'derives a win rate locally, import { winRate } from "@/lib/pipeline" instead',
   },
   {
     key: 'legacy-probability',
     test: src => /\bpipelineProbability\b/.test(src),
-    msg: 'uses the legacy pipelineProbability — use { averageProbability } from "@/lib/pipeline"',
+    msg: 'uses the legacy pipelineProbability, use { averageProbability } from "@/lib/pipeline"',
   },
 ];
 
@@ -70,7 +70,7 @@ for (const file of walk(ROOT)) {
 }
 
 if (violations.length) {
-  console.error('\n❌ BLOCKED — a shared business metric is being re-derived locally:\n');
+  console.error('\n❌ BLOCKED: a shared business metric is being re-derived locally:\n');
   for (const v of violations) console.error(`   ${v.file}\n     ${v.msg}\n`);
   console.error('Shared numbers (win rate, probability) live in src/lib/pipeline.js so every');
   console.error('surface shows the SAME value. Import them; never recompute.\n');

@@ -15,15 +15,15 @@ export const dynamic = 'force-dynamic';
  * PUBLIC, UNAUTHENTICATED "Download PDF" for the /conceptual_budget review
  * step (2026-09-12).
  *
- * The browser sends the same inputs it sends /api/intake/estimate — answers
- * and drawings — plus the project name and location. It never sends a
+ * The browser sends the same inputs it sends /api/intake/estimate, answers
+ * and drawings, plus the project name and location. It never sends a
  * number: the budget is recomputed here with publicIntakeEstimate(), the
  * same function the live estimate uses, so a doctored request can't put a
  * made-up figure on an ILC-branded page.
  *
  * What the PDF may show is decided in src/lib/intake/pdfHtml.js: only what
  * the on-screen summary already shows the visitor. The project name is the
- * only free text, and it is escaped — this HTML is rendered by a real browser
+ * only free text, and it is escaped, this HTML is rendered by a real browser
  * on our server, so an unescaped tag could make it fetch anything.
  *
  * Chromium is heavy, so the limit is tighter than the estimate route's.
@@ -105,7 +105,7 @@ export async function POST(req) {
       },
     });
   } catch (err) {
-    // Details stay in the log — a public visitor gets a plain sentence.
+    // Details stay in the log, a public visitor gets a plain sentence.
     console.error('[intake/pdf]', err);
     return NextResponse.json({ error: 'We couldn’t make the PDF just now. Please try again in a minute.' }, { status: 500 });
   }

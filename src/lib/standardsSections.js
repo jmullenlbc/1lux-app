@@ -1,4 +1,4 @@
-// ── Client National Standards — Section & Subsection Definitions ──────────────
+// ── Client National Standards, Section & Subsection Definitions ──────────────
 // Source: "National standards items to discuss.xlsx"
 //
 // These are the fixed sections and subsections ILC asks for every client.
@@ -11,10 +11,10 @@ export const CCT_EXTERIOR_OPTIONS = ['2700K', '3000K', '3500K', '4000K', '5000K'
 
 // Interior areas that cascade from ALL_INTERIOR
 export const CCT_INTERIOR_AREAS = [
-  { key: 'UNIT_LIVING',   label: 'Unit — Living / Dining' },
-  { key: 'UNIT_BEDROOM',  label: 'Unit — Bedroom'         },
-  { key: 'UNIT_BATHROOM', label: 'Unit — Bathroom / Vanity'},
-  { key: 'UNIT_KITCHEN',  label: 'Unit — Kitchen'         },
+  { key: 'UNIT_LIVING',   label: 'Unit: Living / Dining' },
+  { key: 'UNIT_BEDROOM',  label: 'Unit: Bedroom'         },
+  { key: 'UNIT_BATHROOM', label: 'Unit: Bathroom / Vanity'},
+  { key: 'UNIT_KITCHEN',  label: 'Unit: Kitchen'         },
   { key: 'CORRIDORS',     label: 'Corridors / Stairwells' },
   { key: 'AMENITIES',     label: 'Interior Amenities'     },
   { key: 'GARAGE',        label: 'Garage'                 },

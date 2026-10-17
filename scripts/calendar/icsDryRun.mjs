@@ -1,8 +1,8 @@
 /**
- * Calendar dry run — reads an Outlook .ics export and reports what WOULD happen.
+ * Calendar dry run, reads an Outlook .ics export and reports what WOULD happen.
  *
  * Mike, 2026-09-07: "would it be stupid to upload my calendar as a static thing
- * now until we get Microsoft synced?" — and then "yes" to a dry run first.
+ * now until we get Microsoft synced?", and then "yes" to a dry run first.
  *
  * This script WRITES NOTHING to the database. It reads the export, runs the same
  * title/location rules the live sync will use (src/lib/calendar/inPerson.js),
@@ -161,7 +161,7 @@ function toNeutralEvent(raw) {
     year:             raw.start?.year ?? null,
     durationMinutes:  minutes && minutes > 0 ? minutes : null,
     // The three flags the keep-or-throw-away gate reads. Recurring is carried
-    // for the report only — Mike's ruling is that repeating on its own never
+    // for the report only, Mike's ruling is that repeating on its own never
     // disqualifies anything: "Catalina golf mixer is every other week and is a
     // business event. each of those should count always."
     isCancelled:      raw.status === 'CANCELLED',
@@ -176,7 +176,7 @@ function toNeutralEvent(raw) {
 //
 // There is no bucketing logic in this file any more. isWorthANote in
 // src/lib/calendar/worthANote.js is the one gate, and the live Microsoft sync
-// will call exactly the same function — so what this dry run reports is what the
+// will call exactly the same function, so what this dry run reports is what the
 // import will actually do.
 
 /** Mike's own hand counts, read back out of his workbook so we can be graded. */
@@ -244,7 +244,7 @@ function main() {
     }
 
     // A meeting we would still throw away that the title says was a real one.
-    // After Mike's rulings this list should be close to empty — that is the test.
+    // After Mike's rulings this list should be close to empty, that is the test.
     if (!answer.keep && answer.bucket !== 'cancelled' && answer.bucket !== 'personal'
         && answer.bucket !== 'not a meeting' && verdict?.isInPerson) {
       skippedInPerson.push({
@@ -262,7 +262,7 @@ function main() {
   //
   // Mike, 2026-09-07: "1 meeting per time period." Run this BEFORE anything is
   // counted, or the year totals include the same afternoon twice. Only the
-  // in-person ones are compared — that is the number he checks by hand, and a
+  // in-person ones are compared, that is the number he checks by hand, and a
   // call sitting over a lunch is still a separate record worth keeping.
   const inPersonKept = kept.filter(k => k.verdict?.isInPerson);
   const { dropped: overlapDropped } = dedupeOverlappingMeetings(
@@ -327,7 +327,7 @@ function main() {
 
   // ── Print it ───────────────────────────────────────────────────────────────
 
-  console.log(`\nStarting at ${START_YEAR} — ${before2023.toLocaleString()} older events set aside.`);
+  console.log(`\nStarting at ${START_YEAR}, ${before2023.toLocaleString()} older events set aside.`);
 
   console.log('\n--- What is in the file ---');
   const order = ['business title', 'candidate', 'personal', 'not a meeting',
@@ -456,7 +456,7 @@ function main() {
       { Item: `Older than ${START_YEAR} (set aside)`, Count: before2023 },
       ...order.filter(n => buckets.has(n)).map(n => ({ Item: n, Count: buckets.get(n) })),
       { Item: '', Count: '' },
-      { Item: 'Collapsed — same time period as another meeting', Count: overlapDropped.length },
+      { Item: 'Collapsed: same time period as another meeting', Count: overlapDropped.length },
       { Item: 'Meetings that would become notes',   Count: finalKept.length },
       { Item: 'of those, read as in person',        Count: inPersonTotal },
       { Item: 'of those, no answer from the words', Count: typeCounts.get('(no answer)') || 0 },

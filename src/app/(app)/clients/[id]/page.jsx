@@ -30,7 +30,7 @@ export default async function ClientDetailPage({ params }) {
         },
       },
       // The jobs each person is attached to. Without these the Open / Won / Lost
-      // / Abandoned numbers beside a person were always blank on this screen —
+      // / Abandoned numbers beside a person were always blank on this screen
       // there was nothing to count. Mike, 2026-09-09, wants those numbers to
       // open the list of jobs behind them without leaving the page.
       contacts: {

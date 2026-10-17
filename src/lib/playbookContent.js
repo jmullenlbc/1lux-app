@@ -1,6 +1,6 @@
 // ── Playbook "How We Work Together" content ──────────────────────────────────
 // Default reference content shown per Playbook section, client-facing (viewable
-// + included on the shared PDF). Use {{client}} as a token — it's replaced with
+// + included on the shared PDF). Use {{client}} as a token, it's replaced with
 // the client's name at render time (falls back to "the client").
 //
 // Item shape (recursive):
@@ -13,8 +13,8 @@ export const PLAYBOOK_CONTENT = {
   general: {
     items: [
       { text: 'Weekly kickoff calls', body: 'A standing weekly 1-hour call until the standards are at least 90% complete.' },
-      { text: 'Monthly check-ins after standards are set', body: 'A monthly call for 3–6 months to make sure everything is going well, and to keep improving our process, scope, and relationships with the outside design and construction teams. (We have learned this is very important.)' },
-      { text: 'Development team intro call', body: 'A call with the full development team to introduce ourselves, our process, and our scope — including a discussion of standard soft-cost ranges.' },
+      { text: 'Monthly check-ins after standards are set', body: 'A monthly call for 3 to 6 months to make sure everything is going well, and to keep improving our process, scope, and relationships with the outside design and construction teams. (We have learned this is very important.)' },
+      { text: 'Development team intro call', body: 'A call with the full development team to introduce ourselves, our process, and our scope, including a discussion of standard soft-cost ranges.' },
     ],
   },
 
@@ -48,7 +48,7 @@ export const PLAYBOOK_CONTENT = {
   process: {
     items: [
       { text: 'ILC will build a standard fixture schedule to be shared with the {{client}} team.' },
-      { text: 'Site photometrics & approval', body: 'How we handle site photometrics and their approval — see the Approvals section for the required sign-offs.' },
+      { text: 'Site photometrics & approval', body: 'How we handle site photometrics and their approval. See the Approvals section for the required sign-offs.' },
       {
         text: 'Project-specific process',
         children: [
@@ -66,7 +66,7 @@ export const PLAYBOOK_CONTENT = {
               { text: 'Discuss unit adders (e.g. undercabinet lighting or extra ceiling fans)' },
             ],
           },
-          { text: '{{client}} to make the introduction to the design team — architect, landscape architect, electrical engineer, and interior design team.' },
+          { text: '{{client}} to make the introduction to the design team: architect, landscape architect, electrical engineer, and interior design team.' },
           { text: '{{client}} to make the introduction to the GC (if on-board early).' },
           { text: '{{client}} to receive a line-item budget after each submission, starting at 100% DDs.' },
         ],
@@ -76,13 +76,13 @@ export const PLAYBOOK_CONTENT = {
 
   timeframes: {
     action: 'none',
-    note: 'Reference only — typical turnaround times, no action required.',
+    note: 'Reference only: typical turnaround times, no action required.',
     items: [
       {
         text: 'Site photometrics',
         children: [
-          { text: 'Initial site photometric layouts', meta: '2–4 weeks' },
-          { text: 'Site photometric layout revisions', meta: '1–2 weeks' },
+          { text: 'Initial site photometric layouts', meta: '2 to 4 weeks' },
+          { text: 'Site photometric layout revisions', meta: '1 to 2 weeks' },
         ],
       },
       {
@@ -103,7 +103,7 @@ export const PLAYBOOK_CONTENT = {
       { text: 'Common Area Controls', body: 'Bid price is provided by ILC, but formal submittals, drawings, and one-lines will be provided during the submittal process.' },
       { text: 'Low Voltage Fixtures', body: 'Bid price is provided by ILC, but lengths and power-supply takeoffs will be verified during the ordering phase by the contractor.' },
       { text: 'Egress / Emergency Lighting', body: 'When emergency lighting is not on a generator, ILC will provide pricing for emergency frogeyes, remote inverters, and/or integral battery backups.' },
-      { text: 'Electrical Contractor Bid Breakout', body: 'Contractor is to break out the lighting fixture and lighting control product package prices from labor and materials — show the total for lighting fixtures as one line item and lighting controls as a separate line item.' },
+      { text: 'Electrical Contractor Bid Breakout', body: 'Contractor is to break out the lighting fixture and lighting control product package prices from labor and materials. Show the total for lighting fixtures as one line item and lighting controls as a separate line item.' },
       { text: 'Sales Tax', body: 'Sales tax is always included at a rate we estimate, but we must get direction from the GC on use or sales tax paid ahead of time. We can remove or adjust tax at future budget submissions if any or all of the tax will be covered by the contractor.' },
       { text: 'Warehousing / Freight Costs', body: 'Warehousing and freight costs are included. They cover 180 days of storage and 10 deliveries to the jobsite.' },
       { text: 'Final Pricing for P.O.', body: 'Final pricing for the project is based on the assumption that submittals will be approved within 60 days.' },

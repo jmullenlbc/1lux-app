@@ -22,7 +22,7 @@ export async function POST(request, { params }) {
 
   // unitTypes: [{ code, label, qty, unitSf, bedrooms, bathrooms, balconies, confidence, source }]
   // confirmedFields: { numUnits, unitsSf, numBedrooms, numBathrooms, numBalconies, grossSf }
-  //   — only keys present in confirmedFields are written to ProjectData
+  //   only keys present in confirmedFields are written to ProjectData
 
   let drawingFields = [];
   await prisma.$transaction(async (tx) => {
@@ -56,7 +56,7 @@ export async function POST(request, { params }) {
     if ('numBalconies'in confirmedFields) dataUpdate.numBalconies= confirmedFields.numBalconies!= null ? Number(confirmedFields.numBalconies): null;
     if ('grossSf'     in confirmedFields) dataUpdate.grossSf     = confirmedFields.grossSf     != null ? Number(confirmedFields.grossSf)     : null;
     // garageSf/corridorSf were parsed by the extractor from day one but never
-    // made it past this allowlist — every parse silently discarded them.
+    // made it past this allowlist, every parse silently discarded them.
     if ('garageSf'    in confirmedFields) dataUpdate.garageSf    = confirmedFields.garageSf    != null ? Number(confirmedFields.garageSf)    : null;
     if ('corridorSf'  in confirmedFields) dataUpdate.corridorSf  = confirmedFields.corridorSf  != null ? Number(confirmedFields.corridorSf)  : null;
 
@@ -82,7 +82,7 @@ export async function POST(request, { params }) {
 
   // ── Sign the extraction ────────────────────────────────────────────────────
   //
-  // Applying the matrix IS the review — a human looked at the model's rows,
+  // Applying the matrix IS the review, a human looked at the model's rows,
   // fixed what was wrong and accepted the rest. Recording that as a verdict is
   // what lets Step 18 measure this task type from real work instead of asking
   // anyone to review the same extraction a second time in /admin/agent-runs.
@@ -97,7 +97,7 @@ export async function POST(request, { params }) {
       // The runId arrives from the browser, so it is checked against this
       // project before it can attach a verdict to somebody else's extraction.
       if (!run || run.projectId !== params.id) {
-        console.warn(`[unit-matrix/commit] runId ${runId} does not belong to project ${params.id} — no verdict recorded.`);
+        console.warn(`[unit-matrix/commit] runId ${runId} does not belong to project ${params.id}, no verdict recorded.`);
       } else {
         // Diffed against the model's ORIGINAL output as stored, not against
         // anything the client sent us about what it changed.

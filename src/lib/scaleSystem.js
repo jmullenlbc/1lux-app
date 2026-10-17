@@ -1,5 +1,5 @@
 /**
- * ILC Studios — Scale System
+ * ILC Studios, Scale System
  * Addendum to SYMBOL_LIBRARY_AND_DRAWING_TOOLS.md
  *
  * Symbols are defined in real-world inches and converted to canvas pixels via:
@@ -17,10 +17,10 @@ export const CONTROLS_FIXED_PX = 20;   // fixed px for non-physical controls sym
 
 // ── Scale presets (30 total) ─────────────────────────────────────────────────
 export const SCALE_PRESETS = [
-  // PRIMARY — ~80% of ILC projects
+  // PRIMARY, ~80% of ILC projects
   { label: '1/4" = 1\'−0"',    ratio: 1 / 48,   category: 'primary',     note: 'Residential floor plans' },
   { label: '1/8" = 1\'−0"',    ratio: 1 / 96,   category: 'primary',     note: 'Commercial / large multifamily' },
-  // COMMON — enlarged plans and unit plans
+  // COMMON, enlarged plans and unit plans
   { label: '1/2" = 1\'−0"',    ratio: 1 / 24,   category: 'common',      note: 'Unit plans, enlarged plans' },
   { label: '3/16" = 1\'−0"',   ratio: 1 / 64,   category: 'common',      note: 'Mid-size commercial' },
   { label: '3/32" = 1\'−0"',   ratio: 1 / 128,  category: 'common',      note: 'Large floor plans, site' },

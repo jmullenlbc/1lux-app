@@ -202,7 +202,7 @@ export default function DesignScheduleCard({ projectId, initialMilestones, onSav
                 {m.label}
               </span>
 
-              {/* Date — click to edit */}
+              {/* Date, click to edit */}
               {isEditing ? (
                 <input
                   ref={inputRef}

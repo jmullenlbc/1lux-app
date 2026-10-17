@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 /**
  * GET /api/admin/agent-runs?status=AWAITING_REVIEW&taskType=…&limit=100
  *
- * The review queue — Step 17 of the Governed AI Layer.
+ * The review queue, Step 17 of the Governed AI Layer.
  *
  * ── Super admin only, same reasoning as /api/admin/metrics ───────────────────
  * Every admin is ILC staff (Mike, 2026-09-14), but this is an engineering view:

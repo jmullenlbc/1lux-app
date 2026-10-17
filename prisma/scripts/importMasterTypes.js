@@ -7,7 +7,7 @@
 // Usage:
 //   node prisma/scripts/importMasterTypes.js <path-to-csv>
 //
-// The script is idempotent — re-running with the same file does upserts.
+// The script is idempotent, re-running with the same file does upserts.
 // UNIT_TYPE_CODES is hard-coded here to match the business rule; override by
 // passing --unit-types=C,D,F,G,L,P,S,UC,V,W,X,Z as a second argument.
 
@@ -87,7 +87,7 @@ async function main() {
     const is_active      = !['no', 'false', '0', 'inactive', ''].includes(activeRaw);
     const is_unit_type   = UNIT_TYPE_CODES.has(code);
 
-    if (!code) { console.warn(`Row ${i + 1}: missing code — skipped.`); skipped++; continue; }
+    if (!code) { console.warn(`Row ${i + 1}: missing code, skipped.`); skipped++; continue; }
 
     await prisma.masterType.upsert({
       where:  { code },

@@ -7,7 +7,7 @@ import { prisma } from '@/lib/db';
  *
  * Mike, 2026-09-07: "went quiet after what is the real question." So these came
  * out of four years of his own calendar (scripts/calendar/quietGap.mjs), which
- * measured every gap between two meetings with the same company — 5,353 of them
+ * measured every gap between two meetings with the same company, 5,353 of them
  * across 434 companies. Every gap measured that way is one the relationship
  * SURVIVED, because another meeting followed it. The shape:
  *
@@ -18,7 +18,7 @@ import { prisma } from '@/lib/db';
  *   30 days flags 19% · 45 flags 15% · 60 flags 11% · 75 flags 10% · 90 flags 8%
  *
  * The old values (42/90/90/180/365) were placeholders. The two long ones held up
- * and are unchanged; the three short ones were too loose — a deal you are
+ * and are unchanged; the three short ones were too loose, a deal you are
  * actively working should not be allowed to go a full quarter in silence.
  *
  * NOTE: re-seeding overwrites cadenceDays, so a tier tuned by hand will be reset
@@ -45,7 +45,7 @@ export async function GET(request) {
 }
 
 // POST /api/crm/cadence-rules
-// Body: { tier, label, cadenceDays, isActive } — or { seed: true } to upsert defaults
+// Body: { tier, label, cadenceDays, isActive }, or { seed: true } to upsert defaults
 export async function POST(request) {
   const { user, error } = await requireAuth();
   if (error) return error;

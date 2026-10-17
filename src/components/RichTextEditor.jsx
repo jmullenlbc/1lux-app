@@ -152,7 +152,7 @@ export default function RichTextEditor({ value, onChange, placeholder, minHeight
         .rich-editor-content em { font-style: italic; }
         .rich-editor-content u  { text-decoration: underline; }
         .rich-editor-content s  { text-decoration: line-through; }
-        /* Table styles — handles pasted Google Sheets content */
+        /* Table styles, handles pasted Google Sheets content */
         .rich-editor-content table { border-collapse: collapse; width: 100%; margin: 0.6em 0; font-size: 0.85em; }
         .rich-editor-content th, .rich-editor-content td { border: 1px solid #cbd5e1; padding: 5px 8px; text-align: left; vertical-align: top; }
         .rich-editor-content th { background: #f8fafc; font-weight: 600; color: #334155; }
@@ -168,7 +168,7 @@ export default function RichTextEditor({ value, onChange, placeholder, minHeight
 
 export function RichContent({ html, className = '' }) {
   if (!html) return null;
-  // Detect plain text (no HTML tags) — render with whitespace preserved
+  // Detect plain text (no HTML tags), render with whitespace preserved
   const isPlain = !/<[a-z][\s\S]*>/i.test(html);
   if (isPlain) {
     return <span className={`whitespace-pre-wrap ${className}`}>{html}</span>;

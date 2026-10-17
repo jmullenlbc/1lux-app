@@ -2,7 +2,7 @@
  * Deterministic auto-checks for `extract.siteParking`.
  *
  * The site plan feeds three of the six inputs on `projectInputChecks.js`'s
- * critical list — lot SF, surface parking stalls, exterior amenity SF — the
+ * critical list, lot SF, surface parking stalls, exterior amenity SF, the
  * fields that silently price at $0 when blank. That is why this extraction is
  * worth grading, and why every check below is geometry or arithmetic rather
  * than a second model's opinion.
@@ -19,7 +19,7 @@ import { runAutoChecks } from '../../src/lib/agent/autoChecks.js';
 const TASK = 'extract.siteParking';
 
 /**
- * Beckett Firestone as it reads correctly at 2200px — the drawing the vision
+ * Beckett Firestone as it reads correctly at 2200px, the drawing the vision
  * work was calibrated on. 16.50 Ac, 324 D.U., 680 provided.
  */
 function goodSite(over = {}) {
@@ -110,7 +110,7 @@ test('a partial breakdown only has to fit inside the total', async () => {
 });
 
 test('more surface stalls than the site could physically hold is caught', async () => {
-  // A 718,740 SF site cannot pave 5,000 stalls — that is 1.5M SF of asphalt.
+  // A 718,740 SF site cannot pave 5,000 stalls, that is 1.5M SF of asphalt.
   const res = await runAutoChecks(TASK, goodSite({ surfaceParking: 5000, parkingProvided: 5200, garages: 120, carports: 40 }));
   assert.equal(statusOf(res, 'parking-fits'), 'FAIL');
   assert.match(detailOf(res, 'parking-fits'), /cannot physically fit/);
@@ -137,7 +137,7 @@ test('a fractional stall count is caught', async () => {
 // ── the reconciliations ──────────────────────────────────────────────────────
 
 test('THE MEASURED FAILURE: a bed mix disagreeing with the unit count is caught', async () => {
-  // Verbatim from the 1600px misread — totalUnits read 264 while the model's own
+  // Verbatim from the 1600px misread, totalUnits read 264 while the model's own
   // bed mix summed to 319.
   const res = await runAutoChecks(TASK, goodSite({
     totalUnits: 264,
@@ -185,7 +185,7 @@ test('a drawing that yielded nothing is a failure, not a modest reading', async 
   assert.equal(statusOf(res, 'read-anything'), 'FAIL');
 });
 
-test('a reading with only a lot area skips the rest — null, not true', async () => {
+test('a reading with only a lot area skips the rest: null, not true', async () => {
   const res = await runAutoChecks(TASK, { lotAcres: 16.5, bedMix: {} });
   assert.equal(res.ran, true);
   // The one check that can run passes; every other one skips. A skip must never

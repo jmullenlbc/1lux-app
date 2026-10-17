@@ -26,7 +26,7 @@ export async function get(path, cookie) {
 
 /**
  * POST JSON to a route. `auth` is either a session cookie string or
- * `{ bearer: '<token>' }` — the MCP tests drive the same endpoint both ways.
+ * `{ bearer: '<token>' }`, the MCP tests drive the same endpoint both ways.
  */
 export async function post(path, body, auth) {
   const headers = { 'Content-Type': 'application/json' };
@@ -46,7 +46,7 @@ export async function post(path, body, auth) {
 }
 
 /**
- * postParked — the test-side twin of src/lib/parkedFetch.js. Every in-app AI
+ * postParked, the test-side twin of src/lib/parkedFetch.js. Every in-app AI
  * read is park-and-poll now (Mike 2026-09-17): the first POST only writes the
  * job down ({ jobKey, queued: true }); each POST { jobKey } after that runs it
  * or reports { waiting: true }. This keeps asking until the real answer comes

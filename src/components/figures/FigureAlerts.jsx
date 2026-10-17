@@ -1,7 +1,7 @@
 'use client';
 // On-screen alerts when a budget figure is far off what our real jobs of that
 // building type run (Mike 2026-09-24: "alert notifications at a line level …
-// on screen or it will be overwhelming"). Staff only — the API 404s for a
+// on screen or it will be overwhelming"). Staff only, the API 404s for a
 // contractor, and then nothing shows. Never on the public page, PDF or portal.
 import { useCallback, useEffect, useState } from 'react';
 import { figureAlert, FIGURES } from '@/lib/calibration/figureNorms';
@@ -9,7 +9,7 @@ import { parseLooseNumber } from '@/lib/numberInput';
 
 /**
  * alertFor(field, value, ctx) → alert or null. ctx = { buildingType, units, grossSf }.
- * markRight(field) posts "It's right" — only for a saved figure.
+ * markRight(field) posts "It's right", only for a saved figure.
  */
 export function useFigureAlerts(projectId) {
   const [data, setData] = useState(null);
@@ -44,7 +44,7 @@ export function useFigureAlerts(projectId) {
     if (!res?.ok) setConfirmed(s => { const n = new Set(s); n.delete(field); return n; });
   }, [projectId]);
 
-  // A changed figure has not been checked yet — the server clears it on save too.
+  // A changed figure has not been checked yet, the server clears it on save too.
   const forget = useCallback((field) => {
     setConfirmed(s => { if (!s.has(field)) return s; const n = new Set(s); n.delete(field); return n; });
   }, []);
@@ -76,7 +76,7 @@ export function FigureAlertSummary({ count }) {
   if (!count) return null;
   return (
     <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-      ⚠ {count} figure{count === 1 ? '' : 's'} look{count === 1 ? 's' : ''} off against our past jobs — see the notes below each one.
+      ⚠ {count} figure{count === 1 ? '' : 's'} look{count === 1 ? 's' : ''} off against our past jobs. See the notes below each one.
     </div>
   );
 }

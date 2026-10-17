@@ -11,7 +11,7 @@ function canEdit(user) {
   try { return JSON.parse(user.permissions || '{}').knowledgeBase === true; } catch { return false; }
 }
 
-// GET /api/knowledge-base  — list standards (optional ?category=, ?q= search)
+// GET /api/knowledge-base, list standards (optional ?category=?q= search)
 export async function GET(request) {
   const { user, error } = await requireAuth(request);
   if (error) return error;
@@ -49,7 +49,7 @@ export async function GET(request) {
   return NextResponse.json({ standards, counts, canEdit: canEdit(user), isSuperAdmin: isSuperAdmin(user) });
 }
 
-// POST /api/knowledge-base  — create a standard
+// POST /api/knowledge-base, create a standard
 export async function POST(request) {
   const { user, error } = await requireAuth(request);
   if (error) return error;

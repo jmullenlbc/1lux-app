@@ -1,7 +1,7 @@
 import '@/lib/pdfPolyfill';
 import { loadPdfjs } from './pdfjsNode.js';
 /**
- * Submittal Review Extractor — Phases 1–4
+ * Submittal Review Extractor, Phases 1 to 4
  *
  * Extracts reviewer notes from submittal PDFs using:
  *   1. pdfjs-dist text extraction (already installed, no new deps)
@@ -191,7 +191,7 @@ export function extractNotesFromTable(pages, knownTypeCodes) {
   for (const { pageNumber, text } of pages) {
     // Only parse pages that are Notes Summary pages, not product data TOC pages.
     // Notes Summary pages contain "Notes Summary" header OR a "Type Notes Pg." column pattern.
-    // Product data pages contain "Type Manufacturer Model Number Pg." — skip those.
+    // Product data pages contain "Type Manufacturer Model Number Pg.", skip those.
     const isNotesSummary = /notes\s+summary/i.test(text);
     const hasNotesColumns = /\bType\s+Notes?\s+(Pg\.?|Page)\b/i.test(text);
     const isProductTable  = /\bType\s+Manufacturer\s+Model/i.test(text) && !isNotesSummary && !hasNotesColumns;
@@ -200,7 +200,7 @@ export function extractNotesFromTable(pages, knownTypeCodes) {
 
     // Parse: split into segments where a type code starts a segment
     // Pattern: [TYPE_CODE] [note text] [page number at end]
-    // The text is extracted as a flat string — we need to find the structure
+    // The text is extracted as a flat string, we need to find the structure
     const upper = text.toUpperCase();
 
     // Find overall status for this section

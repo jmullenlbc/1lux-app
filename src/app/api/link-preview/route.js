@@ -27,9 +27,9 @@ function blocked(host) {
 
 // POST { url } → { imageKey, imageUrl, title, description }
 // Fetches a product page, extracts the Open Graph image + title, and stores the
-// image durably (so pasting a link populates the thumbnail — no manual upload).
+// image durably (so pasting a link populates the thumbnail, no manual upload).
 // Used by the client-standards screens, so it's open to the same people: everyone
-// on staff. Until 2026-09-14 this crashed on every call — it was handed `request`
+// on staff. Until 2026-09-14 this crashed on every call, it was handed `request`
 // and then read `req`.
 export async function POST(req) {
   const { user, error } = await requireAuth(req);
@@ -71,7 +71,7 @@ export async function POST(req) {
           imageUrl = await getQcObjectUrl(imageKey);
         }
       }
-    } catch { /* image fetch failed — still return title */ }
+    } catch { /* image fetch failed, still return title */ }
   }
 
   return NextResponse.json({

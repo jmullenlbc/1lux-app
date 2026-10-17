@@ -1,4 +1,4 @@
-// Tests for src/lib/aiModels.js — the one table that decides which Claude model
+// Tests for src/lib/aiModels.js, the one table that decides which Claude model
 // does which job (added 2026-08-19).
 //
 // These are guard-rails, not model reviews. They protect three things that broke
@@ -27,7 +27,7 @@ test('an unknown job throws instead of guessing a model', () => {
 test('modelParams sends effort only where the model supports it', () => {
   // Live-verified 2026-08-19: claude-haiku-4-5 + output_config.effort returns
   // 400 "This model does not support the effort parameter." So the QUICK tier
-  // must never carry the field at all — not even set to null.
+  // must never carry the field at all, not even set to null.
   for (const job of Object.keys(JOB_TIERS)) {
     const params = modelParams(job);
     const effort = TIERS[JOB_TIERS[job]].effort;
@@ -149,11 +149,11 @@ test('textFrom ignores tool_use and other non-text blocks', () => {
 //
 // Mike, 2026-08-28: every PDF architectural or construction drawing set is read
 // by Fable 5, with no exceptions for the small-looking jobs. These tests are the
-// enforcement -- the rule was previously a paragraph of prose, and under it two
+// enforcement, the rule was previously a paragraph of prose, and under it two
 // drawing jobs sat on the cheapest model for months because each one, on its
 // own, looked too trivial to matter.
 
-test('EVERY drawing job reads on Fable 5 -- no exceptions for the small ones', () => {
+test('EVERY drawing job reads on Fable 5, no exceptions for the small ones', () => {
   for (const job of DRAWING_JOBS) {
     assert.equal(JOB_TIERS[job], 'DEEP_READ', `${job} reads a drawing set and must be DEEP_READ`);
     assert.equal(modelFor(job), 'claude-fable-5', `${job} must read on Fable 5`);
@@ -174,6 +174,6 @@ test('a new drawing.* job cannot be added without facing the rule', () => {
   const named = Object.keys(JOB_TIERS).filter(j => j.startsWith('drawing.'));
   for (const job of named) {
     assert.ok(DRAWING_JOBS.includes(job),
-      `${job} looks like a drawing job -- add it to DRAWING_JOBS or rename it`);
+      `${job} looks like a drawing job, add it to DRAWING_JOBS or rename it`);
   }
 });

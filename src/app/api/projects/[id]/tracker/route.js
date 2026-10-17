@@ -8,7 +8,7 @@ async function canAccess(projectId, user) {
   return canSeeAllData(user) || p.createdById === user.id;
 }
 
-// GET — fetch full tracker with all items, submissions, versions, reviews
+// GET, fetch full tracker with all items, submissions, versions, reviews
 export async function GET(request, { params }) {
   const { user, error } = await requireAuth();
   if (error) return error;
@@ -36,7 +36,7 @@ export async function GET(request, { params }) {
   return NextResponse.json({ tracker });
 }
 
-// POST — create tracker for this project
+// POST, create tracker for this project
 export async function POST(request, { params }) {
   const { user, error } = await requireAuth();
   if (error) return error;
@@ -58,7 +58,7 @@ export async function POST(request, { params }) {
   return NextResponse.json({ tracker }, { status: 201 });
 }
 
-// PATCH — update tracker settings (reviewer roles, spec section)
+// PATCH, update tracker settings (reviewer roles, spec section)
 export async function PATCH(request, { params }) {
   const { user, error } = await requireAuth();
   if (error) return error;

@@ -2,7 +2,7 @@
 //
 //   node --test scripts/tests/uploadFlow.e2e.test.mjs
 //
-// Needs: dev server on :3000 (npm run dev:3000) and ANTHROPIC_API_KEY in .env —
+// Needs: dev server on :3000 (npm run dev:3000) and ANTHROPIC_API_KEY in .env
 // both parse routes make real AI calls, so this test costs a few cents and takes
 // up to a minute. It is deliberately excluded from `npm test` for that reason.
 //
@@ -12,9 +12,9 @@
 //   3. upload a synthetic site-plan .pdf → AI vision parse → numBuildings proposed →
 //      commit a corrected value → ProjectData updated + verdict recorded
 //   4. remove the throwaway project straight from the database (the app itself
-//      only archives projects now, never deletes them — migration 0075)
+//      only archives projects now, never deletes them, migration 0075)
 //
-// Both fixtures are generated in memory — no client documents involved. The site
+// Both fixtures are generated in memory, no client documents involved. The site
 // plan states "NUMBER OF BUILDINGS: 8 (7 RESIDENTIAL + 1 CLUBHOUSE)" on purpose:
 // it is the exact clubhouse trap the numBuildings field warns about, and the test
 // commits the corrected value (7) to exercise the CORRECTED-verdict path.
@@ -110,7 +110,7 @@ async function removeProject(id) {
 // ─── the test ───────────────────────────────────────────────────────────────
 
 test('questionnaire drawing-upload flow, end to end', { timeout: 300_000 }, async (t) => {
-  assert.ok(await serverUp(), `dev server not reachable at ${BASE} — run npm run dev:3000 first`);
+  assert.ok(await serverUp(), `dev server not reachable at ${BASE}, run npm run dev:3000 first`);
 
   const { cookie } = await login('admin@ilcstudios.com', 'ILCadmin2024!');
 
@@ -170,14 +170,14 @@ test('questionnaire drawing-upload flow, end to end', { timeout: 300_000 }, asyn
       assert.ok(parsed.json.review?.runId, 'site parse returned no review.runId');
 
       const byKey = Object.fromEntries(rows.map(r => [r.key, r]));
-      assert.ok(byKey.numBuildings, 'no numBuildings proposal — the new field is not being read');
+      assert.ok(byKey.numBuildings, 'no numBuildings proposal: the new field is not being read');
       // The sheet says 8 total / 7 residential; either read is defensible.
       assert.ok([7, 8].includes(byKey.numBuildings.value),
         `numBuildings read ${byKey.numBuildings.value}, expected 7 or 8`);
       assert.equal(byKey.lotSf?.value, 435600, 'lot area misread');
       assert.equal(byKey.numSurfaceParking?.value, 96, 'surface parking misread');
 
-      // Commit the residential-only count — when the AI read 8, this walks the
+      // Commit the residential-only count, when the AI read 8, this walks the
       // CORRECTED-verdict path the trust tiers learn from.
       const commit = await post(`/api/projects/${projectId}/site/commit`, {
         fileId,
@@ -197,6 +197,6 @@ test('questionnaire drawing-upload flow, end to end', { timeout: 300_000 }, asyn
     });
   } finally {
     const gone = await removeProject(projectId);
-    assert.equal(gone.count, 1, 'cleanup: project delete failed — remove it by hand');
+    assert.equal(gone.count, 1, 'cleanup: project delete failed, remove it by hand');
   }
 });

@@ -7,7 +7,7 @@ import { buildingTypeLabel } from '@/lib/utils';
 export const dynamic = 'force-dynamic';
 
 /**
- * Linking a web request to a job we already have — fill-blanks-only (Mike,
+ * Linking a web request to a job we already have, fill-blanks-only (Mike,
  * 2026-09-12: "we never overwrite important data").
  *
  * GET  ?projectId=…            → the side-by-side plan, for the screen
@@ -16,7 +16,7 @@ export const dynamic = 'force-dynamic';
  *                                other conflict keeps the job's answer.
  *
  * The plan is always rebuilt here from the database, never taken from the
- * browser — what gets written is what the rules allow, not what was posted.
+ * browser, what gets written is what the rules allow, not what was posted.
  */
 
 const PROJECT_FIELDS = {

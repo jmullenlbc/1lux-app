@@ -7,11 +7,11 @@ import { extractDocumentText } from '@/lib/botKnowledge/extract';
 export const runtime     = 'nodejs';
 export const maxDuration = 300;
 
-// POST /api/automation/knowledge/docs/[id]/reread — read a stored file again.
+// POST /api/automation/knowledge/docs/[id]/reread, read a stored file again.
 //
 // The file is always kept, even when reading it failed, precisely so this is
 // possible. Without it, a file that failed for a reason we have since fixed
-// could only be recovered by deleting it and dropping it in again — which is
+// could only be recovered by deleting it and dropping it in again, which is
 // exactly what happened when the live Bot Knowledge screen shipped without
 // pdfjs's worker in its Lambda and every PDF failed to open (2026-09-08).
 //

@@ -1,14 +1,14 @@
 'use client';
 
 /**
- * Unit Selections — the screen somebody actually answers.
+ * Unit Selections, the screen somebody actually answers.
  *
  * Three ways in, one set of answers (Mike 2026-09-23, "can we do all 3"):
- *   1. Start with a look — one click fills every fixture in a style, then one
+ *   1. Start with a look, one click fills every fixture in a style, then one
  *      finish for everything. Most people stop here.
- *   2. Walk the unit — a floor plan; tap the kitchen, the bath, the balcony,
+ *   2. Walk the unit, a floor plan; tap the kitchen, the bath, the balcony,
  *      the front door or the living room to get to that fixture.
- *   3. Big pictures — heart the one you want, X the ones you hate.
+ *   3. Big pictures, heart the one you want, X the ones you hate.
  * Then "who agrees" lays everybody's answers side by side.
  *
  * ── Who is answering ────────────────────────────────────────────────────────
@@ -18,14 +18,14 @@
  * ── Money ───────────────────────────────────────────────────────────────────
  * Only fixtures this job can afford and the code allows are ever rendered.
  * Staff see the sell price. An outside viewer (`showPrices` false) sees an
- * estimated sell price, rounded — never a buy price, which the route does not
+ * estimated sell price, rounded, never a buy price, which the route does not
  * even select, and never how the budget was worked out.
  *
  * ── The thing that must never be a blank panel ──────────────────────────────
  * When the budget takes everything away, `options` is empty and `hidden` is
  * full. The screen says why in words, with a way to raise the target.
  *
- * Imports looks.js only — never the engine, which reaches pricing.js.
+ * Imports looks.js only, never the engine, which reaches pricing.js.
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { LOOKS, FINISHES, finishColor, finishLabel, finishFor, lookBoard, lookPicks, refinishPicks } from '@/lib/unitSelections/looks';

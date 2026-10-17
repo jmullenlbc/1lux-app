@@ -7,7 +7,7 @@ import { prepDueWhere, PREP_PER_RUN, PREP_TIME_BUDGET_MS } from '@/lib/meetingPr
 export const dynamic = 'force-dynamic';
 
 /**
- * GET /api/cron/meeting-prep — hourly. Builds the Meeting Prep brief for sales
+ * GET /api/cron/meeting-prep, hourly. Builds the Meeting Prep brief for sales
  * meetings coming up in the next two days that have none yet (Mike 9-25: "the
  * prep should happen before the event happens").
  *

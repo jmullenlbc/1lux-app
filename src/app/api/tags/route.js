@@ -2,12 +2,12 @@ import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 
-// Client tags. One row per tag, linked to clients through ClientTagLink — so
+// Client tags. One row per tag, linked to clients through ClientTagLink, so
 // renaming a tag renames it on every client at once, and deleting one takes
 // every link with it. That is Mike's rule: "Once you make a tag you should be
 // able to edit or delete it and that happens to anything tagged with that."
 
-// GET /api/tags — every tag with how many clients carry it.
+// GET /api/tags, every tag with how many clients carry it.
 export async function GET() {
   const { error } = await requireAuth();
   if (error) return error;
@@ -20,7 +20,7 @@ export async function GET() {
   return NextResponse.json({ tags });
 }
 
-// POST /api/tags — create a tag. Names are unique, case-insensitively.
+// POST /api/tags, create a tag. Names are unique, case-insensitively.
 export async function POST(request) {
   const { error } = await requireAuth();
   if (error) return error;

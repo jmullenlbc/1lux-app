@@ -237,7 +237,7 @@ function TemplateDrawer({ open, onClose, template, onSaved, onArchive, onRestore
               value={form.name}
               onChange={e => set('name', e.target.value)}
               className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-orange-500"
-              placeholder="e.g. Proposal Follow-Up – Developer"
+              placeholder="e.g. Proposal Follow-Up: Developer"
             />
           </div>
 
@@ -327,7 +327,7 @@ function TemplateDrawer({ open, onClose, template, onSaved, onArchive, onRestore
             <p className="text-[11px] text-slate-500 mt-1">Words that make the email writers reach for this template when an email is about the same thing.</p>
           </div>
 
-          {/* Subject — only for EMAIL */}
+          {/* Subject, only for EMAIL */}
           {form.channel === 'EMAIL' && (
             <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">Subject</label>
@@ -373,7 +373,7 @@ function TemplateDrawer({ open, onClose, template, onSaved, onArchive, onRestore
               placeholder={`Instructions for the AI when drafting. Examples:\n- If we had an in-person meeting in the last 30 days, open with a warm reference to it\n- If last note mentions something they promised, call it out\n- Keep under 4 sentences. End with a specific ask.\n- Never say "I hope this email finds you well"`}
             />
             <p className="text-[11px] text-amber-700 mt-1">
-              The AI reads this before writing. The Body above is the starting point — the AI personalizes it using these instructions + relationship data.
+              The AI reads this before writing. The Body above is the starting point. The AI personalizes it using these instructions + relationship data.
             </p>
           </div>
 
@@ -389,7 +389,7 @@ function TemplateDrawer({ open, onClose, template, onSaved, onArchive, onRestore
               <span className="text-xs text-slate-700 font-medium">Default template</span>
             </label>
             {template && !template.isActive && (
-              <span className="text-xs text-amber-700 font-medium">Archived — the bot does not use this one</span>
+              <span className="text-xs text-amber-700 font-medium">Archived: the bot does not use this one</span>
             )}
           </div>
 
@@ -466,7 +466,7 @@ function TemplatesTable({ templates, onEdit, onArchive, onRestore }) {
         </thead>
         <tbody className="divide-y divide-slate-50">
           {templates.filter(t => t.isActive).length === 0 ? (
-            <tr><td colSpan={8} className="py-6 text-center text-xs text-slate-500">No active templates — they are all archived below.</td></tr>
+            <tr><td colSpan={8} className="py-6 text-center text-xs text-slate-500">No active templates. They are all archived below.</td></tr>
           ) : templates.filter(t => t.isActive).map(t => (
             <tr
               key={t.id}
@@ -709,7 +709,7 @@ export default function TemplatesPage() {
         open={!!archiving}
         title="Archive this template?"
         what={archiving?.name}
-        body={<>Once it is archived, the sales bot stops using this template when it drafts messages. Nothing is deleted — the template and its wording are kept, and you can restore it any time from <b>Archived templates</b> at the bottom of this list.</>}
+        body={<>Once it is archived, the sales bot stops using this template when it drafts messages. Nothing is deleted: the template and its wording are kept, and you can restore it any time from <b>Archived templates</b> at the bottom of this list.</>}
         busy={archiveBusy}
         onCancel={() => setArchiving(null)}
         onConfirm={confirmArchive}

@@ -1,5 +1,5 @@
 /**
- * Deal history — the day a deal was created, and every day its status moved.
+ * Deal history, the day a deal was created, and every day its status moved.
  *
  * Mike, 2026-09-08: "We need to record the date a deal was created and that
  * status of won, lost, abandoned, etc. changed."
@@ -12,7 +12,7 @@
  * One row per BOARD: a full-design job is won or lost on Procurement and on
  * Design independently, so the two closes are two separate dates.
  *
- * These writes are deliberately best-effort — a failure to file the history
+ * These writes are deliberately best-effort, a failure to file the history
  * must never stop somebody saving a project. A missing event shows up honestly
  * as a deal the duration chart cannot measure, which is the safe failure.
  */
@@ -35,12 +35,12 @@ export function describeStatusChange(row) {
   const board = PIPELINE_LABEL[row.pipeline] || row.pipeline;
   const to    = STATUS_LABEL[row.toStatus]   || row.toStatus;
   const from  = row.fromStatus ? (STATUS_LABEL[row.fromStatus] || row.fromStatus) : null;
-  const why   = row.reason ? ` — ${row.reason}` : '';
+  const why   = row.reason ? `: ${row.reason}` : '';
   if (!from) return `Added to the **${board}** board as **${to}**`;
   return `${board} project moved from ${from} to **${to}**${why}`;
 }
 
-/** The opening row for a brand-new job — one per board it starts out on. */
+/** The opening row for a brand-new job, one per board it starts out on. */
 export async function recordProjectCreated(db, project, userId = null) {
   try {
     const rows = pipelinesFor(project).map(pipeline => ({

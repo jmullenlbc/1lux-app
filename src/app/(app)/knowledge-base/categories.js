@@ -1,6 +1,6 @@
-// Shared constants — no 'use client' so server components can import these too
+// Shared constants, no 'use client' so server components can import these too
 // Categories are now stored in the database (KbCategory model).
-// COLOR_MAP is kept here as a pure UI lookup — no DB needed.
+// COLOR_MAP is kept here as a pure UI lookup, no DB needed.
 
 export const COLOR_MAP = {
   blue:   { bg: 'bg-blue-50',   border: 'border-blue-200',   text: 'text-blue-700',   dot: 'bg-blue-500',   badge: 'bg-blue-100 text-blue-700'   },

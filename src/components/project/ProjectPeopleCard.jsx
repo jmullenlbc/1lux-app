@@ -1,6 +1,6 @@
 'use client';
 /**
- * Project People — the people attached to one job, and the one who owns it.
+ * Project People, the people attached to one job, and the one who owns it.
  *
  * Mike, 2026-09-09, on what he wanted: "you can just kind of choose people are
  * you want connected." Maram, on the same call, on why one of them is special:
@@ -9,7 +9,7 @@
  * record follows the jobs they are the main contact on, so marking the wrong
  * person moves credit for the job onto them.
  *
- * These are OUR side's people — the ones on a client record. They are not the
+ * These are OUR side's people, the ones on a client record. They are not the
  * outside guests on the Contacts tab, who get a portal login instead.
  */
 import { useState, useEffect, useCallback } from 'react';
@@ -90,7 +90,7 @@ export default function ProjectPeopleCard({ projectId }) {
 
   async function add(contact) {
     // The first person on a job is the main contact until somebody says
-    // otherwise — a project with people but no owner helps nobody.
+    // otherwise, a project with people but no owner helps nobody.
     await post(contact.id, links.length === 0);
     setSearch('');
     setResults([]);

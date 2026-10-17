@@ -4,7 +4,7 @@ import { prisma } from '@/lib/db';
 
 export const dynamic = 'force-dynamic';
 
-// POST /api/dashboards/[id]/hidden { key } — put back a prebuilt card that was
+// POST /api/dashboards/[id]/hidden { key }, put back a prebuilt card that was
 // taken off this dashboard. Removing the "hidden" row is all it takes: the next
 // GET /api/dashboards re-adds the card at the end of the dashboard.
 //

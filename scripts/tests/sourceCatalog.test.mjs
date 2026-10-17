@@ -74,7 +74,7 @@ test('every source polls daily or weekly, and nothing else', () => {
 });
 
 test('every source declares at least one project type', () => {
-  // An empty type list is not "all types" anywhere in the app — it is a source
+  // An empty type list is not "all types" anywhere in the app, it is a source
   // that answers no filter and quietly never surfaces.
   for (const s of SOURCES) {
     assert.ok(Array.isArray(s.projectTypes) && s.projectTypes.length > 0,
@@ -82,7 +82,7 @@ test('every source declares at least one project type', () => {
   }
 });
 
-// ── Coverage — the thing the catalog exists to fix ──────────────────────────
+// ── Coverage, the thing the catalog exists to fix ──────────────────────────
 
 test('the markets we actually sell into all have at least one local source', () => {
   // The finding this whole change came from: 20 of 21 sources were national,
@@ -94,7 +94,7 @@ test('the markets we actually sell into all have at least one local source', () 
   }
 });
 
-test('local sources outnumber nothing — more than one paper is not national', () => {
+test('local sources outnumber nothing: more than one paper is not national', () => {
   const local = SOURCES.filter(s => s.market !== DEFAULT_MARKET);
   assert.ok(local.length >= 10, `only ${local.length} local sources`);
 });

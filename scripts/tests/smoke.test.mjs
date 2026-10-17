@@ -5,7 +5,7 @@
 //      projects and 404'd opening any. Nothing caught it but a teammate complaining.
 //   2. Routes 500'd after a column was dropped by `db push --accept-data-loss`.
 //
-// The seeded accounts are all ILC_ADMIN, which would NOT have caught bug #1 — the
+// The seeded accounts are all ILC_ADMIN, which would NOT have caught bug #1, the
 // break was role-specific. So we stand up a disposable COMPANY_ADMIN for the run
 // and delete it afterwards.
 import { test, before, after } from 'node:test';
@@ -13,6 +13,7 @@ import assert from 'node:assert/strict';
 import { login, get, serverUp, BASE } from './_auth.mjs';
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
+import { ensureE2eAdmin } from './_e2eAdmin.mjs';
 
 const prisma = new PrismaClient();
 const TEMP_PW = 'SmokeTest2026!';
@@ -22,15 +23,16 @@ const TEMP_PW = 'SmokeTest2026!';
 // USER is here because of Mike, 2026-08-25: a staff account on the live app
 // opened Clients and saw an empty page. Every client had been created by
 // somebody else, and the list narrowed to admins. ILC_ADMIN and COMPANY_ADMIN
-// both passed that day — the break only showed on the plain USER role, which
+// both passed that day, the break only showed on the plain USER role, which
 // is why the role list below has to include it.
 const TEMP_ACCOUNTS = [
   { label: 'COMPANY_ADMIN', email: 'smoke-companyadmin@ilcstudios.test', role: 'COMPANY_ADMIN' },
   { label: 'USER',          email: 'smoke-user@ilcstudios.test',         role: 'USER' },
 ];
 
-// Admin login comes from the private .env, never typed here (this file is in git).
-const SEEDED = [{ label: 'ILC_ADMIN', email: process.env.E2E_ADMIN_EMAIL, password: process.env.E2E_ADMIN_PASSWORD }];
+// Admin login: E2E_ADMIN_EMAIL / E2E_ADMIN_PASSWORD from the private .env if set,
+// otherwise a local test admin with a fresh random password (_e2eAdmin.mjs).
+let SEEDED = [];
 
 const PAGES = ['/dashboard', '/crm', '/clients', '/pre-con',
   '/dashboards/main', '/dashboards/sales', '/dashboards/sales?tab=meeting', '/dashboards/meeting'];
@@ -39,10 +41,10 @@ const APIS = ['/api/projects', '/api/clients', '/api/sales/meeting', '/api/users
 let sessions = [];
 
 before(async () => {
-  assert.ok(await serverUp(), `no dev server at ${BASE} — run \`npm run dev:3000\` first`);
-  assert.ok(process.env.E2E_ADMIN_EMAIL && process.env.E2E_ADMIN_PASSWORD, 'set E2E_ADMIN_EMAIL and E2E_ADMIN_PASSWORD in .env first');
+  assert.ok(await serverUp(), `no dev server at ${BASE}, run \`npm run dev:3000\` first`);
+  SEEDED = [{ label: 'ILC_ADMIN', ...(await ensureE2eAdmin(prisma)) }];
 
-  // Disposable non-super-admins — the role class that regressed, twice.
+  // Disposable non-super-admins, the role class that regressed, twice.
   const passwordHash = await bcrypt.hash(TEMP_PW, 10);
   for (const a of TEMP_ACCOUNTS) {
     await prisma.user.upsert({
@@ -100,7 +102,7 @@ test('EVERY ILC role can see projects (not just the creator)', async () => {
     if (list.length === 0) blind.push(`${s.label} sees 0 projects`);
   }
   assert.deepStrictEqual(blind, [],
-    'a role sees no projects — visibility regressed to creator-only');
+    'a role sees no projects: visibility regressed to creator-only');
 });
 
 test('EVERY ILC role can open a project they did not create', async () => {
@@ -115,7 +117,7 @@ test('EVERY ILC role can open a project they did not create', async () => {
     if (status === 404) blocked.push(`${s.label} got 404 opening a project it didn't create`);
   }
   assert.deepStrictEqual(blocked, [],
-    'a role was blocked from a project it did not create — visibility regressed');
+    'a role was blocked from a project it did not create: visibility regressed');
 });
 
 // ── The same regression, on the clients side (Mike, 2026-08-25) ──────────────
@@ -129,7 +131,7 @@ test('EVERY ILC role can see clients', async () => {
     if (list.length === 0) blind.push(`${s.label} sees 0 clients`);
   }
   assert.deepStrictEqual(blind, [],
-    'a role sees no clients — visibility regressed to creator-only');
+    'a role sees no clients: visibility regressed to creator-only');
 });
 
 test('EVERY ILC role can open a client, and the people inside it', async () => {
@@ -148,5 +150,5 @@ test('EVERY ILC role can open a client, and the people inside it', async () => {
     if (contacts.status === 403) blocked.push(`${s.label} got 403 on that client's contacts`);
   }
   assert.deepStrictEqual(blocked, [],
-    'a role was blocked from a client it did not create — visibility regressed');
+    'a role was blocked from a client it did not create: visibility regressed');
 });

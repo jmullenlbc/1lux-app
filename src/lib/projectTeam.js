@@ -2,7 +2,7 @@
  * The project team: the six companies on a job besides the one we are selling to.
  *
  * Mike, 2026-09-09: "we have six project team fields and they connect to clients."
- * Every one of them is optional, always — Mike, same day: "always optional". None
+ * Every one of them is optional, always, Mike, same day: "always optional". None
  * of them is ever required to mark a project won.
  *
  * This file is the single place the six roles are named. Screens, API routes and
@@ -88,7 +88,7 @@ export function teamMemberWhere(clientId) {
 
 /**
  * Which seats this company holds on one project. A company can hold more than
- * one — a developer acting as their own general contractor is normal.
+ * one, a developer acting as their own general contractor is normal.
  */
 export function rolesHeldBy(project, clientId) {
   if (!project || !clientId) return [];

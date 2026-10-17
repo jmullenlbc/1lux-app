@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import DOMPurify from 'dompurify';
+import { FilterToolbar, FilterPanel } from '@/components/ui/FilterPanel';
 import EmailTagTargets, { startEmailDrag, untagEmailMessage } from '@/components/email/EmailTagTargets';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -315,6 +316,7 @@ export default function CorrespondenceTab({ projectId, projectName }) {
   const [readIds,         setReadIds]          = useState(new Set()); // locally marked read
   const [search,          setSearch]           = useState('');
   const [activePills,     setActivePills]      = useState(['All']);
+  const [filtersOpen,     setFiltersOpen]      = useState(false);
   const [collapsedMsgs,   setCollapsedMsgs]    = useState({}); // msgId → bool
 
   // Fetch thread list
@@ -456,32 +458,21 @@ export default function CorrespondenceTab({ projectId, projectName }) {
           </div>
         </div>
 
-        {/* Filter pills */}
+        {/* Filter: tick one or more tags; a thread must carry every ticked tag */}
         {allTags.length > 0 && (
-          <div className="px-2.5 py-2 border-b border-[#ede9e2] flex gap-1.5 flex-wrap">
-            <button
-              onClick={() => togglePill('All')}
-              className={`text-[11px] font-medium px-2 py-0.5 rounded-full border transition-colors ${
-                activePills.includes('All')
-                  ? 'bg-[#fef3c7] text-[#92400e] border-[#fde68a]'
-                  : 'bg-white text-[#9a9589] border-[#e8e4dc] hover:border-[#d0ccc4]'
-              }`}
-            >
-              All
-            </button>
-            {allTags.map(tag => (
-              <button
-                key={tag}
-                onClick={() => togglePill(tag)}
-                className={`text-[11px] font-medium px-2 py-0.5 rounded-full border transition-colors ${
-                  activePills.includes(tag)
-                    ? 'bg-[#fef3c7] text-[#92400e] border-[#fde68a]'
-                    : 'bg-white text-[#9a9589] border-[#e8e4dc] hover:border-[#d0ccc4]'
-                }`}
-              >
-                {tag}
-              </button>
-            ))}
+          <div className="px-2.5 py-2 border-b border-[#ede9e2]">
+            <FilterToolbar count={activePills.includes('All') ? 0 : activePills.length} open={filtersOpen}
+              onToggle={() => setFiltersOpen(o => !o)} onClear={() => togglePill('All')} />
+            <FilterPanel open={filtersOpen} className="p-3 mt-2">
+              <div className="col-span-full flex flex-col gap-1.5">
+                {allTags.map(tag => (
+                  <label key={tag} className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer">
+                    <input type="checkbox" className="accent-orange-500" checked={activePills.includes(tag)} onChange={() => togglePill(tag)} />
+                    {tag}
+                  </label>
+                ))}
+              </div>
+            </FilterPanel>
           </div>
         )}
 
@@ -546,7 +537,7 @@ export default function CorrespondenceTab({ projectId, projectName }) {
                   <span key={t}><TagChip tag={t} /></span>
                 ))}
                 <div className="ml-auto flex items-center gap-2">
-                  {/* Edit tags — disabled stub */}
+                  {/* Edit tags, disabled stub */}
                   <button
                     className="flex items-center gap-1 text-[11px] border border-[#e8e4dc] px-2.5 py-1 rounded-md text-[#6b6560]"
                     style={{ opacity: 0.4, cursor: 'not-allowed', pointerEvents: 'none' }}

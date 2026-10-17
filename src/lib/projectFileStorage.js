@@ -1,8 +1,8 @@
-// Project file storage — permanent records attached to ProjectFile rows.
+// Project file storage, permanent records attached to ProjectFile rows.
 //
 // In prod (S3_BUCKET set): files go to S3 under the project-files/ prefix,
 // which the bucket's lifecycle rule does NOT match (the rule targets uploads/
-// only — that prefix is for transient direct-upload scratch files).
+// only, that prefix is for transient direct-upload scratch files).
 //
 // In dev (no S3_BUCKET): falls back to the local filesystem at
 // uploads/{storedPath}, identical to the pre-S3 behaviour so local dev
@@ -85,7 +85,7 @@ export async function getProjectFileBuffer(storedPath) {
   } catch { return null; }
 }
 
-// Best-effort delete — returns true on success, false on failure. Callers
+// Best-effort delete, returns true on success, false on failure. Callers
 // still delete the DB row on failure; an orphan blob is harmless.
 export async function deleteProjectFile(storedPath) {
   if (!storedPath) return true;

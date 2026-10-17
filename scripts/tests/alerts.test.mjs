@@ -11,7 +11,7 @@
  *
  *   1. `UserAlert.dedupeKey` is unique across the WHOLE table, not per user.
  *      Store a caller's key unnamespaced and the first recipient gets told
- *      while everyone else is dropped — with no error anywhere. This is the
+ *      while everyone else is dropped, with no error anywhere. This is the
  *      one bug in this file that would look like the feature working.
  *   2. A duplicate is the mechanism working, not a fault. If `notifyUser`
  *      reported P2002 as an error, a daily sweep would look broken every day
@@ -73,7 +73,7 @@ const NOTE = { type: 'NOTE_REMINDER', title: 'Reminder: Lowell', message: 'call 
 test('a key is namespaced to its recipient before it is stored', () => {
   assert.equal(scopedKey('u1', 'noteAction:42:reminder'), 'u1::noteAction:42:reminder');
   assert.notEqual(scopedKey('u1', 'e'), scopedKey('u2', 'e'),
-    'two people must not collide on one event key — the index is table-wide');
+    'two people must not collide on one event key, the index is table-wide');
 });
 
 test('no key means no dedupe, not a key of ""', () => {

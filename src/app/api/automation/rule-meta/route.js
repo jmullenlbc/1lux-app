@@ -13,7 +13,7 @@ export async function GET() {
     key, label: t.label, source: t.source, live: !!t.live, fields: t.fields || [],
   }));
   // `available` travels to the builder so an action that cannot do anything is
-  // greyed out rather than offered. An action defaults to available — only one
+  // greyed out rather than offered. An action defaults to available, only one
   // that opts out has to say so.
   const actions = Object.entries(ACTIONS).map(([key, a]) => ({
     key,

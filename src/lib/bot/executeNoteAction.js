@@ -1,12 +1,12 @@
 /**
- * executeNoteAction.js — baseline behavior when a NoteAction is confirmed.
+ * executeNoteAction.js, baseline behavior when a NoteAction is confirmed.
  *
  *  • Email / Send-materials / Schedule → marked "ready"; the note consolidates
  *    ALL of a contact's asks into ONE email (see composeOutreach).
  *  • Expect intro / reply / drawings / invite → a "waiting" step: the email
  *    watch closes it when they do it, and the reminder ladder (14/30/60 days
  *    after the meeting, editable) nudges when they don't. See src/lib/followUp/.
- *  • Text / Call → confirmed to-do only — the bot can't send texts or place
+ *  • Text / Call → confirmed to-do only, the bot can't send texts or place
  *    calls yet (down the road), so no draft is produced.
  *  • Add-to-list / Internal task / Other → confirmed to-do.
  */
@@ -56,7 +56,7 @@ export async function executeNoteAction(action, type, opts = {}) {
   }
 
   // Text / Call / Add-to-list / Internal task / Other → confirmed to-do, no draft
-  // (the bot can't text or call yet — those stay manual tasks for now). A step
+  // (the bot can't text or call yet, those stay manual tasks for now). A step
   // with a deadline ("by Friday") rings the bell on that day.
   await prisma.noteAction.update({
     where: { id: action.id },

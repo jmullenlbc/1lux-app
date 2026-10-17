@@ -3,7 +3,7 @@ import { requirePermission } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { looseNumberOrNull, looseInteger } from '@/lib/numberInput';
 
-// PATCH — update line item
+// PATCH, update line item
 export async function PATCH(req, { params }) {
   const { error } = await requirePermission(req, 'editJobMoney'); // Construction, Operations, Finance, admins
   if (error) return error;
@@ -47,7 +47,7 @@ export async function PATCH(req, { params }) {
   return NextResponse.json(updated);
 }
 
-// DELETE — remove line item
+// DELETE, remove line item
 export async function DELETE(req, { params }) {
   const { error } = await requirePermission(req, 'editJobMoney'); // Construction, Operations, Finance, admins
   if (error) return error;

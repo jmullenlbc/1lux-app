@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic';
  * POST /api/admin/agent-runs/[id]/verdict
  * body: { verdict: 'accepted'|'corrected'|'rejected', correction?, note? }
  *
- * A human signs one AI run — Step 17 of the Governed AI Layer.
+ * A human signs one AI run, Step 17 of the Governed AI Layer.
  *
  * ── The verdict is the product, not the button ───────────────────────────────
  * These rows are what Step 18 computes trust from, so this endpoint is the point
@@ -52,7 +52,7 @@ export async function POST(request, { params }) {
   });
 
   if (!res.ok) {
-    // "already reviewed" is a conflict, not a client error — two reviewers
+    // "already reviewed" is a conflict, not a client error, two reviewers
     // opening the same queue is ordinary, and the UI should say so plainly
     // rather than showing a validation error.
     const status = /already reviewed/.test(res.error) ? 409

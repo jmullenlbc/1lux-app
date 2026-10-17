@@ -1,7 +1,7 @@
 /**
  * Tests for the backend usage dashboard's aggregation.
  *
- * Runs under plain `node --test` — which is why `collectMetrics` takes the
+ * Runs under plain `node --test`, which is why `collectMetrics` takes the
  * Prisma client and the ledger reader as arguments instead of importing them.
  * A module that reaches for `@/lib/db` at load time cannot be unit-tested here
  * at all, because the `@` alias is a bundler feature.
@@ -134,7 +134,7 @@ test('recent AI errors carry the message and nothing else', async () => {
   assert.equal(e.error, 'rate limited');
 });
 
-test('a snapshot is scalars only — small enough to keep a year of', async () => {
+test('a snapshot is scalars only, small enough to keep a year of', async () => {
   const m = await collectMetrics(fakePrisma({
     projectFile: [{ createdAt: at(1), size: 10, tab: 'x', fileType: 'pdf', uploadedById: 'u1' }],
     user:        [{ id: 'u1', name: 'A', email: 'a@x.com', role: 'USER', createdAt: at(90) }],

@@ -8,7 +8,7 @@ async function canAccess(projectId, user) {
   return canSeeAllData(user) || p.createdById === user.id;
 }
 
-// Reviews are immutable — only deletion is allowed (for data-entry mistakes)
+// Reviews are immutable, only deletion is allowed (for data-entry mistakes)
 export async function DELETE(request, { params }) {
   const { user, error } = await requireAuth();
   if (error) return error;

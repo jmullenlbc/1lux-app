@@ -6,7 +6,7 @@ import { EXECUTORS } from '@/lib/noteActions';
 
 export const dynamic = 'force-dynamic';
 
-// GET — list the taxonomy. ?active=1 → active only (for the note dropdown).
+// GET, list the taxonomy. ?active=1 → active only (for the note dropdown).
 // Any authenticated user can read; only admins can edit (POST/PATCH/DELETE).
 export async function GET(request) {
   const { error } = await requireAuth();
@@ -16,8 +16,8 @@ export async function GET(request) {
   return NextResponse.json({ types: activeOnly ? types.filter(t => t.isActive) : types });
 }
 
-// POST — create a new type (admin)
-// Reminder rungs: a whole number of days (1–3650), or blank for "no reminder".
+// POST, create a new type (admin)
+// Reminder rungs: a whole number of days (1 to 3650), or blank for "no reminder".
 // Anything else is dropped to blank rather than saved as NaN.
 const days = v => {
   if (v === '' || v == null) return null;
@@ -57,7 +57,7 @@ export async function POST(request) {
   return NextResponse.json({ type: created });
 }
 
-// PATCH — update a type. Body: { key, ...fields }. The reminder days alone are
+// PATCH, update a type. Body: { key...fields }. The reminder days alone are
 // open to the whole sales team (Mike 9-25); everything else is Sales Admin.
 const TIMELINE_FIELDS = ['key', 'reminderDays', 'reminder2Days', 'reminder3Days'];
 export async function PATCH(request) {
@@ -90,7 +90,7 @@ export async function PATCH(request) {
   return NextResponse.json({ type: updated });
 }
 
-// DELETE — remove a type (admin). ?key=XXX
+// DELETE, remove a type (admin). ?key=XXX
 export async function DELETE(request) {
   const { error } = await requireSalesAdmin();
   if (error) return error;

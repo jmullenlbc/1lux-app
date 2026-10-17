@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
+import { NO_DASHES_RULE } from '@/lib/bot/emailStyle';
 import { requireAuth, canSeeAllData } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { calculateBudget } from '@/lib/calculations';
 import { responsesToSections } from '@/lib/utils';
 import { loadPricing } from '@/lib/pricingLoader';
-// Third route found with this same missing import — `getAnthropicKey` was used
+// Third route found with this same missing import, `getAnthropicKey` was used
 // below without being imported, so this one threw a ReferenceError too.
 import { getAnthropicKey } from '@/lib/anthropicKey';
 import { recordRun } from '@/lib/agent/ledger';
@@ -141,7 +142,7 @@ export async function POST(request, { params }) {
     summaryLines.push(`Change Order Total: ${fmt(coTotal)} (${coFiles.length} change order${coFiles.length !== 1 ? 's' : ''})`);
     coFiles.forEach(f => {
       const extraTags = parseTags(f.tags).filter(t => t !== 'Change Order').join(', ');
-      summaryLines.push(`  • ${f.originalName}${extraTags ? ` [${extraTags}]` : ''}: ${fmt(f.parsedAmount)} — ${fmtDate(f.createdAt)}`);
+      summaryLines.push(`  • ${f.originalName}${extraTags ? ` [${extraTags}]` : ''}: ${fmt(f.parsedAmount)}, ${fmtDate(f.createdAt)}`);
     });
   }
 
@@ -176,7 +177,7 @@ export async function POST(request, { params }) {
   if (pd.numCarports)          buildingLines.push(`Carports: ${pd.numCarports}`);
   if (pd.numGarages)           buildingLines.push(`Detached/Attached Garages: ${pd.numGarages}`);
   if (pd.numExteriorDoors)     buildingLines.push(`Exterior Doors: ${pd.numExteriorDoors}`);
-  // Sporadic site features — one row per kind, read off the site plan or typed.
+  // Sporadic site features, one row per kind, read off the site plan or typed.
   for (const f of Array.isArray(pd.siteFeatures) ? pd.siteFeatures : []) {
     const qty = LINEAR_SITE_FEATURES.has(f.type) ? `${Number(f.lengthFt || 0).toLocaleString()} ft long` : `${f.count || 0}`;
     buildingLines.push(`${SITE_FEATURE_LABELS[f.type] || f.type}: ${qty}${f.sheet ? ` (sheet ${f.sheet})` : ''}${f.source === 'typed' ? ' (typed)' : ''}`);
@@ -211,7 +212,7 @@ export async function POST(request, { params }) {
   budgetLines.push('── Corridors & Stairwells ────────────────────────────────');
   budgetLines.push(`  Corridor disks:     ${fmt(s.corridors?.disks?.product)}`);
   budgetLines.push(`  Unit-entry sconces: ${fmt(s.corridors?.sconces?.product)}`);
-  budgetLines.push(`  Stairwell fixtures: ${fmt(s.corridors?.stairwells?.product)}${s.corridors?.stairwells?.breezeway ? ` (breezeway package — ${s.corridors.stairwells.breezeway.how})` : ''}`);
+  budgetLines.push(`  Stairwell fixtures: ${fmt(s.corridors?.stairwells?.product)}${s.corridors?.stairwells?.breezeway ? ` (breezeway package: ${s.corridors.stairwells.breezeway.how})` : ''}`);
   budgetLines.push(`  CORRIDORS TOTAL:    ${fmt(s.corridors?.total?.product)}`);
   budgetLines.push('── Other Sections ────────────────────────────────────────');
   budgetLines.push(`  BOH / Core+Shell:   ${fmt(s.boh?.product)}`);
@@ -255,8 +256,8 @@ export async function POST(request, { params }) {
     tabFiles.forEach(f => {
       const tags    = parseTags(f.tags);
       const amount  = f.parsedAmount ? ` · ${fmt(f.parsedAmount)}` : '';
-      const canRead = f.textContent ? ' [readable]' : ' [image/scan — not readable]';
-      inventoryText += `  • ${f.originalName}${tags.length ? ` [${tags.join(', ')}]` : ''}${amount}${canRead} — ${fmtDate(f.createdAt)}\n`;
+      const canRead = f.textContent ? ' [readable]' : ' [image/scan, not readable]';
+      inventoryText += `  • ${f.originalName}${tags.length ? ` [${tags.join(', ')}]` : ''}${amount}${canRead}, ${fmtDate(f.createdAt)}\n`;
     });
   }
 
@@ -440,7 +441,7 @@ export async function POST(request, { params }) {
       if (analysis.overall_risk_rationale) contractAnalysisText += `  Summary: ${analysis.overall_risk_rationale}\n`;
       if (reds.length > 0) {
         contractAnalysisText += `  RED FLAGS:\n`;
-        reds.forEach(fl => contractAnalysisText += `    • [${fl.category}] ${fl.title} — ${fl.risk || fl.what_it_says}\n`);
+        reds.forEach(fl => contractAnalysisText += `    • [${fl.category}] ${fl.title}: ${fl.risk || fl.what_it_says}\n`);
       }
       const missing = (analysis.missing_clauses || []).filter(c => c.importance === 'Critical');
       if (missing.length > 0) {
@@ -448,21 +449,21 @@ export async function POST(request, { params }) {
       }
       const ss = analysis.southstar_compatibility || {};
       if (ss.compatible === false || ss.compatible === 'false') {
-        contractAnalysisText += `  SOUTHSTAR: Incompatible — ${(ss.issues || []).join('; ')}\n`;
+        contractAnalysisText += `  SOUTHSTAR: Incompatible: ${(ss.issues || []).join('; ')}\n`;
       }
     }
   }
 
   // ── Assemble system prompt ────────────────────────────────────────────────
-  const systemPrompt = `You are an AI assistant for ILC Studios, a lighting design firm. Answer questions directly — lead with the number or fact, then add context. Use PROJECT SUMMARY and BUDGET BREAKDOWN figures as authoritative sources. Reference meeting notes and file names when relevant.
+  const systemPrompt = `You are an AI assistant for ILC Studios, a lighting design firm. Answer questions directly. Lead with the number or fact, then add context. Use PROJECT SUMMARY and BUDGET BREAKDOWN figures as authoritative sources. Reference meeting notes and file names when relevant.
 
 Format every response clearly:
 - Use **bold** for key numbers, dollar amounts, names, and important terms
 - Use bullet points (- item) for any list of 3 or more items
 - Use ## headings to separate distinct topics in longer answers
-- Keep sentences short and direct — one idea per sentence
+- Keep sentences short and direct, one idea per sentence
 - Lead with the direct answer first, then supporting detail
-- Never write walls of unbroken text — break into bullets or short paragraphs
+- Never write walls of unbroken text. Break into bullets or short paragraphs
 
 ── PROJECT SUMMARY (live database) ─────────────────────────────────────────
 ${summaryLines.join('\n')}
@@ -516,7 +517,7 @@ ${budgetLines.join('\n')}
   ];
 
   // Recorded: see src/lib/agent/ledger.js. Raw SSE, so the usage totals are
-  // read out of the event stream — `message_start` carries input_tokens,
+  // read out of the event stream, `message_start` carries input_tokens,
   // `message_delta` carries the running output_tokens and the stop reason.
   const MODEL   = modelFor('chat.project');
   const started = Date.now();
@@ -538,7 +539,7 @@ ${budgetLines.join('\n')}
             model:      MODEL,
             max_tokens: 1024,
             stream:     true,
-            system:     systemPrompt,
+            system:     systemPrompt + NO_DASHES_RULE,
             messages:   apiMessages,
           }),
         });

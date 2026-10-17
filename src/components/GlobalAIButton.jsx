@@ -1,28 +1,15 @@
 'use client';
 import { useState } from 'react';
-import { usePathname } from 'next/navigation';
+import { OPEN_AI, aiClaimed, useHelperEvent } from '@/components/layout/helperEvents';
 
+// The platform Ask AI panel. Opened from the sidebar (no floating button, Mike
+// 10-17); the project hub and the knowledge base answer Ask AI with their own chat.
 export default function GlobalAIButton() {
-  const pathname = usePathname();
   const [open, setOpen] = useState(false);
-
-  // Project pages render ProjectChat directly — don't show here
-  if (/^\/project\/[^/]+(\/|$)/.test(pathname)) return null;
+  useHelperEvent(OPEN_AI, () => { if (!aiClaimed()) setOpen(o => !o); });
 
   return (
     <>
-      {!open && (
-        <button
-          onClick={() => setOpen(true)}
-          className="fixed bottom-24 md:bottom-6 right-4 md:right-6 z-40 flex items-center gap-2 px-4 py-3 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white shadow-xl transition-all hover:scale-105 print:hidden"
-        >
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
-          </svg>
-          <span className="text-sm font-semibold">Ask AI</span>
-        </button>
-      )}
-
       {open && (
         <div className="fixed bottom-24 md:bottom-6 right-4 md:right-6 z-40 w-[360px] max-w-[calc(100vw-2rem)] flex flex-col bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden" style={{ height: '320px' }}>
           {/* Header */}

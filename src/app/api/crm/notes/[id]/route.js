@@ -5,7 +5,7 @@ import { addNoteLinks, removeNoteLinks, setNoteContacts, stampLastMet, NOTE_CONT
 import { archiveData, readArchivedFlag, deleteRefused, ARCHIVED_FLAG_HELP } from '@/lib/archive';
 import { extractActionsOnPublish } from '@/lib/notes/publishActions';
 import { executeNotePublished, pauseNoteOnUnpublish } from '@/lib/bot/noteActionRunner';
-// Which activity types count as in person lives in one place now — shared with
+// Which activity types count as in person lives in one place now, shared with
 // the note-create route and the calendar sync.
 import { isInPersonType } from '@/lib/calendar/inPerson';
 import { cleanCalendarLink } from '@/lib/calendar/salesOwner';
@@ -223,16 +223,16 @@ async function changesFor(note, data, links) {
   return out;
 }
 
-// DELETE /api/crm/notes/[id] — refused. Notes are archived, never deleted
+// DELETE /api/crm/notes/[id], refused. Notes are archived, never deleted
 // (Mike, 2026-09-11; reconfirmed 9-25: "just make an archive to forget delete").
 export async function DELETE() {
   return NextResponse.json({ error: deleteRefused('Notes') }, { status: 405 });
 }
 
-// POST /api/crm/notes/[id]  { archived: true | false } — archive or restore.
+// POST /api/crm/notes/[id]  { archived: true | false }, archive or restore.
 // Anyone signed in (Mike 9-25: "anyone can touch it"). Archiving holds any follow-up emails the note
 // queued that have not gone out yet (same as un-publishing it); restoring does
-// not send them — publish the note again to re-run its actions.
+// not send them, publish the note again to re-run its actions.
 export async function POST(request, { params }) {
   const { user, error } = await requireAuth();
   if (error) return error;

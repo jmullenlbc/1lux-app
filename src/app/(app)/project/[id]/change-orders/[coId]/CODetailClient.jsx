@@ -243,7 +243,7 @@ function LineItemRow({ item, groupId, projectId, coId, manufacturers, rates, onU
         </td>
       )}
 
-      {/* Type — for option rows shows a radio + option label */}
+      {/* Type, for option rows shows a radio + option label */}
       <td className="px-0.5 py-0.5 w-20">
         {isOptionRow ? (
           <div className="flex items-center gap-1.5 px-1.5 py-0.5">
@@ -291,7 +291,7 @@ function LineItemRow({ item, groupId, projectId, coId, manufacturers, rates, onU
           onSave={v => { setLocalCN(parseFloat(v) || 0); patch({ cnUnitPrice: parseFloat(v) || 0 }); }}
           placeholder="0.00" readOnly={isLocked} className="text-right font-semibold" />
       </td>
-      {/* Total CN — dimmed if option not selected */}
+      {/* Total CN, dimmed if option not selected */}
       <td className={`px-2 py-0.5 w-20 text-right text-xs font-bold ${
         isOptionRow && !item.isGroupSelected ? 'text-slate-300' : totalCN < 0 ? 'text-red-600' : 'text-blue-700'
       }`}>
@@ -347,7 +347,7 @@ function OptionGroupPanel({ group, co, projectId, coId, rates, manufacturers, on
     setSaving(false);
   }
 
-  // Convert a line into Option A and add Option B — or add another option to an existing group
+  // Convert a line into Option A and add Option B, or add another option to an existing group
   async function addOptionFor(targetItem) {
     setSaving(true);
     const rootId = targetItem.parentLineItemId || targetItem.id;
@@ -995,8 +995,8 @@ export default function CODetailClient({ projectId, coId }) {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">
-              Option Groups
-              <span className="ml-2 text-slate-400 font-normal normal-case">— click the radio to select</span>
+              Option Groups:
+              <span className="ml-2 text-slate-400 font-normal normal-case">click the radio to select</span>
             </h2>
             {!isLocked && (
               <button onClick={addOptionGroup}

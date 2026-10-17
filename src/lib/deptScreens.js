@@ -5,7 +5,7 @@
 // department."
 //
 // Both are conveniences, not security. Nothing here hides a screen or blocks a
-// save — who may do what still lives in src/lib/permissions.js. This file only
+// save, who may do what still lives in src/lib/permissions.js. This file only
 // decides what a person sees FIRST, so the app opens on their own work instead
 // of somebody else's.
 //
@@ -30,7 +30,7 @@ export const SECTION_DEPARTMENTS = {
 };
 
 // Which sidebar sections start open for this person.
-// Home is always open — it is where the projects live.
+// Home is always open, it is where the projects live.
 export function openSectionsFor(user) {
   const mine = departmentKeys(user);
 
@@ -62,7 +62,7 @@ export const PICKER_DEPARTMENTS = {
 // else. Both lists keep the order they came in.
 //
 // `picker` is a key of PICKER_DEPARTMENTS, or a list of department keys. An
-// unknown key means "no opinion" — everybody comes back as a match, which is
+// unknown key means "no opinion", everybody comes back as a match, which is
 // the same list the dropdown showed before.
 export function splitByDepartment(users, picker) {
   const wanted = Array.isArray(picker) ? picker : PICKER_DEPARTMENTS[picker];

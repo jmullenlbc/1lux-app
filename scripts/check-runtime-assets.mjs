@@ -1,11 +1,11 @@
 #!/usr/bin/env node
 /**
- * check-runtime-assets — turns a whole class of prod-only bugs into a build gate.
+ * check-runtime-assets, turns a whole class of prod-only bugs into a build gate.
  *
  * Next traces Lambda files by following STATIC imports. Any asset resolved at
  * RUNTIME (a constructed `file://` path, `require.resolve(...)`, a dynamic import)
  * is invisible to it, so the file is simply absent in production while local works
- * fine — because local has all of node_modules on disk.
+ * fine, because local has all of node_modules on disk.
  *
  * We have been bitten by this twice:
  *   - @sparticuz/chromium  → PDF routes (fixed earlier via outputFileTracingIncludes)
@@ -22,9 +22,9 @@ const TRACE_ROOT = '.next/server/app';
 // route path (as built) → asset substring that MUST appear in its Lambda trace
 const REQUIREMENTS = [
   // pdfjs resolves BOTH of these at runtime, so nft never traces them:
-  //   standard_fonts/ — via a constructed file:// URL. Missing → getTextContent
+  //   standard_fonts/, via a constructed file:// URL. Missing → getTextContent
   //                     yields nothing and every AI parse returns 0 rows.
-  //   pdf.worker.mjs  — via `await import(GlobalWorkerOptions.workerSrc)` inside
+  //   pdf.worker.mjs, via `await import(GlobalWorkerOptions.workerSrc)` inside
   //                     pdf.mjs. Missing → getDocument() throws "Setting up fake
   //                     worker failed" before page 1 (symptom: pages=0 read=0).
   //                     This shipped broken to prod and killed EVERY server-side
@@ -42,15 +42,15 @@ const REQUIREMENTS = [
     'api/projects/[id]/site/parse',
     'api/projects/[id]/unit-matrix/parse',
     // Bot Knowledge file uploads (2026-09-07). Shipped without any of these, so
-    // every PDF dropped on the live screen failed to open while local worked —
+    // every PDF dropped on the live screen failed to open while local worked
     // the exact bug this gate exists to catch, on a route the gate did not know
     // about. Found 2026-09-08.
     'api/automation/knowledge/docs',
     'api/automation/knowledge/docs/[id]/reread',
   ].flatMap(route => [
     { route, asset: 'standard_fonts', why: 'pdfjs text extraction returns nothing without the standard fonts' },
-    { route, asset: 'pdf.worker.mjs', why: 'pdfjs cannot open a document at all without its worker — getDocument() throws before page 1' },
-    { route, asset: 'jbig2.wasm', why: 'pdfjs skips fax-compressed (CCITT/JBIG2) images without its wasm decoders — tables render as solid black blocks (Lowell A1.03, 2026-08-29)' },
+    { route, asset: 'pdf.worker.mjs', why: 'pdfjs cannot open a document at all without its worker, getDocument() throws before page 1' },
+    { route, asset: 'jbig2.wasm', why: 'pdfjs skips fax-compressed (CCITT/JBIG2) images without its wasm decoders, tables render as solid black blocks (Lowell A1.03, 2026-08-29)' },
   ]),
   // headless chromium binary is dynamically imported
   ...[
@@ -66,7 +66,7 @@ const REQUIREMENTS = [
   {
     route: 'api/intake/parse',
     asset: 'napi-rs',
-    why: 'vision extraction cannot rasterise a PDF page without the canvas native binary — drawings with no text layer would fail in prod only',
+    why: 'vision extraction cannot rasterise a PDF page without the canvas native binary, drawings with no text layer would fail in prod only',
   },
 ];
 
@@ -77,7 +77,7 @@ function traceFor(route) {
 }
 
 if (!fs.existsSync(TRACE_ROOT)) {
-  console.log('• check-runtime-assets: no build output — run `next build` first (skipping)');
+  console.log('• check-runtime-assets: no build output, run `next build` first (skipping)');
   process.exit(0);
 }
 
@@ -86,13 +86,13 @@ const notBuilt = [];
 for (const { route, asset, why } of REQUIREMENTS) {
   const files = traceFor(route);
   if (!files) { notBuilt.push(route); continue; }
-  // Trace paths use the host OS separator — match on the bare name, not a path.
+  // Trace paths use the host OS separator, match on the bare name, not a path.
   const found = files.some(f => f.includes(asset));
   if (!found) missing.push({ route, asset, why });
 }
 
 if (missing.length) {
-  console.error('\n❌ BUILD BLOCKED — runtime assets missing from the Lambda:\n');
+  console.error('\n❌ BUILD BLOCKED: runtime assets missing from the Lambda:\n');
   for (const m of missing) {
     console.error(`   /${m.route}`);
     console.error(`     missing: ${m.asset}`);

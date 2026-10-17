@@ -2,7 +2,7 @@
  * Pipeline stage vocabulary (Mike's list, 2026-09-07).
  *
  * There was no test on the stage list at all, which is exactly how three screens
- * ended up carrying their own typed-out copy of the stage names — the boards, the
+ * ended up carrying their own typed-out copy of the stage names, the boards, the
  * home cards and the dashboards could each show a different word for the same
  * column. These assertions pin the two things that matter:
  *

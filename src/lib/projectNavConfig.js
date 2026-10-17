@@ -3,7 +3,7 @@
 // fullDesign and designAssist share the same nav structure.
 // peerReview, bidOnly, and other share the same nav structure.
 //
-// icon: Lucide icon name — used by ProjectSidebar for the collapsed rail.
+// icon: Lucide icon name, used by ProjectSidebar for the collapsed rail.
 
 export const NAV_CONFIG = {
   fullDesign: [
@@ -152,8 +152,8 @@ export const NAV_CONFIG = {
     },
   ],
 
-  bidOnly: null, // assigned below — same as peerReview
-  other:   null, // assigned below — same as peerReview
+  bidOnly: null, // assigned below, same as peerReview
+  other:   null, // assigned below, same as peerReview
 };
 
 NAV_CONFIG.bidOnly      = NAV_CONFIG.peerReview;

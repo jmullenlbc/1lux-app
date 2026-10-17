@@ -34,7 +34,7 @@ export default function ShareStandardsButton({ clientId }) {
       await navigator.clipboard.writeText(url);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch { /* clipboard blocked — user can select manually */ }
+    } catch { /* clipboard blocked, user can select manually */ }
   }
 
   return (

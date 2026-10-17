@@ -47,14 +47,14 @@ const DESIGN_MILESTONE_IDS = [
 ];
 
 /**
- * @param {string} textContent  the architect's schedule export — their document.
+ * @param {string} textContent  the architect's schedule export, their document.
  * @param {object} [ctx]        `{ projectId }`, used only to label the warning if
  *                              the schedule contains instruction-like text.
  */
 export async function extractDesignMilestonesWithAI(textContent, ctx = {}) {
   const prompt = `You are reading a design/architecture project schedule (may be MS Project, Asta, or similar Gantt export).
 
-Extract milestone dates and return ONLY a valid JSON array — no markdown, no explanation.
+Extract milestone dates and return ONLY a valid JSON array, no markdown, no explanation.
 
 Return format: [{"id":"milestone-id","label":"Milestone Label","date":"YYYY-MM-DD"}, ...]
 
@@ -62,10 +62,10 @@ Milestones to find:
 ${DESIGN_MILESTONE_IDS.map(m => `• "${m.id}" → ${m.label}: ${m.hint}`).join('\n')}
 
 Rules:
-- Only include milestones that are explicitly in the schedule — do NOT guess or invent dates
+- Only include milestones that are explicitly in the schedule, do NOT guess or invent dates
 - Use milestone/finish dates, not start dates for phase-duration rows
 - Return [] if no recognizable milestone dates are found
-- Dates may appear as M/D/YY, MM/DD/YYYY, Mon D/D/YY, or Primavera P6's DD-Mon-YY ("07-Oct-24"). A trailing "A" means the date is actual, and a trailing "*" is a constraint marker — neither is part of the date.`;
+- Dates may appear as M/D/YY, MM/DD/YYYY, Mon D/D/YY, or Primavera P6's DD-Mon-YY ("07-Oct-24"). A trailing "A" means the date is actual, and a trailing "*" is a constraint marker. Neither is part of the date.`;
 
   // The schedule is the architect's export, not ours. It used to be appended to
   // the prompt under a "Schedule text:" label, which is a label, not a boundary.
@@ -78,7 +78,7 @@ Rules:
 
   const msg = await anthropic.messages.create({
     // Mike, 2026-08-19: all schedules are read by Fable 5. Same reason as the
-    // construction pass in scheduleExtract.js — the old 8,000-character cap was
+    // construction pass in scheduleExtract.js, the old 8,000-character cap was
     // narrow enough that a design schedule of any length lost its tail silently.
     ...modelParams('schedule.design'),
     max_tokens: answerBudget('schedule.design', 2000),

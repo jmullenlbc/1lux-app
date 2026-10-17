@@ -38,7 +38,7 @@ export async function GET(request) {
 
 // POST /api/crm/contacts
 // Body: { name, title?, email?, phone?, notes?, clientId? }
-// clientId must be a real Client.id — not matched by text
+// clientId must be a real Client.id, not matched by text
 export async function POST(request) {
   const { user, error } = await requireAuth();
   if (error) return error;
@@ -46,7 +46,7 @@ export async function POST(request) {
   const { name, title, email, phone, notes, clientId, linkedInUrl, preferredName, company, department } = await request.json();
   if (!name?.trim()) return NextResponse.json({ error: 'name is required' }, { status: 400 });
 
-  // Validate clientId by ID — never by text
+  // Validate clientId by ID, never by text
   if (clientId) {
     const client = await prisma.client.findUnique({ where: { id: clientId } });
     if (!client) return NextResponse.json({ error: 'clientId not found' }, { status: 400 });

@@ -26,7 +26,7 @@ async function candidateContacts(noteId) {
   return { note, candidates: [...map.values()] };
 }
 
-// GET — list a note's actions
+// GET, list a note's actions
 export async function GET(request, { params }) {
   const { error } = await requireAuth();
   if (error) return error;
@@ -36,7 +36,7 @@ export async function GET(request, { params }) {
     include: { fulfilledByEmail: { select: { subject: true, sentAt: true } } },
   });
   // Steps that wait on them get a plain-words line: "Lee sent Seattle
-  // drawings.pdf", "Watching email — reminder 1 of 3 on Oct 8".
+  // drawings.pdf", "Watching email, reminder 1 of 3 on Oct 8".
   const types = await prisma.noteActionType.findMany({ where: { key: { in: [...new Set(rows.map(a => a.type))] } } });
   const byKey = new Map(types.map(t => [t.key, t]));
   const now = new Date();
@@ -47,7 +47,7 @@ export async function GET(request, { params }) {
   return NextResponse.json({ actions });
 }
 
-// POST — (re)extract actions from the note's prose. Replaces prior AI SUGGESTED
+// POST, (re)extract actions from the note's prose. Replaces prior AI SUGGESTED
 // items; keeps anything the human CONFIRMED/DISMISSED.
 export async function POST(request, { params }) {
   const { error } = await requireAuth();
@@ -72,7 +72,7 @@ export async function POST(request, { params }) {
   return NextResponse.json({ actions, extractedCount: extracted.length, personalCount: facts.created });
 }
 
-// PATCH — update one action (confirm/dismiss/done, change type, set contact, due date)
+// PATCH, update one action (confirm/dismiss/done, change type, set contact, due date)
 export async function PATCH(request, { params }) {
   const { user, error } = await requireAuth();
   if (error) return error;

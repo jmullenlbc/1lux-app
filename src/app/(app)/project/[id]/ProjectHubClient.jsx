@@ -243,7 +243,7 @@ function AutoTaggedFileTab({ title, subtitle, autoTag, files, projectId, tab, on
     if (beforeUpload && !beforeUpload()) return;
     setUploading(prev => [...prev, ...arr.map(f => f.name)]);
     for (const file of arr) {
-      // Never let a failure be silent — say what went wrong and what to do about it.
+      // Never let a failure be silent, say what went wrong and what to do about it.
       const fail = (msg) => setUploadErrors(prev => [...prev, { id: `${file.name}-${prev.length}`, msg }]);
       const tooBig = oversizeMessage(file);
       if (tooBig) { fail(tooBig); continue; }
@@ -354,7 +354,7 @@ function AutoTaggedFileTab({ title, subtitle, autoTag, files, projectId, tab, on
           <span className="truncate">Uploading {name}…</span>
         </div>
       ))}
-      {/* Upload failures — stay on screen until dismissed so nothing fails silently */}
+      {/* Upload failures, stay on screen until dismissed so nothing fails silently */}
       {uploadErrors.map(err => (
         <div key={err.id} className="flex items-start gap-2 text-xs text-red-700 bg-red-50 border border-red-200 rounded-lg px-4 py-2">
           <svg className="w-3.5 h-3.5 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -427,7 +427,7 @@ function AutoTaggedFileTab({ title, subtitle, autoTag, files, projectId, tab, on
 }
 
 export default function ProjectHubClient({ userId, userRole, canEditMoney = false, project,budget, peerReviewTotal, clients = [], allUsers = [], initialFiles = [], initialDesignInfo = {}, masterTypes = [], meetingNotesCount = 0 }) {
-  // Inline super-admin check — the auth helper module imports next/headers
+  // Inline super-admin check, the auth helper module imports next/headers
   // which isn't usable in a client component, so we replicate the predicate
   // here. Mirrors isSuperAdmin() in src/lib/auth.js exactly.
   const isSuper = userRole === 'SUPER_ADMIN' || userRole === 'ILC_ADMIN';
@@ -442,7 +442,7 @@ export default function ProjectHubClient({ userId, userRole, canEditMoney = fals
       }
       const json = await res.json();
       await navigator.clipboard.writeText(JSON.stringify(json, null, 2));
-      // Lightweight inline confirmation — avoids hauling in a toast lib.
+      // Lightweight inline confirmation, avoids hauling in a toast lib.
       const el = document.getElementById('qc-export-toast');
       if (el) {
         el.textContent = 'Copied! Paste into Hive / chat.';
@@ -457,7 +457,7 @@ export default function ProjectHubClient({ userId, userRole, canEditMoney = fals
   const searchParams = useSearchParams();
   const pathname     = usePathname();
 
-  // URL-driven tab state — ?tab=budgets persists on refresh and is shareable
+  // URL-driven tab state?tab=budgets persists on refresh and is shareable
   const validTabs = getValidTabIds(project.serviceType);
   const rawTab    = searchParams.get('tab');
   const activeTab = validTabs.includes(rawTab) ? rawTab : getDefaultTab();
@@ -743,7 +743,7 @@ export default function ProjectHubClient({ userId, userRole, canEditMoney = fals
                     PRJ-{String(project.projectNumber).padStart(4, '0')}
                   </span>
                 )}
-                {/* Project name — click pencil to rename */}
+                {/* Project name, click pencil to rename */}
                 {editingName ? (
                   <div className="flex items-center gap-2">
                     <input
@@ -837,7 +837,7 @@ export default function ProjectHubClient({ userId, userRole, canEditMoney = fals
                   </span>
                 )}
 
-                {/* Building type + location — click pencil to edit */}
+                {/* Building type + location, click pencil to edit */}
                 {!editingInfo ? (
                   <>
                     {savedInfo.buildingType && (
@@ -1041,7 +1041,7 @@ export default function ProjectHubClient({ userId, userRole, canEditMoney = fals
           {/* Project Search */}
           <ProjectSearch projectId={project.id} />
 
-          {/* Tab content — correspondence gets no padding (owns its own layout) */}
+          {/* Tab content, correspondence gets no padding (owns its own layout) */}
           <div className={activeTab === 'correspondence' ? '' : 'px-8 py-8'}>
 
         {/* ── DASHBOARD ────────────────────────────────────────────────── */}
@@ -1080,7 +1080,7 @@ export default function ProjectHubClient({ userId, userRole, canEditMoney = fals
                 <BudgetQCBadge projectId={project.id} />
               </div>
 
-                {/* Budget type cards — click any to navigate directly, no confirmation */}
+                {/* Budget type cards, click any to navigate directly, no confirmation */}
               {convertLoading && (
                 <div className="mb-4 flex items-center gap-2 text-sm text-slate-500 bg-slate-50 rounded-xl px-4 py-3 border border-slate-200">
                   <svg className="animate-spin w-4 h-4 text-amber-500" viewBox="0 0 24 24" fill="none">
@@ -1531,7 +1531,7 @@ export default function ProjectHubClient({ userId, userRole, canEditMoney = fals
               })()}
             </div>
 
-            {/* Code Intelligence — passes code editions + location + project type */}
+            {/* Code Intelligence, passes code editions + location + project type */}
             <ProjectCodeSearch
               projectContext={{
                 projectName:  project.name,
@@ -1657,7 +1657,7 @@ export default function ProjectHubClient({ userId, userRole, canEditMoney = fals
         )}
 
         {/* ── ESTIMATE ─────────────────────────────────────────────────── */}
-        {/* TODO: estimate tab removed per nav refactor — content to be absorbed into Drawings tab (Feature 1) */}
+        {/* TODO: estimate tab removed per nav refactor, content to be absorbed into Drawings tab (Feature 1) */}
         {/* {activeTab === 'estimate' && (
           <ParametricEstimatePanel projectId={project.id} />
         )} */}

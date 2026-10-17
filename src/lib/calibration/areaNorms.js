@@ -7,7 +7,7 @@
  *   1. against our real jobs of the same building type, in $ per unit;
  *   2. against the area's dollars when the questionnaire was first finished.
  *
- * INTERNAL ONLY. The sentences name our ranges and job counts — never on the
+ * INTERNAL ONLY. The sentences name our ranges and job counts, never on the
  * public form, a PDF, a share link or the portal. Sell dollars only; this
  * engine has no buy price in it.
  *
@@ -86,7 +86,7 @@ function judge(perUnit, stats) {
 /**
  * rows: [{ buildingType, units, trust: 'real' | 'client' | null, areas: { [area]: $ } }]
  * 'real' = every figure is a real one; 'client' = the visitor typed some and
- * none are tool guesses — those count only inside the range the real ones set.
+ * none are tool guesses, those count only inside the range the real ones set.
  * Returns { [buildingType]: { [area]: { jobs, median, low, high } } } in $ per unit.
  */
 export function areaNorms(rows) {
@@ -136,10 +136,10 @@ export function areaJobsAlert(area, amount, ctx, norms) {
   const way = judge(r, stats);
   if (!way) return null;
   const name = typeLabel(ctx.buildingType).toLowerCase();
-  const range = `${perUnitMoney(stats.low)}–${perUnitMoney(stats.high)} per unit (about ${money(stats.low * units)}–${money(stats.high * units)} here)`;
+  const range = `${perUnitMoney(stats.low)} to ${perUnitMoney(stats.high)} per unit (about ${money(stats.low * units)} to ${money(stats.high * units)} here)`;
   const text = way === 'zero'
-    ? `${AREAS[area]} is $0, but our ${stats.jobs} ${name} jobs normally have some — ${range}.`
-    : `${AREAS[area]} ${money(v)} looks ${way}: ${perUnitMoney(r)} per unit — our ${stats.jobs} ${name} jobs usually run ${range}.`;
+    ? `${AREAS[area]} is $0, but our ${stats.jobs} ${name} jobs normally have some, ${range}.`
+    : `${AREAS[area]} ${money(v)} looks ${way}: ${perUnitMoney(r)} per unit, our ${stats.jobs} ${name} jobs usually run ${range}.`;
   return { area, kind: 'jobs', way, text };
 }
 
@@ -148,7 +148,7 @@ export function areaBaseAlert(area, amount, ctx, check, norms) {
   const base = num(check?.baseAmount);
   const v = num(amount);
   if (!AREAS[area] || base == null || v == null) return null;
-  // Per unit when the unit count moved — a bigger building is not a surprise here.
+  // Per unit when the unit count moved, a bigger building is not a surprise here.
   const nowU = num(ctx?.units), thenU = num(check?.baseUnits);
   const scale = nowU > 0 && thenU > 0 && nowU !== thenU ? nowU / thenU : 1;
   const expected = base * scale;
@@ -166,9 +166,9 @@ export function areaBaseAlert(area, amount, ctx, check, norms) {
   const from = check.baseFrom === 'web-request' ? 'the original web request' : 'the original questionnaire';
   const units = scale !== 1 ? ` (${money(expected)} at today's ${Math.round(nowU)} units)` : '';
   const text = way === 'new'
-    ? `${AREAS[area]} is ${money(v)} — ${from} had none here.`
+    ? `${AREAS[area]} is ${money(v)}, ${from} had none here.`
     : way === 'gone'
-      ? `${AREAS[area]} is now $0 — ${from} had ${money(base)}.`
+      ? `${AREAS[area]} is now $0, ${from} had ${money(base)}.`
       : `${AREAS[area]} ${money(v)} is ${Math.round((v / expected) * 10) / 10}× ${from}'s ${money(base)}${units}.`;
   return { area, kind: 'questionnaire', way, text };
 }

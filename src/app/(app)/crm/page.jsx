@@ -6,13 +6,13 @@ import { DEPARTMENTS_SELECT, hasDepartment, SALES_MARKETING } from '@/lib/depart
 import { redirect } from 'next/navigation';
 import CRMClient from './CRMClient';
 
-export const metadata = { title: 'Pipeline — ILC Studios' };
+export const metadata = { title: 'Pipeline: ILC Studios' };
 
 export default async function CRMPage() {
   const { user, error } = await requireAuth();
   if (error) redirect('/login');
 
-  // The pipeline renders PROJECTS directly — a project IS the pipeline entity
+  // The pipeline renders PROJECTS directly, a project IS the pipeline entity
   // (Deal merged into Project). Board membership is derived from serviceType.
   let projects = [], users = [];
   try {
@@ -26,9 +26,9 @@ export default async function CRMPage() {
           procurementStage: true, designStage: true,
           pipelineProbability: true, probabilityToWin: true, probabilityToMoveForward: true, procurementStatus: true, designStatus: true, expectedOrderDate: true,
           expectedContractExecutionDate: true, projectSubtype: true,
-          // Lead person (Maram 9-17) — shown in the pipeline popup.
+          // Lead person (Maram 9-17), shown in the pipeline popup.
           contactLinks: { where: { isLead: true }, select: { contact: { select: { id: true, name: true, firstName: true, lastName: true } } } },
-          // Why a deal was lost or abandoned — shown on the card and the list row.
+          // Why a deal was lost or abandoned, shown on the card and the list row.
           procurementStatusReason: true, designStatusReason: true,
           updatedAt: true,
           salesOwner:  { select: { id: true, name: true } },
@@ -49,7 +49,7 @@ export default async function CRMPage() {
 
   // Web budget requests nobody has dealt with yet, shown as their own coloured
   // cards so Sales can see what just came in (Mike, 2026-09-12). Only for the
-  // people who can open the review queue — anyone else would click into a
+  // people who can open the review queue, anyone else would click into a
   // page that turns them away.
   let newRequests = [];
   try {

@@ -22,7 +22,7 @@ const job = (perUnit, source = 'staff', extra = {}) => ({
 });
 const five = [1.4, 1.5, 1.5, 1.6, 1.6].map(v => job(v));
 
-test('real sources are drawings, staff, fixtures and imports — never client or guess', () => {
+test('real sources are drawings, staff, fixtures and imports, never client or guess', () => {
   assert.deepEqual([...REAL_SOURCES].sort(), ['drawing', 'fixtures', 'import', 'staff']);
 });
 
@@ -79,7 +79,7 @@ test('suggestions: adoptable only with five real jobs and a figure that differs'
   assert.equal(ready.canAdopt, true);
   assert.equal(ready.learnedValue, 1.5);
   assert.equal(ready.adopted, false);
-  // Once adopted it matches what we use — nothing more to adopt.
+  // Once adopted it matches what we use, nothing more to adopt.
   const after = guessSuggestions(figureNorms(five), { vanitiesPerUnit: { garden: 1.5 } }).find(r => r.field === 'numVanities');
   assert.equal(after.canAdopt, false);
   assert.equal(after.adopted, true);

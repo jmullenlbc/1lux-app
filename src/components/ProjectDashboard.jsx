@@ -52,7 +52,7 @@ function serviceTypeLabel(val) {
   return SERVICE_TYPE_LABELS[val] || val;
 }
 
-// ── Widget (summary card — unchanged) ────────────────────────────────────────
+// ── Widget (summary card, unchanged) ────────────────────────────────────────
 function Widget({ label, value, sub, accent, empty, children }) {
   return (
     <div className="bg-white border border-slate-200 rounded-2xl px-6 py-5 shadow-sm flex flex-col gap-1 min-w-0">
@@ -150,19 +150,19 @@ function EditableStat({ label, displayValue, rawValue, onSave, wide, mono, type 
           <p className={`text-sm font-semibold leading-snug truncate flex-1 ${mono ? 'font-mono' : ''} ${hasValue ? 'text-slate-800' : 'text-slate-300'}`}>
             {saving ? <span className="text-amber-400">Saving…</span> : (displayValue || '—')}
           </p>
-          {/* Edit pencil — visible on hover */}
+          {/* Edit pencil, visible on hover */}
           <svg className="w-3 h-3 text-slate-300 opacity-0 group-hover:opacity-100 shrink-0 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
           </svg>
         </div>
       )}
-      {/* The figure alert under the value — its button must not open the editor. */}
+      {/* The figure alert under the value, its button must not open the editor. */}
       {note && <div onClick={e => e.stopPropagation()}>{note}</div>}
     </div>
   );
 }
 
-// ── Read-only stat cell (synced display — e.g. Sales Details from CRM) ─────────
+// ── Read-only stat cell (synced display, e.g. Sales Details from CRM) ─────────
 function ReadStat({ label, value, wide, accent }) {
   const hasValue = value != null && value !== '';
   return (
@@ -193,11 +193,11 @@ export default function ProjectDashboard({
   budget,
   contractValue,
   files,
-  onProjectUpdate,    // (updatedProject) => void — called after project-level saves
-  onProjectDataUpdate,// (updatedProjectData) => void — called after data saves
+  onProjectUpdate,    // (updatedProject) => void, called after project-level saves
+  onProjectDataUpdate,// (updatedProjectData) => void, called after data saves
   onContractValue,    // (number) => void: a typed Signed PO also sets the supply contract total
   designInfo = {},
-  saveDesignInfo,     // (key, value) => void — saves to design-info responses
+  saveDesignInfo,     // (key, value) => void, saves to design-info responses
   clients = [],       // every company, for the six Project Team pickers
 }) {
   const [project,     setProject]     = useState(initialProject);
@@ -211,12 +211,12 @@ export default function ProjectDashboard({
   // ── Sales / Pipeline fields live on the project itself (Deal merged in) ──────
   const isDesignPipeline = inDesignPipeline(project);
   const combinedRevenue  = (project.contractValue || 0) + (project.designContractValue || 0);
-  // Average Probability — mean of the two entered values (falls back to whichever is present).
+  // Average Probability, mean of the two entered values (falls back to whichever is present).
   const _probParts = [project.probabilityToWin, project.probabilityToMoveForward].filter(v => v != null && v !== '');
   const avgProbability = _probParts.length ? Math.round(_probParts.reduce((a, b) => a + Number(b), 0) / _probParts.length) : null;
   const outOfSync        = stagesOutOfSync(project);
 
-  // Sales Owner dropdown — Sales + marketing department only.
+  // Sales Owner dropdown, Sales + marketing department only.
   const [salesUsers, setSalesUsers] = useState([]);
   // Buyout Duration comes from the stage history, so it re-reads after a stage move.
   const buyout = useBuyoutDays(project.id, `${project.procurementStage}|${project.designStage}`);
@@ -228,14 +228,14 @@ export default function ProjectDashboard({
       .catch(() => {});
     return () => { alive = false; };
   }, []);
-  const salesOwnerOptions = [{ value: '', label: '— Unassigned —' }, ...salesUsers.map(u => ({ value: u.id, label: u.name || u.email }))];
+  const salesOwnerOptions = [{ value: '', label: 'Unassigned' }, ...salesUsers.map(u => ({ value: u.id, label: u.name || u.email }))];
   const salesOwnerName    = salesUsers.find(u => u.id === project.salesOwnerId)?.name;
 
   // ── Project team pickers ──────────────────────────────────────────────────
   // Every company we know, already loaded by the page. No filtering by client
-  // type on purpose (Mike, 2026-09-09) — a developer sometimes acts as their own
+  // type on purpose (Mike, 2026-09-09), a developer sometimes acts as their own
   // GC, and the picker should not argue with him.
-  const teamClientOptions = [{ value: '', label: '— None —' }, ...clients.map(c => ({ value: c.id, label: c.name }))];
+  const teamClientOptions = [{ value: '', label: 'None' }, ...clients.map(c => ({ value: c.id, label: c.name }))];
   // Prefer the company the project itself came with, so a seat still reads
   // correctly even if the picker list is missing it.
   const teamName = role => project[role.relation]?.name
@@ -343,10 +343,10 @@ export default function ProjectDashboard({
 
   // ── Building type options ─────────────────────────────────────────────────
   const BUILDING_TYPES = [
-    { value: '', label: '— Select —' },
+    { value: '', label: 'Select' },
     { value: 'highRise', label: 'High Rise (10+ floors)' },
-    { value: 'midRise', label: 'Mid Rise (5–9 floors)' },
-    { value: 'lowRise', label: 'Low Rise (2–4 floors)' },
+    { value: 'midRise', label: 'Mid Rise (5 to 9 floors)' },
+    { value: 'lowRise', label: 'Low Rise (2 to 4 floors)' },
     { value: 'garden', label: 'Garden Style' },
     { value: 'singleFamily', label: 'Single Family' },
     { value: 'townhome', label: 'Townhome' },
@@ -376,7 +376,7 @@ export default function ProjectDashboard({
       </div>
 
       {/* ── Missing-inputs warning (compact) ──────────────────────────────── */}
-      {/* Auto-hides when nothing's blank — see src/lib/projectInputChecks.js */}
+      {/* Auto-hides when nothing's blank, see src/lib/projectInputChecks.js */}
       <MissingInputsWarning projectData={pd} projectId={project.id} mode="compact" />
 
       {/* ── Budget row ────────────────────────────────────────────────────── */}
@@ -437,7 +437,7 @@ export default function ProjectDashboard({
         />
       </div>
 
-      {/* ── Project Details — editable ────────────────────────────────────── */}
+      {/* ── Project Details, editable ────────────────────────────────────── */}
       <div className="bg-white border border-slate-200 rounded-2xl px-6 py-5 shadow-sm">
         <div className="flex items-center justify-between mb-4">
           <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Project Details</p>
@@ -496,14 +496,14 @@ export default function ProjectDashboard({
           <EditableStat label="# Surface Parking"   displayValue={fmtNum(pd.numSurfaceParking)}   rawValue={pd.numSurfaceParking}   onSave={d('numSurfaceParking')}  note={fig('numSurfaceParking')} />
           <EditableStat label="# Carports"          displayValue={fmtNum(pd.numCarports)}         rawValue={pd.numCarports}         onSave={d('numCarports')}  note={fig('numCarports')} />
           <EditableStat label="# Exterior Doors"    displayValue={fmtNum(pd.numExteriorDoors)}    rawValue={pd.numExteriorDoors}    onSave={d('numExteriorDoors')}  note={fig('numExteriorDoors')} />
-          {/* Sporadic site features (Mike 2026-09-16) — one SiteFeature row per
+          {/* Sporadic site features (Mike 2026-09-16), one SiteFeature row per
               kind, read off the site plan or typed here. 0 = none. Each is
               priced as its own fixture package under Exterior & Site. */}
           <EditableStat label="# Courtyards"          displayValue={fmtNum(feat.courtyards)}       rawValue={feat.courtyards}        onSave={d('courtyards')} />
           <EditableStat label="# Dog Parks / Playgrounds" displayValue={fmtNum(feat.playgrounds)}       rawValue={feat.playgrounds}       onSave={d('playgrounds')} />
           <EditableStat label="# Tennis / Pickleball Courts" displayValue={fmtNum(feat.tennisCourts)} rawValue={feat.tennisCourts} onSave={d('tennisCourts')} />
           <EditableStat label="Turf Play Length (ft)" displayValue={fmtNum(feat.turfPlayFt)}       rawValue={feat.turfPlayFt}        onSave={d('turfPlayFt')} />
-          {/* Drawing-takeoff counts (Phase 1, 2026-08-12) — filled by the
+          {/* Drawing-takeoff counts (Phase 1, 2026-08-12), filled by the
               drawing parser later; editable here, deliberately not wizard
               questions. */}
           <EditableStat label="# Elevator Shafts"   displayValue={fmtNum(pd.numElevatorShafts)}   rawValue={pd.numElevatorShafts}   onSave={d('numElevatorShafts')}  note={fig('numElevatorShafts')} />
@@ -512,7 +512,7 @@ export default function ProjectDashboard({
           {/* ── Budget / Rates ── */}
           <Rule label="Budget &amp; Rates" />
           {/* Blank margin means "standard 23%" (the change-order rates already
-              assume it) — shown as such so an older project never reads as 0%. */}
+              assume it), shown as such so an older project never reads as 0%. */}
           <EditableStat label="Margin %"     displayValue={fmtPct(pd.marginPct ?? 0.23)}      rawValue={pd.marginPct != null ? (pd.marginPct * 100).toFixed(2) : '23.00'}     onSave={val => d('marginPct')(val != null && val !== '' ? parseFloat(val) / 100 : null)} />
           <EditableStat label="Initial Client Budget" displayValue={fmt(pd.clientInitialBudget)} rawValue={pd.clientInitialBudget} onSave={d('clientInitialBudget')} />
           <EditableStat label="Freight %"    displayValue={fmtPct(pd.freightPct)}     rawValue={pd.freightPct != null ? (pd.freightPct * 100).toFixed(2) : ''} onSave={val => d('freightPct')(val != null && val !== '' ? parseFloat(val) / 100 : null)} />
@@ -522,7 +522,7 @@ export default function ProjectDashboard({
         </div>
       </div>
 
-      {/* ── Project Team — the six companies on the job ──────────────────────── */}
+      {/* ── Project Team, the six companies on the job ──────────────────────── */}
       {/* Mike, 2026-09-09: "we have six project team fields and they connect to
           clients." Every seat is optional and none of them is ever required to
           mark a project won. Leaving one blank is a normal answer, not a gap. */}
@@ -547,7 +547,7 @@ export default function ProjectDashboard({
         </div>
       </div>
 
-      {/* ── Sales Details — editable, lives on the project (Deal merged in) ───── */}
+      {/* ── Sales Details, editable, lives on the project (Deal merged in) ───── */}
       <div className="bg-white border border-slate-200 rounded-2xl px-6 py-5 shadow-sm">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
@@ -568,8 +568,8 @@ export default function ProjectDashboard({
           {isDesignPipeline && (
             <EditableStat label="Design Stage" displayValue={STAGE_LABEL[project.designStage] || 'Qualified'} rawValue={project.designStage || 'QUALIFIED'} onSave={p('designStage')} select options={DESIGN_STAGE_OPTIONS} />
           )}
-          <EditableStat label="Project Type" displayValue={project.projectType ? projectTypeLabel(project.projectType) : null} rawValue={project.projectType || ''} onSave={p('projectType')} select options={[{ value: '', label: '— Select —' }, ...PROJECT_TYPES]} />
-          <EditableStat label="Project Subtype" displayValue={project.projectSubtype ? buildingTypeLabel(project.projectSubtype) : null} rawValue={project.projectSubtype ?? ''} onSave={p('projectSubtype')} select options={[{ value: '', label: '— Select —' }, ...BUILDING_TYPES]} />
+          <EditableStat label="Project Type" displayValue={project.projectType ? projectTypeLabel(project.projectType) : null} rawValue={project.projectType || ''} onSave={p('projectType')} select options={[{ value: '', label: 'Select' }, ...PROJECT_TYPES]} />
+          <EditableStat label="Project Subtype" displayValue={project.projectSubtype ? buildingTypeLabel(project.projectSubtype) : null} rawValue={project.projectSubtype ?? ''} onSave={p('projectSubtype')} select options={[{ value: '', label: 'Select' }, ...BUILDING_TYPES]} />
           <EditableStat label="Procurement Status" displayValue={STATUS_LABEL[project.procurementStatus] || 'Open'} rawValue={project.procurementStatus || 'OPEN'} onSave={p('procurementStatus')} select options={STATUS_OPTIONS} />
           {isDesignPipeline && (
             <EditableStat label="Design Status" displayValue={STATUS_LABEL[project.designStatus] || 'Open'} rawValue={project.designStatus || 'OPEN'} onSave={p('designStatus')} select options={STATUS_OPTIONS} />

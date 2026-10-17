@@ -12,7 +12,7 @@ export const dynamic = 'force-dynamic';
  *
  * The public page shows the same live budget sidebar the internal wizard has,
  * but the internal wizard computes client-side with the full PRICING model in
- * the bundle. That model is ILC's cost book — it must not ship to a public
+ * the bundle. That model is ILC's cost book, it must not ship to a public
  * visitor's browser. So the public page POSTs its answers here and gets back
  * ONLY the computed budget object; the pricing stays on the server.
  *
@@ -25,10 +25,10 @@ export const dynamic = 'force-dynamic';
  * The computation itself lives in src/lib/intake/estimate.js (2026-09-12) so
  * the PDF download at /api/intake/pdf prices from the same function.
  *
- * @see src/lib/intake/estimate.js      — gate + answers → budget
- * @see src/lib/intake/questionnaire.js — the verbatim answers + engine maps
- * @see src/lib/intake/quantities.js    — drawings → counts and square footage
- * @see src/lib/calculations.js         — the engine
+ * @see src/lib/intake/estimate.js, gate + answers → budget
+ * @see src/lib/intake/questionnaire.js, the verbatim answers + engine maps
+ * @see src/lib/intake/quantities.js, drawings → counts and square footage
+ * @see src/lib/calculations.js, the engine
  */
 
 const LIMIT = { limit: 30, windowMs: 60_000 }; // fires on every answer change, debounced client-side
@@ -65,7 +65,7 @@ export async function POST(req) {
 
   const pricing = await loadPricing();
 
-  // The pricing model never leaves the server — and neither do the formulas
+  // The pricing model never leaves the server, and neither do the formulas
   // (Mike 2026-09-16: "someone could steal all the math"). The public
   // projection keeps labels, the visitor's own quantities and the dollars;
   // counts × price-each, multipliers and "1 pole per 30 ft" stay internal.
