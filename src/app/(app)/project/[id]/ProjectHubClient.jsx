@@ -1106,7 +1106,7 @@ export default function ProjectHubClient({ userId, userRole, canEditMoney = fals
                     </div>
                     <div>
                       <div className="text-sm font-semibold text-amber-800">Conceptual Budget</div>
-                      <div className="text-xs text-slate-400 mt-0.5">Short questionnaire · quick SF estimate</div>
+                      <div className="text-xs text-slate-400 mt-0.5">Short questionnaire · quick SF budget</div>
                     </div>
                   </Link>
                 ) : (
@@ -1119,7 +1119,7 @@ export default function ProjectHubClient({ userId, userRole, canEditMoney = fals
                     </div>
                     <div>
                       <div className="text-sm font-semibold text-slate-700">Conceptual Budget</div>
-                      <div className="text-xs text-slate-400 mt-0.5">Short questionnaire · quick SF estimate</div>
+                      <div className="text-xs text-slate-400 mt-0.5">Short questionnaire · quick SF budget</div>
                     </div>
                   </button>
                 )}

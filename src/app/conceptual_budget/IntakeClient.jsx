@@ -360,7 +360,14 @@ function optionLabel(q, opt) {
  * carries ILC branding (and the project name once entered) where the
  * internal one shows the editable project block.
  */
-function PublicSectionNav({ steps = STEPS, currentStep, completedSteps, canNavigate, onJump, projectName }) {
+// Link to the company portal from inside the wizard (Mike 10-16). Carries the
+// typed work email so the portal opens on the right company without retyping.
+function portalHref(email) {
+  const ok = classifyIntakeEmail(String(email || '').trim())?.ok;
+  return ok ? `/conceptual_budget/my-budgets?as=${encodeURIComponent(email.trim().toLowerCase())}` : '/conceptual_budget/my-budgets';
+}
+
+function PublicSectionNav({ steps = STEPS, currentStep, completedSteps, canNavigate, onJump, projectName, email }) {
   return (
     <aside className="hidden lg:flex w-56 bg-white border-r border-slate-100 flex-col shrink-0 overflow-y-auto">
       <div className="px-4 py-4 border-b border-slate-100">
@@ -420,6 +427,9 @@ function PublicSectionNav({ steps = STEPS, currentStep, completedSteps, canNavig
         })}
       </nav>
 
+      <div className="px-4 py-3 border-t border-slate-100">
+        <Link href={portalHref(email)} className="text-xs font-semibold text-orange-600 hover:text-orange-700">My company&apos;s budgets</Link>
+      </div>
       <div className="px-4 py-3 border-t border-slate-100">
         <p className="text-[11px] text-slate-400 leading-relaxed">{CONFIRM_NOTE}</p>
       </div>
@@ -1266,6 +1276,7 @@ export default function IntakeClient() {
           <div className="flex-1">
             <div className="text-base font-semibold text-slate-900 leading-tight">ILC Studios</div>
             <div className="text-xs text-slate-500">Conceptual Lighting Budget</div>
+            <Link href={portalHref(email)} className="text-xs font-semibold text-orange-600 hover:text-orange-700">My company&apos;s budgets</Link>
           </div>
           {hasEstimate && !submitted && (
             <div className="text-right">
@@ -1290,6 +1301,7 @@ export default function IntakeClient() {
             canNavigate={canNavigate}
             onJump={goTo}
             projectName={project}
+            email={email}
           />
         )}
 
@@ -1364,7 +1376,7 @@ export default function IntakeClient() {
                     {/* The company portal (0132): every budget from this
                         company, to open, copy or look back on. */}
                     <p className="mb-4 text-xs text-slate-500">
-                      Already started one? <Link href="/conceptual_budget/my-budgets" className="font-semibold text-orange-600 hover:text-orange-700">See my company&apos;s budgets</Link>
+                      Already started one? <Link href={portalHref(email)} className="font-semibold text-orange-600 hover:text-orange-700">See my company&apos;s budgets</Link>
                     </p>
                     {/* A draft from last time, found in this browser. Offered
                         once, up front; nothing is saved until they choose. */}

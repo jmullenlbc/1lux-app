@@ -110,7 +110,7 @@ export default function ParametricEstimatePanel({ projectId }) {
     return (
       <div className="flex items-center justify-center py-20">
         <div className="w-6 h-6 border-2 border-amber-400 border-t-transparent rounded-full animate-spin mr-3" />
-        <span className="text-sm text-slate-400">Loading estimate…</span>
+        <span className="text-sm text-slate-400">Loading budget...</span>
       </div>
     );
   }
@@ -217,7 +217,7 @@ export default function ParametricEstimatePanel({ projectId }) {
       {/* ── Header strip ── */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-semibold text-slate-800">Parametric Estimate</h2>
+          <h2 className="text-lg font-semibold text-slate-800">Parametric Budget</h2>
           <p className="text-sm text-slate-400 mt-0.5">
             {confirmedCount} confirmed fixture{confirmedCount !== 1 ? 's' : ''} · bottom-up from ILC spec library
           </p>
@@ -278,7 +278,7 @@ export default function ParametricEstimatePanel({ projectId }) {
               <SummaryRow label={`Sales tax (${(salesTaxPct * 100).toFixed(2)}%)`} value={tax} />
             )}
             <div className="pt-2">
-              <SummaryRow label="Estimate total" value={grandTotal} bold />
+              <SummaryRow label="Budget total" value={grandTotal} bold />
             </div>
           </div>
           {missingCosts && (

@@ -11,7 +11,8 @@
  * the newer budget. The shared tool password (the layout) gates the page;
  * the email is remembered in this browser only.
  */
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { PORTAL_FIELDS, applyPortalView, activeFilterCount, portalChoices } from '@/lib/intake/portalFilter';
 import Link from 'next/link';
 import { formatCurrency } from '@/lib/format';
 
@@ -42,6 +43,11 @@ export default function MyBudgetsClient() {
   const [err, setErr] = useState('');
   const [history, setHistory] = useState(null); // { draftId, loading, body }
   const [busyId, setBusyId] = useState(null);
+  // Filter and sort (Mike 10-16): a funnel button opens the panel, every
+  // card field is a filter, one select picks the sort.
+  const [filters, setFilters] = useState({});
+  const [sort, setSort] = useState({ key: '', dir: 'asc' });
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   const load = useCallback(async (who) => {
     setLoading(true); setErr('');
@@ -58,7 +64,11 @@ export default function MyBudgetsClient() {
   }, []);
 
   useEffect(() => {
-    const saved = readEmail();
+    // The wizard links here with ?as=<work email> (Mike 10-16); the address
+    // typed there wins over the one remembered in this browser.
+    let fromLink = '';
+    try { fromLink = new URLSearchParams(window.location.search).get('as') || ''; } catch {}
+    const saved = fromLink.trim().toLowerCase() || readEmail();
     if (saved) { setTyped(saved); load(saved); }
   }, [load]);
 
@@ -105,9 +115,14 @@ export default function MyBudgetsClient() {
     }
   }
 
-  const groups = data?.groups || [];
+  const allGroups = data?.groups || [];
   const asks = data?.asks || [];
-  const total = groups.reduce((n, g) => n + g.budgets.length, 0);
+  const total = allGroups.reduce((n, g) => n + g.budgets.length, 0);
+  const groups = useMemo(() => applyPortalView(allGroups, filters, sort), [allGroups, filters, sort]);
+  const shown = groups.reduce((n, g) => n + g.budgets.length, 0);
+  const choices = useMemo(() => portalChoices(allGroups), [allGroups]);
+  const activeFilters = activeFilterCount(filters);
+  const setFilter = (key, v) => setFilters(f => ({ ...f, [key]: v }));
 
   return (
     <main className="min-h-screen bg-slate-50">
@@ -159,6 +174,48 @@ export default function MyBudgetsClient() {
               </section>
             )}
 
+            {data && total > 0 && (
+              <div className="mb-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <button type="button" className={`${PLAIN} inline-flex items-center gap-2`} onClick={() => setFiltersOpen(o => !o)} aria-expanded={filtersOpen}>
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 5h18l-7 8v6l-4-2v-4L3 5z" />
+                    </svg>
+                    Filter{activeFilters ? ` (${activeFilters})` : ''}
+                  </button>
+                  <label className="inline-flex items-center gap-2 text-sm text-slate-600">
+                    Sort by
+                    <select value={sort.key} onChange={e => setSort(s => ({ ...s, key: e.target.value }))} className="rounded-lg border border-slate-300 bg-white px-2 py-2 text-sm">
+                      <option value="">Newest first</option>
+                      {PORTAL_FIELDS.map(f => <option key={f.key} value={f.key}>{f.label}</option>)}
+                    </select>
+                  </label>
+                  {sort.key && (
+                    <button type="button" className={PLAIN} onClick={() => setSort(s => ({ ...s, dir: s.dir === 'asc' ? 'desc' : 'asc' }))}>
+                      {sort.dir === 'asc' ? 'Low to high' : 'High to low'}
+                    </button>
+                  )}
+                  <span className="text-xs text-slate-500">{shown === total ? `${total} budgets` : `${shown} of ${total} budgets`}</span>
+                  {activeFilters > 0 && (
+                    <button type="button" className="text-xs font-semibold text-slate-500 hover:text-slate-700 underline" onClick={() => setFilters({})}>Clear filters</button>
+                  )}
+                </div>
+                {filtersOpen && (
+                  <div className="mt-3 bg-white rounded-2xl border border-slate-200 p-4 grid grid-cols-2 sm:grid-cols-4 gap-x-4 gap-y-3 text-sm">
+                    {PORTAL_FIELDS.map(f => (
+                      <FilterBox key={f.key} field={f} value={filters[f.key]} choices={choices[f.key]} onChange={v => setFilter(f.key, v)} />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {data && total > 0 && shown === 0 && (
+              <div className="bg-white rounded-2xl border border-slate-200 p-6 text-sm text-slate-600">
+                No budget matches these filters.
+              </div>
+            )}
+
             {data && total === 0 && (
               <div className="bg-white rounded-2xl border border-slate-200 p-6 text-sm text-slate-600">
                 Nobody at your company has started a budget here yet.{' '}
@@ -178,7 +235,7 @@ export default function MyBudgetsClient() {
                         <Field label="Building type" value={b.buildingTypeLabel} />
                         <Field label="Units" value={b.unitCount ? Number(b.unitCount).toLocaleString() : ''} />
                         <Field label="Gross SF" value={b.grossSf ? Number(b.grossSf).toLocaleString() : ''} />
-                        <Field label="Estimate" value={b.estimate ? formatCurrency(b.estimate) : ''} strong />
+                        <Field label="Budget" value={b.estimate ? formatCurrency(b.estimate) : ''} strong />
                         <Field label="Status" value={b.stage?.label} />
                         <Field label="Copied from" value={b.copiedFrom?.projectName} sub={b.copiedFrom?.email} />
                         <Field label="Started" value={when(b.createdAt)} sub={b.createdBy} />
@@ -212,6 +269,50 @@ export default function MyBudgetsClient() {
       </div>
     </main>
   );
+}
+
+const INPUT = 'w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm';
+
+// One filter control, shaped by the field kind (text, pick, range, yes/no, date).
+function FilterBox({ field, value, choices, onChange }) {
+  const label = <div className="text-[11px] uppercase tracking-wide text-slate-500 mb-1">{field.label}</div>;
+  if (field.kind === 'text') {
+    return <div>{label}<input type="text" value={value || ''} onChange={e => onChange(e.target.value)} placeholder="Contains..." className={INPUT} /></div>;
+  }
+  if (field.kind === 'pick') {
+    return (
+      <div>{label}
+        <select value={value || ''} onChange={e => onChange(e.target.value)} className={INPUT}>
+          <option value="">Any</option>
+          {(choices || []).map(c => <option key={c} value={c}>{c}</option>)}
+        </select>
+      </div>
+    );
+  }
+  if (field.kind === 'yesno') {
+    return (
+      <div>{label}
+        <select value={value || ''} onChange={e => onChange(e.target.value)} className={INPUT}>
+          <option value="">Any</option>
+          <option value="yes">Yes</option>
+          <option value="no">No</option>
+        </select>
+      </div>
+    );
+  }
+  if (field.kind === 'range') {
+    const v = value || { min: '', max: '' };
+    return (
+      <div>{label}
+        <div className="flex gap-1">
+          <input type="number" value={v.min ?? ''} onChange={e => onChange({ ...v, min: e.target.value })} placeholder="Min" className={INPUT} />
+          <input type="number" value={v.max ?? ''} onChange={e => onChange({ ...v, max: e.target.value })} placeholder="Max" className={INPUT} />
+        </div>
+      </div>
+    );
+  }
+  // Dates sort but do not filter; the box just says so.
+  return <div>{label}<div className="text-xs text-slate-400 py-1.5">Sort only</div></div>;
 }
 
 // One labeled field: the label above the value, a dash when there is nothing to show.

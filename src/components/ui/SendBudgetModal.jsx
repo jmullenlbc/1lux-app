@@ -184,7 +184,7 @@ export default function SendBudgetModal({ projectId, projectName, totalBudget, o
               {/* Budget preview */}
               <div className="bg-slate-50 rounded-lg px-4 py-3 flex items-center justify-between">
                 <div>
-                  <div className="text-xs text-slate-500">Estimated Budget</div>
+                  <div className="text-xs text-slate-500">Budget</div>
                   <div className="text-base font-bold text-slate-900">{formatCurrency(totalBudget)}</div>
                 </div>
                 <div className="text-xs text-slate-400 text-right">
