@@ -4,6 +4,7 @@ import SectionTabs, { MARKET_INTEL_TABS } from '@/components/ui/SectionTabs';
 import SignalCard from '@/components/market-intel/SignalCard';
 import { postParked } from '@/lib/parkedFetch';
 import { STAGES, isEntitlementClass, NOTICE_TYPE_OPTIONS } from '@/lib/market-intel/stages';
+import { BUILDING_TYPE_OPTIONS, AFFORDABILITY_OPTIONS } from '@/lib/market-intel/tagRules';
 import { FilterToolbar, FilterPanel, SearchBox, countFilters } from '@/components/ui/FilterPanel';
 import { SortSelect } from '@/components/ui/SortHeader';
 import { WidgetEmpty, WidgetLoading } from '@/components/ui/WidgetFrame';
@@ -48,6 +49,8 @@ const FILTER_FIELDS = [
   { key: 'reviewStatus', label: 'Review status',  kind: 'pick' },
   { key: 'permitClass',  label: 'Case type',      kind: 'pick' },
   { key: 'notice',       label: 'Notice type',    kind: 'pick' },
+  { key: 'building',     label: 'Building type',  kind: 'pick' },
+  { key: 'affordability', label: 'Affordable / market rate', kind: 'pick' },
   { key: 'hasUnits',     label: 'Unit count',     kind: 'pick' },
   { key: 'buyer',        label: 'Filer',          kind: 'pick' },
   { key: 'clientId',     label: 'Client',         kind: 'pick' },
@@ -61,6 +64,7 @@ const FILTER_FIELDS = [
 const PANEL_FIELDS = FILTER_FIELDS.filter(f => !['signal', 'stage', 'reviewStatus'].includes(f.key));
 const SORT_FIELDS  = [
   { key: 'date',       label: 'Date' },
+  { key: 'relevance',  label: 'Most relevant' },
   { key: 'value',      label: 'Value' },
   { key: 'units',      label: 'Units' },
   { key: 'contractor', label: 'Contractor' },
@@ -69,9 +73,11 @@ const SORT_FIELDS  = [
 const SORT_DEFAULT = { key: 'date', dir: 'desc' };
 
 // Sort is done by the server because the list is paged (Mike 10-8). Value and
-// units come back highest first, contractor and address A to Z.
+// units come back highest first, contractor and address A to Z. Most relevant
+// is scored by the server (relevance.js, Mike 10-17).
 function serverSort(sort) {
   if (!sort?.key || sort.key === 'date') return sort?.dir === 'asc' ? 'oldest' : 'newest';
+  if (sort.key === 'relevance') return 'relevant';
   return sort.key;
 }
 
@@ -109,7 +115,7 @@ function PermitsInner() {
     setLoading(true);
     try {
       const params = new URLSearchParams({ page: String(page), stage });
-      for (const key of ['permitClass', 'clientId', 'metro', 'state', 'company', 'project', 'notice', 'assignedTo', 'hasUnits', 'buyer']) {
+      for (const key of ['permitClass', 'clientId', 'metro', 'state', 'company', 'project', 'notice', 'building', 'affordability', 'assignedTo', 'hasUnits', 'buyer']) {
         if (filters[key]) params.set(key, filters[key]);
       }
       if (reviewStatus !== 'ALL') params.set('reviewStatus', reviewStatus);
@@ -140,7 +146,7 @@ function PermitsInner() {
   }
 
   function filterByTag(tag) {
-    const key = { COMPANY: 'company', PROJECT: 'project', NOTICE: 'notice', METRO: 'metro', STATE: 'state' }[tag.kind];
+    const key = { COMPANY: 'company', PROJECT: 'project', NOTICE: 'notice', BUILDING: 'building', AFFORDABILITY: 'affordability', METRO: 'metro', STATE: 'state' }[tag.kind];
     if (!key) return;
     setFilter(key, tag.name, { reviewStatus: 'ALL' });
   }
@@ -243,6 +249,8 @@ function PermitsInner() {
   const choices = useMemo(() => ({
     permitClass: classesFor(stage),
     notice:      NOTICE_TYPE_OPTIONS,
+    building:    BUILDING_TYPE_OPTIONS,
+    affordability: AFFORDABILITY_OPTIONS,
     hasUnits:    [['1', 'Has a unit count']],
     buyer:       [['1', 'Likely land buyer']],
     clientId:    clients.map(c => [c.id, c.name]),

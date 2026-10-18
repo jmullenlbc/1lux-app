@@ -19,6 +19,31 @@ const COMBINED_PCT = Object.freeze({
   WV: 6.6, WI: 5.72, WY: 5.39,
 });
 
+// No local sales tax: the state rate is the real rate at any address.
+const NO_LOCAL_TAX = new Set(['CT', 'DC', 'DE', 'IN', 'KY', 'MA', 'MD', 'ME', 'MI', 'MT', 'NH', 'OR', 'RI']);
+// States with a free rate lookup by zip code (WA Department of Revenue).
+const ZIP_LOOKUP = new Set(['WA']);
+
+/** 'exact' (no local tax), 'average' (state + average local) or '' (unknown). */
+export function salesTaxBasis(state) {
+  const st = String(state || '').trim().toUpperCase();
+  if (COMBINED_PCT[st] == null) return '';
+  return NO_LOCAL_TAX.has(st) ? 'exact' : 'average';
+}
+
+/** True when this state's rate can be looked up by zip code. */
+export function zipLookupState(state) {
+  return ZIP_LOOKUP.has(String(state || '').trim().toUpperCase());
+}
+
+/** The hint under the box for each basis. */
+export const SALES_TAX_BASIS_HINT = Object.freeze({
+  zip:     'From your zip code. Type your rate, or 0 for none.',
+  exact:   'Your state has no local tax, so this is the rate. Type 0 for none.',
+  average: 'Your state rate plus its average local rate. Type your rate, or 0 for none.',
+  '':      'Type your rate, or 0 for none.',
+});
+
 /** The estimate as the box shows it ("8.2"), or '' for an unknown state. */
 export function estimatedSalesTaxPct(state) {
   const pct = COMBINED_PCT[String(state || '').trim().toUpperCase()];
@@ -34,7 +59,11 @@ export function estimatedSalesTaxPct(state) {
  * nextTaxBox('9', '8.2', 'CO') → '9'; nextTaxBox('8.2', '8.2', 'C') → '8.2'.
  */
 export function nextTaxBox(current, lastEstimate, newState) {
-  const est = estimatedSalesTaxPct(newState);
+  return nextTaxBoxFor(current, lastEstimate, estimatedSalesTaxPct(newState));
+}
+
+/** nextTaxBox with the estimate already in hand (a zip lookup's rate). */
+export function nextTaxBoxFor(current, lastEstimate, est) {
   const cur = String(current ?? '').trim();
   if (!est || (cur && cur !== lastEstimate)) return current ?? '';
   return est;

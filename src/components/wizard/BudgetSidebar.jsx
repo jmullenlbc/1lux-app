@@ -42,14 +42,18 @@ function PlainRow({ label, value, indent, highlight, bold }) {
 // back, so it now stays under the total until every required box is filled.
 // `interiorRate` is the $/SF the visitor or staff picked for interior amenities,
 // shown in that row's rollover (Mike 10-15: "Interior Amenities = $10/SF").
-export default function BudgetSidebar({ budget, projectData, currentStep, range = null, areaNotes = null, areaSummary = null, projectName = '', homeType = false, needed = null, interiorRate = null }) {
+export default function BudgetSidebar({ budget, projectData, currentStep, range = null, areaNotes = null, areaSummary = null, projectName = '', homeType = false, needed = null, interiorRate = null, holdTotal = false }) {
   if (!budget) return null;
 
   const { sections, freight, warehousing, freightRate, warehousingRate, lightingProductSubtotal, subtotalLightingOnly, lightingTaxAmount, controls, controlsGarage, controlsFreight, controlsWarehousing, controlsTaxAmount, controlsTotal, salesTaxPct, totalWithControls, perSf, perUnit, energyCreditPct, energyCreditLightingPct, energyCreditControlsPct, energyCreditLighting, energyCreditControls } = budget;
   // Each side carries its own % (WELL = 10% lighting / 30% controls, 10-15).
   const ecPctLabel  = Math.round((energyCreditLightingPct ?? energyCreditPct ?? 0) * 100);
   const ecCtrlLabel = Math.round((energyCreditControlsPct ?? energyCreditPct ?? 0) * 100);
-  const hasData = (projectData?.grossSf || 0) > 0;
+  // The design wizard names its steps 'design-units', 'interior-amenities'
+  // and so on; the rows below go by the plain names.
+  const step = currentStep === 'interior-amenities' ? 'amenities' : String(currentStep || '').replace(/^design-/, '');
+  // `holdTotal`: the design wizard waits for its minimum figures (Mike 10-17).
+  const hasData = (projectData?.grossSf || 0) > 0 && !holdTotal;
   const fPct = Math.round((freightRate ?? 0.06) * 100);
   const wPct = Math.round((warehousingRate ?? 0.03) * 100);
   // Mike 10-15: sales tax is its own line on each side, right above the total.
@@ -95,7 +99,7 @@ export default function BudgetSidebar({ budget, projectData, currentStep, range 
       <div className="flex-1 px-4 py-2 min-h-0 [&_.py-1]:py-0.5">
         {!hasData && (
           <p className="text-xs text-slate-400 text-center mt-4 leading-relaxed">
-            Enter project data in Step 1 to see your live budget estimate.
+            {holdTotal ? 'Fill in the figures listed above to see your live budget.' : 'Enter project data in Step 1 to see your live budget.'}
           </p>
         )}
 
@@ -108,7 +112,7 @@ export default function BudgetSidebar({ budget, projectData, currentStep, range 
             <TooltipBudgetRow
               label="Residential Units"
               value={sections.units?.total?.product || 0}
-              highlight={currentStep === 'units'}
+              highlight={step === 'units'}
               details={[
                 { label: 'Base design',      value: sections.units?.base?.product        || 0 },
                 { label: 'Undercabinet',     value: sections.units?.undercabinet?.product || 0 },
@@ -126,7 +130,7 @@ export default function BudgetSidebar({ budget, projectData, currentStep, range 
               // Mike 10-2: townhomes and single-family homes have a front door, not corridors.
               label={homeType ? 'Front Door' : 'Corridors & Stairwells'}
               value={sections.corridors?.total?.product || 0}
-              highlight={currentStep === 'corridors'}
+              highlight={step === 'corridors'}
               details={[
                 { label: 'Corridor disks',       value: sections.corridors?.disks?.product      || 0 },
                 { label: homeType ? 'Front door sconces' : 'Unit entry sconces', value: sections.corridors?.sconces?.product || 0 },
@@ -143,19 +147,19 @@ export default function BudgetSidebar({ budget, projectData, currentStep, range 
             <TooltipBudgetRow
               label="Interior Amenities"
               value={sections.interior?.product || 0}
-              highlight={currentStep === 'amenities'}
+              highlight={step === 'amenities'}
               details={[{
                 label: Number(interiorRate) > 0 ? `Interior Amenities = $${Number(interiorRate)}/SF` : 'Interior amenity lighting',
                 value: sections.interior?.product || 0,
               }]}
             />
             {areaNotes?.interior}
-            <TooltipBudgetRow label="Garage"               value={sections.garage?.product          || 0} details={[]} />
+            <TooltipBudgetRow label="Garage" highlight={step === 'garage'}               value={sections.garage?.product          || 0} details={[]} />
             {areaNotes?.garage}
             <TooltipBudgetRow
               label="Exterior & Site"
               value={sections.exterior?.total?.product || 0}
-              highlight={currentStep === 'exterior'}
+              highlight={step === 'exterior'}
               details={[
                 { label: 'Exterior amenities', value: sections.exterior?.amenities?.product || 0 },
                 { label: sections.exterior?.solar
@@ -184,11 +188,11 @@ export default function BudgetSidebar({ budget, projectData, currentStep, range 
             <TooltipBudgetRow
               label="Emergency Lighting"
               value={sections.emergency?.product || 0}
-              highlight={currentStep === 'emergency'}
+              highlight={step === 'emergency'}
               details={[{ label: 'Emergency egress', value: sections.emergency?.product || 0 }]}
             />
             {areaNotes?.emergency}
-            <TooltipBudgetRow label="Exit Signs" value={sections.exitSigns?.product || 0} details={[]} />
+            <TooltipBudgetRow label="Exit Signs" highlight={step === 'exit-signs'} value={sections.exitSigns?.product || 0} details={[]} />
             {areaNotes?.exitSigns}
 
             <Divider />
@@ -207,7 +211,7 @@ export default function BudgetSidebar({ budget, projectData, currentStep, range 
             <TooltipBudgetRow
               label="Controls (IECC)"
               value={controls || 0}
-              highlight={currentStep === 'controls'}
+              highlight={step === 'controls'}
               details={controlsGarage > 0
                 ? [{ label: 'Building controls', value: (controls || 0) - controlsGarage }, { label: 'Garage controls', value: controlsGarage }]
                 : [{ label: 'Controls product', value: controls || 0 }]}

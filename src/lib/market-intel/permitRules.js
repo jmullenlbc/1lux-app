@@ -44,6 +44,8 @@ export const MESA_KEEP_CLASSES = ['Multi-Family Residential', 'Commercial/Indust
 
 /** Miami-Dade application types worth a look (building permits only, so the job value is not repeated on trade permits). */
 export const MIAMI_DADE_KEEP_CLASSES = ['NEW', 'SHELL ONLY', 'ADDITION - ATTACHED', 'ADDITION - DETACHED', 'ALTER - INTERIOR'];
+/** Miami-Dade zoning case types that come before a building: pre-application, site plan review, hearings, master plan changes. */
+export const MIAMI_DADE_ZONING_TYPES = ['ZM Pre-App', 'ZM Admin Site Plan Review', 'ZM Other Public Hearings', 'ZM DIC', 'ZM Pre-Permit Submittal Review', 'ZM Interdepartmental Zoning Evaluation', 'CDMP Pre-Evaluation Meeting', 'CDMP Comprehensive Development Master Plan'];
 
 /** City of Miami scopes of work worth a look. */
 export const MIAMI_KEEP_CLASSES = ['NEW CONSTRUCTION', 'PHASED PERMIT', 'ADDITION AND REMODELING', 'REMODELING/REPAIRS'];
@@ -70,11 +72,29 @@ export const MULTIFAMILY_RE = /multi.?family|multi.?unit|apartment|mixed.?use|co
  *  senior living, student housing, single family for rent / build to rent. */
 export const COUNCIL_TYPE_RE = /multi.?family|multi.?unit|multiple residence|apartment|condo|senior (living|housing)|assisted living|independent living|memory care|active adult|age.?restricted|student housing|build.?to.?rent|\bBTR\b|for.?rent|rental (homes|community|housing)|single.?family rental|affordable housing|workforce housing|live local/i;
 
+/**
+ * Housing only, every city and every state filing (Mike 10-17: "Go housing,
+ * multifamily, senior living, and student housing only with every city"),
+ * plus hotels (Mike 10-17: "Yes add back in hotels"). Offices, hospitals,
+ * schools, stores and warehouses are left out; land sales and
+ * council rezonings already pick housing their own way. Set false to keep
+ * every $10M+ job again.
+ */
+export const HOUSING_ONLY = true;
+const HOUSING_WORD_RE = /\bapts?\b|\baprtmnts?\b|\bR-?2\b|dwelling|residential units|town.?ho|mixed.?use[^,;:]{0,20}\bresidential|\bresidential[^,;:]{0,20}mixed.?use|\b(?:two|three|four|five|2|3|4|5)\b[^,;:]{0,15}\bfamily\b/i;
+const HOTEL_RE        = /\bhotels?\b|\bmotels?\b|hospitality|\bresorts?\b|\bkeys\b/i;
+
+/** Housing or a hotel by its words, else a housing flag or 5+ units. "Mixed use" alone is not enough: Fort Worth files convention centers and garages under it. */
+export function isHousing(text, { units = 0, multifamily = false } = {}) {
+  if (COUNCIL_TYPE_RE.test(text) || HOUSING_WORD_RE.test(text) || HOTEL_RE.test(text)) return true;
+  return !!multifamily || (units || 0) >= 5;
+}
+
 /** Planning statuses that mean the case is dead. */
 const DEAD_CASE_RE = /withdrawn|denied|void|cancel|expired|inactive|aborted|rejected/i;
 
-/** The Salt Lake City planning record types that are a real site entitlement (not a sign, a fence or an appeal). */
-export const SALT_LAKE_PLANNING_RE = /Design Review|Planned Development|Zoning Incentives|Conditional Use|Zoning Map Amendment|Master Plan Amendment|Transit Station|New Construction|Preliminary Subdiv|Special Exception/i;
+/** Salt Lake City planning record types, every one from concept through plat (Mike 10-17), less the ones that never mean a building: a sign, a fence, an appeal, a letter. */
+export const SALT_LAKE_PLANNING_RE = /^(?!.*(?:Minor Alteration|Verification Letter|Interpretation|Non.?Conform|Lot Line|Appeal|\bSign\b|Fence|Demolition|\bTree)).+/i;
 
 export const PERMIT_PROFILES = {
   DENVER: {
@@ -376,7 +396,8 @@ export const PERMIT_PROFILES = {
     map: (a) => ({
       permitNumber:   str(a.PERMIT__),
       permitClass:    str(a.TYPE),
-      buildingKind:   [str(a.OCCUPANCY_CATEGORY) || str(a.OCCUPANCY_TYPE), shortText(a.DESCRIPTION, 140)].filter(Boolean).join(': '),
+      // A bare "Dwellings" type rides on hospital and office renovations too, so it says nothing.
+      buildingKind:   [str(a.OCCUPANCY_CATEGORY) || str(a.OCCUPANCY_TYPE).replace(/^Dwellings$/i, ''), shortText(a.DESCRIPTION, 140)].filter(Boolean).join(': '),
       address:        [titleCaseAddress(str(a.ADDRESS)), str(a.CITY).replace(/\s+\d{5}$/, '')].filter(Boolean).join(', '),
       neighborhood:   '',
       valuation:      num(a.Value),
@@ -515,8 +536,8 @@ export const PERMIT_PROFILES = {
     }),
   },
   // Salt Lake City planning cases: the Accela Planning module, every record
-  // type in one search (blank type), kept when the type is a site
-  // entitlement. The list row carries the project name and a short note;
+  // type in one search (blank type), kept unless the type is noise
+  // (SALT_LAKE_PLANNING_RE). The list row carries the project name and a short note;
   // the record's page adds nothing, so none is opened.
   SALT_LAKE_PLANNING: {
     key:       'SALT_LAKE_PLANNING',
@@ -547,6 +568,88 @@ export const PERMIT_PROFILES = {
       skip:           DEAD_CASE_RE.test(str(a.status)),
       issuedAt:       a.date ? new Date(a.date) : null,
       url:            a.url ? String(a.url) : null,
+    }),
+  },
+  // Miami-Dade County zoning hearings and site plan reviews (unincorporated
+  // county), an ArcGIS table refreshed daily. One row per parcel, so a case
+  // repeats; the poller keeps one per case number. No date column, only the
+  // application year and month as text, so the feed asks for this year and
+  // the years back to `since`. The description usually names the project.
+  MIAMI_DADE_ZONING: {
+    key:       'MIAMI_DADE_ZONING',
+    kind:      'CONCEPT',
+    api:       'arcgis',
+    metro:     'Miami, FL',
+    state:     'FL',
+    layerUrl:  'https://services.arcgis.com/8Pc9XBTAsYuxx9Ny/arcgis/rest/services/VLANDMANAGEMENTHEARING_gdb/FeatureServer/0/query',
+    siteUrl:   'https://gis-mdc.opendata.arcgis.com',
+    dateField: 'OBJECTID',
+    outFields: ['PROC_NUM', 'CASE_NUM', 'CASE_TYPE', 'WORK_TYPE', 'LOC_ADDR', 'APPL_YEAR', 'APPL_MONTH', 'APPL_DESC', 'APPL_LINK', 'BOARD'],
+    firstLookbackDays: 365,
+    typeRequired: true,
+    minUnits:  CONCEPT_MIN_UNITS,
+    keepUnstated: true,
+    whereFor:  (since) => {
+      const now = new Date().getFullYear();
+      const from = Math.min(now, new Date(since).getFullYear() || now);
+      const years = []; for (let y = from; y <= now; y += 1) years.push(`'${y}'`);
+      const types = MIAMI_DADE_ZONING_TYPES.map(t => `'${t}'`).join(',');
+      return `APPL_YEAR IN (${years.join(',')}) AND CASE_TYPE IN (${types})`;
+    },
+    map: (a) => {
+      const text = `${str(a.APPL_DESC)} ${str(a.WORK_TYPE)}`;
+      return {
+        permitNumber:   str(a.PROC_NUM) || str(a.CASE_NUM),
+        permitClass:    str(a.CASE_TYPE).replace(/^ZM\s+/, 'Zoning: ').replace(/^CDMP\s+/, 'Master plan: '),
+        buildingKind:   shortText(a.APPL_DESC, 160),
+        address:        titleCaseAddress(str(a.LOC_ADDR)),
+        placeText:      'unincorporated Miami-Dade',
+        neighborhood:   str(a.BOARD),
+        valuation:      null,
+        contractorName: '',
+        unitCount:      unitsFromText(a.APPL_DESC),
+        multifamily:    MULTIFAMILY_RE.test(text) || /workforce housing/i.test(text),
+        // a duplex lot, a church or truck parking is never our job
+        skip:           /\bduplex|church|truck parking/i.test(text),
+        issuedAt:       num(a.APPL_YEAR) ? new Date(Number(a.APPL_YEAR), (num(a.APPL_MONTH) || 1) - 1, 1) : null,
+        url:            /^https?:/.test(str(a.APPL_LINK)) ? str(a.APPL_LINK) : null,
+      };
+    },
+  },
+  // Tempe's development tracker: every project from entitlement to
+  // occupancy, one row each, edited monthly. The stage (CATEGORY) is kept in
+  // neighborhood so a move to the next stage updates the saved row. Built
+  // and finished projects are left to the Tempe permit feed. The layer name
+  // carries its edition ("Jan_26"); a new edition is a moved feed.
+  TEMPE_DEVELOPMENTS: {
+    key:       'TEMPE_DEVELOPMENTS',
+    kind:      'CONCEPT',
+    api:       'arcgis',
+    metro:     'Phoenix, AZ',
+    state:     'AZ',
+    layerUrl:  'https://services.arcgis.com/lQySeXwbBg53XWDi/arcgis/rest/services/Tempe_Developments_Jan_26/FeatureServer/0/query',
+    siteUrl:   'https://data.tempe.gov',
+    dateField: 'EditDate',
+    outFields: ['F_TRACK_G', 'PROJECT', 'SITE_ADDRESS', 'PROPOSED_USE___DESCRIPTION', 'PERMIT_TYPE', 'BLDG_SF', 'F__OF_UNITS_KEYS', 'STORIES', 'CATEGORY', 'URL', 'CreationDate'],
+    titleLead: 'Development case',
+    minUnits:  CONCEPT_MIN_UNITS,
+    keepUnstated: true,
+    whereFor:  () => "CATEGORY NOT LIKE 'CERTIFICATE%' AND CATEGORY NOT LIKE 'BUILDING PERMIT ISSUED%'",
+    map: (a) => ({
+      permitNumber:   str(a.F_TRACK_G),
+      permitClass:    str(a.PERMIT_TYPE) || 'Development',
+      projectName:    str(a.PROJECT),
+      buildingKind:   [str(a.PROJECT), shortText(a.PROPOSED_USE___DESCRIPTION, 140), num(a.STORIES) ? `${num(a.STORIES)} stories` : ''].filter(Boolean).join(': '),
+      address:        titleCaseAddress(str(a.SITE_ADDRESS)) + (str(a.SITE_ADDRESS) ? ', Tempe' : ''),
+      // "IN REVIEW FOR PLANNING ENTITLEMENTS" -> "stage in review for planning entitlements"
+      neighborhood:   str(a.CATEGORY) ? `stage ${str(a.CATEGORY).toLowerCase()}` : '',
+      valuation:      null,
+      contractorName: '',
+      unitCount:      unitsFrom(a.F__OF_UNITS_KEYS),
+      grossSf:        num(str(a.BLDG_SF).replace(/[^\d.]/g, '')),
+      multifamily:    MULTIFAMILY_RE.test(`${str(a.PROPOSED_USE___DESCRIPTION)} ${str(a.PROJECT)}`),
+      issuedAt:       a.CreationDate ? new Date(a.CreationDate) : null,
+      url:            /^https?:/.test(str(a.URL)) ? str(a.URL) : null,
     }),
   },
 
@@ -674,6 +777,41 @@ export const PERMIT_PROFILES = {
       url:          null,
     }),
   },
+  // Dallas zoning cases filed this year (AreasOfRequest layer 10, the
+  // city's "Current Year Zoning Cases" map; layers 11 to 14 are past years).
+  // Each row is a case number and its zone change only, no address or
+  // applicant; the council agenda item for the same case carries those.
+  // Kept when the new zone is multifamily, mixed use or townhouse.
+  DALLAS_ZONING: {
+    key:        'DALLAS_ZONING',
+    kind:       'CONCEPT',
+    api:        'arcgis',
+    metro:      'Dallas, TX',
+    state:      'TX',
+    layerUrl:   'https://services2.arcgis.com/rwnOSbfKSwyTBcwN/arcgis/rest/services/AreasOfRequest/FeatureServer/10/query',
+    siteUrl:    'https://dallascityhall.com/departments/pnv/Pages/zoning-cases.aspx',
+    dateField:  'DATE_VERIFIED',
+    outFields:  ['OBJECTID', 'CASE_NUMBER', 'ZONE_CHANGE', 'DATE_VERIFIED'],
+    titleLead:  'Rezoning filed',
+    firstLookbackDays: 365,
+    minUnits:   CONCEPT_MIN_UNITS,
+    keepUnstated: true,
+    map: (a) => {
+      const change = str(a.ZONE_CHANGE).replace(/^GZC\s*-\s*/i, '');
+      return {
+        permitNumber: str(a.CASE_NUMBER),
+        permitClass:  'Zoning case',
+        buildingKind: change ? `Zone change ${change}` : '',
+        address:      '',
+        placeText:    `case ${str(a.CASE_NUMBER)}, Dallas`,
+        neighborhood: '',
+        unitCount:    null,
+        multifamily:  DALLAS_ZONE_TO_RE.test(change),
+        issuedAt:     a.DATE_VERIFIED ? new Date(a.DATE_VERIFIED) : null,
+        url:          null,
+      };
+    },
+  },
   DENVER_LAND: {
     key:        'DENVER_LAND',
     kind:       'LAND',
@@ -716,7 +854,314 @@ export const PERMIT_PROFILES = {
   MESA_COUNCIL:         legistarProfile('MESA_COUNCIL',         'mesa',               'Mesa, AZ',          'AZ', { typeRe: /^Ordinance$|^PZ Zoning/,       keepRe: /\bRM-\d/ }),
   JACKSONVILLE_COUNCIL: legistarProfile('JACKSONVILLE_COUNCIL', 'jaxcityc',           'Jacksonville, FL',  'FL', { typeRe: /^Ordinance$/,                  keepRe: null }),
   HILLSBOROUGH_COUNCIL: legistarProfile('HILLSBOROUGH_COUNCIL', 'hillsboroughcounty', 'Tampa, FL',         'FL', { typeRe: /^Rezoning|Public Hearing-Land Use/, keepRe: /\bRMC-\d|\bRM-\d|Comprehensive Plan:\s*(?:R-(?:9|12|16|20|35)|[CUSR]MU-\d+)/ }),
+
+  // Dallas city housing deals (Mike 10-17, "think creatively"): council items
+  // where the city's Public Facility Corporation or Housing Finance
+  // Corporation takes on an apartment project, and the tax credit hearings
+  // for one. The title names the project, units, address and developer,
+  // usually before any permit. Briefing items repeat the same deal and are skipped.
+  DALLAS_HOUSING: {
+    key:        'DALLAS_HOUSING',
+    kind:       'CONCEPT',
+    api:        'legistar',
+    client:     'cityofdallas',
+    metro:      'Dallas, TX',
+    state:      'TX',
+    layerUrl:   'https://webapi.legistar.com/v1/cityofdallas/matters?housing=1',
+    siteUrl:    'https://cityofdallas.legistar.com/Legislation.aspx',
+    words:      ['Public Facility Corporation', 'Housing Finance Corporation'],
+    typeClause: "MatterTypeName ne 'BRIEFING ITEMS'",
+    titleLead:  'City housing deal',
+    firstLookbackDays: 365,
+    minUnits:   CONCEPT_MIN_UNITS,
+    keepUnstated: true,
+    map: (m) => dallasHousingMatter(m),
+  },
 };
+
+// Feeds that read the same portal page as another profile with a different
+// record type. A source finds its profile by feed address, so each gets a
+// marker the portal ignores (&filter=...).
+
+// Denver Formal Site Development Plans (Mike 10-17): the step after the
+// concept plan, same Development module and record page fields.
+PERMIT_PROFILES.DENVER_SDP = {
+  ...PERMIT_PROFILES.DENVER_CONCEPT,
+  key:        'DENVER_SDP',
+  layerUrl:   `${PERMIT_PROFILES.DENVER_CONCEPT.layerUrl}&filter=SDP`,
+  permitType: 'Development/Project/Site Development Plan Review/NA',
+  titleLead:  'Site plan',
+};
+
+// Salt Lake City residential building permits (Mike 10-17: concepts through
+// permits): townhome and apartment buildings filed as Residential, not
+// Commercial. Same page reading and $10M floor as SALT_LAKE.
+PERMIT_PROFILES.SALT_LAKE_RES = {
+  ...PERMIT_PROFILES.SALT_LAKE,
+  key:         'SALT_LAKE_RES',
+  layerUrl:    `${PERMIT_PROFILES.SALT_LAKE.layerUrl}&filter=RES`,
+  permitType:  'Building/Permit/Residential/NA',
+  keepClasses: undefined,
+};
+
+// ── Texas Architectural Barriers filings (TDLR TABS, Mike 10-17: Dallas) ──
+// Every Texas building over $50K registers with the state for an
+// accessibility review, usually two or three months before construction.
+// The public search answers a plain GET with JSON; each project's own page
+// adds the address, scope of work (units, square feet), owner, owner's
+// contact (often the developer) and design firm. Only $10M+ filings are
+// opened. One feed per county.
+// Housing only (HOUSING_ONLY): the scope lives on the project page, so every $10M+ page is read, then non-housing is skipped.
+const TABS_WORK = { 9001: 'New Construction', 9002: 'Renovation/Alteration', 9003: 'Addition' };
+function tabsProfile(key, county, metro) {
+  return {
+    key,
+    api:       'tabs',
+    metro,
+    state:     'TX',
+    layerUrl:  `https://www.tdlr.texas.gov/TABS/Search/SearchProjects?LocationCounty=${county}`,
+    siteUrl:   'https://www.tdlr.texas.gov/TABS/Search',
+    headers:   { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36' },
+    firstLookbackDays: 120,
+    detail:    true,
+    worthDetail: (r) => Number(r.EstimatedCost) >= MIN_VALUATION,
+    detailUrl: (r) => `https://www.tdlr.texas.gov/TABS/Search/Project/${encodeURIComponent(str(r.ProjectNumber))}`,
+    parseDetail: (html) => tabsDetail(html),
+    map: (a) => {
+      const work = TABS_WORK[a.TypeOfWork] || str(a.typeOfWork) || 'Building work';
+      return {
+        permitNumber:   str(a.ProjectNumber),
+        permitClass:    work,
+        what:           `${whatFor(work)} (state filing)`,
+        projectName:    str(a.ProjectName),
+        buildingKind:   [str(a.ProjectName), shortText(a.scope, 160)].filter(Boolean).join(': '),
+        address:        tabsAddress(a.address),
+        neighborhood:   a.status ? `status ${a.status.toLowerCase()}` : '',
+        valuation:      num(a.EstimatedCost),
+        contractorName: '',
+        ownerName:      cleanCompany(a.ownerName),
+        developerName:  a.developerName || '',
+        architectName:  cleanCompany(a.designFirm),
+        unitCount:      tabsUnits(a.scope),
+        grossSf:        num(a.squareFeet),
+        skip:           /closed|cancel|withdrawn/i.test(str(a.status)) || (HOUSING_ONLY && !tabsHousing(a)),
+        issuedAt:       a.ProjectCreatedOn ? new Date(a.ProjectCreatedOn) : null,
+        url:            `https://www.tdlr.texas.gov/TABS/Search/Project/${encodeURIComponent(str(a.ProjectNumber))}`,
+      };
+    },
+  };
+}
+PERMIT_PROFILES.TABS_DALLAS  = tabsProfile('TABS_DALLAS',  2057, 'Dallas, TX');
+PERMIT_PROFILES.TABS_COLLIN  = tabsProfile('TABS_COLLIN',  2043, 'Dallas, TX');
+PERMIT_PROFILES.TABS_TARRANT = tabsProfile('TABS_TARRANT', 2220, 'Dallas, TX');
+PERMIT_PROFILES.TABS_DENTON  = tabsProfile('TABS_DENTON',  2061, 'Dallas, TX');
+// Mike 10-17: the same state filings for Austin, Houston and San Antonio.
+PERMIT_PROFILES.TABS_TRAVIS     = tabsProfile('TABS_TRAVIS',     2227, 'Austin, TX');
+PERMIT_PROFILES.TABS_WILLIAMSON = tabsProfile('TABS_WILLIAMSON', 2246, 'Austin, TX');
+PERMIT_PROFILES.TABS_HAYS       = tabsProfile('TABS_HAYS',       2105, 'Austin, TX');
+PERMIT_PROFILES.TABS_HARRIS     = tabsProfile('TABS_HARRIS',     2101, 'Houston, TX');
+PERMIT_PROFILES.TABS_FORT_BEND  = tabsProfile('TABS_FORT_BEND',  2079, 'Houston, TX');
+PERMIT_PROFILES.TABS_MONTGOMERY = tabsProfile('TABS_MONTGOMERY', 2167, 'Houston, TX');
+PERMIT_PROFILES.TABS_BEXAR      = tabsProfile('TABS_BEXAR',      2015, 'San Antonio, TX');
+// Mike 10-17: the outer counties of each metro.
+PERMIT_PROFILES.TABS_BRAZORIA   = tabsProfile('TABS_BRAZORIA',   2020, 'Houston, TX');
+PERMIT_PROFILES.TABS_GALVESTON  = tabsProfile('TABS_GALVESTON',  2084, 'Houston, TX');
+PERMIT_PROFILES.TABS_COMAL      = tabsProfile('TABS_COMAL',      2046, 'San Antonio, TX');
+PERMIT_PROFILES.TABS_ROCKWALL   = tabsProfile('TABS_ROCKWALL',   2199, 'Dallas, TX');
+PERMIT_PROFILES.TABS_KAUFMAN    = tabsProfile('TABS_KAUFMAN',    2129, 'Dallas, TX');
+PERMIT_PROFILES.TABS_ELLIS      = tabsProfile('TABS_ELLIS',      2070, 'Dallas, TX');
+PERMIT_PROFILES.TABS_GUADALUPE  = tabsProfile('TABS_GUADALUPE',  2094, 'San Antonio, TX');
+
+// ── Fort Worth and Arlington city permits (Mike 10-17) ──
+// Both cities file one permit per building, so a 300-unit job arrives as six
+// $3M permits. The feed reads every new commercial building permit, folds the
+// buildings of one job into one row (values added up), and only then applies
+// the $10M floor.
+const DEAD_PERMIT_RE = /void|withdrawn|cancel|expired|denied/i;
+
+/** "X TEAM /// Alexan Copper Ranch - Building 1 NZ26-00326" -> "Alexan Copper Ranch" */
+export function fortWorthJobName(text) {
+  const name = str(text).replace(/^.*\/\/\/\s*/, '').replace(/\bNZ\d{2}-\d+\b.*$/i, '')
+    .replace(/[\s,-]*\b(?:Bldg|Building|Bld)\.?\s*[\w-]*.*$/i, '').replace(/[\s,-]+$/, '').trim();
+  return name.length > 2 ? name : '';
+}
+
+/** Fort Worth rows -> one row per job: the trade and status rows of a permit merged, then the buildings of a job added up. */
+export function fortWorthJobs(rows) {
+  const permits = new Map();
+  for (const a of rows) {
+    const no = str(a.Permit_No);
+    if (!no) continue;
+    const p = permits.get(no) || { ...a, statusAt: 0 };
+    const street = str(a.Street_Name);
+    if (a.Addr_No && street && !/FOR REVIEW ONLY/i.test(street) && !p.street)
+      p.street = [a.Addr_No, a.Direction, street, a.Street_Suffix].map(str).filter(Boolean).join(' ');
+    if (!p.Owner_Full_Name && a.Owner_Full_Name) p.Owner_Full_Name = a.Owner_Full_Name;
+    if ((a.Status_Date || 0) >= p.statusAt) { p.statusAt = a.Status_Date || 0; p.Current_Status = a.Current_Status; }
+    permits.set(no, p);
+  }
+  const jobs = new Map();
+  for (const p of permits.values()) {
+    if (DEAD_PERMIT_RE.test(str(p.Current_Status))) continue;
+    const name = fortWorthJobName(p.B1_SPECIAL_TEXT);
+    const key  = name ? `${str(p.Owner_Full_Name).toLowerCase()}|${name.toLowerCase()}` : p.Permit_No;
+    const j = jobs.get(key) || { name, permits: [], units: [], value: 0, sf: 0 };
+    j.permits.push(p);
+    j.value += num(p.JobValue) || 0;
+    j.sf    += num(p.SqFt) || 0;
+    if (num(p.Units) > 0) j.units.push(num(p.Units));
+    jobs.set(key, j);
+  }
+  return [...jobs.values()].map(j => {
+    const first = j.permits.sort((a, b) => str(a.Permit_No).localeCompare(str(b.Permit_No)))[0];
+    // Each building states its own units, or every building repeats the job's total.
+    const units = !j.units.length ? null : new Set(j.units).size === 1 && j.units.length > 1 ? j.units[0] : j.units.reduce((s, n) => s + n, 0);
+    return {
+      ...first,
+      jobName:   j.name,
+      buildings: j.permits.length,
+      street:    j.permits.map(p => p.street).find(Boolean) || '',
+      owner:     j.permits.map(p => str(p.Owner_Full_Name)).find(Boolean) || '',
+      value:     j.value,
+      sf:        j.sf,
+      units,
+      filedAt:   Math.min(...j.permits.map(p => p.File_Date || Infinity)),
+    };
+  });
+}
+
+/** Arlington rows -> one row per job: new building permits on the same street in one pull (apartments and their garages are filed days apart). */
+export function arlingtonJobs(rows) {
+  const jobs = new Map();
+  for (const a of rows) {
+    if (DEAD_PERMIT_RE.test(str(a.STATUSDESC))) continue;
+    const street = str(a.FOLDERNAME).replace(/^\d+[A-Z]?\s+/, '').replace(/\s+(?:Unit|Bldg|Building|Carport|Garage)\b.*$/i, '').trim();
+    const key = street.toLowerCase();
+    const j = jobs.get(key) || { rows: [], value: 0, street };
+    j.rows.push(a);
+    j.value += num(a.ConstructionValuationDeclared) || 0;
+    jobs.set(key, j);
+  }
+  return [...jobs.values()].map(j => {
+    const rs = j.rows.sort((a, b) => `${a.FOLDERYEAR}-${a.FOLDERSEQUENCE}`.localeCompare(`${b.FOLDERYEAR}-${b.FOLDERSEQUENCE}`));
+    const main = rs.find(a => /Apart|family/i.test(`${a.MainUse} ${a.Census}`)) || rs[0];
+    return { ...main, jobAddress: str(main.FOLDERNAME).replace(/\s+(?:Unit|Bldg|Building|Carport|Garage)\b.*$/i, ''), buildings: rs.length, value: j.value, housing: rs.some(a => /Apart|family/i.test(`${a.MainUse} ${a.Census}`)) };
+  });
+}
+
+PERMIT_PROFILES.FORT_WORTH = {
+  key:        'FORT_WORTH',
+  api:        'arcgis',
+  metro:      'Dallas, TX',
+  state:      'TX',
+  layerUrl:   'https://services5.arcgis.com/3ddLCBXe1bRt7mzj/arcgis/rest/services/CFW_Open_Data_Development_Permits_View/FeatureServer/0/query',
+  siteUrl:    'https://data.fortworthtexas.gov',
+  dateField:  'File_Date',
+  baseWhere:  "Permit_Type='Commercial Building Permit' AND Permit_SubType IN ('New','Addition')",
+  floorAfterFold: true,
+  firstLookbackDays: 90,
+  outFields:  ['Permit_No', 'Permit_SubType', 'B1_SPECIAL_TEXT', 'B1_WORK_DESC', 'Addr_No', 'Direction', 'Street_Name', 'Street_Suffix', 'Owner_Full_Name', 'File_Date', 'Current_Status', 'Status_Date', 'JobValue', 'Use_Type', 'Specific_Use', 'Units', 'SqFt'],
+  fold:       (rows) => fortWorthJobs(rows),
+  map: (j) => ({
+    permitNumber:   str(j.Permit_No),
+    permitClass:    `Commercial ${str(j.Permit_SubType) || 'New'}`,
+    projectName:    j.jobName,
+    buildingKind:   [str(j.Specific_Use) !== 'NA' ? str(j.Specific_Use) : str(j.Use_Type), j.jobName, j.buildings > 1 ? `${j.buildings} buildings` : ''].filter(Boolean).join(': '),
+    address:        j.street ? `${titleCaseAddress(j.street)}, Fort Worth` : j.jobName ? `${j.jobName}, Fort Worth` : '',
+    neighborhood:   j.Current_Status ? `status ${str(j.Current_Status).toLowerCase()}` : '',
+    valuation:      j.value,
+    contractorName: '',
+    ownerName:      cleanCompany(j.owner),
+    unitCount:      /Residential|Mixed/i.test(str(j.Use_Type)) ? j.units : null,
+    grossSf:        j.sf || null,
+    issuedAt:       Number.isFinite(j.filedAt) ? new Date(j.filedAt) : null,
+    url:            null,
+  }),
+};
+
+PERMIT_PROFILES.ARLINGTON = {
+  key:        'ARLINGTON',
+  api:        'arcgis',
+  metro:      'Dallas, TX',
+  state:      'TX',
+  layerUrl:   'https://gis2.arlingtontx.gov/agsext2/rest/services/OpenData/OD_Property/MapServer/9/query',
+  siteUrl:    'https://www.arlingtontx.gov/city_hall/departments/planning_development_services',
+  dateField:  'InDate',
+  baseWhere:  "FOLDERTYPE='CP' AND WORKDESC LIKE 'New%'",
+  floorAfterFold: true,
+  firstLookbackDays: 120,
+  outFields:  ['FOLDERYEAR', 'FOLDERSEQUENCE', 'FOLDERTYPE', 'STATUSDESC', 'InDate', 'SUBDESC', 'WORKDESC', 'FOLDERNAME', 'FOLDERDESCRIPTION', 'ConstructionValuationDeclared', 'MainUse', 'Census'],
+  fold:       (rows) => arlingtonJobs(rows),
+  map: (j) => ({
+    permitNumber:   `${str(j.FOLDERYEAR)}-${str(j.FOLDERSEQUENCE)}`,
+    permitClass:    str(j.SUBDESC) || 'Commercial new',
+    buildingKind:   [str(j.MainUse) || str(j.SUBDESC), shortText(j.FOLDERDESCRIPTION, 140), j.buildings > 1 ? `${j.buildings} buildings` : ''].filter(Boolean).join(': '),
+    address:        `${titleCaseAddress(j.jobAddress)}, Arlington`,
+    neighborhood:   j.STATUSDESC ? `status ${str(j.STATUSDESC).toLowerCase()}` : '',
+    valuation:      j.value,
+    contractorName: '',
+    unitCount:      null,
+    multifamily:    j.housing,
+    issuedAt:       j.InDate ? new Date(j.InDate) : null,
+    url:            null,
+  }),
+};
+
+/** "1545 Mockingbird Ln Dallas, TX 75235" -> "1545 Mockingbird Ln, Dallas" */
+export function tabsAddress(v) {
+  const s = str(v).replace(/\s+/g, ' ');
+  // "Ponte Ave. & Bella Lane, Addison, Tx, 75001" or "1545 Mockingbird Ln Dallas, TX 75235".
+  const m = s.match(/^(.*?\S),\s*([A-Za-z][A-Za-z .'-]*?),\s*(?:TX|Texas)\b/i) || s.match(/^(.*\S)\s+([A-Za-z][A-Za-z .'-]*?),\s*(?:TX|Texas)\b.*$/i);
+  return m ? `${titleCaseAddress(m[1])}, ${m[2]}` : titleCaseAddress(s);
+}
+
+/** A TABS filing for housing: the name or scope says apartments, condos, senior or student housing, build to rent, or 25+ units. */
+export function tabsHousing(a) {
+  const text  = `${str(a.ProjectName)} ${str(a.scope)}`;
+  const units = tabsUnits(a.scope) || 0;
+  return isHousing(text, { multifamily: MULTIFAMILY_RE.test(text), units: units >= CONCEPT_MIN_UNITS ? units : 0 });
+}
+
+/** Units in a TABS scope: "New construction of 404 wood-framed apartments" -> 404. */
+export function tabsUnits(scope) {
+  const m = str(scope).match(/\b(\d{2,4})\s+(?:[a-z-]+\s+){0,3}(?:apartments|apartment units|dwelling units|units|townhomes|homes)\b/i);
+  return unitsFromText(scope) || (m ? Number(m[1]) : null);
+}
+
+/** The labels on a TABS project page, in page order; a value runs to the next label. */
+const TABS_LABELS = ['Project Name:', 'Project Number:', 'Facility Name:', 'Location Address:', 'Location County:', 'Start Date:', 'Completion Date:', 'Estimated Cost:', 'Type of Work:', 'Type of Funds:', 'Scope of Work:', 'Square Footage:', 'Are the private funds', 'Current Status:', 'PERSON FILING FORM', 'Contact Name:', 'RAS Name:', 'RAS #:', 'RAS Address:', 'RAS Phone:', 'OWNER', 'Owner Name:', 'Owner Address:', 'Owner Phone:', 'TENANT', 'Tenant Name:', 'DESIGN FIRM', 'Design Firm Name:', 'Design Firm Address:', 'Design Firm Phone:', 'Registered accessibility specialists'];
+
+/** A TABS project page as fields: address, scope, square feet, status, owner, the owner's company contact, design firm. */
+export function tabsDetail(html) {
+  const text = String(html || '').replace(/<script[\s\S]*?<\/script>/gi, ' ').replace(/<[^>]*>/g, ' ').replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&').replace(/&#39;/g, "'").replace(/\s+/g, ' ');
+  const field = (label, from = 0) => {
+    const i = text.indexOf(label, from);
+    if (i < 0) return '';
+    const start = i + label.length;
+    let end = text.length;
+    for (const l of TABS_LABELS) { const j = text.indexOf(l, start); if (j >= 0 && j < end) end = j; }
+    return text.slice(start, end).trim();
+  };
+  const ownerAt = text.indexOf('Owner Name:');
+  const tenantAt = text.indexOf('TENANT', ownerAt);
+  // The owner's contact: "Carl B. Anderson, IV, President, Larkspur Real Estate Partners LP" -> the company after the last comma.
+  const contact = ownerAt >= 0 ? field('Contact Name:', ownerAt) : '';
+  const lastPart = contact.split(',').map(s => s.trim()).filter(Boolean).pop() || '';
+  // "Vpdev 2 LLC % Dco Realty INC.": the owner entity in care of the company behind it.
+  const [owner, careOf = ''] = field('Owner Name:').split(/\s+%\s*/).map(x => x.trim());
+  const developer = careOf && COMPANY_WORD_RE.test(careOf) ? cleanCompany(careOf) : contact.includes(',') && COMPANY_WORD_RE.test(lastPart) && !sameName(lastPart, owner) && (tenantAt < 0 || text.indexOf('Contact Name:', ownerAt) < tenantAt) ? cleanCompany(lastPart) : '';
+  const sf = field('Square Footage:').match(/[\d,]+/);
+  return {
+    address:       field('Location Address:'),
+    scope:         field('Scope of Work:'),
+    squareFeet:    sf ? Number(sf[0].replace(/,/g, '')) : null,
+    status:        field('Current Status:').replace(/^Project\s+/i, ''),
+    typeOfWork:    field('Type of Work:'),
+    ownerName:     owner,
+    developerName: developer,
+    designFirm:    field('Design Firm Name:'),
+  };
+}
 
 function legistarProfile(key, client, metro, state, { typeRe, keepRe, typeClause = '' }) {
   return {
@@ -786,7 +1231,8 @@ export function permitWhere(profile, since) {
   const klass   = profile.keepClasses ? ` AND ${profile.classField || 'CLASS'} IN (${classes})` : '';
   // A planning case declares no value; the unit floor is applied in permitToSignal.
   // A land sale carries its own price floor in baseWhere.
-  const floor   = (profile.kind === 'CONCEPT' || profile.kind === 'LAND') ? '' : ` AND ${value} >= ${MIN_VALUATION}`;
+  // A feed that adds up a job's building permits (floorAfterFold) is floored in permitToSignal.
+  const floor   = (profile.kind === 'CONCEPT' || profile.kind === 'LAND' || profile.floorAfterFold) ? '' : ` AND ${value} >= ${MIN_VALUATION}`;
   if (profile.api === 'socrata') {
     return `${base}${profile.dateField} >= '${iso}'${klass}${floor}`;
   }
@@ -795,13 +1241,14 @@ export function permitWhere(profile, since) {
 }
 
 /** Full query URL for one profile. */
-export function permitQueryUrl(profile, since, { limit = 500 } = {}) {
+export function permitQueryUrl(profile, since, { limit = 500, now = new Date() } = {}) {
+  if (profile.api === 'tabs') return profile.layerUrl; // the search goes in the POST body
   if (profile.api === 'legistar') {
     const iso = (since instanceof Date ? since : new Date(since)).toISOString().slice(0, 10);
     // substringof is case sensitive: 'zon' covers zoning, rezone, rezoning, zoned.
-    const words = ['zon', 'Zon', 'PUD', 'Planned'].map(w => `substringof('${w}',MatterTitle)`).join(' or ');
+    const words = (profile.words || ['zon', 'Zon', 'PUD', 'Planned']).map(w => `substringof('${w}',MatterTitle)`).join(' or ');
     const f = `MatterIntroDate ge datetime'${iso}' and (${words})${profile.typeClause ? ` and ${profile.typeClause}` : ''}`;
-    return `${profile.layerUrl}?$top=1000&$orderby=MatterId desc&$filter=${encodeURIComponent(f)}`;
+    return `${profile.layerUrl}${profile.layerUrl.includes('?') ? '&' : '?'}$top=1000&$orderby=MatterId desc&$filter=${encodeURIComponent(f)}`;
   }
   if (profile.api === 'socrata') {
     const p = new URLSearchParams({
@@ -823,8 +1270,27 @@ export function permitQueryUrl(profile, since, { limit = 500 } = {}) {
   return `${profile.layerUrl}?${p}`;
 }
 
+/**
+ * The POST form for a feed that searches by form (TABS), else null. TABS
+ * returns at most 100 rows a page, so the search is sorted by cost, highest
+ * first: one page holds every $10M filing of a county's last four months.
+ */
+export function permitQueryBody(profile, since, { now = new Date() } = {}) {
+  if (profile.api !== 'tabs') return null;
+  const mdy = (d) => { const x = new Date(d); return `${String(x.getMonth() + 1).padStart(2, '0')}/${String(x.getDate()).padStart(2, '0')}/${x.getFullYear()}`; };
+  return new URLSearchParams({
+    draw: '1', start: '0', length: '100',
+    'order[0][column]': '9', 'order[0][dir]': 'desc', 'columns[9][data]': 'EstimatedCost', 'columns[9][orderable]': 'true',
+    RegistrationDateBegin: mdy(since), RegistrationDateEnd: mdy(now),
+  }).toString();
+}
+
 /** Rows out of a feed response, whichever shape the city's API uses. */
 export function permitRows(profile, json) {
+  if (profile.api === 'tabs') {
+    if (!json || !Array.isArray(json.data)) throw new Error('TABS answered without a data list');
+    return json.data;
+  }
   if (profile.api === 'legistar') {
     if (json && !Array.isArray(json)) throw new Error(json.Message || 'feed error');
     return json || [];
@@ -845,6 +1311,7 @@ export function permitRows(profile, json) {
 export function permitToSignal(profile, attributes) {
   const p = estimateUnits(profile.map(attributes || {}));
   if (!p.permitNumber || p.skip) return null;
+  if (HOUSING_ONLY && profile.kind !== 'LAND' && profile.kind !== 'COUNCIL' && !isHousing(housingText(p), { units: p.unitCount, multifamily: p.multifamily })) return null;
   const s = buildSignal(profile, p);
   // Migration 0131: every kind carries the gross SF and whether the count is a guess.
   if (s) {
@@ -852,6 +1319,10 @@ export function permitToSignal(profile, attributes) {
     if (p.estimateNote) s.summary = [s.summary, p.estimateNote].filter(Boolean).join(' ');
   }
   return s;
+}
+
+function housingText(p) {
+  return [p.permitClass, p.buildingKind, p.what, p.title, p.projectName, p.summary].map(str).join(' ');
 }
 
 /**
@@ -965,6 +1436,8 @@ function buildSignal(profile, p) {
     p.buildingKind ? p.buildingKind : null,
     p.contractorName ? `Contractor ${p.contractorName}` : null,
     p.ownerName ? `Owner ${p.ownerName}` : null,
+    p.developerName ? `Developer ${p.developerName}` : null,
+    p.architectName ? `Design firm ${p.architectName}` : null,
     p.valuation ? `declared value ${money(p.valuation)}` : null,
     p.neighborhood ? `in ${p.neighborhood}` : null,
     `Permit ${p.permitNumber}`,
@@ -990,8 +1463,10 @@ function buildSignal(profile, p) {
       companies: [
         ...(p.contractorName ? [{ name: p.contractorName, role: 'GC' }] : []),
         ...(p.ownerName      ? [{ name: p.ownerName,      role: 'OWNER' }] : []),
+        ...(p.developerName  ? [{ name: p.developerName,  role: 'DEVELOPER' }] : []),
+        ...(p.architectName  ? [{ name: p.architectName,  role: 'ARCHITECT' }] : []),
       ],
-      developerNames: [p.ownerName, p.contractorName].filter(Boolean),
+      developerNames: [p.developerName, p.ownerName, p.contractorName].filter(Boolean),
       projectNames:   projectNameOf(p.projectName, p.address) ? [projectNameOf(p.projectName, p.address)] : [],
       metro:          profile.metro,
       state:          profile.state,
@@ -1143,7 +1618,7 @@ function conceptToSignal(profile, p) {
     contractorName: '',
     extracted: {
       companies: filingCompanies(p.ownerName, p.applicantName),
-      developerNames: [p.ownerName, applicantRole(p.ownerName, p.applicantName) === 'BUYER' ? p.applicantName : null].filter(Boolean),
+      developerNames: [p.ownerName, ['BUYER', 'DEVELOPER'].includes(applicantRole(p.ownerName, p.applicantName)) ? p.applicantName : null].filter(Boolean),
       projectNames:   projectNameOf(p.projectName, p.address) ? [projectNameOf(p.projectName, p.address)] : [],
       metro:          profile.metro,
       state:          profile.state,
@@ -1226,6 +1701,42 @@ export function legistarMatter(client, m) {
     skip:          DEAD_CASE_RE.test(status) || /minutes|vacat|variance|replat|\bplat\b/i.test(`${str(m.MatterTypeName)} ${title.slice(0, 80)}`),
     issuedAt:      m.MatterPassedDate || m.MatterAgendaDate || m.MatterIntroDate ? new Date(m.MatterPassedDate || m.MatterAgendaDate || m.MatterIntroDate) : null,
     url:           m.MatterId ? `https://${client}.legistar.com/LegislationDetail.aspx?ID=${m.MatterId}${m.MatterGuid ? `&GUID=${m.MatterGuid}` : ''}` : null,
+  };
+}
+
+// A Dallas zone change whose new zone allows apartments: "R-7.5(A) to MF-2(A)", "IR to MU-3", "to TH-1".
+export const DALLAS_ZONE_TO_RE = /\bto\s+(?:MF|MU|TH)-\d/i;
+
+/** One Dallas Public Facility / Housing Finance Corporation council item, in the shape conceptToSignal reads. */
+export function dallasHousingMatter(m) {
+  const title  = str(m.MatterTitle).replace(/[’‘]/g, "'");
+  const status = str(m.MatterStatusName);
+  const projectName = firstMatch(title, [
+    /Tax Credits for\s+(.+?),\s+an?\s/,
+    /\bown(?:\s+the)?\s+(.+?),\s+an?\s/,
+    /Corporation of\s+(.+?),\s+an?\s/,
+  ]);
+  const street = firstMatch(title, [/located at\s+(.+?),\s*Dallas\b/]);
+  const developer = cleanCompany(firstMatch(title, [
+    /application by\s+(.+?)\s+(?:and\/or|or) its affiliate/,
+    /an affiliate of\s+(.+?)(?:\s+and\s+[A-Z]|\s+for the\b|\s*\()/,
+    /(?:lease agreement|lease structure) with\s+(.+?)(?:\s+(?:and\/or|or) its affiliate|,\s+for\b|\s*\()/,
+  ]));
+  return {
+    permitNumber:  str(m.MatterFile),
+    permitClass:   str(m.MatterTypeName),
+    projectName,
+    buildingKind:  projectName,
+    address:       street ? `${street}, Dallas` : '',
+    neighborhood:  status ? `council: ${status}` : '',
+    unitCount:     unitsFromText(title),
+    ownerName:     '',
+    applicantName: developer,
+    // A project the city is taking on or backing; not a staff contract or a report.
+    multifamily:   !!(projectName && street) && /multifamily|apartments|housing|residential development/i.test(title),
+    skip:          DEAD_CASE_RE.test(status) || /withdrawn|failed/i.test(status),
+    issuedAt:      m.MatterAgendaDate || m.MatterIntroDate ? new Date(m.MatterAgendaDate || m.MatterIntroDate) : null,
+    url:           m.MatterId ? `https://cityofdallas.legistar.com/LegislationDetail.aspx?ID=${m.MatterId}${m.MatterGuid ? `&GUID=${m.MatterGuid}` : ''}` : null,
   };
 }
 

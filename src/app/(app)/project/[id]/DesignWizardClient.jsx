@@ -1,5 +1,5 @@
 'use client';
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { mergeLiveSections } from '@/components/wizard/useLiveAnswers';
 import { useRouter } from 'next/navigation';
 import { DESIGN_WIZARD_STEPS, getDesignNextStep, isHomeBuildingKey, stepsForHome, stepBeside, HOME_SKIPPED_STEPS } from '@/lib/utils';
@@ -10,6 +10,7 @@ import ProjectDataSection              from '@/components/sections/ProjectDataSe
 import ExteriorSection                 from '@/components/sections/ExteriorSection';
 import ControlsSection                 from '@/components/sections/ControlsSection';
 import BudgetSidebar                   from '@/components/wizard/BudgetSidebar';
+import { figuresStillNeeded } from '@/lib/figures/estimateBlanks';
 import { useAreaAlerts }              from '@/components/figures/AreaAlerts';
 import SectionNav                      from '@/components/wizard/SectionNav';
 import QuestionnaireUploads            from '@/components/wizard/QuestionnaireUploads';
@@ -63,13 +64,30 @@ export default function DesignWizardClient({ project, projectData, initialSectio
   // Staff-only per-area alerts (our past jobs + the original questionnaire).
   // Must sit BELOW the budget: reading it earlier throws on open.
   const areas = useAreaAlerts(project.id, budget, { buildingType: project.buildingType, units: localPD?.numUnits });
-  const onLiveAnswers = useCallback((sec, a) => setLive(l => {
-    if (l[sec] === a) return l;
-    const next = { ...l };
-    if (a == null) delete next[sec]; else next[sec] = a;
-    return next;
-  }), []);
+  // Answers saved as you go, folded into the saved set when their step closes
+  // so the sidebar keeps them after a jump to another step.
+  const autoSavedRef = useRef({});
+  const onLiveAnswers = useCallback((sec, a) => {
+    if (a == null && autoSavedRef.current[sec]) {
+      const vals = autoSavedRef.current[sec];
+      delete autoSavedRef.current[sec];
+      setSections(s => ({ ...s, [sec]: { ...(s[sec] || {}), ...vals } }));
+    }
+    setLive(l => {
+      if (l[sec] === a) return l;
+      const next = { ...l };
+      if (a == null) delete next[sec]; else next[sec] = a;
+      return next;
+    });
+  }, []);
   const onLiveData = useCallback(pd => onLiveAnswers("__pd", pd), [onLiveAnswers]);
+  // No number until the minimum figures are in (Mike 10-17, same as the public
+  // tool): units only typed → "Still needed: Total building SF or unit SF, Stories, ...".
+  const needed = figuresStillNeeded(
+    live.__pd ? { ...localPD, ...live.__pd } : localPD,
+    localPD?.buildingTypeKey || project.buildingType,
+    new Set(localPD?.estimatedFields || []),
+  );
 
   async function saveProjectData(data) {
     setSaving(true);
@@ -82,14 +100,13 @@ export default function DesignWizardClient({ project, projectData, initialSectio
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         alert(`Save failed (${res.status}). ${err.error || ''}`);
-        return;
+        return false;
       }
-      const parsed = { ...localPD };
-      for (const [k, v] of Object.entries(data)) {
-        const num = parseFloat(v);
-        parsed[k] = (!isNaN(num) && isFinite(num)) ? num : 0;
-      }
-      setLocalPD(parsed);
+      // The route returns the saved row: "226,000" stored as 226000, an
+      // emptied box as blank, landings worked out from stairs.
+      const saved = await res.json().catch(() => ({}));
+      if (saved?.projectData) setLocalPD(l => ({ ...l, ...saved.projectData }));
+      return true;
     } finally {
       setSaving(false);
     }
@@ -115,24 +132,65 @@ export default function DesignWizardClient({ project, projectData, initialSectio
     }
   }, [sections]);
 
+  // Answers whose save failed wait here and are tried again on Next, so a
+  // dropped connection never loses a step or moves on as if it had saved.
+  const unsavedRef = useRef({});
+  async function putResponses(section, responses) {
+    try {
+      const res = await fetch(`/api/projects/${project.id}/responses`, {
+        method:  'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ section, responses }),
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  }
   async function saveResponses(section, responses) {
     setSaving(true);
     try {
-      await fetch(`/api/projects/${project.id}/responses`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ section, responses }),
-      });
+      if (!(await putResponses(section, responses))) {
+        unsavedRef.current[section] = { ...(unsavedRef.current[section] || {}), ...responses };
+      }
       // Merge: sections send only the keys they touched, and a dropped key
       // would fall back to its default on the live budget until a reload.
-      const newSections = { ...sections, [section]: { ...(sections[section] || {}), ...responses } };
-      setSections(newSections);
+      setSections(s => ({ ...s, [section]: { ...(s[section] || {}), ...responses } }));
     } finally {
       setSaving(false);
     }
   }
+  // Save as you go (Mike 10-17): a short pause on any step saves its answers,
+  // the same as Next would. Project Info saves itself; a failed save waits in
+  // unsavedRef and is tried again on Next.
+  useEffect(() => {
+    const t = setTimeout(async () => {
+      for (const [sec, vals] of Object.entries(live)) {
+        if (sec === '__pd' || sec === 'project-data' || !vals || typeof vals !== 'object') continue;
+        const known = { ...(sections[sec] || {}), ...(autoSavedRef.current[sec] || {}) };
+        if (Object.entries(vals).every(([k, v]) => String(known[k] ?? '') === String(v ?? ''))) continue;
+        if (await putResponses(sec, vals)) {
+          autoSavedRef.current[sec] = { ...(autoSavedRef.current[sec] || {}), ...vals };
+          if (unsavedRef.current[sec]) delete unsavedRef.current[sec];
+        } else {
+          unsavedRef.current[sec] = { ...(unsavedRef.current[sec] || {}), ...vals };
+        }
+      }
+    }, 1500);
+    return () => clearTimeout(t);
+  }, [live]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function saveUnsaved() {
+    for (const [section, responses] of Object.entries(unsavedRef.current)) {
+      if (await putResponses(section, responses)) delete unsavedRef.current[section];
+    }
+    if (Object.keys(unsavedRef.current).length === 0) return true;
+    alert('Some answers on this step did not save. Check your connection and press Next again.');
+    return false;
+  }
 
   async function goToNext() {
+    if (!(await saveUnsaved())) return;
     const next = stepBeside(navSteps, currentStep, 1);
     const newCompleted = completedSteps.includes(currentStep)
       ? completedSteps
@@ -342,6 +400,8 @@ export default function DesignWizardClient({ project, projectData, initialSectio
         homeType={homeType}
         areaNotes={areas.notes}
         areaSummary={areas.summary}
+        needed={needed}
+        holdTotal={needed.length > 0}
       />
     </div>
   );

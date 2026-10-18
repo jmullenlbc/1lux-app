@@ -1,10 +1,10 @@
 import { prisma } from '@/lib/db';
 import { matchCandidates } from './fuzzy-matcher';
 import { saveSignalTags, attachSignalToClient } from './tags';
-import { PERMIT_SOURCE_TYPE, profileForSource, permitQueryUrl, permitRows, permitToSignal, houstonProjects } from './permitRules';
+import { PERMIT_SOURCE_TYPE, profileForSource, permitQueryUrl, permitQueryBody, permitRows, permitToSignal, houstonProjects } from './permitRules';
 import { fetchHoustonRows } from './houstonFeed';
 import { walkAccela } from './accelaFeed';
-import { normalizeTagName } from './tagRules';
+import { normalizeTagName, signalBuildingTags } from './tagRules';
 import { featuresOf, suppressedBy } from './feedbackRules';
 import { matchProject } from './project-matcher';
 import { noticeTypes, MUNICIPAL_KINDS } from './stages';
@@ -38,7 +38,12 @@ export async function pollPermitSource(source, { limit = 500, now = new Date(), 
       // One project, many building permits: fold them before the $10M floor.
       rows = houstonProjects(await fetchHoustonRows(profile, since, now));
     } else {
-      const res  = await fetch(permitQueryUrl(profile, since, { limit }), { headers: { 'User-Agent': 'ILC-Studios-MarketIntel/1.0', ...(profile.headers || {}) }, signal: AbortSignal.timeout(20000) });
+      const body = permitQueryBody(profile, since, { now });
+      const res  = await fetch(permitQueryUrl(profile, since, { limit, now }), {
+        ...(body ? { method: 'POST', body } : {}),
+        headers: { 'User-Agent': 'ILC-Studios-MarketIntel/1.0', ...(body ? { 'Content-Type': 'application/x-www-form-urlencoded' } : {}), ...(profile.headers || {}) },
+        signal: AbortSignal.timeout(20000),
+      });
       const json = await res.json();
       rows = permitRows(profile, json);
       // A case filed as several rows (Phoenix rezonings) becomes one.
@@ -49,6 +54,8 @@ export async function pollPermitSource(source, { limit = 500, now = new Date(), 
     return log;
   }
   log.fetched = rows.length;
+  // A list whose numbers live on each record's page (TDLR TABS): open the new big ones.
+  if (profile.detail) rows = await withDetails(source, profile, rows, { deadline, log });
 
   // One case number, one row: a council agenda lists the same rezoning once
   // per body (Mesa: council ordinance and P&Z), so keep the first (newest),
@@ -98,6 +105,33 @@ async function pollAccelaSource(source, profile, since, { now, deadline, log }) 
 }
 
 /** Insert new signals, revise changed ones; stops at the deadline and marks the log partial. */
+/**
+ * Rows worth a look (profile.worthDetail) that are not saved yet, each merged
+ * with its own page (profile.parseDetail). Saved rows are dropped: without
+ * their page they would blank the saved counts. Four pages at a time; rows
+ * left when the deadline nears wait for the next slice (log.partial).
+ */
+async function withDetails(source, profile, rows, { deadline, log }) {
+  const keyOf = (r) => profile.map(r).permitNumber;
+  const want = rows.filter(r => profile.worthDetail(r));
+  const saved = await prisma.marketSignal.findMany({ where: { sourceId: source.id, permitNumber: { in: want.map(keyOf) } }, select: { permitNumber: true } });
+  const known = new Set(saved.map(s => s.permitNumber));
+  const todo = want.filter(r => !known.has(keyOf(r)));
+  const out = [];
+  for (let i = 0; i < todo.length; i += 4) {
+    if (Date.now() > deadline - 8000) { log.partial = true; break; }
+    const batch = await Promise.all(todo.slice(i, i + 4).map(async (r) => {
+      try {
+        const res = await fetch(profile.detailUrl(r), { headers: { 'User-Agent': 'ILC-Studios-MarketIntel/1.0', ...(profile.headers || {}) }, signal: AbortSignal.timeout(8000) });
+        if (!res.ok) return null;
+        return { ...r, ...profile.parseDetail(await res.text()) };
+      } catch { return null; }
+    }));
+    out.push(...batch.filter(Boolean));
+  }
+  return out;
+}
+
 async function saveSignals(source, signals, log, deadline = Infinity) {
   const existing = await prisma.marketSignal.findMany({
     where:  { sourceId: source.id, permitNumber: { in: signals.map(s => s.permitNumber) } },
@@ -147,7 +181,7 @@ async function saveSignals(source, signals, log, deadline = Infinity) {
       const matches  = await matchCandidates(companyNamesOf(extracted));
       const autoLink = matches.find(m => m.status === 'AUTO_LINKED');
       const best     = autoLink || matches.find(m => m.status === 'SUGGESTED');
-      const tagged   = { ...extracted, noticeTypes: noticeTypes(data) };
+      const tagged   = { ...extracted, noticeTypes: noticeTypes(data), ...signalBuildingTags(data, extracted.projectNames || []) };
       const projectHit = matchProject(matchText(data, extracted), projects, { matchedClientId: autoLink ? autoLink.clientId : null });
       const signal   = await prisma.marketSignal.create({
         data: {
@@ -195,7 +229,39 @@ export async function pollAllPermits(opts = {}) {
     if (r.more) more = true;
     if (r.done) logs.push({ source: 'Retag older city filings', fetched: r.done, kept: r.done, inserted: 0, updated: r.done, errors: [] });
   }
+  // Building type tags (Mike 10-17) on every older row, filings and articles.
+  if (!more && Date.now() < deadline) {
+    const r = await retagBuildingTypes({ deadline }).catch(() => ({ done: 0, more: false }));
+    if (r.more) more = true;
+    if (r.done) logs.push({ source: 'Building type tags on older rows', fetched: r.done, kept: r.done, inserted: 0, updated: r.done, errors: [] });
+  }
   return { logs, more };
+}
+
+/**
+ * Backfill (Mike 10-17) for rows saved before building type tags: every
+ * project related row with no BUILDING tag gets them, plus Affordable or
+ * Market rate on housing, by rules, no AI.
+ * Screened out articles are skipped (nothing shows them), and so are articles
+ * the reader has not tagged yet (taggedAt empty): Screen articles adds
+ * theirs. Every row gets at least "Other", so the batches end.
+ */
+export async function retagBuildingTypes({ deadline = Infinity, batch = 200 } = {}) {
+  const rows = await prisma.marketSignal.findMany({
+    where:  { taggedAt: { not: null }, OR: [{ projectRelated: null }, { projectRelated: true }], tags: { none: { tag: { kind: 'BUILDING' } } } },
+    select: { id: true, permitClass: true, title: true, summary: true, unitCount: true, projectType: true, tags: { select: { tag: { select: { kind: true, name: true } } } } },
+    take:   batch,
+  });
+  let done = 0;
+  for (const r of rows) {
+    if (Date.now() > deadline) return { done, more: true };
+    const projectNames = r.tags.map(l => l.tag).filter(t => t.kind === 'PROJECT').map(t => t.name);
+    try {
+      await saveSignalTags(r.id, signalBuildingTags(r, projectNames));
+      done += 1;
+    } catch { /* one bad row does not stop the batch */ }
+  }
+  return { done, more: rows.length === batch };
 }
 
 /** Every company a filing names (owner, applicant, contractor), deduped. */

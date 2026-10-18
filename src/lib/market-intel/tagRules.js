@@ -9,7 +9,76 @@
  */
 
 // NOTICE (Mike 10-14): the type of city notification, from stages.noticeTypes.
-export const TAG_KINDS = ['COMPANY', 'PROJECT', 'METRO', 'STATE', 'NOTICE'];
+// BUILDING (Mike 10-17): the building type, from buildingTypes below.
+// AFFORDABILITY (Mike 10-17): Affordable or Market rate, a second tag on housing.
+export const TAG_KINDS = ['COMPANY', 'PROJECT', 'METRO', 'STATE', 'NOTICE', 'BUILDING', 'AFFORDABILITY'];
+
+/**
+ * Building type tags (Mike 10-17: "Hotels need to be tagged just like
+ * anything else. Condos ... separately from multifamily ... rental
+ * apartments, senior living and student housing ... build to rent or single
+ * family for rent"). Read by rules off the filing or article words, no AI.
+ * A row can carry more than one ("condo hotel"). Rental apartments is the
+ * multifamily fallback when no condo, senior, student or build to rent
+ * words show. Every row gets at least one, "Other" when nothing fits, so
+ * the backfill knows the row was read.
+ */
+export const BUILDING_OTHER = 'Other';
+const BUILDING_RULES = [
+  ['Hotel',            /\bhotels?\b|\bmotels?\b|hospitality|\bresorts?\b|\bkeys\b|\binn\b|\bsuites\b|marriott|hilton|hyatt|holiday inn|home2|\baloft\b|courtyard by/i],
+  ['Condo',            /\bcondo|condominium/i],
+  ['Senior living',    /senior (?:living|housing|apartments|communit|residen|care|citizen)|\bseniors\b|assisted.?living|independent.?living|memory care|\b55\s?\+|age.?restricted|retirement (?:communit|home|living|village)|\bCCRC\b|continuing care/i],
+  ['Student housing',  /student (?:housing|living|apartments|residen|beds?|communit)|\bstudents\b|\bdorm|residence hall|university housing|campus housing|purpose.?built student/i],
+  ['Build to rent',    /build.?to.?rent|built.?to.?rent|\bBTR\b|single.?family (?:for )?rent|\bSFR\b|rental homes|homes for rent|for.?rent (?:homes|community|communities)|horizontal (?:multifamily|apartments)/i],
+  ['Townhomes',        /town.?ho(?:me|use)s?|\browhomes?\b/i],
+];
+const APARTMENT_RE = /apartment|\bapts?\b|multi.?family|\bR-?2\b|dwelling units|residential units|mixed.?use[^,;:]{0,20}\bresidential|\b(?:two|three|four|five|2|3|4|5)\b[^,;:]{0,15}\bfamily\b/i;
+// The article reader's project type (SignalCard PROJECT_TYPE_LABELS) counts too.
+const PROJECT_TYPE_BUILDING = { STUDENT_HOUSING: 'Student housing', SENIOR_LIVING: 'Senior living', BUILD_TO_RENT: 'Build to rent', HOSPITALITY: 'Hotel' };
+export const BUILDING_TYPE_OPTIONS = ['Rental apartments', ...BUILDING_RULES.map(([label]) => label), BUILDING_OTHER];
+
+export function buildingTypes(text = '', { units = 0, projectType = null } = {}) {
+  const out = BUILDING_RULES.filter(([, re]) => re.test(text)).map(([label]) => label);
+  const fromType = PROJECT_TYPE_BUILDING[projectType];
+  if (fromType && !out.includes(fromType)) out.push(fromType);
+  const hotel = out.includes('Hotel');
+  const apartments = APARTMENT_RE.test(text) || projectType === 'MARKET_RATE' || projectType === 'AFFORDABLE' || (!hotel && (units || 0) >= 5);
+  // "Apartments and condos" is both; a bare unit count on a condo is the condo.
+  const rentalNamed = /apartment|\bapts?\b/i.test(text);
+  const other = out.some(l => ['Senior living', 'Student housing', 'Build to rent'].includes(l));
+  if (apartments && !other && (rentalNamed || !out.includes('Condo'))) out.unshift('Rental apartments');
+  return out.length ? out : [BUILDING_OTHER];
+}
+
+/**
+ * Affordable or Market rate (Mike 10-17: "Yes but as a secondary tag. Which
+ * should be affordable or market rate"). Only on housing (any building type
+ * but Hotel and Other); a housing row with no affordable words is Market rate.
+ */
+export const AFFORDABILITY_OPTIONS = ['Affordable', 'Market rate'];
+const AFFORDABLE_RE = /affordable|workforce (housing|apartments|rental|units)|\bLIHTC\b|tax credit|low.?income|income.?restricted|\bAMI\b|section 8|\bHUD\b|public housing|housing authority|public facility corp|housing finance corp|\bPFC\b|\bHFC\b/i;
+export function affordability(text = '', buildings = [], { projectType = null } = {}) {
+  if (!buildings.some(l => l !== 'Hotel' && l !== BUILDING_OTHER)) return [];
+  // Mixed income (only some units affordable) is Market rate (Mike 10-17).
+  if (/mixed.?income/i.test(text)) return ['Market rate'];
+  if (projectType === 'AFFORDABLE' || AFFORDABLE_RE.test(text)) return ['Affordable'];
+  return ['Market rate'];
+}
+
+/** buildingTypes off a saved signal row (permit class, title, summary, project names). */
+export function signalBuildingTypes(signal = {}, projectNames = []) {
+  return buildingTags([signal.permitClass, signal.title, signal.summary, ...projectNames].filter(Boolean).join(' | '), { units: signal.unitCount, projectType: signal.projectType }).buildingTypes;
+}
+
+/** Both tags at once, shaped for tagsFromExtraction. */
+export function buildingTags(text = '', opts = {}) {
+  const buildings = buildingTypes(text, opts);
+  return { buildingTypes: buildings, affordability: affordability(text, buildings, opts) };
+}
+
+export function signalBuildingTags(signal = {}, projectNames = []) {
+  return buildingTags([signal.permitClass, signal.title, signal.summary, ...projectNames].filter(Boolean).join(' | '), { units: signal.unitCount, projectType: signal.projectType });
+}
 
 // BUYER (Mike 10-9): a company asking to rezone land it does not own yet,
 // so it likely has the land under contract. See likelyLandBuyer in permitRules.
@@ -111,6 +180,8 @@ export function tagsFromExtraction(extracted = {}) {
   for (const name of extracted.developerNames || []) push('COMPANY', name, 'DEVELOPER');
   for (const name of extracted.projectNames || []) push('PROJECT', name);
   for (const name of extracted.noticeTypes || []) push('NOTICE', name);
+  for (const name of extracted.buildingTypes || []) push('BUILDING', name);
+  for (const name of extracted.affordability || []) push('AFFORDABILITY', name);
 
   const state = stateCode(extracted.state);
   const metro = metroTag(extracted.metro, state);

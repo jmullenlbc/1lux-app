@@ -7,7 +7,8 @@ import { Select } from '@/components/ui/Input';
 import Card, { CardHeader, CardBody } from '@/components/ui/Card';
 import { BUILDING_TYPES, PROJECT_PHASES, SERVICE_TYPES, LOCATION_TYPES, ORG_TYPE_OPTIONS, PROJECT_TYPES, clientTypeLabel, locationTypeLabel } from '@/lib/utils';
 import MultiSelect from '@/components/ui/MultiSelect';
-import { nextTaxBox } from '@/lib/salesTaxEstimate';
+import { SALES_TAX_BASIS_HINT } from '@/lib/salesTaxEstimate';
+import { useEstimatedSalesTax } from '@/components/useEstimatedSalesTax';
 
 const BUDGET_TYPES = [
   { value: 'conceptual',  label: 'Conceptual Budget' },
@@ -120,11 +121,10 @@ export default function NewProjectForm({ existingProjects = [], clients: initial
   const nameRef    = useRef(null);
   // Estimated sales tax follows the state until someone types a rate (Mike
   // 10-17: the real rate is address level, so we estimate and they overwrite).
-  const taxEstimateRef = useRef('');
-  useEffect(() => {
-    const next = nextTaxBox(form.salesTaxPct, taxEstimateRef.current, form.state);
-    if (next !== form.salesTaxPct) { taxEstimateRef.current = next; setForm(f => ({ ...f, salesTaxPct: next })); }
-  }, [form.state]); // eslint-disable-line react-hooks/exhaustive-deps
+  const taxBasis = useEstimatedSalesTax(form.state, form.zip, fn => setForm(f => {
+    const next = fn(f.salesTaxPct);
+    return next === f.salesTaxPct ? f : { ...f, salesTaxPct: next };
+  }));
   const suggestRef = useRef(null);
 
   function handleNameChange(e) {
@@ -355,7 +355,7 @@ export default function NewProjectForm({ existingProjects = [], clients: initial
                   inputMode="decimal"
                   placeholder="8.25"
                   suffix="%"
-                  hint="Filled in from the state. Type the real rate, or 0 for none."
+                  hint={SALES_TAX_BASIS_HINT[taxBasis] || SALES_TAX_BASIS_HINT['']}
                   value={form.salesTaxPct}
                   onChange={e => setForm(f => ({ ...f, salesTaxPct: e.target.value.replace(/[^\d.]/g, '').slice(0, 6) }))}
                 />

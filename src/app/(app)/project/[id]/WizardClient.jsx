@@ -1,5 +1,5 @@
 'use client';
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { mergeLiveSections } from '@/components/wizard/useLiveAnswers';
 import { useRouter } from 'next/navigation';
 import { getActiveSteps, getNextStep, isHomeBuildingKey, stepsForHome, stepBeside, HOME_SKIPPED_STEPS } from '@/lib/utils';
@@ -15,6 +15,7 @@ import EmergencySection    from '@/components/sections/EmergencySection';
 import ExitSignsSection    from '@/components/sections/ExitSignsSection';
 import ControlsSection     from '@/components/sections/ControlsSection';
 import BudgetSidebar       from '@/components/wizard/BudgetSidebar';
+import { figuresStillNeeded } from '@/lib/figures/estimateBlanks';
 import { useAreaAlerts }              from '@/components/figures/AreaAlerts';
 import SectionNav          from '@/components/wizard/SectionNav';
 import QuestionnaireUploads from '@/components/wizard/QuestionnaireUploads';
@@ -76,6 +77,12 @@ export default function WizardClient({ project, projectData, initialSections, in
     return next;
   }), []);
   const onLiveData = useCallback(pd => onLiveAnswers("__pd", pd), [onLiveAnswers]);
+  // Same minimum figures as the design wizard and the public tool (Mike 10-17).
+  const needed = figuresStillNeeded(
+    live.__pd ? { ...localPD, ...live.__pd } : localPD,
+    localPD?.buildingTypeKey || project.buildingType,
+    new Set(localPD?.estimatedFields || []),
+  );
 
   async function saveProjectData(data) {
     setSaving(true);
@@ -88,19 +95,14 @@ export default function WizardClient({ project, projectData, initialSections, in
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         console.error('Project data save failed:', res.status, err);
-        alert(`Save failed (${res.status}). You may need to run "npx prisma db push" in your terminal.`);
-        return;
+        alert(`Save failed (${res.status}). ${err.error || ''}`);
+        return false;
       }
-      const parsed = { ...localPD };
-      for (const [k, v] of Object.entries(data)) {
-        const num = parseFloat(v);
-        parsed[k] = (!isNaN(num) && isFinite(num)) ? num : 0;
-      }
-      // Site features (dog parks, courts, …) are rows, not columns: the engine
-      // reads them as `siteFeatures`, which the route returns freshly loaded.
+      // The route returns the saved row: "226,000" stored as 226000, an
+      // emptied box as blank, landings worked out from stairs.
       const saved = await res.json().catch(() => ({}));
-      if (Array.isArray(saved?.projectData?.siteFeatures)) parsed.siteFeatures = saved.projectData.siteFeatures;
-      setLocalPD(parsed);
+      if (saved?.projectData) setLocalPD(l => ({ ...l, ...saved.projectData }));
+      return true;
     } finally {
       setSaving(false);
     }
@@ -108,24 +110,45 @@ export default function WizardClient({ project, projectData, initialSections, in
 
   // Save questionnaire responses for a section
   // Use the merge param to preserve keys already in the section (for shared section keys)
-  async function saveResponses(section, responses) {
-    setSaving(true);
+  // Answers whose save failed wait here and are tried again on Next, so a
+  // dropped connection never loses a step or moves on as if it had saved.
+  const unsavedRef = useRef({});
+  async function putResponses(section, responses) {
     try {
-      await fetch(`/api/projects/${project.id}/responses`, {
+      const res = await fetch(`/api/projects/${project.id}/responses`, {
         method:  'PUT',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ section, responses }),
       });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  }
+  async function saveResponses(section, responses) {
+    setSaving(true);
+    try {
+      if (!(await putResponses(section, responses))) {
+        unsavedRef.current[section] = { ...(unsavedRef.current[section] || {}), ...responses };
+      }
       // Merge: sections send only the keys they touched, and a dropped key
       // would fall back to its default on the live budget until a reload.
-      const newSections = { ...sections, [section]: { ...(sections[section] || {}), ...responses } };
-      setSections(newSections);
+      setSections(s => ({ ...s, [section]: { ...(s[section] || {}), ...responses } }));
     } finally {
       setSaving(false);
     }
   }
+  async function saveUnsaved() {
+    for (const [section, responses] of Object.entries(unsavedRef.current)) {
+      if (await putResponses(section, responses)) delete unsavedRef.current[section];
+    }
+    if (Object.keys(unsavedRef.current).length === 0) return true;
+    alert('Some answers on this step did not save. Check your connection and press Next again.');
+    return false;
+  }
 
   async function goToNext() {
+    if (!(await saveUnsaved())) return;
     const next = stepBeside(navSteps, currentStep, 1);
 
     const newCompleted = completedSteps.includes(currentStep)
@@ -350,6 +373,8 @@ export default function WizardClient({ project, projectData, initialSections, in
         homeType={homeType}
         areaNotes={areas.notes}
         areaSummary={areas.summary}
+        needed={needed}
+        holdTotal={needed.length > 0}
       />
     </div>
   );

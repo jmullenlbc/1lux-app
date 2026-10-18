@@ -12,7 +12,8 @@ import { readRememberedEmail, rememberEmail } from '@/lib/publicVisitor';
 import { INTAKE_QUESTIONS, noDrawingsReady, BOLLARD_PROJECT_TYPES, designChoices, isHomeProjectType, questionFor, optionLabelFor, EXTERIOR_AMENITY_KEY, exteriorAmenityOptions, exteriorAmenityFallback } from '@/lib/intake/questionnaire';
 import { controlsMathWords } from '@/lib/intake/controlsWords';
 import { formatCurrency } from '@/lib/format';
-import { nextTaxBox } from '@/lib/salesTaxEstimate';
+import { SALES_TAX_BASIS_HINT } from '@/lib/salesTaxEstimate';
+import { useEstimatedSalesTax } from '@/components/useEstimatedSalesTax';
 import { cn } from '@/lib/utils';
 import AlertMark from '@/components/ui/AlertMark';
 import { PublicBugLink } from '@/components/public/PublicBugButton';
@@ -732,13 +733,12 @@ export default function IntakeClient() {
   // Drawings are the ticket in (Mike, 2026-09-04): no live number without
   // them. Typed figures only REFINE an estimate the drawings started, unless
   // the visitor said "no drawings" and filled in the minimum (Mike, 2026-09-11).
-  // Estimated sales tax follows the project state until the visitor types a
-  // rate (Mike 10-17), same as the New Project form inside the app.
-  const taxEstimateRef = useRef('');
-  useEffect(() => {
-    const next = nextTaxBox(answers.salesTaxPct, taxEstimateRef.current, projState);
-    if (next !== (answers.salesTaxPct ?? '')) { taxEstimateRef.current = next; setAnswers(a => ({ ...a, salesTaxPct: next })); }
-  }, [projState]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Estimated sales tax follows the project state and zip until the visitor
+  // types a rate (Mike 10-17), same as the New Project form inside the app.
+  const taxBasis = useEstimatedSalesTax(projState, projZip, fn => setAnswers(a => {
+    const next = fn(a.salesTaxPct ?? '');
+    return next === (a.salesTaxPct ?? '') ? a : { ...a, salesTaxPct: next };
+  }));
 
   const estimateSeq = useRef(0);
   // Mike 10-9: on the no-drawings path the number starts as soon as a unit
@@ -1624,7 +1624,7 @@ export default function IntakeClient() {
                           filled in from the project state; the visitor can change it. */}
                       <div className="w-44 shrink-0">
                         <Field label="Estimated sales tax"
-                          hint="From your project state. Type your rate, or 0 for none.">
+                          hint={SALES_TAX_BASIS_HINT[taxBasis] || SALES_TAX_BASIS_HINT['']}>
                           <div className="relative">
                             <input type="text" inputMode="decimal" className={cn(inputCls, 'pr-7')} placeholder="8.25"
                               aria-label="Estimated sales tax, percent"

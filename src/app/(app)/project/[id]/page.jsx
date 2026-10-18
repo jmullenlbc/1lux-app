@@ -12,6 +12,7 @@ import { PROJECT_TEAM_ROLES } from '@/lib/projectTeam';
 import ProjectHubClient from './ProjectHubClient';
 import ArchivedBanner from '@/components/ArchivedBanner';
 import { SITE_FEATURE_INCLUDE, engineProjectData } from '@/lib/siteFeatureRows';
+import { fillOldBlanks } from '@/lib/figures/fillOldBlanks';
 
 // The six companies on the project team, by name, so the team card reads right
 // on the first paint instead of filling in once the client list arrives.
@@ -45,6 +46,8 @@ export default async function ProjectHubPage({ params }) {
   if (!project) notFound();
   // Every ILC staff member can open any project; Client Viewers stay scoped to their own.
   if (!(await canOpenProject(prisma, session, project))) notFound();
+  // Older projects get their blanks estimated on first open (Mike 10-17).
+  if (!isClientViewer(session.role)) await fillOldBlanks(prisma, project, session);
 
   const pricing = pricingForProject(project.pricingSnapshot, await loadPricing());
 

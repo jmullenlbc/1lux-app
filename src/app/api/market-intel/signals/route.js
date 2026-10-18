@@ -48,7 +48,7 @@ export async function GET(request) {
   // Tag filters (0122): metro, state, company, project are all "has a tag of
   // this kind with this name". assignedTo takes a user id or "me".
   const tagFilters = [];
-  for (const [kind, param] of [['METRO', 'metro'], ['STATE', 'state'], ['COMPANY', 'company'], ['PROJECT', 'project'], ['NOTICE', 'notice']]) {
+  for (const [kind, param] of [['METRO', 'metro'], ['STATE', 'state'], ['COMPANY', 'company'], ['PROJECT', 'project'], ['NOTICE', 'notice'], ['BUILDING', 'building'], ['AFFORDABILITY', 'affordability']]) {
     const v = searchParams.get(param)?.trim();
     if (v) tagFilters.push({ tags: { some: { tag: { kind, normalized: normalizeTagName(v, kind) } } } });
   }

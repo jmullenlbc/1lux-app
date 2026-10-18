@@ -166,6 +166,15 @@ export default function ProjectDataSection({ projectId, projectData, responses =
   }, [form, onLiveData]);
   useEffect(() => () => onLiveData?.(null), [onLiveData]);
   const [saved,  setSaved]  = useState(false);
+  const formRef = useRef(form);
+  formRef.current = form;
+  const savingRef = useRef(false);
+  // Save as you go (Mike 10-17): a short pause in typing saves, like the
+  // public tool. A failed save waits for the next edit instead of looping.
+  const [autoPaused, setAutoPaused] = useState(false);
+  const qKey = JSON.stringify(qAnswers);
+  const savedQ = useRef(qKey);
+  const estimated = new Set(projectData?.estimatedFields || []);
 
   // Line-level alerts: a figure far off our real jobs of this building type.
   const figures = useFigureAlerts(projectId);
@@ -188,11 +197,25 @@ export default function ProjectDataSection({ projectId, projectData, responses =
       setForm(f => ({ ...f, [key]: e.target.value }));
       setDirty(d => new Set(d).add(key));
       setSaved(false);
+      setAutoPaused(false);
     };
   }
 
-  async function handleSave(andNext = false) {
+  useEffect(() => {
+    if (saving || autoPaused || (dirty.size === 0 && qKey === savedQ.current)) return;
+    const t = setTimeout(() => { handleSave(false, true); }, 1500);
+    return () => clearTimeout(t);
+  }, [form, dirty, qKey, saving, autoPaused]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  async function handleSave(andNext = false, auto = false) {
+    if (savingRef.current && auto) return;
+    // Next or Save Draft during a save-as-you-go waits for it, then saves the rest.
+    while (savingRef.current) await new Promise(r => setTimeout(r, 100));
+    savingRef.current = true;
     setSaving(true);
+    // What this save sends; typing that lands mid-save stays unsaved.
+    const sent = new Map([...dirty].map(k => [k, form[k]]));
+    const sentQ = qKey;
     // Only send fields the user actually touched
     const payload = {};
     for (const key of dirty) {
@@ -210,8 +233,16 @@ export default function ProjectDataSection({ projectId, projectData, responses =
     // Only when the pick differs from what is stored, so an odd % set on the
     // Summary is never overwritten by a save that did not touch it.
     if (qAnswers.contingency in CONTINGENCY_PCT && CONTINGENCY_PCT[qAnswers.contingency] !== (projectData?.contingencyPct == null ? null : Number(projectData.contingencyPct))) payload.contingencyPct = CONTINGENCY_PCT[qAnswers.contingency];
+    // A box the user emptied goes back to blank (the server skips plain
+    // blanks so a stale form can never wipe a figure).
+    const clearFields = [...dirty].filter(k => String(form[k] ?? '').trim() === '' && projectData?.[k] != null);
+    if (clearFields.length) payload.clearFields = clearFields;
     if (Object.keys(payload).length > 0) {
-      await onSaveData(payload);
+      if ((await onSaveData(payload)) === false) {
+        savingRef.current = false; setSaving(false);
+        if (auto) setAutoPaused(true);
+        return;
+      }
     }
     // Always save Q&A responses. Contingency is now visible in all modes;
     // the other strategy fields (buyHold, switchesDimmers) remain design-
@@ -220,9 +251,11 @@ export default function ProjectDataSection({ projectId, projectData, responses =
     if (onSaveResponses) {
       await onSaveResponses(qAnswers);
     }
-    setDirty(new Set());
+    setDirty(d => new Set([...d].filter(k => !sent.has(k) || String(formRef.current[k] ?? '') !== String(sent.get(k) ?? ''))));
     setQDirty(new Set());
+    savedQ.current = sentQ;
     setSaved(true);
+    savingRef.current = false;
     setSaving(false);
     if (andNext) onNext();
   }
@@ -232,8 +265,8 @@ export default function ProjectDataSection({ projectId, projectData, responses =
       <div>
         <h2 className="text-xl font-bold text-slate-900">Project Data</h2>
         <p className="text-slate-500 text-sm mt-1">
-          Enter your project metrics. The budget updates live as you fill in data.
-          All fields are optional, enter what you have and refine later.
+          Enter your project metrics. The budget updates live as you fill in data,
+          and saves as you go. Leave a box blank and we estimate it; type 0 for none.
         </p>
       </div>
 
@@ -260,6 +293,9 @@ export default function ProjectDataSection({ projectId, projectData, responses =
                   disabled={field.key === 'numEgressStairwells' && workedLandings != null}
                   min={0}
                 />
+                {estimated.has(field.key) && !dirty.has(field.key) && String(form[field.key] ?? '') !== '' && (
+                  <p className="text-xs text-amber-700 mt-1">Estimated. Type the real figure if you have it.</p>
+                )}
                 <FigureAlertNote alert={alerts[field.key]} saved={!dirty.has(field.key)} onRight={() => figures.markRight(field.key)} />
                 </div>
               ))}

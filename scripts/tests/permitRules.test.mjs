@@ -54,8 +54,8 @@ test('tenant finishes, sheds and contractor swaps are dropped', () => {
   // Under $10M is too small a job, unit count or not (Mike 10-8).
   assert.equal(permitToSignal(DENVER, { ...ROW, VALUATION: 4_000_000 }), null);
   assert.equal(permitToSignal(DENVER, { ...ROW, UNITS: '', VALUATION: 4_000_000 }), null);
-  // No unit count but real money still counts: a hotel or a big addition.
-  assert.ok(permitToSignal(DENVER, { ...ROW, UNITS: '', VALUATION: 12_000_000 }));
+  // No unit count and no housing words: left out, housing only (Mike 10-17).
+  assert.equal(permitToSignal(DENVER, { ...ROW, UNITS: '', VALUATION: 12_000_000 }), null);
   assert.equal(permitToSignal(DENVER, { ...ROW, PERMIT_NUM: '' }), null);
 });
 
@@ -92,9 +92,10 @@ test('Austin rows map to a permit signal with the city link', () => {
   assert.equal(permitToSignal(AUSTIN, { ...AROW, work_class: 'Remodel' }), null);
   assert.equal(permitToSignal(AUSTIN, { ...AROW, total_job_valuation: '9900000' }), null);
   // Austin's housing_units is a building count on non-residential rows: a sign permit says 1.
-  assert.equal(permitToSignal(AUSTIN, { ...AROW, permit_class: 'C- 328 Commercial Other Nonresident Bldg', housing_units: '1', total_job_valuation: '25000000' }).unitCount, null);
+  assert.equal(permitToSignal(AUSTIN, { ...AROW, permit_class: 'C- 328 Commercial Other Nonresident Bldg', description: 'New office', housing_units: '1', total_job_valuation: '25000000' }), null);
   assert.equal(permitToSignal(AUSTIN, { ...AROW, permit_class: 'C- 329 Com Structures Other Than Bldg', total_job_valuation: '25000000' }), null);
-  assert.equal(permitToSignal(AUSTIN, { ...AROW, permit_class: 'C- 213 Hotels, Motels, & Tourist Cabins', housing_units: '120' }).unitCount, 120);
+  // Hotels are kept (Mike 10-17: "Yes add back in hotels"); keys count as units.
+  assert.equal(permitToSignal(AUSTIN, { ...AROW, permit_class: 'C- 213 Hotels, Motels, & Tourist Cabins', description: 'New hotel', housing_units: '120' }).unitCount, 120);
 });
 
 test('Austin asks Socrata for commercial building permits in its own dialect', () => {
@@ -121,13 +122,14 @@ test('permitRows reads both feed shapes', () => {
 const ORLANDO = PERMIT_PROFILES.ORLANDO;
 const OROW = {
   permit_number: 'BLD2026-12345', application_type: 'Building Permit', worktype: 'New', plan_review_type: 'Commercial', issue_permit_date: '2026-08-01T00:00:00.000',
-  permit_address: '510 BROOKHAVEN DR', estimated_cost: '24500000', contractor_name: 'THE WHITING-TURNER CONTRACTING COMPANY', project_name: 'LAKE HIGHLAND ATHLETIC CENTER', neighborhood: 'Lake Highland',
+  permit_address: '510 BROOKHAVEN DR', estimated_cost: '24500000', contractor_name: 'THE WHITING-TURNER CONTRACTING COMPANY', project_name: 'LAKE HIGHLAND APARTMENTS', neighborhood: 'Lake Highland',
 };
 
 test('Orlando rows map and the where clause asks for commercial or 3-plus-unit buildings', () => {
   const s = permitToSignal(ORLANDO, OROW);
   assert.equal(s.title, 'New building: 510 Brookhaven Dr');
-  assert.match(s.summary, /Commercial: LAKE HIGHLAND ATHLETIC CENTER/);
+  assert.match(s.summary, /Commercial: LAKE HIGHLAND APARTMENTS/);
+  assert.equal(permitToSignal(ORLANDO, { ...OROW, project_name: 'LAKE HIGHLAND ATHLETIC CENTER' }), null);
   assert.equal(s.contractorName, 'The Whiting-Turner Contracting Company');
   assert.equal(s.unitCount, null);
   assert.equal(s.extracted.metro, 'Orlando, FL');
@@ -191,7 +193,7 @@ test('Miami-Dade reads the text value, counts units on residential uses and only
   assert.equal(s.title, 'New building, 250 units: 2681 NE 191 St, Miami');
   assert.equal(s.valuation, 68000000);
   assert.match(s.summary, /5 Units Or More - Residential, Contractor The Window Guys Of Florida INC, declared value \$68M/);
-  assert.equal(permitToSignal(MIAMI_DADE, { ...DROW, ProposedUseDescription: 'WAREHOUSE/STORAGE', StructureUnits: 1 }).unitCount, null);
+  assert.equal(permitToSignal(MIAMI_DADE, { ...DROW, ProposedUseDescription: 'WAREHOUSE/STORAGE', StructureUnits: 1 }), null);
   assert.equal(permitToSignal(MIAMI_DADE, { ...DROW, ApplicationTypeDescription: 'RE-ROOF/REPAIR' }), null);
   assert.equal(permitToSignal(MIAMI_DADE, { ...DROW, ApplicationTypeDescription: 'SHELL ONLY' }).title, 'Shell building, 250 units: 2681 NE 191 St, Miami');
   const w = permitWhere(MIAMI_DADE, new Date(Date.UTC(2026, 0, 15)));
@@ -237,13 +239,14 @@ test('Hillsborough counts units on residential occupancies only and has no contr
 const JAX = PERMIT_PROFILES.JACKSONVILLE;
 const JROW = {
   FullPermitNumber: 'B-26-365360.000', PaidDay: 1779926400000, TypeOfWork: 'New Building', ProposedUseDesc: 'Non-Residential', TotalCost: 36000000,
-  ADDR: '777 CHURCH ST E', CITY: 'JACKSONVILLE', ZIPCODE: '32202', CompanyName: 'Haskell', Comments: 'Chilled water plant expansion', Status: 12,
+  ADDR: '777 CHURCH ST E', CITY: 'JACKSONVILLE', ZIPCODE: '32202', CompanyName: 'Haskell', Comments: 'New 300 unit apartment community', Status: 12,
 };
 
 test('Jacksonville sends the Referer and a plain quoted date the city proxy accepts', () => {
   const s = permitToSignal(JAX, JROW);
   assert.equal(s.title, 'New building: 777 Church St E, Jacksonville');
-  assert.match(s.summary, /^Non-Residential: Chilled water plant expansion, Contractor Haskell, declared value \$36M/);
+  assert.match(s.summary, /^Non-Residential: New 300 unit apartment community, Contractor Haskell, declared value \$36M/);
+  assert.equal(permitToSignal(JAX, { ...JROW, Comments: 'Chilled water plant expansion' }), null);
   assert.equal(permitToSignal(JAX, { ...JROW, TypeOfWork: 'Tenant Build-Out' }).title, 'Tenant improvement: 777 Church St E, Jacksonville');
   assert.equal(permitToSignal(JAX, { ...JROW, TypeOfWork: 'Roof' }), null);
   assert.equal(permitWhere(JAX, new Date(Date.UTC(2026, 0, 15))), "PermitTypeID=1 AND PaidDay >= '2026-01-15' AND TypeOfWork IN ('New Building','Addition','Alterations & Repairs','Tenant Build-Out') AND TotalCost >= 10000000");

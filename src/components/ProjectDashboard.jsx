@@ -285,7 +285,7 @@ export default function ProjectDashboard({
 
   // Save a ProjectData field (numeric)
   const saveData = useCallback(async (field, rawValue) => {
-    const payload = { [field]: rawValue === '' || rawValue == null ? null : rawValue };
+    const payload = rawValue === '' || rawValue == null ? { clearFields: [field] } : { [field]: rawValue };
     const res = await fetch(`/api/projects/${project.id}/data`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },

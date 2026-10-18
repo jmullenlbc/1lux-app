@@ -79,3 +79,18 @@ test('ranking puts the highest score first and breaks ties newest first', () => 
 test('the project-only filter keeps true and null, never false', () => {
   assert.deepEqual(PROJECT_ONLY, { OR: [{ projectRelated: true }, { projectRelated: null }] });
 });
+
+test('city filings (Mike 10-17): earlier stage first, a named developer or buyer adds 10', () => {
+  const at = (kind, extra = {}) => relevanceScore({ ...base, signalType: 'PERMIT', kind, ...extra }, NOW);
+  assert.equal(at('LAND'), 40);
+  assert.equal(at('CONCEPT'), 35);
+  assert.equal(at('COUNCIL'), 30);
+  assert.equal(at('PERMIT'), 10);
+  assert.equal(at('CONCEPT', { _count: { feedback: 0, tags: 2 } }), 45);
+  // Everything below the match tiers stays under 100, so a client match still wins.
+  const best  = at('LAND', { unitCount: 900, assignedToId: 'u1', _count: { feedback: 0, tags: 1 } });
+  assert.ok(best < 100);
+  assert.ok(at('PERMIT', { matchStatus: 'SUGGESTED', publishedAt: OLD }) > best);
+  // Articles keep their own type points.
+  assert.equal(relevanceScore({ ...base, kind: 'ARTICLE', signalType: 'NEW_DEVELOPMENT' }, NOW), 15);
+});

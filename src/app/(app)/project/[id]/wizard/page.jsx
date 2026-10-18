@@ -12,6 +12,7 @@ import WizardClient from '../WizardClient';
 import DesignWizardClient from '../DesignWizardClient';
 import PeerReviewClient from '../PeerReviewClient';
 import { SITE_FEATURE_INCLUDE, engineProjectData } from '@/lib/siteFeatureRows';
+import { fillOldBlanks } from '@/lib/figures/fillOldBlanks';
 
 export default async function ProjectWizardPage({ params }) {
   const session = await getSession();
@@ -32,10 +33,16 @@ export default async function ProjectWizardPage({ params }) {
   if (!project) notFound();
   if (!(await canOpenProject(prisma, session, project))) notFound();
 
+  // Older projects get their blanks estimated on first open (Mike 10-17).
+  await fillOldBlanks(prisma, project, session);
   const pricing = pricingForProject(project.pricingSnapshot, await loadPricing());
 
   const sections       = responsesToSections(project.responses);
   const projectData    = engineProjectData(project);
+  // Figures the tool estimated (blank = we estimate it, Mike 10-17).
+  projectData.estimatedFields = (await prisma.projectFigureSource.findMany({
+    where: { projectId: project.id, source: 'guess' }, select: { field: true },
+  }).catch(() => [])).map(r => r.field);
   const budget         = calculateBudget(projectData, sections, pricing);
   const completedSteps = JSON.parse(project.completedSteps || '[]');
 

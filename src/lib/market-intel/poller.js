@@ -6,6 +6,7 @@ import { matchProject } from './project-matcher.js';
 import { saveSignalTags, attachSignalToClient } from './tags.js';
 import { pollAllPermits } from './permits.js';
 import { estimateUnits } from './permitRules.js';
+import { buildingTags } from './tagRules.js';
 
 // Migration 0131 (Mike 10-14): an article about housing that gives a gross SF
 // but no unit count gets an estimate (garage and retail out first, then about
@@ -123,7 +124,9 @@ async function processItem(item, projects = []) {
   if (extracted.failed) return { readFailed: true, error: extracted.error };
 
   // Tag rows (0122). An auto-linked client inherits the article's place tags.
-  await saveSignalTags(signal.id, extracted, { matches });
+  // Building type tags, plus Affordable or Market rate (Mike 10-17), by rules on the title and summary.
+  const buildings = buildingTags([item.title, extracted.summary].filter(Boolean).join(' | '), { units: est.unitCount, projectType: extracted.projectType });
+  await saveSignalTags(signal.id, { ...extracted, ...buildings }, { matches });
   if (autoLink) {
     await attachSignalToClient(signal.id, autoLink.clientId, { companyNames: [autoLink.candidateName] }).catch(() => {});
   }
@@ -185,7 +188,8 @@ export async function retagUntagged({ limit = 25, deadline = Date.now() + 22000,
       const matches   = s.linkedClientId && ['AUTO_LINKED', 'CONFIRMED'].includes(s.matchStatus)
         ? (() => { try { return JSON.parse(s.developerNames || '[]').map(n => ({ candidateName: n, clientId: s.linkedClientId, status: 'AUTO_LINKED' })); } catch { return []; } })()
         : [];
-      await saveSignalTags(s.id, extracted, { matches });
+      const buildings = buildingTags([s.title, extracted.summary || s.summary].filter(Boolean).join(' | '), { units: s.unitCount, projectType: extracted.projectType || s.projectType });
+      await saveSignalTags(s.id, { ...extracted, ...buildings }, { matches });
       const est = articleUnits(extracted, s.title, extracted.summary || s.summary);
       if (est.unitCount && (!est.unitsEstimated || !s.unitCount || s.unitsEstimated)) {
         await prisma.marketSignal.update({ where: { id: s.id }, data: { unitCount: est.unitCount, unitsEstimated: est.unitsEstimated, grossSf: est.grossSf } }).catch(() => {});

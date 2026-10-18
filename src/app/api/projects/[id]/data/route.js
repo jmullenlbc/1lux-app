@@ -11,6 +11,9 @@ import {
 import { parseLooseNumber, isUnreadableNumber, NUMBER_HELP } from '@/lib/numberInput';
 import { recordFigureSources } from '@/lib/figures/record';
 import { landingsPerStair } from '@/lib/stairLandings';
+import { estimateBlankFigures, ESTIMATED_FIELDS, ESTIMATING_BUDGET_TYPES } from '@/lib/figures/estimateBlanks';
+import { loadAdoptedGuesses } from '@/lib/calibration/figureNormsLoad';
+import { loadPricing, pricingForProject } from '@/lib/pricingLoader';
 
 
 // Map projectData fields → questionnaire (section, questionKey) for bidirectional sync
@@ -124,6 +127,15 @@ export async function PUT(request, { params }) {
     data[field] = val;
   }
 
+  // A box emptied on purpose arrives in clearFields and goes back to blank
+  // (blank = we estimate it). Plain blanks above still mean "no change".
+  const cleared = new Set();
+  if (Array.isArray(body.clearFields)) {
+    for (const f of body.clearFields) {
+      if ((numericFields.includes(f) || f === 'contingencyPct') && !(f in data)) { data[f] = null; cleared.add(f); }
+    }
+  }
+
   // contingencyPct is not a questionnaire field, handle separately
   if (body.contingencyPct !== undefined &&
       body.contingencyPct !== null &&
@@ -156,9 +168,33 @@ export async function PUT(request, { params }) {
   // it and the floor count are known, landings follow: stairs x (2 x floors
   // - 1). Typed figures, so no 10% on top (Mike 10-2).
   if ('numStairwells' in data || 'numFloors' in data) {
-    const stairs = data.numStairwells ?? existing?.numStairwells;
-    const floors = data.numFloors ?? existing?.numFloors;
+    const stairs = 'numStairwells' in data ? data.numStairwells : existing?.numStairwells;
+    const floors = 'numFloors' in data ? data.numFloors : existing?.numFloors;
     if (stairs != null && floors > 0) data.numEgressStairwells = Math.round(stairs) * landingsPerStair(floors);
+    // Stairs emptied: the landings worked out from them go too.
+    else if (cleared.has('numStairwells') && !('numEgressStairwells' in data)) data.numEgressStairwells = null;
+  }
+  // Blank = we estimate it (Mike 10-17, same rules as the public tool). Once
+  // the minimum figures are in, every blank (or earlier estimate) gets the
+  // public tool's figure, saved and tagged 'guess'. A typed 0 stays 0; a box
+  // emptied on purpose is a blank again. Before the minimum figures are in,
+  // earlier estimates go back to blank so nothing prices on a half picture.
+  let estimated = {};
+  const wasGuess = new Set();
+  const typedNow = Object.keys(data).filter(f => !cleared.has(f));
+  if (ESTIMATING_BUDGET_TYPES.has(project.budgetType)) {
+    const srcRows = await prisma.projectFigureSource.findMany({
+      where: { projectId: params.id, field: { in: ESTIMATED_FIELDS } },
+      select: { field: true, source: true },
+    });
+    for (const r of srcRows) if (r.source === 'guess') wasGuess.add(r.field);
+    const guessed = new Set([...wasGuess].filter(f => !(f in data)));
+    const merged = { ...(existing || {}), ...data };
+    estimated = estimateBlankFigures(merged, project.buildingType, { guessed, adopted: await loadAdoptedGuesses(), pricing: pricingForProject(project.pricingSnapshot, await loadPricing()) }).values;
+    for (const f of ESTIMATED_FIELDS) {
+      if (f in estimated) data[f] = estimated[f];
+      else if (guessed.has(f)) data[f] = null;
+    }
   }
   const changedFields = Object.keys(data).filter(k => {
     const oldVal = existing?.[k] ?? null;
@@ -255,13 +291,19 @@ export async function PUT(request, { params }) {
 
   await logActivity(params.id, user, 'project_data', description, { changed: changedFields });
   // Typed by staff = a real number the tool may learn from (Mike 2026-09-24).
-  await recordFigureSources(prisma, params.id, changedFields, 'staff', user?.id ?? null);
+  // A figure typed over an estimate is a person's even when it matches.
+  const staffFields = [...new Set([...changedFields, ...typedNow.filter(f => wasGuess.has(f))])]
+    .filter(f => !cleared.has(f) && !(f in estimated));
+  await recordFigureSources(prisma, params.id, staffFields, 'staff', user?.id ?? null);
+  // Re-tag only estimates that are new or moved, so an "It's right" survives.
+  await recordFigureSources(prisma, params.id,
+    Object.keys(estimated).filter(f => !wasGuess.has(f) || changedFields.includes(f)), 'guess', user?.id ?? null);
   captureQuietly(params.id, { minIntervalMs: 0 });
 
   // The grids replace their working copy of Project Info with this object and
   // the engine reads `siteFeatures` off it, so the live rows ride along.
   const siteFeatures = siteFeaturesForEngine(await loadSiteFeatures(prisma, params.id));
-  return NextResponse.json({ projectData: { ...updated, buildingTypeKey: project.buildingType, siteFeatures } });
+  return NextResponse.json({ projectData: { ...updated, buildingTypeKey: project.buildingType, siteFeatures, estimatedFields: Object.keys(estimated) } });
 }
 
 // PATCH, same as PUT for compatibility (single-field saves from dashboard)

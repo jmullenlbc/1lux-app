@@ -5,6 +5,7 @@ import AskPanel from './AskPanel';
 import SectionTabs, { MARKET_INTEL_TABS } from '@/components/ui/SectionTabs';
 import SignalCard, { PROJECT_TYPE_LABELS, SIGNAL_TYPE_META } from '@/components/market-intel/SignalCard';
 import MacroStrip from '@/components/market-intel/MacroStrip';
+import { BUILDING_TYPE_OPTIONS, AFFORDABILITY_OPTIONS } from '@/lib/market-intel/tagRules';
 import { FilterToolbar, FilterPanel, SearchBox, countFilters } from '@/components/ui/FilterPanel';
 import { SortSelect } from '@/components/ui/SortHeader';
 import { WidgetEmpty, WidgetLoading } from '@/components/ui/WidgetFrame';
@@ -28,6 +29,8 @@ const FILTER_FIELDS = [
   { key: 'reviewStatus', label: 'Review status', kind: 'pick' },
   { key: 'signalType',   label: 'Signal type',   kind: 'pick' },
   { key: 'projectType',  label: 'Project type',  kind: 'pick' },
+  { key: 'building',     label: 'Building type', kind: 'pick' },
+  { key: 'affordability', label: 'Affordable / market rate', kind: 'pick' },
   { key: 'clientId',     label: 'Client',        kind: 'pick' },
   { key: 'metro',        label: 'Metro',         kind: 'pick' },
   { key: 'state',        label: 'State',         kind: 'pick' },
@@ -38,7 +41,7 @@ const FILTER_FIELDS = [
   { key: 'signal',       label: 'Signal id',     kind: 'text' },
 ];
 const PANEL_FIELDS = FILTER_FIELDS.filter(f => f.key !== 'signal' && f.key !== 'reviewStatus');
-const SORT_FIELDS  = [{ key: 'date', label: 'Date' }, { key: 'relevance', label: 'Relevance' }];
+const SORT_FIELDS  = [{ key: 'date', label: 'Date' }, { key: 'relevance', label: 'Most relevant' }];
 const SORT_DEFAULT = { key: 'date', dir: 'desc' };
 
 // Sort is done by the server because the list is paged (Mike 10-8).
@@ -85,7 +88,7 @@ function MarketIntelInner() {
     setLoading(true);
     try {
       const params = new URLSearchParams({ page: String(page) });
-      for (const key of ['projectType', 'signalType', 'clientId', 'metro', 'state', 'company', 'project', 'assignedTo', 'screened']) {
+      for (const key of ['projectType', 'signalType', 'clientId', 'metro', 'state', 'company', 'project', 'building', 'affordability', 'assignedTo', 'screened']) {
         if (filters[key]) params.set(key, filters[key]);
       }
       if (reviewStatus !== 'ALL') params.set('reviewStatus', reviewStatus);
@@ -115,7 +118,7 @@ function MarketIntelInner() {
 
   // Clicking a chip on a card filters the list by that tag (0122).
   function filterByTag(tag) {
-    const key = { COMPANY: 'company', PROJECT: 'project', METRO: 'metro', STATE: 'state' }[tag.kind];
+    const key = { COMPANY: 'company', PROJECT: 'project', BUILDING: 'building', AFFORDABILITY: 'affordability', METRO: 'metro', STATE: 'state' }[tag.kind];
     if (!key) return;
     const next = { ...filters, [key]: tag.name, reviewStatus: 'ALL' };
     delete next.signal;
@@ -199,6 +202,8 @@ function MarketIntelInner() {
   const choices = useMemo(() => ({
     signalType:  Object.entries(SIGNAL_TYPE_META).filter(([k]) => k !== 'PERMIT').map(([k, v]) => [k, v.label]),
     projectType: Object.entries(PROJECT_TYPE_LABELS),
+    building:    BUILDING_TYPE_OPTIONS,
+    affordability: AFFORDABILITY_OPTIONS,
     clientId:    clients.map(c => [c.id, c.name]),
     metro:       tagOptions.METRO.map(t => [t.name, `${t.name} (${t.count})`]),
     state:       tagOptions.STATE.map(t => [t.name, `${t.name} (${t.count})`]),

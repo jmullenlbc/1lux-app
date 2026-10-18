@@ -1,5 +1,5 @@
 /**
- * "Most relevant" for the news tab, and which articles count at all.
+ * "Most relevant" for the news and permits tabs, and which articles count at all.
  *
  * Mike 10-8: the order is client match, then project match, then new
  * development or renovation news. Where the building is does not matter.
@@ -12,6 +12,10 @@
  *   Is it about one of our jobs?          linked 400, suggested 200
  *   What kind of project news is it?      new development or renovation 15,
  *                                         financing 8, acquisition 5, award 3
+ *   City filings instead (Mike 10-17):    how early is it? land sale 40,
+ *                                         concept or rezoning 35, council 30,
+ *                                         permit 10 (earlier = more time to sell)
+ *   Is a developer or land buyer named?   city filings: +10
  *   How big is the building?              +1 per 10 units, capped at 10
  *   Is somebody already on it?            assigned 5
  *   How old is it?                        -1 per week, capped at 26
@@ -42,11 +46,15 @@ const TYPE_POINTS = {
   NEWS:             0,
 };
 
+// City filings (the Permits tab) score by stage instead of article type.
+const STAGE_POINTS = { LAND: 40, CONCEPT: 35, COUNCIL: 30, PERMIT: 10 };
+
 // The fields a signal needs for scoring; the route selects exactly these.
 export const RELEVANCE_SELECT = {
   id: true, publishedAt: true, unitCount: true, signalType: true, projectRelated: true,
   matchStatus: true, projectMatchStatus: true, assignedToId: true, supersededById: true,
-  _count: { select: { feedback: true } },
+  kind: true,
+  _count: { select: { feedback: true, tags: { where: { role: { in: ['DEVELOPER', 'BUYER'] } } } } },
 };
 
 // Prisma where-fragment that drops screened-out articles. Null (not screened
@@ -60,7 +68,12 @@ export function relevanceScore(s, now = Date.now()) {
   else if (SUGGESTED.has(s.matchStatus))        score += 300;
   if (LINKED.has(s.projectMatchStatus))         score += 400;
   else if (SUGGESTED.has(s.projectMatchStatus)) score += 200;
-  score += TYPE_POINTS[s.signalType] || 0;
+  if (s.kind && s.kind !== 'ARTICLE') {
+    score += STAGE_POINTS[s.kind] || 0;
+    if ((s._count?.tags ?? s.developerTags ?? 0) > 0) score += 10;
+  } else {
+    score += TYPE_POINTS[s.signalType] || 0;
+  }
   if (s.unitCount > 0)                          score += Math.min(10, Math.floor(s.unitCount / 10));
   if (s.assignedToId)                           score += 5;
   if (s.publishedAt) {
