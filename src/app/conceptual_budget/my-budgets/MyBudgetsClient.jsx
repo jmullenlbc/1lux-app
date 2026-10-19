@@ -8,7 +8,8 @@
  * email's company, grouped by project. Each one can be copied; an unfinished
  * one can be opened and carried on; every one has a history of who changed
  * what. "Is X the same project as Y?" is asked only of the person who made
- * the newer budget. The shared tool password (the layout) gates the page;
+ * the newer budget. Two or three budgets can be compared side by side (Mike
+ * 10-17), the rows that differ marked. The shared tool password (the layout) gates the page;
  * the email is remembered in this browser only.
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -20,6 +21,8 @@ import { useUrlView } from '@/lib/useUrlView';
 import { FilterToolbar, FilterPanel } from '@/components/ui/FilterPanel';
 import { SortSelect } from '@/components/ui/SortHeader';
 import { WidgetLoading } from '@/components/ui/WidgetFrame';
+import { MAX_COMPARE } from '@/lib/intake/compareBudgets';
+import CompareBudgetsTable from '@/components/intake/CompareBudgetsTable';
 import { readRememberedEmail, rememberEmail } from '@/lib/publicVisitor';
 import { BTN_PRIMARY, BTN_SECONDARY, CARD_PADDED, H1, H2, INPUT, LABEL, HELPER, NUM, TH, TD } from '@/components/ui/tokens';
 
@@ -48,6 +51,9 @@ export default function MyBudgetsClient() {
   const [err, setErr] = useState('');
   const [history, setHistory] = useState(null); // { draftId, loading, body }
   const [busyId, setBusyId] = useState(null);
+  // Compare (Mike 10-17): tick up to three budgets, then Compare.
+  const [picked, setPicked] = useState([]);
+  const [compare, setCompare] = useState(null); // { loading, body }
   // Filter and sort (Mike 10-16): a funnel button opens the panel, every
   // card field is a filter, one select picks the sort.
   const { filters, setFilter, clearFilters, sort, setSort, ready } = useUrlView({ fields: PORTAL_FIELDS, sortDefault: { key: '', dir: 'asc' } });
@@ -85,7 +91,7 @@ export default function MyBudgetsClient() {
 
   function forget() {
     writeEmail('');
-    setEmail(''); setTyped(''); setData(null); setHistory(null); setErr('');
+    setEmail(''); setTyped(''); setData(null); setHistory(null); setErr(''); setPicked([]); setCompare(null);
   }
 
   async function copyBudget(id) {
@@ -115,6 +121,22 @@ export default function MyBudgetsClient() {
       setHistory({ draftId: id, loading: false, body });
     } catch (e) {
       setHistory(null);
+      setErr(e.message);
+    }
+  }
+
+  function togglePick(id) {
+    setPicked(p => (p.includes(id) ? p.filter(x => x !== id) : p.length >= MAX_COMPARE ? p : [...p, id]));
+  }
+
+  async function runCompare() {
+    setCompare({ loading: true, body: null }); setErr('');
+    try {
+      const body = await post('/api/intake/portal/compare', { email, draftIds: picked });
+      setCompare({ loading: false, body });
+      try { window.scrollTo({ top: 0, behavior: 'smooth' }); } catch {}
+    } catch (e) {
+      setCompare(null);
       setErr(e.message);
     }
   }
@@ -197,6 +219,25 @@ export default function MyBudgetsClient() {
               </div>
             )}
 
+            {compare && (
+              <section className={`${CARD_PADDED} mb-6`}>
+                {compare.loading && <WidgetLoading />}
+                {compare.body && <CompareBudgetsTable body={compare.body} onClose={() => setCompare(null)} />}
+              </section>
+            )}
+
+            {picked.length > 0 && (
+              <div className="sticky top-0 z-10 mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm shadow-sm">
+                <span className="text-slate-800">
+                  {picked.length} of {MAX_COMPARE} picked{picked.length < 2 ? ', pick one more to compare' : ''}.
+                </span>
+                <button type="button" className={ORANGE} disabled={picked.length < 2 || compare?.loading} onClick={runCompare}>
+                  {compare?.loading ? 'Comparing...' : `Compare ${picked.length} budgets`}
+                </button>
+                <button type="button" className="text-xs font-semibold text-slate-500 hover:text-slate-700 underline" onClick={() => setPicked([])}>Clear</button>
+              </div>
+            )}
+
             {data && total > 0 && shown === 0 && (
               <div className={`${CARD_PADDED} text-sm text-slate-600`}>
                 No budget matches these filters.
@@ -229,7 +270,7 @@ export default function MyBudgetsClient() {
                         <Field label="Last changed" value={b.changedAt && b.changedAt !== b.createdAt ? when(b.changedAt) : ''} sub={b.changedAt && b.changedAt !== b.createdAt ? b.changedBy : ''} num />
                         <Field label="Sent to ILC" value={b.sentAt ? when(b.sentAt) : ''} num />
                       </div>
-                      <div className="mt-3 flex flex-wrap gap-2">
+                      <div className="mt-3 flex flex-wrap items-center gap-2">
                         {b.canOpen && (
                           <a href={openHref(b.id, email)} className={ORANGE}>Open and continue</a>
                         )}
@@ -239,6 +280,16 @@ export default function MyBudgetsClient() {
                         <button type="button" className={PLAIN} onClick={() => showHistory(b.id)}>
                           {history?.draftId === b.id ? 'Hide history' : 'History'}
                         </button>
+                        <label className={`ml-auto inline-flex items-center gap-2 text-sm ${!picked.includes(b.id) && picked.length >= MAX_COMPARE ? 'text-slate-400' : 'text-slate-700 cursor-pointer'}`}>
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500"
+                            checked={picked.includes(b.id)}
+                            disabled={!picked.includes(b.id) && picked.length >= MAX_COMPARE}
+                            onChange={() => togglePick(b.id)}
+                          />
+                          Compare
+                        </label>
                       </div>
                       {history?.draftId === b.id && (
                         <div className="mt-3 pt-3 border-t border-slate-100 overflow-x-auto">
@@ -268,6 +319,7 @@ function Field({ label, value, sub, strong, num }) {
     </div>
   );
 }
+
 
 function HistoryList({ body }) {
   const saves = (body.saves || []).filter(s => s.changes.length || s.kind !== 'save');

@@ -64,6 +64,7 @@ model User {
   archivedDrawingSets        DrawingSubmission[]          @relation("DrawingSubmissionArchiver")
   archivedProducts           ManufacturerProduct[]        @relation("ProductArchiver")
   archivedBidMatrices        DesignBidMatrix[]            @relation("BidMatrixArchiver")
+  bidLevelings               BidLeveling[]                @relation("BidLevelingCreator")
   standardsAnswers           ClientStandardsAnswer[]      @relation("AnsweredByUser")
   standardsOverrides         ProjectStandardsOverride[]   @relation("OverrideActivator")
   confirmedFixtures          PlacedFixture[]              @relation("FixtureConfirmer")
@@ -745,6 +746,8 @@ model Project {
   noteLinks            NoteProject[]               @relation("ProjectNoteLinks")
   fixtureSchedules     FixtureSchedule[]
   designBidMatrices    DesignBidMatrix[]
+  bidLevelings         BidLeveling[]        @relation("ProjectBidLevelings")
+  specSwaps            SpecSwap[]           @relation("ProjectSpecSwaps")
   standardsOverrides   ProjectStandardsOverride[]
   placedFixtures       PlacedFixture[]
   shipments            Shipment[]
@@ -1316,6 +1319,8 @@ model ManufacturerProduct {
   archivedAt     DateTime?
   archivedById   String?
   archivedBy     User?        @relation("ProductArchiver", fields: [archivedById], references: [id], onDelete: SetNull)
+  bidLines       BidLine[]    @relation("BidLineProduct")
+  specSwaps      SpecSwap[]   @relation("SpecSwapProduct")
 
   @@unique([manufacturerId, partNumber])
 }
@@ -4214,4 +4219,217 @@ model MacroStat {
   fetchedAt DateTime @default(now())
 
   @@unique([series, date])
+}
+
+// Bid Leveling (Mike 10-18, migration 0135). Two to four lighting bids on one
+// project, joined on the fixture type tag. Rows, not JSON: settings are
+// columns, quoted totals are one BidTotal row per bucket, accessories are
+// columns on the line, and the raw AI read lives in S3 (extractRawKey).
+// Archive only, never deleted. ILC bids store CN only, never DN.
+model BidLeveling {
+  id               String           @id @default(cuid())
+  projectId        String?
+  project          Project?         @relation("ProjectBidLevelings", fields: [projectId], references: [id], onDelete: SetNull)
+  name             String
+  baselineBidId    String?
+  status           String           @default("DRAFT") // DRAFT | LEVELED | SENT
+  // Settings (columns, not JSON). Modes: RATIO | AS_QUOTED | FLAT.
+  freightMode      String           @default("RATIO")
+  freightFlat      Float?
+  whMode           String           @default("RATIO")
+  whFlat           Float?
+  taxRate          Float? // from the sales tax by zip lookup; null = not set yet
+  taxBase          String           @default("FIXTURES_CONTROLS") // FIXTURES_CONTROLS | FIXTURES
+  hideCnFromPublic Boolean          @default(false)
+  publicToken      String?          @unique
+  createdById      String?
+  createdBy        User?            @relation("BidLevelingCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  archivedAt       DateTime?
+  bids             Bid[]
+  aliases          BidTypeAlias[]
+  placeholders     BidPlaceholder[]
+
+  @@index([projectId])
+}
+
+model Bid {
+  id             String      @id @default(cuid())
+  levelingId     String
+  leveling       BidLeveling @relation(fields: [levelingId], references: [id], onDelete: Cascade)
+  bidderName     String
+  bidderType     String? // REP | DISTRIBUTOR | CONTRACTOR_NET | ILC | UNKNOWN
+  isIlc          Boolean     @default(false)
+  quoteNumber    String?
+  quoteDate      DateTime?
+  expiresAt      DateTime?
+  drawingSetRef  String?
+  hasUnitPricing Boolean     @default(false)
+  taxRateStated  Float?
+  // Where it came from: an uploaded file (S3 key) or an ILC matrix snapshot.
+  sourceKind     String      @default("PDF") // PDF | XLSX | ILC_MATRIX | MANUAL
+  sourceFileKey  String?
+  sourceFileName String?
+  sourceMatrixId String?
+  sourceVersion  Int?
+  extractStatus  String      @default("PENDING") // PENDING | READING | EXTRACTED | REVIEWED | FAILED
+  extractModel   String?
+  extractRawKey  String? // S3 key of the raw AI read
+  extractError   String?
+  notesRaw       String? // verbatim terms block from the quote
+  sortOrder      Int         @default(0)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  archivedAt     DateTime?
+  lines          BidLine[]
+  flags          BidFlag[]
+  totals         BidTotal[]
+  placeholders   BidPlaceholder[]
+
+  @@index([levelingId])
+}
+
+// One row per quoted bucket: FIXTURES | CONTROLS | ADDER | FREIGHT |
+// WAREHOUSING | SPARES | TAX | GRAND. A quote priced by section gives one
+// FIXTURES row per section (label = the section name).
+model BidTotal {
+  id        String  @id @default(cuid())
+  bidId     String
+  bid       Bid     @relation(fields: [bidId], references: [id], onDelete: Cascade)
+  bucket    String
+  label     String  @default("")
+  amount    Float
+  sortOrder Int     @default(0)
+
+  @@index([bidId, bucket])
+}
+
+model BidLine {
+  id                  String   @id @default(cuid())
+  bidId               String
+  bid                 Bid      @relation(fields: [bidId], references: [id], onDelete: Cascade)
+  typeTagRaw          String
+  typeTag             String
+  variant             String   @default("") // "24'" | "P" (pole) | "HOOD"; "" = the type itself
+  section             String?
+  description         String?
+  mfr                 String?
+  catalog             String?
+  qty                 Float?
+  uom                 String   @default("EA") // EA | LF | LOT
+  lengthFt            Float? // for length variants: each piece is this long
+  unitPrice           Float? // CN for ILC bids; null when the quote has no line pricing
+  extPrice            Float?
+  specBasis           String? // ORIGINAL | LISTED_ALT | SUBSTITUTE | ALLOWANCE | NO_QUOTE | NOT_USED
+  isAccessory         Boolean  @default(false)
+  // Accessories as columns: INCLUDED | SEPARATE | BY_OTHERS | UNKNOWN
+  driverIncl          String?
+  poleIncl            String?
+  boltsIncl           String?
+  hoodIncl            String?
+  channelIncl         String?
+  transformerIncl     String?
+  fanControllerIncl   String?
+  // Spec details (Phase 2 lookup fills these)
+  watts               Float?
+  volts               String?
+  lumens              Float?
+  lumensSetTo         Float?
+  cct                 String?
+  cctOverride         String?
+  cri                 Int?
+  emType              String?
+  lineNote            String?
+  requestedMfr        String? // what the drawings asked for, when the bidder offers something else (0136)
+  requestedCatalog    String?
+  optionGroup         String   @default("BASE") // BASE | VE | ALT: base bid, value engineering package, or an alternate (0136)
+  productId           String? // our product this line matches, set by a person or the suggest step (0136)
+  product             ManufacturerProduct? @relation("BidLineProduct", fields: [productId], references: [id], onDelete: SetNull)
+  sourcePage          Int?
+  confidence          Float?
+  needsReview         Boolean  @default(false)
+  sortOrder           Int      @default(0)
+  createdAt           DateTime @default(now())
+
+  @@index([bidId, typeTag])
+  @@index([productId])
+}
+
+model BidFlag {
+  id       String  @id @default(cuid())
+  bidId    String
+  bid      Bid     @relation(fields: [bidId], references: [id], onDelete: Cascade)
+  key      String // from BID_FLAG_KEYS (src/lib/bidLeveling/bidFlags.js)
+  state    String // INCLUDED | EXCLUDED | NOT_STATED | CONTRADICTION | ESTIMATE | ALLOWANCE
+  value    String?
+  evidence String?
+  source   String  @default("AI") // AI | USER
+
+  @@unique([bidId, key])
+}
+
+model BidTypeAlias {
+  id          String      @id @default(cuid())
+  levelingId  String
+  leveling    BidLeveling @relation(fields: [levelingId], references: [id], onDelete: Cascade)
+  rawTag      String
+  typeTag     String
+  variant     String      @default("")
+  source      String      @default("RULE") // RULE | AI | USER
+  needsReview Boolean     @default(false)
+
+  @@unique([levelingId, rawTag])
+}
+
+// One past pairing of an original spec and what we proposed (0136). Learned from
+// peer review matrices (Excel files) and from project Peer Review rows. The
+// "we suggest" step groups these by origFamily. Unit prices are CN, internal only.
+model SpecSwap {
+  id          String               @id @default(cuid())
+  sourceKind  String // MATRIX_FILE | PEER_REVIEW
+  sourceName  String // file name, or the project name
+  sheetName   String?
+  sheetDate   DateTime?
+  projectId   String?
+  project     Project?             @relation("ProjectSpecSwaps", fields: [projectId], references: [id], onDelete: SetNull)
+  typeTag     String?
+  description String?
+  category    String? // surface_disk | downlight | exit | emergency | tape | strip | vanity | sconce | pendant | fan | garage | pole | bollard | step | landscape | linear | other
+  origMfr     String?
+  origCatalog String?
+  origFamily  String? // normalized brand + catalog stem, e.g. LITHONIA|FMML
+  propMfr     String?
+  propCatalog String?
+  propFamily  String?
+  productId   String?
+  product     ManufacturerProduct? @relation("SpecSwapProduct", fields: [productId], references: [id], onDelete: SetNull)
+  outcome     String // SWAPPED | KEPT | PLACEHOLDER | ADDED (proposed with no original spec)
+  qty         Float?
+  uom         String?
+  unitCn      Float?
+  createdAt   DateTime             @default(now())
+  archivedAt  DateTime?
+
+  @@index([origFamily])
+  @@index([propFamily])
+  @@index([sourceName])
+  @@index([projectId])
+  @@index([productId])
+}
+
+// A person-set unit price for scope a bid never priced (UC2 at $15 a foot).
+// bidId null = applies to every bid in the leveling.
+model BidPlaceholder {
+  id         String      @id @default(cuid())
+  levelingId String
+  leveling   BidLeveling @relation(fields: [levelingId], references: [id], onDelete: Cascade)
+  bidId      String?
+  bid        Bid?        @relation(fields: [bidId], references: [id], onDelete: Cascade)
+  typeTag    String
+  variant    String      @default("")
+  unitPrice  Float
+  note       String?
+
+  @@index([levelingId])
 }

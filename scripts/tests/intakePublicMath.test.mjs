@@ -96,7 +96,7 @@ test('approxWords rounds and never carries a price or a rule', () => {
   // The card and the breakdown both print the phrase; the PDF prints section totals only.
   const card = readFileSync(new URL('../../src/components/sections/QuestionCard.jsx', import.meta.url), 'utf8');
   assert.ok(card.includes('l.approx'));
-  const shared = readFileSync(new URL('../../src/app/(app)/project/[id]/summary/SummaryBudgetBreakdown.jsx', import.meta.url), 'utf8');
+  const shared = readFileSync(new URL('../../src/lib/budgetLineItems.js', import.meta.url), 'utf8');
   assert.ok(shared.includes('approxSuffix(sections?.exterior?.parking)'));
   assert.ok(shared.includes('approxSuffix(sections?.exterior?.wallpacks)'));
   assert.ok(shared.includes('siteFeatureLineLabel(i) + approxSuffix(i)'));

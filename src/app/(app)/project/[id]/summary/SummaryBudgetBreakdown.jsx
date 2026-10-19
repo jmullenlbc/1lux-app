@@ -5,9 +5,7 @@
 // public visitor's browser.
 import { formatCurrency } from '@/lib/format';
 import { TooltipBudgetRow } from '@/components/ui/Tooltip';
-// Words only, '@/lib/siteFeatures' carries the price defaults and must not
-// reach the public page either.
-import { siteFeatureLineLabel } from '@/lib/siteFeatureWords';
+import { budgetLineItems } from '@/lib/budgetLineItems';
 
 function Row({ label, value }) {
   return (
@@ -19,10 +17,6 @@ function Row({ label, value }) {
     </div>
   );
 }
-
-// " (approx. 47 area lights)" on the public budget; staff budgets carry no
-// `approx` field and print nothing extra here (their counts live on the sidebar).
-const approxSuffix = (line) => line?.approx ? ` (${line.approx})` : '';
 
 export default function SummaryBudgetBreakdown({ budget, freightPct, warehousingPct }) {
   // The public budget page passes no percentages, the visitor sees the freight
@@ -36,110 +30,7 @@ export default function SummaryBudgetBreakdown({ budget, freightPct, warehousing
   const contingencyPct = contingencyRate ? Math.round(contingencyRate * 100) : 0;
   const taxLabel = `Estimated Sales Tax (${Math.round((salesTaxPct || 0) * 10000) / 100}%)`;
 
-  const lineItems = [
-    {
-      label: 'Residential Units',
-      value: sections?.units?.total?.product || 0,
-      details: [
-        { label: 'Base design',      value: sections?.units?.base?.product        || 0 },
-        { label: 'Undercabinet',     value: sections?.units?.undercabinet?.product || 0 },
-        { label: 'Kitchen pendants', value: sections?.units?.pendants?.product     || 0 },
-        { label: 'Ceiling fans',     value: sections?.units?.fans?.product         || 0 },
-        { label: 'Vanity lighting',  value: sections?.units?.vanity?.product       || 0 },
-        { label: 'Balcony fixtures', value: sections?.units?.balcony?.product      || 0 },
-        ...(sections?.units?.manualAdder > 0
-          ? [{ label: 'Manual adder', value: sections?.units?.manualAdder }]
-          : []),
-      ],
-    },
-    {
-      label: 'Corridors & Stairwells',
-      value: sections?.corridors?.total?.product || 0,
-      details: [
-        { label: 'Corridor disks',     value: sections?.corridors?.disks?.product      || 0 },
-        { label: 'Unit entry sconces', value: sections?.corridors?.sconces?.product    || 0 },
-        { label: sections?.corridors?.stairwells?.breezeway
-                   ? `Breezeway stairs (${sections.corridors.stairwells.breezeway.landings} landings, ${sections.corridors.stairwells.breezeway.style === 'long' ? 'long' : 'small'} breezeway)`
-                   : 'Stairwell fixtures',
-          value: sections?.corridors?.stairwells?.product || 0 },
-        { label: 'Accent downlights',  value: sections?.corridors?.accents?.product    || 0 },
-        ...(sections?.corridors?.manualAdder > 0
-          ? [{ label: 'Manual adder', value: sections?.corridors?.manualAdder }]
-          : []),
-      ],
-    },
-    {
-      label: 'BOH / Core + Shell',
-      value: sections?.boh?.product || 0,
-      details: [
-        ...(sections?.boh?.manualAdder > 0
-          ? [{ label: 'Manual adder', value: sections?.boh?.manualAdder }]
-          : []),
-      ],
-    },
-    {
-      label: 'Interior Amenities',
-      value: sections?.interior?.product || 0,
-      details: [
-        ...(sections?.interior?.manualAdder > 0
-          ? [{ label: 'Manual adder', value: sections?.interior?.manualAdder }]
-          : []),
-      ],
-    },
-    {
-      label: 'Enclosed Garage',
-      value: sections?.garage?.product || 0,
-      details: [
-        ...(sections?.garage?.manualAdder > 0
-          ? [{ label: 'Manual adder', value: sections?.garage?.manualAdder }]
-          : []),
-      ],
-    },
-    {
-      label: 'Exterior & Site',
-      value: sections?.exterior?.total?.product || 0,
-      details: [
-        { label: 'Exterior amenities', value: sections?.exterior?.amenities?.product || 0 },
-        { label: (sections?.exterior?.solar
-            ? `Surface parking (solar × ${sections.exterior.solar.multiplier})`
-            : 'Surface parking') + approxSuffix(sections?.exterior?.parking),
-          value: sections?.exterior?.parking?.product || 0 },
-        { label: 'Carports',           value: sections?.exterior?.carports?.product  || 0 },
-        { label: 'Garages',            value: sections?.exterior?.garages?.product   || 0 },
-        { label: 'Building wallpacks' + approxSuffix(sections?.exterior?.wallpacks), value: sections?.exterior?.wallpacks?.product || 0 },
-        { label: sections?.exterior?.pathway?.suppressedByManual
-            ? 'Pathway (manual entry)'
-            : (sections?.exterior?.pathway?.solarMultiplier || 1) > 1
-              ? `Pathway lighting (solar × ${sections.exterior.pathway.solarMultiplier})`
-              : 'Pathway lighting',
-          value: sections?.exterior?.pathway?.product || 0 },
-        { label: 'Landscape / adder',  value: sections?.exterior?.landscape?.product || 0 },
-        // One detail per found feature so the dollars are traceable.
-        ...(sections?.exterior?.siteFeatures?.items?.length
-          ? sections.exterior.siteFeatures.items.map(i => ({ label: siteFeatureLineLabel(i) + approxSuffix(i), value: i.product || 0 }))
-          : [{ label: 'Site features', value: 0 }]),
-        { label: '5% misc buffer',     value: sections?.exterior?.misc?.product      || 0 },
-      ],
-    },
-    {
-      label: 'Emergency Lighting',
-      value: sections?.emergency?.product || 0,
-      details: [
-        ...(sections?.emergency?.manualAdder > 0
-          ? [{ label: 'Manual adder', value: sections?.emergency?.manualAdder }]
-          : []),
-      ],
-    },
-    {
-      label: 'Exit Signs',
-      value: sections?.exitSigns?.product || 0,
-      details: [
-        ...(sections?.exitSigns?.manualAdder > 0
-          ? [{ label: 'Manual adder', value: sections?.exitSigns?.manualAdder }]
-          : []),
-      ],
-    },
-  ];
+  const lineItems = budgetLineItems(sections);
 
   return (
     <div>

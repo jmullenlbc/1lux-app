@@ -22,6 +22,7 @@ import { loadPricing, pricingForProject } from '@/lib/pricingLoader';
 import { loadAdoptedGuesses } from '@/lib/calibration/figureNormsLoad';
 import { groupBudgets, portalStage } from '@/lib/intake/portalGroups';
 import { buildingTypeLabel } from '@/lib/utils';
+import { compareBudgetRows, MAX_COMPARE } from '@/lib/intake/compareBudgets';
 
 const ID = /^[a-z0-9]{10,40}$/i;
 
@@ -60,21 +61,31 @@ export async function draftForCompany(draftId, domain) {
 
 const typeLabel = key => (key ? buildingTypeLabel(key) : '');
 
-/** The dollar estimate the wizard would show for this row, or null. */
-function estimateFor(row, pricing, adopted) {
+/**
+ * The public budget the wizard would show for this row (the same numbers, no
+ * rates), its project figures and the answers behind it. budget is null while
+ * the budget is not far enough along to price.
+ */
+function publicBudgetFor(row, pricing, adopted) {
+  let answers = {};
   try {
     const unpacked = unpackDraft(row, row.fields);
-    const answers = draftAnswers(unpacked);
+    answers = draftAnswers(unpacked);
     const drawings = unpacked.drawings;
-    if (!intakeEstimateGate(answers, drawings).ready) return null;
+    if (!intakeEstimateGate(answers, drawings).ready) return { budget: null, projectData: null, answers };
     const { budget, projectData } = publicIntakeEstimate({ answers, drawings, pricing, adopted });
-    if (!budget || !((projectData?.grossSf || 0) > 0)) return null;
-    const n = Number(budget.totalWithControls);
-    return Number.isFinite(n) && n > 0 ? Math.round(n) : null;
+    if (!budget || !((projectData?.grossSf || 0) > 0)) return { budget: null, projectData: null, answers };
+    return { budget, projectData, answers };
   } catch (e) {
     console.error('[portal] estimate failed (non-fatal):', e?.message || e);
-    return null;
+    return { budget: null, projectData: null, answers };
   }
+}
+
+/** The dollar estimate the wizard would show for this row, or null. */
+function estimateFor(row, pricing, adopted) {
+  const n = Number(publicBudgetFor(row, pricing, adopted).budget?.totalWithControls);
+  return Number.isFinite(n) && n > 0 ? Math.round(n) : null;
 }
 
 function stepIndexOf(row) {
@@ -168,4 +179,66 @@ export async function companyBudgets(viewerEmail) {
     groups,
     asks: asks.filter(a => a.askEmail === who.email),
   };
+}
+
+/**
+ * Up to three of the company's budgets side by side (Mike 10-17: "compare up
+ * to 3 budgets in the company budget portal"). Every id must belong to the
+ * viewer's company; one that does not is refused, never skipped silently.
+ */
+export async function compareCompanyBudgets(viewerEmail, draftIds) {
+  const who = portalEmail(viewerEmail);
+  if (!who.ok) return { error: who.message, status: 422 };
+  const ids = pickIds(draftIds);
+  if (ids.length < 2 || ids.length > MAX_COMPARE) return { error: `Pick two or three budgets to compare.`, status: 400 };
+  const rows = await prisma.conceptualDraft.findMany({
+    where: { id: { in: ids }, emailDomain: who.domain, archivedAt: null },
+    include: { fields: true, submission: { select: { pricingSnapshot: true } } },
+  });
+  if (rows.length !== ids.length) return { error: 'One of those budgets is no longer available.', status: 404 };
+  return { email: who.email, domain: who.domain, ...(await compareRows(ids, rows)) };
+}
+
+/**
+ * Staff side (Mike 10-18: compare on My Desk too): any two or three web
+ * budgets, no company check; the route is behind the staff login.
+ */
+export async function compareBudgetsForStaff(draftIds) {
+  const ids = pickIds(draftIds);
+  if (ids.length < 2 || ids.length > MAX_COMPARE) return { error: 'Pick two or three budgets to compare.', status: 400 };
+  const rows = await prisma.conceptualDraft.findMany({
+    where: { id: { in: ids }, archivedAt: null },
+    include: { fields: true, submission: { select: { pricingSnapshot: true } } },
+  });
+  if (rows.length !== ids.length) return { error: 'One of those budgets is no longer available.', status: 404 };
+  return compareRows(ids, rows);
+}
+
+const pickIds = draftIds => [...new Set((Array.isArray(draftIds) ? draftIds : []).filter(id => typeof id === 'string' && ID.test(id)))];
+
+async function compareRows(ids, rows) {
+  const byId = new Map(rows.map(r => [r.id, r]));
+  const [pricing, adopted] = await Promise.all([loadPricing(), loadAdoptedGuesses()]);
+  const items = ids.map(id => {
+    const r = byId.get(id);
+    // A sent budget stays on the sheet it was sent with (Mike 10-17).
+    const { budget, projectData, answers } = publicBudgetFor(r, pricingForProject(r.submission?.pricingSnapshot, pricing), adopted);
+    return {
+      id: r.id,
+      budget,
+      answers,
+      facts: {
+        projectName: r.projectName,
+        budgetName: r.budgetName || 'Budget',
+        location: [r.city, r.state].filter(Boolean).join(', '),
+        buildingTypeLabel: typeLabel(r.buildingType),
+        unitCount: projectData?.units || r.unitCount || null,
+        grossSf: projectData?.grossSf || r.grossSf || null,
+        drawings: r.haveDrawings === 'no' ? 'No, typed in' : r.haveDrawings === 'yes' ? 'Yes' : '',
+        status: portalStage(r, stepIndexOf)?.label || '',
+        createdBy: r.email,
+      },
+    };
+  });
+  return compareBudgetRows(items);
 }

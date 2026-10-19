@@ -3,14 +3,14 @@ import { useState, useEffect } from 'react';
 import {
   LayoutDashboard, Calculator, Ruler, FileText, ListChecks, Code2,
   CalendarDays, HelpCircle, Receipt, ClipboardCheck, Truck, FileDiff,
-  CalendarClock, Users, Calendar, Mail, Lightbulb, Pin, PinOff,
+  CalendarClock, Users, Calendar, Mail, Lightbulb, Pin, PinOff, Scale,
 } from 'lucide-react';
 
 // Map icon name string → Lucide component
 const ICON_MAP = {
   LayoutDashboard, Calculator, Ruler, FileText, ListChecks, Code2,
   CalendarDays, HelpCircle, Receipt, ClipboardCheck, Truck, FileDiff,
-  CalendarClock, Users, Calendar, Mail, Lightbulb,
+  CalendarClock, Users, Calendar, Mail, Lightbulb, Scale,
 };
 
 function NavIcon({ name, size = 15 }) {

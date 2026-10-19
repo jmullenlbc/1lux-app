@@ -5,7 +5,55 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [Design wizard fixes, zip-level estimated sales tax] - October 17, 2026 (NOT YET DEPLOYED)
+## [Bid Leveling screen, We suggest from peer review matrices] - October 18, 2026 (DEPLOYED) - migration 0136
+
+### We suggest: learning from our peer review matrices (Mike 10-18: "2. Yes", "4. Do all three?")
+
+- **Matrix reader** (`src/lib/matrixImport/readMatrix.js`): reads our standard peer review matrix layout. The leftmost tab is the newest; each type is taken from the newest tab it appears on. A line with no proposal and no qty is "not used".
+- **Spec swap table** (migration 0136, additive): one row per job line: original brand and catalog family, what we proposed (or kept), our product link when we have one, CN unit price, job and sheet date. Loader `scripts/loadSpecSwaps.mjs`: 94 jobs, 4,374 rows (2,022 swapped, 1,064 kept, 968 linked to our products).
+- **Suggest** (`src/lib/specSwap/family.js`, `suggest.js`): for a requested spec, the top 3 things we proposed before, matched by brand and family first, then brand and category, then category. Honest hit rates (each job held out): top pick right 28%, right answer in the top 3 36%, and 66% when the brand and family match.
+- **Eluma product list draft** (`scripts/exportElumaList.mjs`): 91 Eluma families we actually proposed; 41 were on the old standard list, 50 old list products were never proposed. Sheet `Eluma Product List DRAFT 2026-10-18.xlsx` in Software engineering.
+- 10-19 (Mike "2. Yes"): a proposal that says "original spec" (for example "Acuity, original spec") counts as kept in either the brand or the catalog column.
+- Inclusion flags now 25 (payment terms, returns and more from the Integris quote).
+
+### Bid Leveling screen (Pre-Construction, "Bid Leveling")
+
+- New tab on every project. Make a leveling, then add bids: **our bid from Peer Review**, **our bid from a matrix file** (read in the browser, only CN sent, never DN or internal notes), or **a competitor quote** pasted from a sheet (with or without a header row), with quote number, dates, tax rate, section totals and terms.
+- Shows leveled totals (lowest in green, confidence pill), the type by type matrix with what each bidder offered, substitutes, quantity gaps, and a **We suggest** column; VE and alternate packages with savings; inclusion flags you can set per bid; clarification questions to copy; archive a bid.
+- A type our bid lists with a blank qty now uses the bidder's own qty, shown in amber as "at their qty" (a 0 or "not used" still stays out). Blank quantities stay blank instead of turning into 0.
+- APIs: `src/app/api/projects/[id]/bid-leveling/` (list and create, view and settings, add a bid, edit a bid). Client Viewers are blocked. Archive only.
+- Files: `src/components/bidLeveling/BidLevelingTab.jsx`, `src/lib/bidLeveling/{fromSources,guard,load,views}.js`, `ProjectHubClient.jsx`, `projectNavConfig.js`, `ProjectSidebar.jsx`.
+- Tests: `scripts/tests/matrixImport.test.mjs`, `bidLevelingSources.test.mjs` (in verify), `bidLevelingE2e.test.mjs` (runs against the local server: makes a leveling, adds both bids, checks no DN, sets a flag and settings, archives).
+- 10-19 UI pass: the matrix file button and the confidence pill use the shared tokens (`BTN_SECONDARY`, `TONE`).
+- Not built yet: reading a competitor PDF with AI (credits are low).
+
+---
+
+## [Compare budgets, Bid Leveling Phase 1] - October 18, 2026 (DEPLOYED) - migration 0135
+
+### Company portal: compare up to three budgets (Mike 10-17: "let's build the compare up to 3 budgets in the company budget portal next")
+
+- **Tick Compare on two or three budget cards**, press "Compare N budgets", and the budgets show side by side above the list: Totals (Budget, lighting only, controls, estimated sales tax, $/SF, $/Unit), the budget breakdown line by line (Units, Corridors, Exterior and their detail lines, lined up by line so pool sits next to pool), Project facts (location, building type, units, gross SF, drawings, status, started by) and every answer and figure typed.
+- **Rows that differ are shaded.** Under the second and third budget is the change against the first (red up, green down). "Only what differs" hides the rest.
+- Same dollars the wizard shows the visitor, no rates; a sent budget stays on the sheet it was sent with. Every budget must belong to the viewer's company or the compare is refused.
+- **Sales can compare too** (Mike 10-18: "Yes"). On My Desk, Look-alikes and pool tab, each web budget in "Web budgets with no salesperson" has a Compare box; same table. Route `src/app/api/sales/desk/pool/compare/route.js` (staff login, any web budgets). The table is shared: `src/components/intake/CompareBudgetsTable.jsx`.
+- New files: `src/lib/intake/compareBudgets.js`, `src/lib/budgetLineItems.js` (breakdown lines pulled out of `SummaryBudgetBreakdown.jsx`, same output), `src/app/api/intake/portal/compare/route.js` (tool password, 20 a minute). Wired into `MyBudgetsClient.jsx` and `portalServer.js`. Test: `scripts/tests/portalCompare.test.mjs`.
+- No migration.
+
+### Bid Leveling, Phase 1 started (Mike 10-18: "4. Yes")
+
+- **Tables for bids** (migration 0135, additive): a leveling, its bids, each bid's section totals, its lines, its 22 inclusion answers, tag aliases and typed placeholder prices. Nothing on screen yet.
+- **Tag rules** (`src/lib/bidLeveling/normalizeTag.js`): LT03, LT 03, LT-3 and LT-03 are one type; R1-24' is R1 at 24 feet and rolls up into R1 (feet or count, whichever unit the other bid uses); ZP1-P (pole) folds into the ZP1 price; a fire hood allowance under R4 is its own row.
+- **Leveling math** (`src/lib/bidLeveling/engine.js`, no AI): lines bids up on the tag, lists scope one bid has and another lacks, flags real quantity gaps (over 10% and at least 25 units, or worth $2,500 at a stated unit price; Mike 10-18 "Yes"), prices every bid on the baseline's quantities with placeholder dollars kept separate, freight and warehousing at each bid's own ratio, and a High, Medium or Low confidence. A bid with no unit pricing is compared by section totals only.
+- **Flags the numbers prove**: tax that does not match the stated rate, an expired quote, no unit pricing. **Clarification questions** for each bidder in plain sentences.
+- **Checked against Sun Valley Block 2** (Fisher vs ILC): ILC on Fisher quantities lands at $1,298,926 against the plan's $1,299,132; placeholders exactly $319,785; all eight quantity gaps match. Fisher gets 13 questions. Test: `scripts/tests/bidLeveling.test.mjs` (fixture `_sunValleyBids.mjs`).
+- **Competitor prices stay on the bid** (Mike 10-18): a competitor's unit price lives only on its bid line, with an optional link to our product later. It never goes into our price history.
+- **Next phase: we suggest products, not just compare** (Mike 10-18). Learning set gathered: 100 peer review matrices from the last 1.5 years that use Eluma (Drive, `Software engineering\Peer Review Matrices`); 7,868 unique lines across 97 jobs. Findings: `PEER_REVIEW_MATRICES_FINDINGS_2026-10-18.md`. Nothing built yet.
+- Migration 0135.
+
+---
+
+## [Design wizard fixes, zip-level estimated sales tax] - October 17, 2026 (DEPLOYED 5cb54f9)
 
 Mike 10-17: "Yes definitely and any other bugs you found" and "Anything that is easy do as zip code and anything else do as an estimate. Both ways please say estimated sales tax."
 

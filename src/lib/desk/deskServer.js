@@ -151,7 +151,7 @@ function webBudgetPool() {
       id: true, name: true, budgetNumber: true, city: true, state: true, createdAt: true, contactName: true, contactEmail: true,
       client: { select: { name: true } },
       // A copy made in the company portal (0132) shows a "copy of" chip.
-      conceptualDraft: { select: { copiedFromId: true, budgetName: true } },
+      conceptualDraft: { select: { id: true, copiedFromId: true, budgetName: true } },
     },
   });
 }

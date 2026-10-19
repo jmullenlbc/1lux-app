@@ -17,8 +17,10 @@ import FieldSuggestionsCard from '@/components/crm/FieldSuggestionsCard';
 import { FilterToolbar, FilterPanel, countFilters } from '@/components/ui/FilterPanel';
 import { SortSelect, sortRows } from '@/components/ui/SortHeader';
 import { WidgetLoading } from '@/components/ui/WidgetFrame';
+import CompareBudgetsTable from '@/components/intake/CompareBudgetsTable';
+import { MAX_COMPARE } from '@/lib/intake/compareBudgets';
 import { useUrlView } from '@/lib/useUrlView';
-import { CARD, INPUT, TAB_ACTIVE, TAB_INACTIVE, H1 } from '@/components/ui/tokens';
+import { BTN_PRIMARY, CARD, INPUT, TAB_ACTIVE, TAB_INACTIVE, H1 } from '@/components/ui/tokens';
 
 // My Desk (Mike 9-26): the one place a salesperson looks. Reminders from their
 // sales notes, email drafts to review, check-ins due, notes still to finish.
@@ -267,7 +269,7 @@ function NoOwnerRow({ c, onDone }) {
 }
 
 // A web budget project no salesperson has yet (0117): take it or give it to someone in Sales.
-function PoolRow({ p, salesPeople, myId, onDone }) {
+function PoolRow({ p, salesPeople, myId, onDone, picked, full, onPick }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   async function give(userId) {
@@ -301,7 +303,53 @@ function PoolRow({ p, salesPeople, myId, onDone }) {
           {salesPeople.filter(u => u.id !== myId).map(u => <option key={u.id} value={u.id}>{u.name}</option>)}
         </select>
       )}
+      {p.conceptualDraft?.id && (
+        <label className={`inline-flex items-center gap-2 text-sm ${!picked && full ? 'text-slate-400' : 'text-slate-700 cursor-pointer'}`}>
+          <input type="checkbox" className="h-4 w-4 rounded border-slate-300 text-orange-600 focus:ring-orange-500"
+            checked={picked} disabled={!picked && full} onChange={() => onPick(p.conceptualDraft.id)} />
+          Compare
+        </label>
+      )}
     </li>
+  );
+}
+
+// The pool list with Compare (Mike 10-18): tick two or three, then Compare.
+function PoolList({ pool, salesPeople, myId, onDone }) {
+  const [picked, setPicked] = useState([]);
+  const [compare, setCompare] = useState(null); // { loading, body }
+  const [err, setErr] = useState('');
+  const onPick = id => setPicked(p => (p.includes(id) ? p.filter(x => x !== id) : p.length >= MAX_COMPARE ? p : [...p, id]));
+  async function run() {
+    setCompare({ loading: true, body: null }); setErr('');
+    try { setCompare({ loading: false, body: await post('/api/sales/desk/pool/compare', { draftIds: picked }) }); }
+    catch (e) { setCompare(null); setErr(e.message); }
+  }
+  return (
+    <>
+      {compare && (
+        <div className={`${CARD} p-4 mb-3`}>
+          {compare.loading && <WidgetLoading />}
+          {compare.body && <CompareBudgetsTable body={compare.body} onClose={() => setCompare(null)} />}
+        </div>
+      )}
+      {picked.length > 0 && (
+        <div className="sticky top-0 z-10 mb-3 flex flex-wrap items-center gap-3 rounded-xl border border-orange-200 bg-orange-50 px-4 py-3 text-sm shadow-sm">
+          <span className="text-slate-800">{picked.length} of {MAX_COMPARE} picked{picked.length < 2 ? ', pick one more to compare' : ''}.</span>
+          <button type="button" className={BTN_PRIMARY} disabled={picked.length < 2 || compare?.loading} onClick={run}>
+            {compare?.loading ? 'Comparing...' : `Compare ${picked.length} budgets`}
+          </button>
+          <button type="button" className="text-xs font-semibold text-slate-500 hover:text-slate-700 underline" onClick={() => setPicked([])}>Clear</button>
+        </div>
+      )}
+      {err && <p className="text-sm text-red-600 mb-2">{err}</p>}
+      <ul className="space-y-2">
+        {pool.map(p => (
+          <PoolRow key={p.id} p={p} salesPeople={salesPeople} myId={myId} onDone={onDone}
+            picked={picked.includes(p.conceptualDraft?.id)} full={picked.length >= MAX_COMPARE} onPick={onPick} />
+        ))}
+      </ul>
+    </>
   );
 }
 
@@ -451,8 +499,8 @@ function MyDeskPage() {
           )}
           {desk.pool?.length > 0 && (
             <Section id="pool" title="Web budgets with no salesperson" count={desk.pool.length}>
-              <p className="text-xs text-slate-500 mb-2">Made from the website. Take one, or give it to someone in Sales.</p>
-              <ul className="space-y-2">{desk.pool.map(p => <PoolRow key={p.id} p={p} salesPeople={desk.salesPeople || []} myId={myId} onDone={changed} />)}</ul>
+              <p className="text-xs text-slate-500 mb-2">Made from the website. Take one, or give it to someone in Sales. Tick Compare on two or three to see them side by side.</p>
+              <PoolList pool={desk.pool} salesPeople={desk.salesPeople || []} myId={myId} onDone={changed} />
             </Section>
           )}
           {poolCount === 0 && <p className="text-sm text-slate-500 rounded-lg border border-dashed border-slate-200 p-6 text-center">No look-alikes to answer and no web budgets waiting for a salesperson.</p>}
