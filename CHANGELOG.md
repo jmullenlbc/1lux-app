@@ -5,7 +5,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [Peer review matrices load from Admin] - October 19, 2026 (DEPLOYED) - no migration
+## [Peer review matrices load from Admin] - October 19, 2026 (DEPLOYED 5cd93ca) - no migration
 
 Mike 10-19: "2. Yes" (load the matrices from an admin screen instead of a script), "1. Yes" (types dropped from a matrix's newest tab stay for learning only; no change).
 
@@ -17,7 +17,7 @@ Mike 10-19: "2. Yes" (load the matrices from an admin screen instead of a script
 
 ---
 
-## [Sales Docs, Phase 1: tracked links under the Logiq name] - October 19, 2026 (DEPLOYED) - migration 0137
+## [Sales Docs, Phase 1: tracked links under the Logiq name] - October 19, 2026 (DEPLOYED 5cd93ca) - migration 0137
 
 Mike 10-19: "3. It's own tab under Market Intelligence in the side bar menu", "4. Logiq", "6. Yes please".
 
