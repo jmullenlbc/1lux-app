@@ -5,7 +5,37 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [Bid Leveling screen, We suggest from peer review matrices] - October 18, 2026 (DEPLOYED) - migration 0136
+## [Peer review matrices load from Admin] - October 19, 2026 (DEPLOYED) - no migration
+
+Mike 10-19: "2. Yes" (load the matrices from an admin screen instead of a script), "1. Yes" (types dropped from a matrix's newest tab stay for learning only; no change).
+
+- **Admin > Users and settings > Peer review matrices** (`?tab=matrices`): pick or drop every matrix file at once. Each file is read in the browser (newest tab per job, CN columns only, never DN) and sent one job per request, so the prod 30 s wall and 4.4 MB cap never bite. Copies of the same job keep the newer file. Shows per job results, totals, and every loaded job with its file date.
+- **`/api/admin/spec-swaps`** (any admin): GET what is loaded; POST one job replaces that job's earlier rows (archived, never deleted). 5,000 line cap per matrix; text fields coerced to capped strings.
+- **Shared row builder** `src/lib/specSwap/loadRows.js`; `scripts/loadSpecSwaps.mjs` now uses it (same 4,374 rows from 94 jobs locally).
+- **Job names keep street numbers**: "115 W 5TH - DENVER HEALTH" was "W 5TH - DENVER HEALTH", and "PEER REVIEW MATRIX- ALTA METRO CENTER" lost its leading dash. Only a dotted date prefix (25.06.05_) is dropped now.
+- Tests: loader rows and job names added to `matrixImport.test.mjs`. Local API check: load, reload (replaces, 35 live rows), bad body 400, signed out 401.
+
+---
+
+## [Sales Docs, Phase 1: tracked links under the Logiq name] - October 19, 2026 (DEPLOYED) - migration 0137
+
+Mike 10-19: "3. It's own tab under Market Intelligence in the side bar menu", "4. Logiq", "6. Yes please".
+
+- **Sidebar row "Sales Docs"** under Market Intelligence, with four tabs: Documents, Spaces, Links, Engagement. Filters and sort live in the address like every other list.
+- **Documents**: upload a PDF or .xlsx (up to 50 MB, straight to S3), new versions keep the old ones, folders, archive only. Each upload is read once for page count, sheets and the **pricing guard**.
+- **Pricing guard**: a workbook with a cost column (DN, Dealer Net, Buy, Cost, Margin, GP, Markup and the like) in its top rows, a hidden sheet, a hidden column with content, or a cost word in a sheet or range name is **blocked from sharing**. A Super Admin or Sales Admin can clear it with a reason. Hidden sheets, rows and columns are never shown to a reader. PDFs only warn.
+- **Spaces**: a group of documents in sections, in your order, with a note for the reader. A Space with a blocked document cannot get a link.
+- **Links**: one per person or company; ask for a work email (on by default), a password, an end date, allow download. Turning a link off shows "no longer available"; its views stay.
+- **Public page** `/share/docs/[token]`, branded **Logiq** (no ILC name): email or password gate, the PDF page by page or the workbook sheet by sheet, works on a phone, not indexed by search engines. Ten wrong passwords in 15 minutes locks the link for that address.
+- **Tracking**: who opened it (matched to a company and person when the email matches), time on each page or sheet (counted only while the tab is in front and the reader moved in the last 30 seconds), visits per page, forwarded opens (a new email on someone else's link). Engagement tab with totals, filters, CSV download and a page by page detail.
+- **Bell alerts**: first open of a link you made, and a forwarded open (new notification types `SALES_DOC_OPENED`, `SALES_DOC_FORWARDED`).
+- Migration 0137 (additive, new tables only). Files: `src/lib/salesDocs/*`, `src/lib/salesDocsBrand.js`, `src/components/salesDocs/*`, `src/app/(app)/sales/docs/**`, `src/app/api/sales-docs/**`, `src/app/api/share/docs/**`, `src/app/share/docs/[token]/*`, `Sidebar.jsx`, `SectionTabs.jsx`, `notificationTypes.js`, `uploadClient.js`, `uploadStorage.js` (new `salesdoc` scope), `next.config.mjs` + `check-runtime-assets.mjs` (pdfjs on the process route).
+- Tests: `scripts/tests/salesDocs.test.mjs` (in verify), `scripts/tests/salesDocsE2e.test.mjs` (local server: guard and override, hidden sheet never served, email gate, views and page time, 10 second clamp, password lock, turning a link off, Space blocked by a cost column).
+- Sean: confirm the app's S3 policy allows the `sales-docs/` prefix (asked in coordination.md). Until then a new upload may fail; nothing else is affected.
+
+---
+
+## [Bid Leveling screen, We suggest from peer review matrices] - October 18, 2026 (DEPLOYED 10b4f09) - migration 0136
 
 ### We suggest: learning from our peer review matrices (Mike 10-18: "2. Yes", "4. Do all three?")
 
@@ -29,7 +59,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [Compare budgets, Bid Leveling Phase 1] - October 18, 2026 (DEPLOYED) - migration 0135
+## [Compare budgets, Bid Leveling Phase 1] - October 18, 2026 (DEPLOYED 10b4f09) - migration 0135
 
 ### Company portal: compare up to three budgets (Mike 10-17: "let's build the compare up to 3 budgets in the company budget portal next")
 

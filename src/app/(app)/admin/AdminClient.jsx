@@ -13,6 +13,7 @@ import { FilterToolbar, FilterPanel, SearchBox, countFilters } from '@/component
 import SortHeader, { sortRows } from '@/components/ui/SortHeader';
 import { WidgetLoading, WidgetError } from '@/components/ui/WidgetFrame';
 import { useUrlView } from '@/lib/useUrlView';
+import MatrixLoader from '@/components/specSwap/MatrixLoader';
 
 // Tailwind needs the full class strings written out here to keep them.
 const DEPARTMENT_COLORS = {
@@ -719,6 +720,7 @@ export default function AdminClient({ users: initialUsers, projects, currentUser
     { id: 'create', label: '+ Create User'                    },
     { id: 'projects', label: `All Projects (${projects.length})` },
     { id: 'alerts',   label: 'Notification feedback'            },
+    { id: 'matrices', label: 'Peer review matrices'             },
   ];
 
   return (
@@ -906,6 +908,7 @@ export default function AdminClient({ users: initialUsers, projects, currentUser
 
       {/* Notification feedback tab */}
       {tab === 'alerts' && <AlertFeedbackReport />}
+      {tab === 'matrices' && <MatrixLoader />}
 
       {/* Projects tab */}
       {tab === 'projects' && (

@@ -45,6 +45,9 @@ export const NOTIFICATION_TYPES = {
   CRM_CLOSE_DATE: { label: 'Project close date in 1 month', pattern: 'THRESHOLD', external: false },
   // Market Intel (0122): a teammate handed you an article
   MARKET_SIGNAL_ASSIGNED: { label: 'Market article assigned to you', pattern: 'EVENT', external: false },
+  // Sales Docs (0137): someone opened a link you made
+  SALES_DOC_OPENED:    { label: 'Sales doc opened',    pattern: 'EVENT', external: false },
+  SALES_DOC_FORWARDED: { label: 'Sales doc forwarded', pattern: 'EVENT', external: false },
   // Warehousing
   WAREHOUSE_RELEASED: { label: 'Item released from warehouse', pattern: 'EVENT', external: true },
   // Misc
@@ -67,5 +70,6 @@ export const NOTIFICATION_MODULES = [
   { module: 'Warehousing',       keys: ['WAREHOUSE_RELEASED'] },
   { module: 'CRM',               keys: ['CRM_CLOSE_DATE'] },
   { module: 'Market Intel',      keys: ['MARKET_SIGNAL_ASSIGNED'] },
+  { module: 'Sales Docs',        keys: ['SALES_DOC_OPENED','SALES_DOC_FORWARDED'] },
   { module: 'Other',             keys: ['FIXTURE_SCHEDULE_SUBMITTED','TAKEOFF_READY','PROPOSAL_SENT'] },
 ];

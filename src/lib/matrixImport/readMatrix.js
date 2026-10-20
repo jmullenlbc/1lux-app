@@ -210,15 +210,15 @@ export function newestLines(tables) {
   return out;
 }
 
-/** Job name from a file name: drops the extension, "(1)" copies and the word MATRIX. */
+/** Job name from a file name: drops the extension, "(1)" copies, a date prefix and the word MATRIX. Street numbers stay. */
 export function jobNameFromFile(fileName) {
   return String(fileName || '')
     .replace(/\.(xlsx|xlsm|xls)$/i, '')
     .replace(/\s*\(\d+\)\s*$/, '')
     .replace(/_/g, ' ')
-    .replace(/^\s*[\d.]+\s+/, '')
+    .replace(/^\s*\d{2}\.\d{2}\.\d{2}\s+/, '') // date prefix 25.06.05_, not a street number
     .replace(/\b(PEER REVIEW )?MATRIX\b/gi, '')
-    .replace(/[\s-]+$/g, '')
+    .replace(/^[\s-]+|[\s-]+$/g, '')
     .replace(/\s+/g, ' ')
     .trim()
     .toUpperCase();

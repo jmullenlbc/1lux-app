@@ -1,82 +1,82 @@
 {
-  "at": "2026-10-19T22:35:38.007Z",
+  "at": "2026-10-20T01:39:44.669Z",
   "full": true,
   "failed": null,
   "results": [
     {
       "gate": "source is tracked",
       "ok": true,
-      "ms": 262
+      "ms": 263
     },
     {
       "gate": "auth imports",
       "ok": true,
-      "ms": 496
+      "ms": 16242
     },
     {
       "gate": "no prisma in browser",
       "ok": true,
-      "ms": 497
+      "ms": 958
     },
     {
       "gate": "dynamic pages",
       "ok": true,
-      "ms": 95
+      "ms": 163
     },
     {
       "gate": "schema provider",
       "ok": true,
-      "ms": 81
+      "ms": 92
     },
     {
       "gate": "env contract",
       "ok": true,
-      "ms": 83
+      "ms": 97
     },
     {
       "gate": "migrations (postgres)",
       "ok": true,
-      "ms": 145
+      "ms": 219
     },
     {
       "gate": "schema ↔ migrations",
       "ok": true,
-      "ms": 109
+      "ms": 175
     },
     {
       "gate": "shared metrics",
       "ok": true,
-      "ms": 193
+      "ms": 325
     },
     {
       "gate": "sensitivity coverage",
       "ok": true,
-      "ms": 596
+      "ms": 497
     },
     {
       "gate": "mcp catalogue",
       "ok": true,
-      "ms": 163
+      "ms": 151
     },
     {
       "gate": "unit tests",
       "ok": true,
-      "ms": 7203
+      "ms": 6152
     },
     {
       "gate": "secrets",
       "ok": true,
-      "ms": 159
+      "ms": 175
     },
     {
       "gate": "production build",
       "ok": true,
-      "ms": 93219
+      "ms": 75611
     },
     {
       "gate": "runtime assets",
       "ok": true,
-      "ms": 153
+      "ms": 133
     }
   ]
 }

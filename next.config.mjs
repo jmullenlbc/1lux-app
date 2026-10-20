@@ -119,6 +119,8 @@ const nextConfig = {
                 // failed" while local was fine. Found 2026-09-08 from Mike's upload.
                 '/api/automation/knowledge/docs': PDFJS_RUNTIME_ASSETS,
                 '/api/automation/knowledge/docs/[id]/reread': PDFJS_RUNTIME_ASSETS,
+                // Sales Docs (0137): page count and the pricing-word check on PDFs.
+                '/api/sales-docs/versions/[versionId]/process': PDFJS_RUNTIME_ASSETS,
           },
           // Zero out the client-side router cache for dynamic pages so navigating
           // back to the dashboard (or any force-dynamic page) always re-fetches.

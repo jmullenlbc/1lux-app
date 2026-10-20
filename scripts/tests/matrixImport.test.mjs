@@ -5,6 +5,7 @@ import * as XLSX from 'xlsx';
 import { readMatrixSheets, readMatrixWorkbook, newestLines, tabKind, jobNameFromFile } from '../../src/lib/matrixImport/readMatrix.js';
 import { splitCatalog, familyKey, normMfr, swapOutcome, categoryOf } from '../../src/lib/specSwap/family.js';
 import { suggestFor, cctOf } from '../../src/lib/specSwap/suggest.js';
+import { buildSwapRows, productKey } from '../../src/lib/specSwap/loadRows.js';
 
 const HEADER = ['TYPE', 'LOCATION TAG', 'DESCRIPTION', 'ORIGINAL MANUFACTURER', 'ORIGINAL PRODUCT SPECIFICATION**', 'ORIGINAL SPEC DETAILS',
   'QTY', 'QTY TYPE UNIT/FT', 'ALT CHOICES', 'INTERNAL NOTES', 'ILC PROPOSED MANUFACTURER', 'ILC PROPOSED SPECIFICATION', 'SALES REP',
@@ -85,6 +86,9 @@ test('job name from the file name', () => {
   assert.equal(jobNameFromFile('SUN VALLEY BLOCK 2 PEER REVIEW MATRIX (1).xlsx'), 'SUN VALLEY BLOCK 2');
   assert.equal(jobNameFromFile('25.06.05_PEER REVIEW MATRIX_AVILLA MESA VISTA_in progress.xlsx'), 'AVILLA MESA VISTA IN PROGRESS');
   assert.equal(jobNameFromFile('9TH + CLERMONT MATRIX.xlsx'), jobNameFromFile('9TH + CLERMONT MATRIX (1).xlsx'));
+  assert.equal(jobNameFromFile('115 W 5TH - DENVER HEALTH PEER REVIEW MATRIX.xlsx'), '115 W 5TH - DENVER HEALTH');
+  assert.equal(jobNameFromFile('PEER REVIEW MATRIX- ALTA METRO CENTER.xlsx'), 'ALTA METRO CENTER');
+  assert.equal(jobNameFromFile('1717 WASHINGTON- PEER REVIEW MATRIX .xlsx'), '1717 WASHINGTON');
 });
 
 test('catalog families and options', () => {
@@ -148,4 +152,29 @@ test('we suggest: family match ranked by jobs, brand + category fallback', () =>
   assert.equal(c.options[0].propFamily, 'STR-48-40L');
 
   assert.equal(suggestFor({ mfr: 'Bega', catalog: '33054' }, swaps).match, 'NONE');
+});
+
+test('matrix loader: rows from browser lines, skips, links our product, strings only', () => {
+  const productByKey = new Map([[productKey('Eluma', 'DL-7-3000'), 'p1']]);
+  const lines = [
+    { type: 'A1', description: 'Surface disk', location: 'Unit', sheetName: 'R2', origMfr: 'Lithonia', origCatalog: 'FMML 13 840\nWH', propMfr: 'ELUMA', propCatalog: 'DL-7-3000', qty: '12', uom: 'EA', unitCn: 14.5, unitDn: 9 },
+    { type: 2, origMfr: 'Lithonia', origCatalog: 'CLX', propMfr: 'Lithonia', propCatalog: 'CLX L48' },
+    { type: 'X', origMfr: 'Bega', origCatalog: '33054' },
+    { type: 'P', origMfr: 'WAC', origCatalog: 'HR-2', propMfr: 'Placeholder', propCatalog: '' },
+  ];
+  const { rows, totals } = buildSwapRows(lines, { job: 'JOB A', sheetDate: new Date('2026-01-01'), productByKey });
+  assert.deepEqual(
+    { rows: totals.rows, SWAPPED: totals.SWAPPED, KEPT: totals.KEPT, PLACEHOLDER: totals.PLACEHOLDER, skipped: totals.skipped, linked: totals.linked },
+    { rows: 3, SWAPPED: 1, KEPT: 1, PLACEHOLDER: 1, skipped: 1, linked: 1 },
+  );
+  const a = rows[0];
+  assert.equal(a.sourceKind, 'MATRIX_FILE');
+  assert.equal(a.sourceName, 'JOB A');
+  assert.equal(a.origCatalog, 'FMML 13 840');
+  assert.equal(a.productId, 'p1');
+  assert.equal(a.qty, 12);
+  assert.equal(a.unitCn, 14.5);
+  assert.equal(a.category, 'surface disk');
+  assert.equal('unitDn' in a, false);
+  assert.equal(rows[1].typeTag, '2');
 });

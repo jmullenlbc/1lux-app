@@ -52,6 +52,9 @@ export const MAX_PROJECT_UPLOAD_BYTES = 25 * 1024 * 1024; // 25 MB
 // same reason, every megabyte here becomes text we store and search.
 export const MAX_KNOWLEDGE_UPLOAD_BYTES = 25 * 1024 * 1024; // 25 MB
 
+// Sales Docs (0137): price sheets, spec books and decks shared by link.
+export const MAX_SALESDOC_UPLOAD_BYTES = 50 * 1024 * 1024; // 50 MB
+
 // The slip has to outlive the upload itself. A 400 MB set over a job-site
 // connection at 2 Mbps takes ~27 minutes, and a slip that expires mid-transfer
 // fails the upload at 90% with nothing the visitor can do about it. An hour is
@@ -89,23 +92,32 @@ const KNOWLEDGE_PRESIGNABLE = {
   md:   'text/markdown',
 };
 
+// Sales Docs share only what the viewer can show: PDF and modern Excel.
+const SALESDOC_PRESIGNABLE = {
+  pdf:  PRESIGNABLE.pdf,
+  xlsx: PRESIGNABLE.xlsx,
+};
+
 // The only scopes a slip may be issued for. The key is always a random cuid
 // under uploads/, so a scope cannot be used to reach an existing object, it
 // only selects which ceiling and which type list apply, and makes the temp keys
 // readable.
-const SCOPES = ['intake', 'project', 'knowledge'];
+const SCOPES = ['intake', 'project', 'knowledge', 'salesdoc'];
 
 const mb = (bytes) => Math.round(bytes / (1024 * 1024));
 
 export function limitForScope(scope) {
   if (scope === 'project')   return MAX_PROJECT_UPLOAD_BYTES;
   if (scope === 'knowledge') return MAX_KNOWLEDGE_UPLOAD_BYTES;
+  if (scope === 'salesdoc')  return MAX_SALESDOC_UPLOAD_BYTES;
   return MAX_INTAKE_UPLOAD_BYTES;
 }
 
 /** Which extensions a scope may presign, and the Content-Type each is locked to. */
 export function typesForScope(scope) {
-  return scope === 'knowledge' ? KNOWLEDGE_PRESIGNABLE : PRESIGNABLE;
+  if (scope === 'knowledge') return KNOWLEDGE_PRESIGNABLE;
+  if (scope === 'salesdoc') return SALESDOC_PRESIGNABLE;
+  return PRESIGNABLE;
 }
 
 export function presignAvailable() {
@@ -129,7 +141,9 @@ export function validatePresignRequest({ fileName, size, scope = 'intake' } = {}
       code: 'unsupported_type',
       message: scope === 'knowledge'
         ? 'Unsupported file type. Word, Excel, PDF, images and text files work.'
-        : 'Unsupported file type. Please upload a PDF or Excel file.',
+        : scope === 'salesdoc'
+          ? 'Unsupported file type. Please upload a PDF or an .xlsx workbook.'
+          : 'Unsupported file type. Please upload a PDF or Excel file.',
     };
   }
   const bytes = Number(size);

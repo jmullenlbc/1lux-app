@@ -47,6 +47,8 @@ const REQUIREMENTS = [
     // about. Found 2026-09-08.
     'api/automation/knowledge/docs',
     'api/automation/knowledge/docs/[id]/reread',
+    // Sales Docs (0137): every uploaded PDF is opened once for its page count.
+    'api/sales-docs/versions/[versionId]/process',
   ].flatMap(route => [
     { route, asset: 'standard_fonts', why: 'pdfjs text extraction returns nothing without the standard fonts' },
     { route, asset: 'pdf.worker.mjs', why: 'pdfjs cannot open a document at all without its worker, getDocument() throws before page 1' },

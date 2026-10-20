@@ -63,3 +63,10 @@ export const PROPOSAL_TABS = [
   { key: 'proposals', href: '/sales/proposals',               label: 'Proposals' },
   { key: 'templates', href: '/sales/proposals?tab=templates', label: 'Templates' },
 ];
+
+export const SALES_DOCS_TABS = [
+  { key: 'docs',       href: '/sales/docs',            label: 'Documents' },
+  { key: 'spaces',     href: '/sales/docs/spaces',     label: 'Spaces' },
+  { key: 'links',      href: '/sales/docs/links',      label: 'Links' },
+  { key: 'engagement', href: '/sales/docs/engagement', label: 'Engagement' },
+];

@@ -144,6 +144,12 @@ model User {
   emailTagsApplied           EmailMessageTag[]            @relation("EmailTagger")
   decidedFieldSuggestions    ContactFieldSuggestion[]     @relation("FieldSuggestionDecider")
   mcpApiKeys                 McpApiKey[]
+  salesDocsOwned             SalesDoc[]                   @relation("SalesDocOwner")
+  salesDocVersionsUploaded   SalesDocVersion[]            @relation("SalesDocUploader")
+  salesDocScanOverrides      SalesDocVersion[]            @relation("SalesDocScanOverrider")
+  salesDocSpacesOwned        SalesDocSpace[]              @relation("SalesDocSpaceOwner")
+  salesDocLinksCreated       SalesDocLink[]               @relation("SalesDocLinkCreator")
+  salesDocLinksRevoked       SalesDocLink[]               @relation("SalesDocLinkRevoker")
 }
 
 model UserAlert {
@@ -352,6 +358,9 @@ model Client {
   teamInteriorDesignerOn     Project[] @relation("ProjectInteriorDesigner")
   teamElectricalEngineerOn   Project[] @relation("ProjectElectricalEngineer")
   teamArchitectOn            Project[] @relation("ProjectArchitect")
+  salesDocSpaces             SalesDocSpace[]   @relation("SalesDocSpaceClient")
+  salesDocLinks              SalesDocLink[]    @relation("SalesDocLinkClient")
+  salesDocVisitors           SalesDocVisitor[] @relation("SalesDocVisitorClient")
 }
 
 model ClientPlaybook {
@@ -549,6 +558,7 @@ model Contact {
   employment          ContactEmployment[]
   personalFacts       ContactPersonalFact[]
   botDrafts           BotDraft[]          @relation("ContactBotDrafts")
+  salesDocVisitors    SalesDocVisitor[]   @relation("SalesDocVisitorContact")
 
   @@index([ownerId])
   @@index([clientId])
@@ -4432,4 +4442,242 @@ model BidPlaceholder {
   note       String?
 
   @@index([levelingId])
+}
+
+// Sales Docs (0137, Mike 10-19): share price sheets, spec sheets and decks by
+// link, under the Logiq brand, and see who opened what and how long each page
+// or sheet was viewed. Archive only. Rendered sheets live in storage as files,
+// never in a column.
+model SalesDocFolder {
+  id         String           @id @default(cuid())
+  name       String
+  parentId   String?
+  parent     SalesDocFolder?  @relation("SalesDocFolderTree", fields: [parentId], references: [id], onDelete: SetNull)
+  children   SalesDocFolder[] @relation("SalesDocFolderTree")
+  sortOrder  Int              @default(0)
+  docs       SalesDoc[]
+  archivedAt DateTime?
+  createdAt  DateTime         @default(now())
+
+  @@index([parentId])
+}
+
+model SalesDoc {
+  id               String              @id @default(cuid())
+  title            String
+  kind             String // PDF | XLSX
+  folderId         String?
+  folder           SalesDocFolder?     @relation(fields: [folderId], references: [id], onDelete: SetNull)
+  ownerId          String?
+  owner            User?               @relation("SalesDocOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  currentVersionId String?             @unique
+  currentVersion   SalesDocVersion?    @relation("SalesDocCurrentVersion", fields: [currentVersionId], references: [id], onDelete: SetNull)
+  versions         SalesDocVersion[]   @relation("SalesDocVersions")
+  spaceItems       SalesDocSpaceItem[]
+  links            SalesDocLink[]
+  views            SalesDocView[]
+  events           SalesDocEvent[]
+  archivedAt       DateTime?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  @@index([folderId])
+  @@index([ownerId])
+}
+
+model SalesDocVersion {
+  id                 String            @id @default(cuid())
+  docId              String
+  doc                SalesDoc          @relation("SalesDocVersions", fields: [docId], references: [id], onDelete: Cascade)
+  currentOf          SalesDoc?         @relation("SalesDocCurrentVersion")
+  version            Int
+  fileName           String
+  mimeType           String
+  sizeBytes          Int
+  storageKey         String
+  pageCount          Int? // PDF pages, or shown sheets for a workbook
+  truncated          Boolean           @default(false) // a sheet was cut at 2,000 rows or 60 columns
+  // Pricing guard: CLEAN | WARN (PDF text only) | BLOCKED | OVERRIDDEN, PENDING until processed
+  scanStatus         String            @default("PENDING")
+  scanOverrideById   String?
+  scanOverrideBy     User?             @relation("SalesDocScanOverrider", fields: [scanOverrideById], references: [id], onDelete: SetNull)
+  scanOverrideReason String?
+  scanOverriddenAt   DateTime?
+  processStatus      String            @default("PENDING") // PENDING | READY | FAILED
+  processError       String?
+  processStartedAt   DateTime?
+  uploadedById       String?
+  uploadedBy         User?             @relation("SalesDocUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
+  sheets             SalesDocSheet[]
+  scanHits           SalesDocScanHit[]
+  views              SalesDocView[]
+  createdAt          DateTime          @default(now())
+
+  @@unique([docId, version])
+}
+
+model SalesDocSheet {
+  id        String          @id @default(cuid())
+  versionId String
+  version   SalesDocVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  index     Int
+  name      String
+  hidden    Boolean         @default(false) // hidden sheets are never rendered or shared
+  rowCount  Int             @default(0)
+  colCount  Int             @default(0)
+  truncated Boolean         @default(false)
+
+  @@unique([versionId, index])
+}
+
+model SalesDocScanHit {
+  id        String          @id @default(cuid())
+  versionId String
+  version   SalesDocVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  reason    String // COST_HEADER | HIDDEN_SHEET | HIDDEN_COLUMN | DEFINED_NAME | SHEET_NAME | PDF_TEXT
+  sheetName String?
+  cell      String?
+  page      Int?
+  text      String
+
+  @@index([versionId])
+}
+
+model SalesDocSpace {
+  id          String              @id @default(cuid())
+  name        String
+  description String?
+  ownerId     String?
+  owner       User?               @relation("SalesDocSpaceOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  clientId    String?
+  client      Client?             @relation("SalesDocSpaceClient", fields: [clientId], references: [id], onDelete: SetNull)
+  items       SalesDocSpaceItem[]
+  links       SalesDocLink[]
+  archivedAt  DateTime?
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  @@index([clientId])
+}
+
+model SalesDocSpaceItem {
+  id        String        @id @default(cuid())
+  spaceId   String
+  space     SalesDocSpace @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  docId     String
+  doc       SalesDoc      @relation(fields: [docId], references: [id], onDelete: Cascade)
+  section   String?
+  sortOrder Int           @default(0)
+
+  @@unique([spaceId, docId])
+  @@index([docId])
+}
+
+model SalesDocLink {
+  id                String          @id @default(cuid())
+  token             String          @unique
+  name              String
+  docId             String?
+  doc               SalesDoc?       @relation(fields: [docId], references: [id], onDelete: Cascade)
+  spaceId           String?
+  space             SalesDocSpace?  @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  createdById       String?
+  createdBy         User?           @relation("SalesDocLinkCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  clientId          String?
+  client            Client?         @relation("SalesDocLinkClient", fields: [clientId], references: [id], onDelete: SetNull)
+  recipientEmail    String?
+  requireEmail      Boolean         @default(true)
+  verifyEmail       Boolean         @default(false) // emailed code, hidden until email sending is live
+  passwordHash      String?
+  expiresAt         DateTime?
+  allowDownload     Boolean         @default(false)
+  notifyOnFirstOpen Boolean         @default(true)
+  revokedAt         DateTime?
+  revokedById       String?
+  revokedBy         User?           @relation("SalesDocLinkRevoker", fields: [revokedById], references: [id], onDelete: SetNull)
+  firstOpenedAt     DateTime?
+  views             SalesDocView[]
+  events            SalesDocEvent[]
+  createdAt         DateTime        @default(now())
+
+  @@index([docId])
+  @@index([spaceId])
+  @@index([createdById])
+  @@index([clientId])
+}
+
+model SalesDocVisitor {
+  id          String          @id @default(cuid())
+  email       String?         @unique // null = anonymous (the link did not ask for an email)
+  name        String?
+  domain      String?
+  clientId    String?
+  client      Client?         @relation("SalesDocVisitorClient", fields: [clientId], references: [id], onDelete: SetNull)
+  contactId   String?
+  contact     Contact?        @relation("SalesDocVisitorContact", fields: [contactId], references: [id], onDelete: SetNull)
+  matchType   String          @default("NONE") // EMAIL | DOMAIN | NONE
+  views       SalesDocView[]
+  events      SalesDocEvent[]
+  firstSeenAt DateTime        @default(now())
+  lastSeenAt  DateTime        @default(now())
+
+  @@index([clientId])
+  @@index([contactId])
+}
+
+model SalesDocView {
+  id          String             @id @default(cuid())
+  linkId      String
+  link        SalesDocLink       @relation(fields: [linkId], references: [id], onDelete: Cascade)
+  visitorId   String
+  visitor     SalesDocVisitor    @relation(fields: [visitorId], references: [id], onDelete: Cascade)
+  docId       String
+  doc         SalesDoc           @relation(fields: [docId], references: [id], onDelete: Cascade)
+  versionId   String?
+  version     SalesDocVersion?   @relation(fields: [versionId], references: [id], onDelete: SetNull)
+  isForwarded Boolean            @default(false)
+  startedAt   DateTime           @default(now())
+  lastPingAt  DateTime           @default(now())
+  durationMs  Int                @default(0)
+  device      String?
+  browser     String?
+  ipHash      String?
+  unitStats   SalesDocUnitStat[]
+  events      SalesDocEvent[]
+
+  @@index([linkId])
+  @@index([visitorId])
+  @@index([docId, startedAt])
+}
+
+// Time on one page (PDF) or one sheet (workbook) within one view.
+model SalesDocUnitStat {
+  id         String       @id @default(cuid())
+  viewId     String
+  view       SalesDocView @relation(fields: [viewId], references: [id], onDelete: Cascade)
+  unitIndex  Int
+  label      String?
+  durationMs Int          @default(0)
+  visits     Int          @default(0)
+
+  @@unique([viewId, unitIndex])
+}
+
+model SalesDocEvent {
+  id        String           @id @default(cuid())
+  type      String // OPENED | GATE_PASSED | PASSWORD_FAIL | DOWNLOAD | FORWARDED | EXPIRED_HIT | REVOKED_HIT
+  linkId    String?
+  link      SalesDocLink?    @relation(fields: [linkId], references: [id], onDelete: SetNull)
+  viewId    String?
+  view      SalesDocView?    @relation(fields: [viewId], references: [id], onDelete: SetNull)
+  visitorId String?
+  visitor   SalesDocVisitor? @relation(fields: [visitorId], references: [id], onDelete: SetNull)
+  docId     String?
+  doc       SalesDoc?        @relation(fields: [docId], references: [id], onDelete: SetNull)
+  email     String?
+  ipHash    String?
+  createdAt DateTime         @default(now())
+
+  @@index([linkId, type, createdAt])
+  @@index([docId, createdAt])
 }
