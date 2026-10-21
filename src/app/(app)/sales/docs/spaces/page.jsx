@@ -10,7 +10,7 @@ import { useUrlView } from '@/lib/useUrlView';
 import { CARD_PADDED, BTN_PRIMARY, BTN_SECONDARY, INPUT, SELECT, H1, TD, HELPER, LABEL } from '@/components/ui/tokens';
 import { ago, Modal, useClients } from '@/components/salesDocs/SalesDocsUi';
 
-// Sales > Sales Docs > Spaces (0137). A Space is a set of documents shared
+// Sales > Sales Docs > Folders (0137; SalesDocSpace in the code). A Folder is a set of documents shared
 // behind one link, in sections the sender picks.
 
 const FILTER_FIELDS = [
@@ -45,7 +45,7 @@ export default function SalesDocSpacesPage() {
     if (filters.archived === 'yes') p.set('archived', 'yes');
     if (filters.company) p.set('clientId', filters.company);
     const res = await fetch(`/api/sales-docs/spaces?${p}`);
-    if (!res.ok) { setErr('Could not load Spaces.'); setSpaces([]); return; }
+    if (!res.ok) { setErr('Could not load Folders.'); setSpaces([]); return; }
     setSpaces((await res.json()).spaces);
   }, [filters.archived, filters.company]);
 
@@ -56,7 +56,7 @@ export default function SalesDocSpacesPage() {
     const res = await fetch('/api/sales-docs/spaces', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...draft, clientId: draft.clientId || null }) });
     const data = await res.json().catch(() => ({}));
     setSaving(false);
-    if (!res.ok) { setErr(data.error || 'The Space was not made.'); return; }
+    if (!res.ok) { setErr(data.error || 'The Folder was not made.'); return; }
     router.push(`/sales/docs/spaces/${data.space.id}`);
   }
 
@@ -81,10 +81,10 @@ export default function SalesDocSpacesPage() {
       <div className="max-w-5xl mx-auto space-y-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h1 className={H1}>Spaces</h1>
-            <p className="text-xs text-slate-500 mt-0.5">A Space puts several documents behind one link, like a proposal with its cut sheets and schedule.</p>
+            <h1 className={H1}>Folders</h1>
+            <p className="text-xs text-slate-500 mt-0.5">A Folder puts several documents behind one link, like a proposal with its cut sheets and schedule.</p>
           </div>
-          <button type="button" className={BTN_PRIMARY} onClick={() => setDraft({ name: '', description: '', clientId: '' })}>New Space</button>
+          <button type="button" className={BTN_PRIMARY} onClick={() => setDraft({ name: '', description: '', clientId: '' })}>New Folder</button>
         </div>
 
         {err && <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{err}</p>}
@@ -92,8 +92,8 @@ export default function SalesDocSpacesPage() {
         <div className={CARD_PADDED}>
           <FilterToolbar
             count={nFilters} open={open} onToggle={() => setOpen((o) => !o)} onClear={clearFilters}
-            shown={shown.length} total={(spaces || []).length} noun="Spaces"
-            right={<SearchBox value={filters.q} onChange={(v) => setFilter('q', v)} placeholder="Search Spaces" />}
+            shown={shown.length} total={(spaces || []).length} noun="Folders"
+            right={<SearchBox value={filters.q} onChange={(v) => setFilter('q', v)} placeholder="Search Folders" />}
           />
           <FilterPanel
             open={open} fields={FILTER_FIELDS} filters={filters} onChange={setFilter}
@@ -101,12 +101,12 @@ export default function SalesDocSpacesPage() {
           />
           <div className="mt-4 overflow-x-auto">
             {spaces === null ? <WidgetLoading /> : shown.length === 0 ? (
-              <WidgetEmpty>{(spaces || []).length ? 'No Spaces match these filters.' : 'No Spaces yet. Make one to share several documents behind one link.'}</WidgetEmpty>
+              <WidgetEmpty>{(spaces || []).length ? 'No Folders match these filters.' : 'No Folders yet. Make one to share several documents behind one link.'}</WidgetEmpty>
             ) : (
               <table className="w-full text-xs">
                 <thead>
                   <tr className="border-b border-slate-200">
-                    <SortHeader label="Space" field="name" sort={sort} onSort={toggleSort} />
+                    <SortHeader label="Folder" field="name" sort={sort} onSort={toggleSort} />
                     <SortHeader label="Company" field="company" sort={sort} onSort={toggleSort} />
                     <SortHeader label="Documents" field="docs" sort={sort} onSort={toggleSort} align="right" />
                     <SortHeader label="Live links" field="links" sort={sort} onSort={toggleSort} align="right" />
@@ -137,7 +137,7 @@ export default function SalesDocSpacesPage() {
       </div>
 
       {draft && (
-        <Modal title="New Space" onClose={() => setDraft(null)}>
+        <Modal title="New Folder" onClose={() => setDraft(null)}>
           <div className="space-y-3">
             <label className="block">
               <span className={LABEL}>Name</span>
@@ -157,7 +157,7 @@ export default function SalesDocSpacesPage() {
           </div>
           <div className="flex justify-end gap-2 mt-4">
             <button type="button" className={BTN_SECONDARY} onClick={() => setDraft(null)}>Cancel</button>
-            <button type="button" className={BTN_PRIMARY} disabled={!draft.name.trim() || saving} onClick={create}>{saving ? 'Making...' : 'Make Space'}</button>
+            <button type="button" className={BTN_PRIMARY} disabled={!draft.name.trim() || saving} onClick={create}>{saving ? 'Making...' : 'Make Folder'}</button>
           </div>
         </Modal>
       )}

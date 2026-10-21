@@ -5,6 +5,18 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Sales Docs viewer, page time on each document, Folders] - October 21, 2026 (DEPLOYED) - no migration
+
+Mike 10-20 review of Sales Docs: viewer controls "like Bluebeam", page time on the document page instead of a separate Engagement tab, "Change Spaces to Folders", and a back button that matches the rest of the app.
+
+- **PDF viewer** (`PdfViewer` in `src/components/salesDocs/DocViewers.jsx`): page back and forward buttons, type a page number, zoom out and in, Fit width, Fit page, 100%, Full screen. Ctrl plus mouse wheel zooms; arrow keys change page; plus and minus zoom. Zoom keeps the same spot in view. Pages draw only near the screen, so long PDFs stay quick. Used on the document page and on the public link page (fills the screen there).
+- **Page time on the document page**: "Who opened it" shows the five totals, time on each page for all visits (click a page to jump the viewer to it), and the visit list with Download CSV. `GET /api/sales-docs/engagement?...&units=1` adds per page totals.
+- **Links**: each link row opens in place (arrow or the Views number) to show that link's visits and page time.
+- **Folders**: the Spaces tab is now Folders, and each Folder page shows who opened it across its documents. Labels only; the code and addresses still say Space. The library folder filter on Documents keeps its name for now (Mike: wait).
+- **Engagement tab removed**; old addresses redirect to the matching document, Folder, Links or Documents. Bell alerts for a Folder link open that Folder.
+- **Back buttons**: "Back to Documents" or "Back to {Folder}" on a document (opened from a Folder it keeps the Folder), "Back to Folders" on a Folder.
+- Files: DocViewers.jsx, EngagementParts.jsx (`EngagementPanel`, `UnitTimeBars`), LinksTable.jsx, `sales/docs/[docId]/page.jsx`, `sales/docs/spaces/[spaceId]/page.jsx`, `sales/docs/spaces/page.jsx`, `sales/docs/links/page.jsx`, `sales/docs/engagement/page.jsx` (redirect, force-dynamic), SalesDocShareView.jsx, SectionTabs.jsx, `src/lib/salesDocs/events.js`, `api/sales-docs/engagement/route.js`, API error wording in the links and spaces routes. `salesDocsE2e.test.mjs` checks the page totals (passes). Build passes. Local check on a 6 page PDF link: Fit page, next page and page time all work.
+
 ## [Peer review matrices load from Admin] - October 19, 2026 (DEPLOYED 5cd93ca) - no migration
 
 Mike 10-19: "2. Yes" (load the matrices from an admin screen instead of a script), "1. Yes" (types dropped from a matrix's newest tab stay for learning only; no change).

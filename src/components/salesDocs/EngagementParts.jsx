@@ -1,14 +1,16 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Th } from '@/components/ui/SortHeader';
-import { TD, HELPER, LABEL, TONE, TILE, STAT_VALUE } from '@/components/ui/tokens';
-import { WidgetLoading, WidgetError } from '@/components/ui/WidgetFrame';
+import { TD, HELPER, LABEL, TONE, TILE, STAT_VALUE, BTN_COMPACT } from '@/components/ui/tokens';
+import StatTile from '@/components/ui/StatTile';
+import { WidgetLoading, WidgetError, WidgetEmpty } from '@/components/ui/WidgetFrame';
 import { cn } from '@/lib/utils';
 import { Modal, CompletionBar, formatTime, formatWhen, ago } from '@/components/salesDocs/SalesDocsUi';
 
-// Who opened what (0137): the visits table used on the doc page and the
-// Engagement tab, and the page-by-page view of one visit.
+// Who opened what (0137): the visits table, time on each page, and the
+// page-by-page view of one visit. Shown inside a document, a link row and a
+// Folder (Mike 10-20: no separate Engagement tab).
 
 const MATCH_LABEL = { EMAIL: 'Known person', DOMAIN: 'Company by email domain' };
 const EVENT_LABEL = {
@@ -73,6 +75,137 @@ export function EngagementRows({ rows, onOpen, showDoc = false, sortHeader }) {
   );
 }
 
+/**
+ * Time bars, one per page or sheet. units: [{ index, label, durationMs, seen? }].
+ * seen = visits that stayed 5 seconds or more. onPick(index) makes rows clickable.
+ */
+export function UnitTimeBars({ units, onPick }) {
+  const most = Math.max(1, ...units.map((u) => u.durationMs));
+  return (
+    <ul className="space-y-1">
+      {units.map((u) => {
+        const inner = (
+          <>
+            <span className="w-28 truncate text-left text-slate-700" title={u.label}>{u.label}</span>
+            <span className="flex-1 h-2 rounded-full bg-slate-100 overflow-hidden"><span className="block h-full bg-orange-500" style={{ width: `${(u.durationMs / most) * 100}%` }} /></span>
+            <span className="w-16 text-right tabular-nums text-slate-600">{u.durationMs ? formatTime(u.durationMs) : ''}</span>
+            {u.seen != null && <span className="w-16 text-right tabular-nums text-slate-500">{u.seen ? `${u.seen} ${u.seen === 1 ? 'visit' : 'visits'}` : ''}</span>}
+          </>
+        );
+        return (
+          <li key={u.index}>
+            {onPick ? (
+              <button type="button" onClick={() => onPick(u.index)} title={`Go to ${u.label}`} className="w-full flex items-center gap-3 text-xs rounded px-1 py-0.5 hover:bg-orange-50">{inner}</button>
+            ) : (
+              <span className="flex items-center gap-3 text-xs px-1 py-0.5">{inner}</span>
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+/**
+ * Who opened it, for a document, a link or a Folder (query = "docId=..",
+ * "linkId=.." or "spaceId=.."): tiles, time on each page, visits with paging,
+ * CSV. fill = [{ index, label }] lists every page of the document so skipped
+ * pages show too. onPick(index) jumps the viewer to that page.
+ */
+export function EngagementPanel({ query, fill = null, onPick, tiles = true, showDoc = false, emptyText = 'Nobody has opened it yet.' }) {
+  const [data, setData] = useState(null);
+  const [rows, setRows] = useState([]);
+  const [page, setPage] = useState(1);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState('');
+  const [viewId, setViewId] = useState(null);
+
+  const load = useCallback(async (p) => {
+    setBusy(true);
+    try {
+      const res = await fetch(`/api/sales-docs/engagement?${query}&page=${p}${p === 1 ? '&units=1' : ''}`, { cache: 'no-store' });
+      if (!res.ok) throw new Error();
+      const d = await res.json();
+      if (p === 1) { setData(d); setRows(d.rows); } else { setRows((r) => [...r, ...d.rows]); }
+      setPage(p);
+      setErr('');
+    } catch {
+      setErr('Who opened it did not load.');
+    } finally {
+      setBusy(false);
+    }
+  }, [query]);
+
+  useEffect(() => { load(1); }, [load]);
+
+  if (err && !data) return <WidgetError>{err}</WidgetError>;
+  if (!data) return <WidgetLoading />;
+
+  // Group the page times by document (a Folder link shows several).
+  const docs = [];
+  for (const u of data.units || []) {
+    let d = docs.find((x) => x.docId === u.docId);
+    if (!d) { d = { docId: u.docId, title: u.docTitle, units: [] }; docs.push(d); }
+    d.units.push({ index: u.unitIndex, label: u.label || `Page ${u.unitIndex + 1}`, durationMs: u.durationMs, seen: u.seen });
+  }
+  if (fill && docs.length <= 1) {
+    const had = new Map((docs[0]?.units || []).map((u) => [u.index, u]));
+    const merged = fill.map((f) => ({ ...f, durationMs: 0, seen: 0, ...had.get(f.index), label: f.label }));
+    for (const u of had.values()) if (!fill.some((f) => f.index === u.index)) merged.push(u);
+    docs.splice(0, docs.length, { docId: docs[0]?.docId || '', title: '', units: merged });
+  }
+  const anyTime = docs.some((d) => d.units.some((u) => u.durationMs));
+
+  return (
+    <div className="space-y-4">
+      {tiles && (
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+          <StatTile label="Views" value={data.kpis.views} inset />
+          <StatTile label="People" value={data.kpis.visitors} inset />
+          <StatTile label="Time read" value={formatTime(data.kpis.timeMs)} inset />
+          <StatTile label="Forwarded" value={data.kpis.forwarded} inset tone={data.kpis.forwarded ? 'warning' : 'default'} />
+          <StatTile label="Viewing now" value={data.kpis.viewingNow} inset tone={data.kpis.viewingNow ? 'success' : 'default'} />
+        </div>
+      )}
+      {data.total === 0 ? <WidgetEmpty>{emptyText}</WidgetEmpty> : (
+        <>
+          {anyTime && (
+            <div>
+              <p className={cn(LABEL, 'mb-2')}>
+                Time on each page, all visits{onPick ? <span className="font-normal normal-case text-slate-500"> · click one to go to it</span> : null}
+              </p>
+              <div className="space-y-3">
+                {docs.map((d) => (
+                  <div key={d.docId}>
+                    {docs.length > 1 && <Link href={`/sales/docs/${d.docId}`} className="block text-xs font-semibold text-slate-700 hover:underline mb-1">{d.title}</Link>}
+                    <UnitTimeBars units={d.units} onPick={onPick} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          <div>
+            <div className="flex items-center justify-between gap-2 mb-1">
+              <p className={LABEL}>Visits</p>
+              <a href={`/api/sales-docs/engagement?${query}&format=csv`} className="text-xs text-slate-500 hover:text-orange-600">Download CSV</a>
+            </div>
+            <div className="overflow-x-auto"><EngagementRows rows={rows} onOpen={setViewId} showDoc={showDoc} /></div>
+            {rows.length < data.total && (
+              <div className="mt-3 text-center">
+                <button type="button" className={BTN_COMPACT} disabled={busy} onClick={() => load(page + 1)}>
+                  {busy ? 'Loading...' : `Show more (${data.total - rows.length} more)`}
+                </button>
+              </div>
+            )}
+            {err && <p className="text-xs text-red-600 mt-2">{err}</p>}
+          </div>
+        </>
+      )}
+      {viewId && <ViewDetailModal viewId={viewId} onClose={() => setViewId(null)} />}
+    </div>
+  );
+}
+
 /** One visit: time on each page or sheet, and what happened on it. */
 export function ViewDetailModal({ viewId, onClose }) {
   const [view, setView] = useState(null);
@@ -93,7 +226,6 @@ export function ViewDetailModal({ viewId, onClose }) {
     for (const s of view.unitStats) if (!list.some((u) => u.index === s.unitIndex)) list.push({ index: s.unitIndex, label: s.label || `#${s.unitIndex + 1}` });
     return list.map((u) => ({ ...u, durationMs: stat.get(u.index)?.durationMs || 0, visits: stat.get(u.index)?.visits || 0 }));
   })();
-  const most = Math.max(1, ...units.map((u) => u.durationMs));
 
   return (
     <Modal title="Visit" onClose={onClose} width="max-w-2xl">
@@ -114,15 +246,7 @@ export function ViewDetailModal({ viewId, onClose }) {
           </div>
           <div>
             <p className={cn(LABEL, 'mb-2')}>{view.doc.kind === 'XLSX' ? 'Time on each sheet' : 'Time on each page'}</p>
-            <ul className="space-y-1.5">
-              {units.map((u) => (
-                <li key={u.index} className="flex items-center gap-3 text-xs">
-                  <span className="w-28 truncate text-slate-700" title={u.label}>{u.label}</span>
-                  <span className="flex-1 h-2 rounded-full bg-slate-100 overflow-hidden"><span className="block h-full bg-orange-500" style={{ width: `${(u.durationMs / most) * 100}%` }} /></span>
-                  <span className="w-16 text-right tabular-nums text-slate-600">{u.durationMs ? formatTime(u.durationMs) : ''}</span>
-                </li>
-              ))}
-            </ul>
+            <UnitTimeBars units={units} />
           </div>
           {view.events.length > 0 && (
             <div>

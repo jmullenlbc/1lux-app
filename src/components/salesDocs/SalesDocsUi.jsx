@@ -139,7 +139,7 @@ function Check({ label, hint, checked, onChange }) {
   );
 }
 
-/** Create link for one doc or one Space. Shows the address to copy when made. */
+/** Create link for one doc or one Folder. Shows the address to copy when made. */
 /** Live companies, A to Z, for pickers. */
 export function useClients() {
   const [clients, setClients] = useState([]);

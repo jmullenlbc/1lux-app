@@ -36,7 +36,7 @@ export async function PATCH(request, { params }) {
   const data = {};
   if ('name' in body) {
     const n = String(body.name || '').trim().slice(0, 120);
-    if (!n) return badRequest('Give the Space a name.');
+    if (!n) return badRequest('Give the Folder a name.');
     data.name = n;
   }
   if ('description' in body) data.description = String(body.description || '').trim().slice(0, 1000) || null;

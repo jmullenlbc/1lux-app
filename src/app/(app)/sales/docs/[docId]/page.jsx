@@ -3,39 +3,37 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import SectionTabs, { SALES_DOCS_TABS } from '@/components/ui/SectionTabs';
 import { Th } from '@/components/ui/SortHeader';
-import StatTile from '@/components/ui/StatTile';
 import { WidgetLoading, WidgetEmpty, WidgetError } from '@/components/ui/WidgetFrame';
 import { CARD_PADDED, CARD_TITLE, BTN_PRIMARY, BTN_SECONDARY, BTN_COMPACT, BTN_COMPACT_PRIMARY, INPUT, SELECT, H1, TD, HELPER, LABEL, TONE } from '@/components/ui/tokens';
 import { cn } from '@/lib/utils';
 import { HIT_LABELS, shareAllowed } from '@/lib/salesDocs/pricingScan';
 import {
-  ScanPill, KIND_LABEL, formatBytes, formatTime, formatWhen, uploadSalesDoc, Modal, CreateLinkModal,
+  ScanPill, KIND_LABEL, formatBytes, formatWhen, uploadSalesDoc, Modal, CreateLinkModal,
 } from '@/components/salesDocs/SalesDocsUi';
-import { useRangedPdf, PdfPage, SheetTable, useSheet } from '@/components/salesDocs/DocViewers';
-import { EngagementRows, ViewDetailModal } from '@/components/salesDocs/EngagementParts';
+import { useRangedPdf, PdfViewer, SheetTable, useSheet } from '@/components/salesDocs/DocViewers';
+import { EngagementPanel } from '@/components/salesDocs/EngagementParts';
 import LinksTable from '@/components/salesDocs/LinksTable';
 
 // Sales > Sales Docs > one document (0137): pricing check, versions, links,
-// and who has opened it.
+// and who has opened it, with the time on each page (Mike 10-20: all of it here,
+// no Engagement tab).
 
-function Preview({ version, kind }) {
+const BACK = 'text-xs font-semibold text-slate-500 hover:text-orange-600 transition-colors';
+
+function Preview({ version, kind, jumpTo }) {
   const [sheet, setSheet] = useState(null);
   const shown = (version?.sheets || []).filter((s) => !s.hidden);
   useEffect(() => { setSheet(shown[0]?.index ?? null); }, [version?.id]); // eslint-disable-line react-hooks/exhaustive-deps
   const pdf = useRangedPdf(kind === 'PDF' && version?.processStatus === 'READY' ? `/api/sales-docs/versions/${version.id}/file` : null, version?.sizeBytes);
   const sh = useSheet(kind === 'XLSX' && sheet != null ? `/api/sales-docs/versions/${version.id}/sheets/${sheet}` : null);
+  useEffect(() => { if (kind === 'XLSX' && jumpTo && shown.some((s) => s.index === jumpTo.page)) setSheet(jumpTo.page); }, [jumpTo]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!version || version.processStatus === 'PENDING') return <WidgetLoading>Reading the file...</WidgetLoading>;
   if (version.processStatus === 'FAILED') return <WidgetError>{version.processError || 'This file could not be read.'}</WidgetError>;
   if (kind === 'PDF') {
     if (pdf.error) return <WidgetError>{pdf.error}</WidgetError>;
     if (!pdf.pdf) return <WidgetLoading />;
-    return (
-      <div className="max-w-md mx-auto">
-        <PdfPage pdf={pdf.pdf} pageNumber={1} eager />
-        <p className={cn(HELPER, 'text-center mt-2')}>Page 1 of {pdf.pdf.numPages}</p>
-      </div>
-    );
+    return <PdfViewer pdf={pdf.pdf} height="75vh" jumpTo={jumpTo} />;
   }
   return (
     <div>
@@ -121,17 +119,17 @@ function PricingCheck({ version, canOverride, onCleared }) {
   );
 }
 
-export default function SalesDocPage({ params }) {
+export default function SalesDocPage({ params, searchParams }) {
   const { docId } = params;
+  const fromFolder = searchParams?.folder || '';
   const [data, setData] = useState(null);
   const [folders, setFolders] = useState([]);
-  const [eng, setEng] = useState(null);
   const [err, setErr] = useState('');
   const [editing, setEditing] = useState(null);
   const [replace, setReplace] = useState(null); // File waiting on the confirm
   const [stage, setStage] = useState('');
   const [linkOpen, setLinkOpen] = useState(false);
-  const [viewId, setViewId] = useState(null);
+  const [jumpTo, setJumpTo] = useState(null);
   const fileRef = useRef(null);
 
   const load = useCallback(async () => {
@@ -139,9 +137,7 @@ export default function SalesDocPage({ params }) {
     if (!res.ok) { setErr(res.status === 404 ? 'This document was not found.' : 'Could not load this document.'); setData(false); return; }
     setData(await res.json());
   }, [docId]);
-  const loadEng = useCallback(() => fetch(`/api/sales-docs/engagement?docId=${docId}`).then((r) => (r.ok ? r.json() : null)).then(setEng), [docId]);
-
-  useEffect(() => { load(); loadEng(); }, [load, loadEng]);
+  useEffect(() => { load(); }, [load]);
   useEffect(() => { fetch('/api/sales-docs/folders').then((r) => (r.ok ? r.json() : { folders: [] })).then((d) => setFolders(d.folders)); }, []);
 
   async function patch(body) {
@@ -169,7 +165,10 @@ export default function SalesDocPage({ params }) {
     return (
       <div className="px-4 py-6">
         <SectionTabs tabs={SALES_DOCS_TABS} className="mb-5" />
-        <div className="max-w-5xl mx-auto"><p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{err}</p></div>
+        <div className="max-w-5xl mx-auto">
+          <Link href="/sales/docs" className={cn(BACK, 'inline-block mb-4')}>← Back to Documents</Link>
+          <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{err}</p>
+        </div>
       </div>
     );
   }
@@ -180,14 +179,27 @@ export default function SalesDocPage({ params }) {
   const newer = latest && current && latest.id !== current.id ? latest : null;
   const canShare = current?.processStatus === 'READY' && shareAllowed(current.scanStatus) && !doc.archivedAt;
   const reach = liveLinks + spaceLiveLinks;
+  const folder = fromFolder ? doc.spaceItems.find((i) => i.space.id === fromFolder)?.space : null;
+  const fill = current?.processStatus !== 'READY' ? null : doc.kind === 'XLSX'
+    ? (current.sheets || []).filter((x) => !x.hidden).map((x) => ({ index: x.index, label: x.name }))
+    : Array.from({ length: current.pageCount || 0 }, (_, i) => ({ index: i, label: `Page ${i + 1}` }));
+  // Page bars count from 0; the PDF viewer counts pages from 1, sheets keep their index.
+  const pick = (index) => {
+    setJumpTo({ page: doc.kind === 'XLSX' ? index : index + 1 });
+    document.getElementById('sd-preview')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
 
   return (
     <div className="px-4 py-6">
       <SectionTabs tabs={SALES_DOCS_TABS} className="mb-5" />
       <div className="max-w-5xl mx-auto space-y-5">
         <div>
-          <Link href="/sales/docs" className="text-xs text-slate-500 hover:text-slate-700">Sales Docs</Link>
-          <div className="flex flex-wrap items-start justify-between gap-3 mt-1">
+          {folder ? (
+            <Link href={`/sales/docs/spaces/${folder.id}`} className={BACK}>← Back to {folder.name}</Link>
+          ) : (
+            <Link href="/sales/docs" className={BACK}>← Back to Documents</Link>
+          )}
+          <div className="flex flex-wrap items-start justify-between gap-3 mt-3">
             <div className="min-w-0">
               {editing !== null ? (
                 <div className="flex gap-2 items-center">
@@ -227,12 +239,12 @@ export default function SalesDocPage({ params }) {
         )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-          <div className={cn(CARD_PADDED, 'lg:col-span-2')}>
+          <div id="sd-preview" className={cn(CARD_PADDED, 'lg:col-span-2 scroll-mt-4')}>
             <div className="flex items-center justify-between gap-2 mb-3">
               <h2 className={CARD_TITLE}>Preview · v{current?.version}</h2>
               {current && <a className="text-xs text-slate-500 hover:text-orange-600" href={`/api/sales-docs/versions/${current.id}/file?download=1`}>Download</a>}
             </div>
-            <Preview version={current} kind={doc.kind} />
+            <Preview version={current} kind={doc.kind} jumpTo={jumpTo} />
           </div>
           <div className="space-y-5">
             {newer && <PricingCheck version={newer} canOverride={canOverride} onCleared={load} />}
@@ -246,7 +258,7 @@ export default function SalesDocPage({ params }) {
               </select>
               {doc.spaceItems.length > 0 && (
                 <p className={cn(HELPER, 'mt-3')}>
-                  In Spaces:{' '}
+                  In Folders:{' '}
                   {doc.spaceItems.map((i, n) => <span key={i.space.id}>{n ? ', ' : ''}<Link href={`/sales/docs/spaces/${i.space.id}`} className="hover:underline">{i.space.name}</Link></span>)}
                 </p>
               )}
@@ -279,7 +291,7 @@ export default function SalesDocPage({ params }) {
         <div className={CARD_PADDED}>
           <div className="flex items-center justify-between gap-2 mb-3">
             <h2 className={CARD_TITLE}>Links</h2>
-            {spaceLiveLinks > 0 && <span className={HELPER}>Also shown through {spaceLiveLinks} Space {spaceLiveLinks === 1 ? 'link' : 'links'}</span>}
+            {spaceLiveLinks > 0 && <span className={HELPER}>Also shown through {spaceLiveLinks} Folder {spaceLiveLinks === 1 ? 'link' : 'links'}</span>}
           </div>
           {links.length === 0 ? <WidgetEmpty>No links yet. Create one to share this document.</WidgetEmpty> : (
             <div className="overflow-x-auto"><LinksTable links={links} onChanged={load} onError={setErr} /></div>
@@ -287,23 +299,8 @@ export default function SalesDocPage({ params }) {
         </div>
 
         <div className={CARD_PADDED}>
-          <div className="flex items-center justify-between gap-2 mb-3">
-            <h2 className={CARD_TITLE}>Who opened it</h2>
-            <Link href={`/sales/docs/engagement?doc=${doc.id}`} className="text-xs text-slate-500 hover:text-orange-600">All visits</Link>
-          </div>
-          {!eng ? <WidgetLoading /> : (
-            <>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
-                <StatTile label="Views" value={eng.kpis.views} inset />
-                <StatTile label="People" value={eng.kpis.visitors} inset />
-                <StatTile label="Time read" value={formatTime(eng.kpis.timeMs)} inset />
-                <StatTile label="Forwarded" value={eng.kpis.forwarded} inset tone={eng.kpis.forwarded ? 'warning' : 'default'} />
-              </div>
-              {eng.rows.length === 0 ? <WidgetEmpty>Nobody has opened it yet.</WidgetEmpty> : (
-                <div className="overflow-x-auto"><EngagementRows rows={eng.rows.slice(0, 10)} onOpen={setViewId} /></div>
-              )}
-            </>
-          )}
+          <h2 className={cn(CARD_TITLE, 'mb-3')}>Who opened it</h2>
+          <EngagementPanel query={`docId=${doc.id}`} fill={fill} onPick={pick} />
         </div>
       </div>
 
@@ -317,7 +314,6 @@ export default function SalesDocPage({ params }) {
         </Modal>
       )}
       {linkOpen && <CreateLinkModal docId={doc.id} defaultName="" onClose={() => setLinkOpen(false)} onCreated={() => load()} />}
-      {viewId && <ViewDetailModal viewId={viewId} onClose={() => setViewId(null)} />}
     </div>
   );
 }

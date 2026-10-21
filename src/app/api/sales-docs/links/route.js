@@ -45,7 +45,7 @@ export async function POST(request) {
   const { user, error } = await requireSalesDocsUser();
   if (error) return error;
   const body = await request.json().catch(() => ({}));
-  if (!!body.docId === !!body.spaceId) return badRequest('A link shows one document or one Space.');
+  if (!!body.docId === !!body.spaceId) return badRequest('A link shows one document or one Folder.');
 
   if (body.docId) {
     const doc = await prisma.salesDoc.findUnique({
@@ -63,11 +63,11 @@ export async function POST(request) {
       select: { archivedAt: true, items: { select: { doc: { select: { title: true, archivedAt: true, currentVersion: { select: { scanStatus: true } } } } } } },
     });
     if (!space) return badRequest('Not found', 404);
-    if (space.archivedAt) return badRequest('This Space is archived.');
+    if (space.archivedAt) return badRequest('This Folder is archived.');
     const docs = space.items.map((i) => i.doc).filter((d) => !d.archivedAt);
-    if (!docs.length) return badRequest('Add a document to this Space first.');
+    if (!docs.length) return badRequest('Add a document to this Folder first.');
     const blocked = docs.filter((d) => d.currentVersion?.scanStatus === 'BLOCKED');
-    if (blocked.length) return badRequest(`Cost columns were found in ${blocked.map((d) => d.title).join(', ')}. Clear or remove it before sharing this Space.`, 409);
+    if (blocked.length) return badRequest(`Cost columns were found in ${blocked.map((d) => d.title).join(', ')}. Clear or remove it before sharing this Folder.`, 409);
   }
 
   const opts = await linkOptions(body, { creating: true });

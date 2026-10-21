@@ -9,9 +9,13 @@ import { cn } from '@/lib/utils';
 import { shareAllowed } from '@/lib/salesDocs/pricingScan';
 import { ScanPill, KIND_LABEL, Modal, CreateLinkModal, useClients } from '@/components/salesDocs/SalesDocsUi';
 import LinksTable from '@/components/salesDocs/LinksTable';
+import { EngagementPanel } from '@/components/salesDocs/EngagementParts';
 
-// Sales > Sales Docs > one Space (0137): pick the documents, put them in
-// sections and order, then share the whole set behind one link.
+// Sales > Sales Docs > one Folder (0137; called a Space in the code): pick
+// the documents, put them in sections and order, then share the whole set
+// behind one link. Who opened it, and the time on each page, show here too.
+
+const BACK = 'text-xs font-semibold text-slate-500 hover:text-orange-600 transition-colors';
 
 const showable = (d) => !d.archivedAt && d.currentVersion?.processStatus === 'READY' && shareAllowed(d.currentVersion.scanStatus);
 
@@ -78,7 +82,7 @@ export default function SalesDocSpacePage({ params }) {
 
   const load = useCallback(async () => {
     const [sRes, lRes] = await Promise.all([fetch(`/api/sales-docs/spaces/${spaceId}`), fetch(`/api/sales-docs/links?spaceId=${spaceId}`)]);
-    if (!sRes.ok) { setLoadErr(sRes.status === 404 ? 'This Space was not found.' : 'This Space did not load.'); return; }
+    if (!sRes.ok) { setLoadErr(sRes.status === 404 ? 'This Folder was not found.' : 'This Folder did not load.'); return; }
     take((await sRes.json()).space);
     if (lRes.ok) setLinks((await lRes.json()).links);
   }, [spaceId]);
@@ -109,7 +113,7 @@ export default function SalesDocSpacePage({ params }) {
     return next;
   });
 
-  if (loadErr) return <div className="px-4 py-6"><SectionTabs tabs={SALES_DOCS_TABS} className="mb-5" /><div className="max-w-5xl mx-auto"><WidgetError>{loadErr}</WidgetError></div></div>;
+  if (loadErr) return <div className="px-4 py-6"><SectionTabs tabs={SALES_DOCS_TABS} className="mb-5" /><div className="max-w-5xl mx-auto space-y-3"><Link href="/sales/docs/spaces" className={BACK}>&larr; Back to Folders</Link><WidgetError>{loadErr}</WidgetError></div></div>;
   if (!space) return <div className="px-4 py-6"><SectionTabs tabs={SALES_DOCS_TABS} className="mb-5" /><WidgetLoading /></div>;
 
   const notReady = items.filter((i) => !showable(i.doc));
@@ -121,7 +125,7 @@ export default function SalesDocSpacePage({ params }) {
       <SectionTabs tabs={SALES_DOCS_TABS} className="mb-5" />
       <div className="max-w-5xl mx-auto space-y-5">
         <div>
-          <Link href="/sales/docs/spaces" className="text-xs text-slate-500 hover:text-orange-600">Spaces</Link>
+          <Link href="/sales/docs/spaces" className={BACK}>&larr; Back to Folders</Link>
           <div className="flex flex-wrap items-start justify-between gap-3 mt-1">
             <div className="min-w-0">
               <h1 className={H1}>{space.name}</h1>
@@ -140,7 +144,7 @@ export default function SalesDocSpacePage({ params }) {
         {notReady.length > 0 && (
           <p className={cn('text-xs border rounded-lg px-3 py-2', TONE.warning)}>
             {notReady.length === 1 ? '1 document' : `${notReady.length} documents`} will not show on links yet: {notReady.map((i) => `${i.doc.title} (${whyNot(i.doc)})`).join(', ')}.
-            {notReady.some((i) => i.doc.currentVersion?.scanStatus === 'BLOCKED') && ' A document with cost columns stops new links for the whole Space until it is removed or an admin clears it.'}
+            {notReady.some((i) => i.doc.currentVersion?.scanStatus === 'BLOCKED') && ' A document with cost columns stops new links for the whole Folder until it is removed or an admin clears it.'}
           </p>
         )}
 
@@ -180,7 +184,7 @@ export default function SalesDocSpacePage({ params }) {
                           onChange={(e) => { const v = e.target.value; edit((list) => list.map((x, k) => (k === n ? { ...x, section: v } : x))); }} />
                       </td>
                       <td className={TD}>
-                        <Link href={`/sales/docs/${i.doc.id}`} className="font-medium text-slate-800 hover:text-orange-600">{i.doc.title}</Link>
+                        <Link href={`/sales/docs/${i.doc.id}?folder=${spaceId}`} className="font-medium text-slate-800 hover:text-orange-600">{i.doc.title}</Link>
                         <span className={cn(HELPER, 'block')}>{KIND_LABEL[i.doc.kind]}{whyNot(i.doc) ? ` · ${whyNot(i.doc)}` : ''}</span>
                       </td>
                       <td className={TD}><ScanPill version={i.doc.currentVersion} /></td>
@@ -200,18 +204,24 @@ export default function SalesDocSpacePage({ params }) {
         <div className={CARD_PADDED}>
           <div className="flex items-center justify-between gap-2 mb-3">
             <h2 className={CARD_TITLE}>Links</h2>
-            {links.some((l) => l.views) && <Link href={`/sales/docs/engagement?space=${spaceId}`} className="text-xs text-slate-500 hover:text-orange-600">See who opened it</Link>}
           </div>
           {links.length === 0 ? <WidgetEmpty>No links yet.</WidgetEmpty> : (
             <div className="overflow-x-auto"><LinksTable links={links} onChanged={loadLinks} onError={setErr} /></div>
           )}
         </div>
 
+        {links.length > 0 && (
+          <div className={CARD_PADDED}>
+            <h2 className={cn(CARD_TITLE, 'mb-3')}>Who opened it</h2>
+            <EngagementPanel query={`spaceId=${spaceId}`} showDoc emptyText="Nobody has opened a link to this Folder yet." />
+          </div>
+        )}
+
         <div className="flex justify-end">
           <button type="button" className={BTN_SECONDARY} disabled={saving} onClick={() => {
-            if (!space.archivedAt && liveLinks && !window.confirm(`Archive this Space? Its ${liveLinks} live ${liveLinks === 1 ? 'link stops' : 'links stop'} working.`)) return;
+            if (!space.archivedAt && liveLinks && !window.confirm(`Archive this Folder? Its ${liveLinks} live ${liveLinks === 1 ? 'link stops' : 'links stop'} working.`)) return;
             patch({ archived: !space.archivedAt });
-          }}>{space.archivedAt ? 'Bring back' : 'Archive Space'}</button>
+          }}>{space.archivedAt ? 'Bring back' : 'Archive Folder'}</button>
         </div>
       </div>
 

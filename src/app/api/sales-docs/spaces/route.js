@@ -32,7 +32,7 @@ export async function POST(request) {
   if (error) return error;
   const body = await request.json().catch(() => ({}));
   const name = String(body.name || '').trim().slice(0, 120);
-  if (!name) return badRequest('Give the Space a name.');
+  if (!name) return badRequest('Give the Folder a name.');
   const space = await prisma.salesDocSpace.create({
     data: {
       name,

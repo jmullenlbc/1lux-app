@@ -163,6 +163,9 @@ test('sales docs: guard, links, gate, views, page time, turn off', async (t) => 
     assert.equal(eng.status, 200, eng.text);
     assert.equal(eng.json.total, 1);
     assert.equal(eng.json.kpis.timeMs, 15000);
+    assert.ok(!eng.json.units, 'page totals only when asked');
+    const withUnits = await get(`/api/sales-docs/engagement?docId=${pdf.doc.id}&units=1`, cookie);
+    assert.deepEqual(withUnits.json.units.map((u) => [u.unitIndex, u.durationMs, u.seen]), [[0, 5000, 1], [1, 10000, 1]], 'time on each page, all visits, on the doc page');
     const csv = await get(`/api/sales-docs/engagement?linkId=${link.json.link.id}&format=csv`, cookie);
     assert.equal(csv.status, 200);
     assert.match(csv.text, /reader@example-gc\.com/i);

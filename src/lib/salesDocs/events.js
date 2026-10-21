@@ -7,7 +7,7 @@ const who = (visitor) => visitor?.email || 'Someone';
 
 export async function onSalesDocEvent(type, { link, visitor, docTitle, viewId } = {}, { db } = {}) {
   if (!link?.createdById) return { created: false, reason: 'no owner' };
-  const href = link.docId ? `/sales/docs/${link.docId}` : `/sales/docs/engagement?link=${link.id}`;
+  const href = link.docId ? `/sales/docs/${link.docId}` : link.spaceId ? `/sales/docs/spaces/${link.spaceId}` : '/sales/docs/links';
 
   if (type === 'OPENED') {
     if (!link.notifyOnFirstOpen) return { created: false, reason: 'off' };

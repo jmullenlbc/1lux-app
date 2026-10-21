@@ -66,7 +66,6 @@ export const PROPOSAL_TABS = [
 
 export const SALES_DOCS_TABS = [
   { key: 'docs',       href: '/sales/docs',            label: 'Documents' },
-  { key: 'spaces',     href: '/sales/docs/spaces',     label: 'Spaces' },
+  { key: 'spaces',     href: '/sales/docs/spaces',     label: 'Folders' },
   { key: 'links',      href: '/sales/docs/links',      label: 'Links' },
-  { key: 'engagement', href: '/sales/docs/engagement', label: 'Engagement' },
 ];

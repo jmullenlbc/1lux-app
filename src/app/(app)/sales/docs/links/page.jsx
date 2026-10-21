@@ -96,7 +96,7 @@ export default function SalesDocLinksPage() {
           />
           <div className="mt-4 overflow-x-auto">
             {links === null ? <WidgetLoading /> : shown.length === 0 ? (
-              <WidgetEmpty>{(links || []).length ? 'No links match these filters.' : 'No links yet. Open a document or a Space and press Create link.'}</WidgetEmpty>
+              <WidgetEmpty>{(links || []).length ? 'No links match these filters.' : 'No links yet. Open a document or a Folder and press Create link.'}</WidgetEmpty>
             ) : (
               <LinksTable links={shown} onChanged={load} onError={setErr} showTarget sortHeader={sortHeader} />
             )}
