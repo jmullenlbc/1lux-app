@@ -5,7 +5,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [Sales Docs viewer, page time on each document, Folders] - October 21, 2026 (DEPLOYED) - no migration
+## [Sales Docs viewer, page time on each document, Folders] - October 21, 2026 (DEPLOYED aee28b9) - no migration
 
 Mike 10-20 review of Sales Docs: viewer controls "like Bluebeam", page time on the document page instead of a separate Engagement tab, "Change Spaces to Folders", and a back button that matches the rest of the app.
 
