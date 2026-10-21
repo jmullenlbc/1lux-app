@@ -234,13 +234,8 @@ function DocView({ token, doc, allowDownload, onBack, onLost }) {
   );
 }
 
+// One plain list in the Folder's order (Mike 10-21: no section headings).
 function SpaceList({ space, docs, onOpen }) {
-  const groups = [];
-  for (const d of docs) {
-    const last = groups[groups.length - 1];
-    if (last && last.section === (d.section || '')) last.docs.push(d);
-    else groups.push({ section: d.section || '', docs: [d] });
-  }
   return (
     <div className="max-w-2xl mx-auto px-4 py-8 space-y-5">
       <div>
@@ -248,21 +243,18 @@ function SpaceList({ space, docs, onOpen }) {
         {space?.description && <p className="text-sm text-slate-600 mt-1 whitespace-pre-wrap">{space.description}</p>}
       </div>
       {docs.length === 0 && <Notice title="Nothing to show yet">Ask the person who sent this link to check it.</Notice>}
-      {groups.map((g, i) => (
-        <div key={i}>
-          {g.section && <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">{g.section}</h2>}
-          <ul className="bg-white rounded-xl border border-slate-200 divide-y divide-slate-100">
-            {g.docs.map((d) => (
-              <li key={d.id}>
-                <button type="button" onClick={() => onOpen(d.id)} className="w-full text-left px-4 py-3 hover:bg-slate-50 flex items-center justify-between gap-3">
-                  <span className="font-medium text-slate-800">{d.title}</span>
-                  <span className="text-xs text-slate-500 whitespace-nowrap">{KIND[d.kind]}{d.kind === 'PDF' && d.pageCount ? ` · ${d.pageCount} ${d.pageCount === 1 ? 'page' : 'pages'}` : ''}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ))}
+      {docs.length > 0 && (
+        <ul className="bg-white rounded-xl border border-slate-200 divide-y divide-slate-100">
+          {docs.map((d) => (
+            <li key={d.id}>
+              <button type="button" onClick={() => onOpen(d.id)} className="w-full text-left px-4 py-3 hover:bg-slate-50 flex items-center justify-between gap-3">
+                <span className="font-medium text-slate-800">{d.title}</span>
+                <span className="text-xs text-slate-500 whitespace-nowrap">{KIND[d.kind]}{d.kind === 'PDF' && d.pageCount ? ` · ${d.pageCount} ${d.pageCount === 1 ? 'page' : 'pages'}` : ''}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

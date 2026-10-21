@@ -4,7 +4,7 @@ import Link from 'next/link';
 import SectionTabs, { SALES_DOCS_TABS } from '@/components/ui/SectionTabs';
 import { Th } from '@/components/ui/SortHeader';
 import { WidgetLoading, WidgetEmpty, WidgetError } from '@/components/ui/WidgetFrame';
-import { CARD_PADDED, CARD_TITLE, BTN_PRIMARY, BTN_SECONDARY, BTN_COMPACT, BTN_COMPACT_PRIMARY, INPUT, SELECT, H1, TD, HELPER, LABEL, TONE } from '@/components/ui/tokens';
+import { CARD_PADDED, CARD_TITLE, BTN_PRIMARY, BTN_SECONDARY, BTN_COMPACT, BTN_COMPACT_PRIMARY, INPUT, H1, TD, HELPER, LABEL, TONE } from '@/components/ui/tokens';
 import { cn } from '@/lib/utils';
 import { HIT_LABELS, shareAllowed } from '@/lib/salesDocs/pricingScan';
 import {
@@ -123,7 +123,6 @@ export default function SalesDocPage({ params, searchParams }) {
   const { docId } = params;
   const fromFolder = searchParams?.folder || '';
   const [data, setData] = useState(null);
-  const [folders, setFolders] = useState([]);
   const [err, setErr] = useState('');
   const [editing, setEditing] = useState(null);
   const [replace, setReplace] = useState(null); // File waiting on the confirm
@@ -138,7 +137,6 @@ export default function SalesDocPage({ params, searchParams }) {
     setData(await res.json());
   }, [docId]);
   useEffect(() => { load(); }, [load]);
-  useEffect(() => { fetch('/api/sales-docs/folders').then((r) => (r.ok ? r.json() : { folders: [] })).then((d) => setFolders(d.folders)); }, []);
 
   async function patch(body) {
     const res = await fetch(`/api/sales-docs/${docId}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
@@ -251,13 +249,8 @@ export default function SalesDocPage({ params, searchParams }) {
             <PricingCheck version={current} canOverride={canOverride} onCleared={load} />
             <div className={CARD_PADDED}>
               <h2 className={cn(CARD_TITLE, 'mb-3')}>Details</h2>
-              <label className={cn('block', LABEL, 'mb-1')} htmlFor="sd-folder">Folder</label>
-              <select id="sd-folder" className={SELECT} value={doc.folder?.id || ''} onChange={(e) => patch({ folderId: e.target.value || null })}>
-                <option value="">No folder</option>
-                {folders.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
-              </select>
               {doc.spaceItems.length > 0 && (
-                <p className={cn(HELPER, 'mt-3')}>
+                <p className={HELPER}>
                   In Folders:{' '}
                   {doc.spaceItems.map((i, n) => <span key={i.space.id}>{n ? ', ' : ''}<Link href={`/sales/docs/spaces/${i.space.id}`} className="hover:underline">{i.space.name}</Link></span>)}
                 </p>

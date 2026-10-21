@@ -12,8 +12,8 @@ import LinksTable from '@/components/salesDocs/LinksTable';
 import { EngagementPanel } from '@/components/salesDocs/EngagementParts';
 
 // Sales > Sales Docs > one Folder (0137; called a Space in the code): pick
-// the documents, put them in sections and order, then share the whole set
-// behind one link. Who opened it, and the time on each page, show here too.
+// the documents and their order, then share the whole set behind one link.
+// No sections (Mike 10-21: one plain list); old section values are ignored. Who opened it, and the time on each page, show here too.
 
 const BACK = 'text-xs font-semibold text-slate-500 hover:text-orange-600 transition-colors';
 
@@ -164,7 +164,6 @@ export default function SalesDocSpacePage({ params }) {
                 <thead>
                   <tr className="border-b border-slate-200">
                     <Th>Order</Th>
-                    <Th>Section</Th>
                     <Th>Document</Th>
                     <Th>Pricing check</Th>
                     <Th />
@@ -180,10 +179,6 @@ export default function SalesDocSpacePage({ params }) {
                         </span>
                       </td>
                       <td className={TD}>
-                        <input className={cn(INPUT, 'min-w-[9rem]')} value={i.section} placeholder="Example: Proposal" list="sd-sections"
-                          onChange={(e) => { const v = e.target.value; edit((list) => list.map((x, k) => (k === n ? { ...x, section: v } : x))); }} />
-                      </td>
-                      <td className={TD}>
                         <Link href={`/sales/docs/${i.doc.id}?folder=${spaceId}`} className="font-medium text-slate-800 hover:text-orange-600">{i.doc.title}</Link>
                         <span className={cn(HELPER, 'block')}>{KIND_LABEL[i.doc.kind]}{whyNot(i.doc) ? ` · ${whyNot(i.doc)}` : ''}</span>
                       </td>
@@ -195,8 +190,7 @@ export default function SalesDocSpacePage({ params }) {
                   ))}
                 </tbody>
               </table>
-              <datalist id="sd-sections">{[...new Set(items.map((i) => i.section).filter(Boolean))].map((s) => <option key={s} value={s} />)}</datalist>
-              <p className={cn(HELPER, 'mt-2')}>Documents with the same section show together, in this order.</p>
+              <p className={cn(HELPER, 'mt-2')}>The reader sees one list, in this order.</p>
             </div>
           )}
         </div>

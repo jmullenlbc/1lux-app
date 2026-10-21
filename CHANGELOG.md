@@ -5,6 +5,16 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Sales Docs: documents are not grouped] - October 21, 2026 (DEPLOYED) - no migration
+
+Mike 10-21: "We don't need to group docs or spaces. They should just be filterable and sortable." Then "One plain list for now."
+
+- Documents tab: the folder filter, Folder column and sort, and the New folder button are gone. Uploads no longer pick a folder. Search, Type, Owner, Pricing check and Archived filters and every sort stay.
+- Document page: the Folder picker in Details is gone; "In Folders" (the share Folders) stays.
+- Folders (share sets): the Section column is gone from the Folder page, and the public link page shows the documents as one plain list in the Folder's order, with no section headings. Saved section values stay in the database, ignored.
+- SalesDocFolder rows and the `/api/sales-docs/folders` routes stay in place, unused (additive only).
+- Files: `sales/docs/page.jsx`, `sales/docs/[docId]/page.jsx`, `sales/docs/spaces/[spaceId]/page.jsx`, `share/docs/[token]/SalesDocShareView.jsx`. Build passes.
+
 ## [Sales Docs viewer, page time on each document, Folders] - October 21, 2026 (DEPLOYED aee28b9) - no migration
 
 Mike 10-20 review of Sales Docs: viewer controls "like Bluebeam", page time on the document page instead of a separate Engagement tab, "Change Spaces to Folders", and a back button that matches the rest of the app.
