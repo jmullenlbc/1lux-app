@@ -5,7 +5,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [Sales Docs: documents are not grouped] - October 21, 2026 (DEPLOYED) - no migration
+## [Sales Docs: documents are not grouped] - October 21, 2026 (DEPLOYED 126836a) - no migration
 
 Mike 10-21: "We don't need to group docs or spaces. They should just be filterable and sortable." Then "One plain list for now."
 
