@@ -5,7 +5,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [Sales Docs: full width viewer, averages, downloads] - October 21, 2026 (NOT deployed) - no migration
+## [Sales Docs: full width viewer, averages, downloads] - October 21, 2026 (DEPLOYED 48f2c5d) - no migration
 
 Mike 10-21 feedback on Sales Docs.
 
