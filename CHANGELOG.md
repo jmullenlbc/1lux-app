@@ -5,6 +5,17 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Sales Docs: full width viewer, averages, downloads] - October 21, 2026 (NOT deployed) - no migration
+
+Mike 10-21 feedback on Sales Docs.
+
+- Document page: the Pricing check and Details windows are gone. The PDF viewer runs the full width. Archive sits next to Create link.
+- The cost number guard still runs on every upload. A notice shows only when a file cannot share cleanly (blocked or pricing words found), with "What was found" and, for Sales Admins, "Clear for sharing".
+- "Pricing check" is now "Sharing" everywhere (list filter, columns, versions table): OK to share, Check before sharing, Blocked: cost numbers, Cleared by admin.
+- Who Opened It: tiles show averages per visit (Avg time per visit, Avg read across all visits) plus Downloads. Page bars show the average time on each page per visit.
+- Downloads: every download is tied to the visit it came from. Visits table and CSV gain a Downloads column. A new "Downloaded" list shows who downloaded, how many times, first and last time.
+- Files: `src/app/(app)/sales/docs/[docId]/page.jsx`, `src/app/(app)/sales/docs/page.jsx`, `src/app/(app)/sales/docs/spaces/[spaceId]/page.jsx`, `src/components/salesDocs/EngagementParts.jsx`, `src/app/api/sales-docs/engagement/route.js`, `src/app/api/share/docs/[token]/download/route.js`, `src/app/share/docs/[token]/SalesDocShareView.jsx`, `src/lib/salesDocs/pricingScan.js`, `scripts/tests/salesDocsE2e.test.mjs` (downloads + averages).
+
 ## [Sales Docs: documents are not grouped] - October 21, 2026 (DEPLOYED 126836a) - no migration
 
 Mike 10-21: "We don't need to group docs or spaces. They should just be filterable and sortable." Then "One plain list for now."

@@ -165,7 +165,7 @@ export default function SalesDocSpacePage({ params }) {
                   <tr className="border-b border-slate-200">
                     <Th>Order</Th>
                     <Th>Document</Th>
-                    <Th>Pricing check</Th>
+                    <Th>Sharing</Th>
                     <Th />
                   </tr>
                 </thead>

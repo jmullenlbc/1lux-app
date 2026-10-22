@@ -169,6 +169,30 @@ test('sales docs: guard, links, gate, views, page time, turn off', async (t) => 
     const csv = await get(`/api/sales-docs/engagement?linkId=${link.json.link.id}&format=csv`, cookie);
     assert.equal(csv.status, 200);
     assert.match(csv.text, /reader@example-gc\.com/i);
+    assert.equal(withUnits.json.kpis.avgTimeMs, 15000, 'one visit, so the average is the total');
+    assert.deepEqual(withUnits.json.units.map((u) => u.avgMs), [5000, 10000]);
+    assert.ok(withUnits.json.kpis.avgRead > 0.99, 'both pages seen');
+
+    // Downloads: who, how many times, when, and on which visit (Mike 10-21).
+    const dLink = await post('/api/sales-docs/links', { docId: pdf.doc.id, name: `${TAG} download`, requireEmail: true, allowDownload: true }, cookie);
+    assert.equal(dLink.status, 201, dLink.text);
+    const dToken = dLink.json.link.token;
+    const dPass = await gate(dToken, { email: 'getter@example-gc.com' });
+    const dView = await send('POST', `/api/share/docs/${dToken}/views`, { docId: pdf.doc.id }, dPass.cookie);
+    assert.equal(dView.status, 201, dView.text);
+    const grab = (extra) => fetch(`${BASE}/api/share/docs/${dToken}/download?docId=${pdf.doc.id}${extra}`, { headers: { cookie: dPass.cookie }, redirect: 'manual' });
+    for (const extra of [`&viewId=${dView.json.viewId}`, `&viewId=${dView.json.viewId}`, '&viewId=not-mine']) {
+      const r = await grab(extra);
+      assert.ok([200, 302].includes(r.status), `download ${r.status}`);
+    }
+    const dEng = await get(`/api/sales-docs/engagement?linkId=${dLink.json.link.id}`, cookie);
+    assert.equal(dEng.json.kpis.downloads, 3);
+    assert.equal(dEng.json.rows[0].downloads, 2, 'a made up visit id is not tied to the visit');
+    assert.equal(dEng.json.downloads.length, 1);
+    assert.equal(dEng.json.downloads[0].count, 3);
+    assert.equal(dEng.json.downloads[0].visitor.email, 'getter@example-gc.com');
+    assert.ok(dEng.json.downloads[0].firstAt && dEng.json.downloads[0].lastAt);
+    assert.match((await get(`/api/sales-docs/engagement?linkId=${dLink.json.link.id}&format=csv`, cookie)).text, /,Downloads,/);
 
     // T10: a password link refuses a wrong password, then locks after ten misses.
     const pw = await post('/api/sales-docs/links', { docId: pdf.doc.id, name: `${TAG} password`, password: 'e2e-pass-word', requireEmail: false }, cookie);

@@ -14,9 +14,10 @@ import { useRangedPdf, PdfViewer, SheetTable, useSheet } from '@/components/sale
 import { EngagementPanel } from '@/components/salesDocs/EngagementParts';
 import LinksTable from '@/components/salesDocs/LinksTable';
 
-// Sales > Sales Docs > one document (0137): pricing check, versions, links,
+// Sales > Sales Docs > one document (0137): full width preview, versions, links,
 // and who has opened it, with the time on each page (Mike 10-20: all of it here,
-// no Engagement tab).
+// no Engagement tab). Mike 10-21: no pricing check or Details window; Archive
+// sits by Create link; a notice shows only when a file cannot share cleanly.
 
 const BACK = 'text-xs font-semibold text-slate-500 hover:text-orange-600 transition-colors';
 
@@ -52,13 +53,16 @@ function Preview({ version, kind, jumpTo }) {
   );
 }
 
-function PricingCheck({ version, canOverride, onCleared }) {
+// Shows only when something keeps a file from sharing cleanly (Mike 10-21: no
+// pricing check window). A clean file shows nothing.
+function SharingNotice({ version, label, canOverride, onCleared }) {
   const [reason, setReason] = useState('');
   const [open, setOpen] = useState(false);
+  const [showHits, setShowHits] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
-  if (!version) return null;
-  const hidden = (version.sheets || []).filter((s) => s.hidden);
+  if (!version || version.processStatus !== 'READY' || !['BLOCKED', 'WARN'].includes(version.scanStatus)) return null;
+  const blocked = version.scanStatus === 'BLOCKED';
 
   async function clear() {
     setBusy(true); setErr('');
@@ -71,49 +75,40 @@ function PricingCheck({ version, canOverride, onCleared }) {
   }
 
   return (
-    <div className={CARD_PADDED}>
-      <div className="flex items-center justify-between gap-2 mb-3">
-        <h2 className={CARD_TITLE}>Pricing check · v{version.version}</h2>
-        <ScanPill version={version} />
+    <div className={cn('text-xs rounded-lg border px-3 py-2', blocked ? TONE.danger : TONE.warning)}>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p>
+          {label ? `${label}: ` : ''}
+          {blocked
+            ? `This file has our cost numbers in it (like Dealer Net or Margin), so it cannot be shared. Upload a copy without them${canOverride ? ', or clear it if it is safe' : ', or ask a Sales Admin to clear it'}.`
+            : 'Pricing words were found in the text. It can be shared, but take a look first.'}
+        </p>
+        <span className="flex gap-2">
+          {version.scanHits.length > 0 && <button type="button" className={BTN_COMPACT} onClick={() => setShowHits((x) => !x)}>{showHits ? 'Hide what was found' : 'What was found'}</button>}
+          {blocked && canOverride && !open && <button type="button" className={BTN_COMPACT} onClick={() => setOpen(true)}>Clear for sharing</button>}
+        </span>
       </div>
-      {version.processStatus !== 'READY' ? (
-        <p className={HELPER}>{version.processStatus === 'FAILED' ? 'The file could not be read, so it cannot be shared.' : 'Checking the file for cost columns...'}</p>
-      ) : (
-        <>
-          {version.scanStatus === 'CLEAN' && <p className={HELPER}>No cost columns, hidden sheets or hidden columns were found.</p>}
-          {version.scanStatus === 'WARN' && <p className={HELPER}>Pricing words were found in the text. It can be shared, but take a look first.</p>}
-          {version.scanStatus === 'BLOCKED' && <p className={HELPER}>This file cannot be shared. Upload a copy without these, or ask a Sales Admin to clear it.</p>}
-          {version.scanStatus === 'OVERRIDDEN' && (
-            <p className={HELPER}>Cleared by {version.scanOverrideBy?.name || 'an admin'} {version.scanOverriddenAt ? `on ${formatWhen(version.scanOverriddenAt)}` : ''}: &ldquo;{version.scanOverrideReason}&rdquo;. Hidden sheets, rows and columns still never show.</p>
-          )}
-          {version.scanHits.length > 0 && (
-            <ul className="mt-3 space-y-1.5">
-              {version.scanHits.map((h) => (
-                <li key={h.id} className="text-xs text-slate-700">
-                  <span className="font-semibold">{HIT_LABELS[h.reason] || h.reason}</span>
-                  {h.sheetName ? ` · ${h.sheetName}` : ''}{h.cell ? ` ${h.cell}` : ''}{h.page ? ` · page ${h.page}` : ''}
-                  {h.text ? <span className="block text-slate-500 truncate" title={h.text}>&ldquo;{h.text}&rdquo;</span> : null}
-                </li>
-              ))}
-            </ul>
-          )}
-          {hidden.length > 0 && <p className={cn(HELPER, 'mt-3')}>Never shown: {hidden.map((s) => s.name).join(', ')}.</p>}
-          {version.truncated && <p className={cn(HELPER, 'mt-1')}>A sheet was cut at 2,000 rows or 60 columns.</p>}
-          {version.scanStatus === 'BLOCKED' && canOverride && !open && (
-            <button type="button" className={cn(BTN_COMPACT, 'mt-3')} onClick={() => setOpen(true)}>Clear for sharing</button>
-          )}
-          {open && (
-            <div className="mt-3 space-y-2">
-              <label className={cn('block', LABEL)} htmlFor="sd-reason">Why is this safe to share?</label>
-              <textarea id="sd-reason" rows={2} className={INPUT} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Like: the Cost column is the client's own budget, not ours" />
-              {err && <p className="text-xs text-red-600">{err}</p>}
-              <div className="flex justify-end gap-2">
-                <button type="button" className={BTN_COMPACT} onClick={() => setOpen(false)}>Cancel</button>
-                <button type="button" className={BTN_COMPACT_PRIMARY} disabled={busy || reason.trim().length < 5} onClick={clear}>{busy ? 'Clearing...' : 'Clear it'}</button>
-              </div>
-            </div>
-          )}
-        </>
+      {showHits && version.scanHits.length > 0 && (
+        <ul className="mt-3 space-y-1.5">
+          {version.scanHits.map((h) => (
+            <li key={h.id} className="text-xs text-slate-700">
+              <span className="font-semibold">{HIT_LABELS[h.reason] || h.reason}</span>
+              {h.sheetName ? ` · ${h.sheetName}` : ''}{h.cell ? ` ${h.cell}` : ''}{h.page ? ` · page ${h.page}` : ''}
+              {h.text ? <span className="block text-slate-500 truncate" title={h.text}>&ldquo;{h.text}&rdquo;</span> : null}
+            </li>
+          ))}
+        </ul>
+      )}
+      {open && (
+        <div className="mt-3 space-y-2">
+          <label className={cn('block', LABEL)} htmlFor="sd-reason">Why is this safe to share?</label>
+          <textarea id="sd-reason" rows={2} className={INPUT} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Like: the Cost column is the client's own budget, not ours" />
+          {err && <p className="text-xs text-red-600">{err}</p>}
+          <div className="flex justify-end gap-2">
+            <button type="button" className={BTN_COMPACT} onClick={() => setOpen(false)}>Cancel</button>
+            <button type="button" className={BTN_COMPACT_PRIMARY} disabled={busy || reason.trim().length < 5} onClick={clear}>{busy ? 'Clearing...' : 'Clear it'}</button>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -217,11 +212,18 @@ export default function SalesDocPage({ params, searchParams }) {
                 {doc.owner ? ` · ${doc.owner.name}` : ''}
                 {doc.archivedAt ? ' · Archived' : ''}
               </p>
+              {doc.spaceItems.length > 0 && (
+                <p className="text-xs text-slate-500 mt-0.5">
+                  In Folders:{' '}
+                  {doc.spaceItems.map((i, n) => <span key={i.space.id}>{n ? ', ' : ''}<Link href={`/sales/docs/spaces/${i.space.id}`} className="hover:underline">{i.space.name}</Link></span>)}
+                </p>
+              )}
             </div>
             <div className="flex flex-wrap gap-2">
               <button type="button" className={BTN_SECONDARY} disabled={!!stage} onClick={() => fileRef.current?.click()}>{stage ? `${stage}...` : 'Upload new version'}</button>
               <input ref={fileRef} type="file" accept={doc.kind === 'PDF' ? '.pdf' : '.xlsx'} className="hidden" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) (reach ? setReplace(f) : doReplace(f)); }} />
-              <button type="button" className={BTN_PRIMARY} disabled={!canShare} title={canShare ? '' : 'Only a checked file that passed the pricing check can be shared.'} onClick={() => setLinkOpen(true)}>Create link</button>
+              <button type="button" className={BTN_SECONDARY} title={doc.archivedAt ? '' : 'Archiving turns off every link to it.'} onClick={() => patch({ archived: !doc.archivedAt })}>{doc.archivedAt ? 'Bring back' : 'Archive'}</button>
+              <button type="button" className={BTN_PRIMARY} disabled={!canShare} title={canShare ? '' : doc.archivedAt ? 'Bring it back to share it.' : 'This file cannot be shared yet.'} onClick={() => setLinkOpen(true)}>Create link</button>
             </div>
           </div>
         </div>
@@ -236,36 +238,22 @@ export default function SalesDocPage({ params, searchParams }) {
           </p>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-          <div id="sd-preview" className={cn(CARD_PADDED, 'lg:col-span-2 scroll-mt-4')}>
-            <div className="flex items-center justify-between gap-2 mb-3">
-              <h2 className={CARD_TITLE}>Preview · v{current?.version}</h2>
-              {current && <a className="text-xs text-slate-500 hover:text-orange-600" href={`/api/sales-docs/versions/${current.id}/file?download=1`}>Download</a>}
-            </div>
-            <Preview version={current} kind={doc.kind} jumpTo={jumpTo} />
+        {newer && <SharingNotice version={newer} label={`Version ${newer.version}`} canOverride={canOverride} onCleared={load} />}
+        <SharingNotice version={current} canOverride={canOverride} onCleared={load} />
+
+        <div id="sd-preview" className={cn(CARD_PADDED, 'scroll-mt-4')}>
+          <div className="flex items-center justify-between gap-2 mb-3">
+            <h2 className={CARD_TITLE}>Preview · v{current?.version}</h2>
+            {current && <a className="text-xs text-slate-500 hover:text-orange-600" href={`/api/sales-docs/versions/${current.id}/file?download=1`}>Download</a>}
           </div>
-          <div className="space-y-5">
-            {newer && <PricingCheck version={newer} canOverride={canOverride} onCleared={load} />}
-            <PricingCheck version={current} canOverride={canOverride} onCleared={load} />
-            <div className={CARD_PADDED}>
-              <h2 className={cn(CARD_TITLE, 'mb-3')}>Details</h2>
-              {doc.spaceItems.length > 0 && (
-                <p className={HELPER}>
-                  In Folders:{' '}
-                  {doc.spaceItems.map((i, n) => <span key={i.space.id}>{n ? ', ' : ''}<Link href={`/sales/docs/spaces/${i.space.id}`} className="hover:underline">{i.space.name}</Link></span>)}
-                </p>
-              )}
-              <button type="button" className={cn(BTN_COMPACT, 'mt-4')} onClick={() => patch({ archived: !doc.archivedAt })}>{doc.archivedAt ? 'Bring back' : 'Archive'}</button>
-              {!doc.archivedAt && <p className={cn(HELPER, 'mt-1')}>Archiving turns off every link to it.</p>}
-            </div>
-          </div>
+          <Preview version={current} kind={doc.kind} jumpTo={jumpTo} />
         </div>
 
         <div className={CARD_PADDED}>
           <h2 className={cn(CARD_TITLE, 'mb-3')}>Versions</h2>
           <div className="overflow-x-auto">
             <table className="w-full text-xs">
-              <thead><tr className="border-b border-slate-200"><Th>Version</Th><Th>File</Th><Th>Pricing check</Th><Th>Uploaded</Th><Th /></tr></thead>
+              <thead><tr className="border-b border-slate-200"><Th>Version</Th><Th>File</Th><Th>Sharing</Th><Th>Uploaded</Th><Th /></tr></thead>
               <tbody className="divide-y divide-slate-50">
                 {doc.versions.map((v) => (
                   <tr key={v.id} className="hover:bg-slate-50">
@@ -299,7 +287,7 @@ export default function SalesDocPage({ params, searchParams }) {
 
       {replace && (
         <Modal title="Upload new version" onClose={() => setReplace(null)} width="max-w-md">
-          <p className="text-sm text-slate-700">All {reach} live {reach === 1 ? 'link' : 'links'} will show the new version once it passes the pricing check. Until then they keep showing version {current?.version}.</p>
+          <p className="text-sm text-slate-700">All {reach} live {reach === 1 ? 'link' : 'links'} will show the new version once it is cleared for sharing. Until then they keep showing version {current?.version}.</p>
           <div className="flex justify-end gap-2 mt-5">
             <button type="button" className={BTN_SECONDARY} onClick={() => setReplace(null)}>Cancel</button>
             <button type="button" className={BTN_PRIMARY} onClick={() => doReplace(replace)}>Upload {replace.name}</button>

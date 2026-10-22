@@ -50,6 +50,7 @@ export function EngagementRows({ rows, onOpen, showDoc = false, sortHeader }) {
           <Th>Link</Th>
           {sortHeader ? sortHeader('time', 'Time', 'right') : <Th align="right">Time</Th>}
           <Th>Read</Th>
+          <Th align="right">Downloads</Th>
           <Th>Device</Th>
         </tr>
       </thead>
@@ -67,6 +68,7 @@ export function EngagementRows({ rows, onOpen, showDoc = false, sortHeader }) {
             <td className={TD}>{r.link?.name}</td>
             <td className={cn(TD, 'text-right tabular-nums whitespace-nowrap')}>{formatTime(r.durationMs)}</td>
             <td className={TD}><CompletionBar value={r.completion} /></td>
+            <td className={cn(TD, 'text-right tabular-nums')}>{r.downloads || ''}</td>
             <td className={cn(TD, 'whitespace-nowrap')}>{[r.device, r.browser].filter(Boolean).join(' · ')}</td>
           </tr>
         ))}
@@ -106,11 +108,40 @@ export function UnitTimeBars({ units, onPick }) {
   );
 }
 
+/** Who downloaded: each person and document, how many times, first and last. */
+export function DownloadList({ downloads, showDoc }) {
+  return (
+    <table className="w-full text-xs">
+      <thead>
+        <tr className="border-b border-slate-200">
+          <Th>Visitor</Th>
+          {showDoc && <Th>Document</Th>}
+          <Th align="right">Times</Th>
+          <Th>Last</Th>
+          <Th>First</Th>
+        </tr>
+      </thead>
+      <tbody className="divide-y divide-slate-50">
+        {downloads.map((d, i) => (
+          <tr key={`${d.visitor?.id || 'x'}:${d.doc?.id || i}`}>
+            <td className={TD}><VisitorCell visitor={d.visitor} /></td>
+            {showDoc && <td className={TD}>{d.doc ? <Link href={`/sales/docs/${d.doc.id}`} className="hover:underline">{d.doc.title}</Link> : ''}</td>}
+            <td className={cn(TD, 'text-right tabular-nums')}>{d.count}</td>
+            <td className={cn(TD, 'whitespace-nowrap')}>{formatWhen(d.lastAt)}</td>
+            <td className={cn(TD, 'whitespace-nowrap')}>{d.count > 1 ? formatWhen(d.firstAt) : ''}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
 /**
  * Who opened it, for a document, a link or a Folder (query = "docId=..",
- * "linkId=.." or "spaceId=.."): tiles, time on each page, visits with paging,
- * CSV. fill = [{ index, label }] lists every page of the document so skipped
- * pages show too. onPick(index) jumps the viewer to that page.
+ * "linkId=.." or "spaceId=.."): averages per visit (Mike 10-21), average time
+ * on each page, who downloaded, visits with paging, CSV. fill = [{ index, label }]
+ * lists every page of the document so skipped pages show too. onPick(index)
+ * jumps the viewer to that page.
  */
 export function EngagementPanel({ query, fill = null, onPick, tiles = true, showDoc = false, emptyText = 'Nobody has opened it yet.' }) {
   const [data, setData] = useState(null);
@@ -146,7 +177,7 @@ export function EngagementPanel({ query, fill = null, onPick, tiles = true, show
   for (const u of data.units || []) {
     let d = docs.find((x) => x.docId === u.docId);
     if (!d) { d = { docId: u.docId, title: u.docTitle, units: [] }; docs.push(d); }
-    d.units.push({ index: u.unitIndex, label: u.label || `Page ${u.unitIndex + 1}`, durationMs: u.durationMs, seen: u.seen });
+    d.units.push({ index: u.unitIndex, label: u.label || `Page ${u.unitIndex + 1}`, durationMs: u.avgMs, seen: u.seen });
   }
   if (fill && docs.length <= 1) {
     const had = new Map((docs[0]?.units || []).map((u) => [u.index, u]));
@@ -159,12 +190,20 @@ export function EngagementPanel({ query, fill = null, onPick, tiles = true, show
   return (
     <div className="space-y-4">
       {tiles && (
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
           <StatTile label="Views" value={data.kpis.views} inset />
           <StatTile label="People" value={data.kpis.visitors} inset />
-          <StatTile label="Time read" value={formatTime(data.kpis.timeMs)} inset />
+          <StatTile label="Avg time per visit" value={formatTime(data.kpis.avgTimeMs)} sub={data.kpis.views > 1 ? `${formatTime(data.kpis.timeMs)} in all` : null} inset />
+          <StatTile label="Avg read" value={`${Math.round((data.kpis.avgRead || 0) * 100)}%`} sub="of the pages" inset />
+          <StatTile label="Downloads" value={data.kpis.downloads ?? 0} inset />
           <StatTile label="Forwarded" value={data.kpis.forwarded} inset tone={data.kpis.forwarded ? 'warning' : 'default'} />
           <StatTile label="Viewing now" value={data.kpis.viewingNow} inset tone={data.kpis.viewingNow ? 'success' : 'default'} />
+        </div>
+      )}
+      {data.downloads?.length > 0 && (
+        <div>
+          <p className={cn(LABEL, 'mb-1')}>Downloaded</p>
+          <div className="overflow-x-auto"><DownloadList downloads={data.downloads} showDoc={showDoc} /></div>
         </div>
       )}
       {data.total === 0 ? <WidgetEmpty>{emptyText}</WidgetEmpty> : (
@@ -172,7 +211,7 @@ export function EngagementPanel({ query, fill = null, onPick, tiles = true, show
           {anyTime && (
             <div>
               <p className={cn(LABEL, 'mb-2')}>
-                Time on each page, all visits{onPick ? <span className="font-normal normal-case text-slate-500"> · click one to go to it</span> : null}
+                Average time on each page, per visit{onPick ? <span className="font-normal normal-case text-slate-500"> · click one to go to it</span> : null}
               </p>
               <div className="space-y-3">
                 {docs.map((d) => (

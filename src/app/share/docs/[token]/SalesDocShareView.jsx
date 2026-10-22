@@ -172,6 +172,8 @@ function useVisit(token, docId, unit, onLost) {
       window.removeEventListener('pagehide', hide);
     };
   }, [flush]);
+
+  return viewRef;
 }
 
 function PdfDoc({ token, doc, onUnit }) {
@@ -216,7 +218,8 @@ function SheetDoc({ token, doc, onUnit }) {
 function DocView({ token, doc, allowDownload, onBack, onLost }) {
   const [unit, setUnit] = useState(null);
   const onUnit = useCallback((u) => setUnit((cur) => (cur && cur.index === u.index ? cur : u)), []);
-  useVisit(token, doc.id, unit, onLost);
+  const viewRef = useVisit(token, doc.id, unit, onLost);
+  const download = `/api/share/docs/${token}/download?docId=${doc.id}`;
   return (
     <>
       <div className="bg-white border-b border-slate-200">
@@ -226,7 +229,10 @@ function DocView({ token, doc, allowDownload, onBack, onLost }) {
             <h1 className="text-base font-semibold text-slate-900 truncate">{doc.title}</h1>
             {unit && doc.kind !== 'PDF' && <p className="text-xs text-slate-500">{unit.label}</p>}
           </div>
-          {allowDownload && <a className={BTN_LIGHT} href={`/api/share/docs/${token}/download?docId=${doc.id}`}>Download</a>}
+          {allowDownload && (
+            // The visit id rides along so the download shows on that visit.
+            <a className={BTN_LIGHT} href={download} onClick={(e) => { if (viewRef.current) e.currentTarget.href = `${download}&viewId=${viewRef.current}`; }}>Download</a>
+          )}
         </div>
       </div>
       {doc.kind === 'PDF' ? <PdfDoc token={token} doc={doc} onUnit={onUnit} /> : <SheetDoc token={token} doc={doc} onUnit={onUnit} />}

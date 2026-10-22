@@ -14,12 +14,19 @@ export async function GET(request, { params }) {
   const pass = await requirePass(link);
   if (!pass) return new NextResponse(null, { status: 401 });
   if (!link.allowDownload) return NextResponse.json({ error: 'Downloads are off for this link.' }, { status: 403 });
-  const doc = docOnLink(link, new URL(request.url).searchParams.get('docId') || '');
+  const sp = new URL(request.url).searchParams;
+  const doc = docOnLink(link, sp.get('docId') || '');
   if (!doc) return new NextResponse(null, { status: 404 });
+
+  // Tie it to the visit when the page sent one that belongs to this visitor, link and document.
+  const viewId = sp.get('viewId') || '';
+  const view = viewId
+    ? await prisma.salesDocView.findFirst({ where: { id: viewId, linkId: link.id, visitorId: pass.visitorId, docId: doc.id }, select: { id: true } }).catch(() => null)
+    : null;
 
   const v = doc.currentVersion;
   await prisma.salesDocEvent.create({
-    data: { type: 'DOWNLOAD', linkId: link.id, visitorId: pass.visitorId, docId: doc.id, ipHash: ipHashOf(request) },
+    data: { type: 'DOWNLOAD', linkId: link.id, viewId: view?.id || null, visitorId: pass.visitorId, docId: doc.id, ipHash: ipHashOf(request) },
   }).catch(() => {});
 
   const url = await presignSalesDocDownload(v.storageKey, v.fileName);

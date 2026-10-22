@@ -134,9 +134,9 @@ export const shareAllowed = (scanStatus) => scanStatus === 'CLEAN' || scanStatus
 /** Plain words for the scan pill. */
 export const SCAN_LABELS = {
   PENDING: 'Checking',
-  CLEAN: 'No cost columns',
-  WARN: 'Check pricing words',
-  BLOCKED: 'Cost columns found · sharing blocked',
+  CLEAN: 'OK to share',
+  WARN: 'Check before sharing',
+  BLOCKED: 'Blocked: cost numbers',
   OVERRIDDEN: 'Cleared by admin',
 };
 

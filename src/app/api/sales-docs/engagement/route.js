@@ -7,7 +7,8 @@ import { UNIT_SEEN_MS, VIEWING_NOW_MS, formatDuration } from '@/lib/salesDocs/tr
 //   ?docId=&spaceId=&linkId=&clientId=&q=&from=&to=&forwarded=yes|no&sort=opened|time&dir=asc|desc&page=1&format=csv&units=1
 // One row per visit. Completion = pages (or sheets) looked at for 5 seconds
 // or more, over the pages the version has. units=1 adds the time on each page
-// (or sheet) over every matching visit, per document.
+// (or sheet) over every matching visit, per document, with the average per
+// visit. Page 1 also carries the averages and who downloaded (Mike 10-21).
 
 const PAGE_SIZE = 50;
 const CSV_MAX = 5000;
@@ -30,6 +31,25 @@ function viewWhere(q) {
   return where;
 }
 
+/** The same filters for DOWNLOAD events (no forwarded filter; events are not visits). */
+function downloadWhere(q) {
+  const where = { type: 'DOWNLOAD' };
+  if (q.get('docId')) where.docId = q.get('docId');
+  if (q.get('linkId')) where.linkId = q.get('linkId');
+  if (q.get('spaceId')) where.link = { spaceId: q.get('spaceId') };
+  const visitor = {};
+  if (q.get('clientId')) visitor.clientId = q.get('clientId');
+  const text = (q.get('q') || '').trim().toLowerCase();
+  if (text) visitor.email = { contains: text };
+  if (Object.keys(visitor).length) where.visitor = visitor;
+  const from = q.get('from'), to = q.get('to');
+  const gte = from ? new Date(from) : null;
+  const lte = to ? new Date(`${to}T23:59:59.999Z`) : null;
+  if (gte && !Number.isNaN(gte.getTime())) where.createdAt = { gte };
+  if (lte && !Number.isNaN(lte.getTime())) where.createdAt = { ...(where.createdAt || {}), lte };
+  return where;
+}
+
 /** sort=opened|time, dir=asc|desc; newest first when not given. */
 function viewOrder(q) {
   const dir = q.get('dir') === 'asc' ? 'asc' : 'desc';
@@ -49,6 +69,45 @@ const ROW_SELECT = {
   doc: { select: { id: true, title: true, kind: true } },
   version: { select: { version: true, pageCount: true } },
 };
+
+async function downloadsByView(viewIds) {
+  if (!viewIds.length) return new Map();
+  const g = await prisma.salesDocEvent.groupBy({ by: ['viewId'], where: { type: 'DOWNLOAD', viewId: { in: viewIds } }, _count: { _all: true } });
+  return new Map(g.map((r) => [r.viewId, r._count._all]));
+}
+
+/** Who downloaded, per person and document: how many times, first and last. */
+async function downloadList(where) {
+  const g = await prisma.salesDocEvent.groupBy({
+    by: ['visitorId', 'docId'], where, _count: { _all: true }, _min: { createdAt: true }, _max: { createdAt: true },
+  });
+  const visitorIds = [...new Set(g.map((r) => r.visitorId).filter(Boolean))];
+  const docIds = [...new Set(g.map((r) => r.docId).filter(Boolean))];
+  const [visitors, docs] = await Promise.all([
+    visitorIds.length ? prisma.salesDocVisitor.findMany({ where: { id: { in: visitorIds } }, select: ROW_SELECT.visitor.select }) : [],
+    docIds.length ? prisma.salesDoc.findMany({ where: { id: { in: docIds } }, select: { id: true, title: true } }) : [],
+  ]);
+  const vMap = new Map(visitors.map((v) => [v.id, v]));
+  const dMap = new Map(docs.map((d) => [d.id, d]));
+  return g.map((r) => ({
+    visitor: vMap.get(r.visitorId) || null,
+    doc: dMap.get(r.docId) || null,
+    count: r._count._all,
+    firstAt: r._min.createdAt,
+    lastAt: r._max.createdAt,
+  })).sort((a, b) => new Date(b.lastAt) - new Date(a.lastAt));
+}
+
+/** Average read (completion) over every matching visit, not just this page of rows. */
+async function averageRead(where) {
+  const [views, seen] = await Promise.all([
+    prisma.salesDocView.findMany({ where, select: { id: true, version: { select: { pageCount: true } } }, take: UNIT_ROWS_MAX }),
+    prisma.salesDocUnitStat.groupBy({ by: ['viewId'], where: { view: where, durationMs: { gte: UNIT_SEEN_MS } }, _count: { _all: true } }),
+  ]);
+  if (!views.length) return 0;
+  const seenBy = new Map(seen.map((r) => [r.viewId, r._count._all]));
+  return views.reduce((sum, v) => sum + pct(seenBy.get(v.id), v.version?.pageCount), 0) / views.length;
+}
 
 async function seenCounts(viewIds) {
   if (!viewIds.length) return new Map();
@@ -96,11 +155,12 @@ export async function GET(request) {
   if (q.get('format') === 'csv') {
     const rows = await prisma.salesDocView.findMany({ where, select: ROW_SELECT, orderBy: viewOrder(q), take: CSV_MAX });
     const seen = await seenCounts(rows.map((r) => r.id));
-    const head = ['Opened', 'Visitor', 'Company', 'Matched by', 'Document', 'Link', 'Time', 'Seconds', 'Completion %', 'Forwarded', 'Device', 'Browser'];
+    const dl = await downloadsByView(rows.map((r) => r.id));
+    const head = ['Opened', 'Visitor', 'Company', 'Matched by', 'Document', 'Link', 'Time', 'Seconds', 'Completion %', 'Downloads', 'Forwarded', 'Device', 'Browser'];
     const lines = rows.map((r) => [
       new Date(r.startedAt).toISOString(), r.visitor?.email || 'Anonymous', r.visitor?.client?.name || '', r.visitor?.matchType || '',
       r.doc?.title || '', r.link?.name || '', formatDuration(r.durationMs), Math.round(r.durationMs / 1000),
-      Math.round(pct(seen.get(r.id), r.version?.pageCount) * 100), r.isForwarded ? 'Yes' : 'No', r.device || '', r.browser || '',
+      Math.round(pct(seen.get(r.id), r.version?.pageCount) * 100), dl.get(r.id) || 0, r.isForwarded ? 'Yes' : 'No', r.device || '', r.browser || '',
     ].map(csvCell).join(','));
     return new NextResponse([head.join(','), ...lines].join('\r\n'), {
       headers: {
@@ -112,7 +172,8 @@ export async function GET(request) {
   }
 
   const page = Math.max(1, Number(q.get('page')) || 1);
-  const [total, agg, visitors, forwarded, viewingNow, rows, units] = await Promise.all([
+  const first = page === 1;
+  const [total, agg, visitors, forwarded, viewingNow, rows, units, avgRead, downloads] = await Promise.all([
     prisma.salesDocView.count({ where }),
     prisma.salesDocView.aggregate({ where, _sum: { durationMs: true } }),
     prisma.salesDocView.groupBy({ by: ['visitorId'], where }),
@@ -120,14 +181,20 @@ export async function GET(request) {
     prisma.salesDocView.count({ where: { ...where, lastPingAt: { gte: new Date(now - VIEWING_NOW_MS) } } }),
     prisma.salesDocView.findMany({ where, select: ROW_SELECT, orderBy: viewOrder(q), skip: (page - 1) * PAGE_SIZE, take: PAGE_SIZE }),
     q.get('units') === '1' ? unitTotals(where) : null,
+    first ? averageRead(where) : null,
+    first ? downloadList(downloadWhere(q)) : null,
   ]);
-  const seen = await seenCounts(rows.map((r) => r.id));
+  const [seen, dl] = await Promise.all([seenCounts(rows.map((r) => r.id)), downloadsByView(rows.map((r) => r.id))]);
+  const timeMs = agg._sum.durationMs || 0;
 
   return NextResponse.json({
     kpis: {
       views: total,
       visitors: visitors.length,
-      timeMs: agg._sum.durationMs || 0,
+      timeMs,
+      avgTimeMs: total ? Math.round(timeMs / total) : 0,
+      avgRead,
+      downloads: downloads ? downloads.reduce((n, d) => n + d.count, 0) : null,
       forwarded,
       viewingNow,
     },
@@ -135,8 +202,10 @@ export async function GET(request) {
       ...r,
       viewingNow: now - new Date(r.lastPingAt).getTime() <= VIEWING_NOW_MS,
       completion: pct(seen.get(r.id), r.version?.pageCount),
+      downloads: dl.get(r.id) || 0,
     })),
-    ...(units ? { units } : {}),
+    ...(units ? { units: units.map((u) => ({ ...u, avgMs: total ? Math.round(u.durationMs / total) : 0 })) } : {}),
+    ...(downloads ? { downloads } : {}),
     total,
     page,
     pageSize: PAGE_SIZE,

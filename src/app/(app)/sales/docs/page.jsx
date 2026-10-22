@@ -15,7 +15,7 @@ import { ScanPill, KIND_LABEL, ago, formatBytes, uploadSalesDoc } from '@/compon
 const FILTER_FIELDS = [
   { key: 'kind',   label: 'Type',          kind: 'pick' },
   { key: 'owner',  label: 'Owner',         kind: 'pick' },
-  { key: 'scan',   label: 'Pricing check', kind: 'pick' },
+  { key: 'scan',   label: 'Sharing', kind: 'pick' },
   { key: 'archived', label: 'Archived',    kind: 'yesno' },
 ];
 // No library folders (Mike 10-21: documents are not grouped, only filtered
@@ -23,7 +23,7 @@ const FILTER_FIELDS = [
 const SORT_KEYS = ['title', 'kind', 'owner', 'links', 'views', 'viewed', 'updated'];
 const VIEW_FIELDS = [...FILTER_FIELDS, { key: 'q', kind: 'text' }, ...SORT_KEYS.map((k) => ({ key: k, kind: 'sort' }))];
 const SORT_DEFAULT = { key: 'updated', dir: 'desc' };
-const SCAN_CHOICES = [['CLEAN', 'No cost columns'], ['WARN', 'Check pricing words'], ['BLOCKED', 'Sharing blocked'], ['OVERRIDDEN', 'Cleared by admin'], ['PENDING', 'Checking']];
+const SCAN_CHOICES = [['CLEAN', 'OK to share'], ['WARN', 'Check before sharing'], ['BLOCKED', 'Blocked: cost numbers'], ['OVERRIDDEN', 'Cleared by admin'], ['PENDING', 'Checking']];
 
 const GETTERS = {
   title: (d) => d.title.toLowerCase(),
@@ -148,7 +148,7 @@ export default function SalesDocsPage() {
                   <tr className="border-b border-slate-200">
                     <SortHeader label="Document" field="title" sort={sort} onSort={toggleSort} />
                     <SortHeader label="Type" field="kind" sort={sort} onSort={toggleSort} />
-                    <Th>Pricing check</Th>
+                    <Th>Sharing</Th>
                     <SortHeader label="Owner" field="owner" sort={sort} onSort={toggleSort} />
                     <SortHeader label="Live links" field="links" sort={sort} onSort={toggleSort} align="right" />
                     <SortHeader label="Views" field="views" sort={sort} onSort={toggleSort} align="right" />
