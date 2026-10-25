@@ -5,7 +5,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [My Desk: morning briefing (early version), endless reload fixed] - October 24, 2026 (DEPLOYED) - no migration
+## [My Desk: morning briefing (early version), endless reload fixed] - October 24, 2026 (DEPLOYED 47698c6) - no migration
 
 Mike 10-23: no Claude Duet work; put a placeholder morning briefing on My Desk built from data and the API we already have.
 
