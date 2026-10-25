@@ -127,6 +127,7 @@ export const JOB_TIERS = {
   'bot.meetingPrep':          'QUICK',
   'bot.workHistory':          'QUICK',
   'bot.followUp':             'QUICK',
+  'bot.deskBriefing':         'QUICK',
   'market.entityExtract':     'QUICK',
 };
 

@@ -5,6 +5,17 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [My Desk: morning briefing (early version), endless reload fixed] - October 24, 2026 (DEPLOYED) - no migration
+
+Mike 10-23: no Claude Duet work; put a placeholder morning briefing on My Desk built from data and the API we already have.
+
+- Morning briefing card at the top of the To-dos tab, own desk only (hidden when looking at someone else's desk or Everyone). Up to 5 short lines, most urgent first: meetings today, overdue steps, steps due today, emails to review, your people due a check-in, budgets made not sent, people met but not in the system, steps later this week, web budgets with no salesperson, look alike questions. Each line takes you to its section (or the Web budgets tab). Marked "Early version"; Refresh writes it again. Reads only, sends and changes nothing.
+- Written by the QUICK model (new job `bot.deskBriefing`) from numbered facts, sealed as untrusted text, every line must cite a fact, no dashes, never a buy price. When the model cannot be reached the card shows plain count lines instead and says so. Kept in memory per person per Pacific day.
+- Fixed (live since e8b36d6, 10-5): My Desk reloaded itself without end. The Introductions and Email signatures cards got a new change handler on every render, reloaded, which reloaded the desk, and so on; every open My Desk tab kept hitting the server. Now one steady handler; 0 extra requests after load (checked).
+- Tests: `deskBriefing.test.mjs` (7 pass), added to the unit tests in `scripts/verify.mjs`. Headless check: card renders, a line tap lands on the right tab. Local Claude key returned 401 (invalid key), so the check saw the plain lines path.
+
+Files: `src/lib/desk/briefing.js` (new), `src/lib/desk/briefingServer.js` (new), `src/app/api/sales/desk/briefing/route.js` (new), `src/components/desk/MorningBriefing.jsx` (new), `src/app/(app)/sales/desk/page.jsx`, `src/lib/aiModels.js`, `scripts/tests/deskBriefing.test.mjs` (new), `scripts/verify.mjs`.
+
 ## [Sales Docs: full width viewer, averages, downloads] - October 21, 2026 (DEPLOYED 48f2c5d) - no migration
 
 Mike 10-21 feedback on Sales Docs.

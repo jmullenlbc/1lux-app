@@ -8,6 +8,7 @@ import { DESK_CHANGED } from '@/lib/desk/desk';
 import { groupStepsByPerson } from '@/lib/desk/groupByPerson';
 import { useDraftReminder } from '@/components/layout/useDraftReminder';
 import QuickNote from '@/components/desk/QuickNote';
+import MorningBriefing from '@/components/desk/MorningBriefing';
 import PersonPicker from '@/components/desk/PersonPicker';
 import { ReviewRow } from '@/components/crm/LookAlikeReviews';
 import AlertMark from '@/components/ui/AlertMark';
@@ -437,6 +438,13 @@ function MyDeskPage() {
     router.replace(key === 'todos' ? '/sales/desk' : `/sales/desk?tab=${key}`, { scroll: false });
   };
 
+  // A briefing line points at a section on this tab ("#drafts") or another tab ("tab:pool").
+  const goTo = go => {
+    if (!go) return;
+    if (go.startsWith('tab:')) { setTab(go.slice(4)); return; }
+    document.getElementById(go.replace(/^#/, ''))?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
   const load = useCallback(async () => {
     try {
       const q = whose === 'everyone' ? '?scope=everyone' : whose !== 'mine' ? `?user=${encodeURIComponent(whose)}` : '';
@@ -467,6 +475,13 @@ function MyDeskPage() {
     await load();
     window.dispatchEvent(new Event(DESK_CHANGED));
   };
+  // The two cards call onChange(count) after every load of their own. It must
+  // keep one identity: a new function each render made them reload, which
+  // reloaded the desk, which rendered again, forever (10-23).
+  const cardChanged = useCallback(() => {
+    load();
+    window.dispatchEvent(new Event(DESK_CHANGED));
+  }, [load]);
 
   if (!desk) return err ? <p className="p-4 text-sm text-red-600">{err}</p> : <WidgetLoading />;
   const myId = desk.viewerId || desk.userId;
@@ -511,13 +526,14 @@ function MyDeskPage() {
       <WhosePicker whose={whose} salesPeople={desk.salesPeople || []} filters={filters} filterCount={countFilters(filters, FILTER_FIELDS)}
         open={filterOpen} onToggle={() => setFilterOpen(o => !o)} onClear={clearFilters} onChange={setFilter} sort={sort} onSort={setSort} steps={steps} />
       {lookOnly && <p className="text-xs text-slate-500 mb-3">You are looking at {desk.ownerName || 'someone else'}&apos;s desk. Only the owner can change these.</p>}
+      {!lookOnly && !everyone && <MorningBriefing onGo={goTo} />}
       {err && <p className="text-sm text-red-600 mb-3">{err}</p>}
       {!lookOnly && <QuickNote onPublished={() => changed()} />}
       {flash && <p className="text-sm text-green-700 mb-3">{flash}</p>}
       {quiet && <p className="text-sm text-slate-500 rounded-lg border border-dashed border-slate-200 p-6 text-center">{lookOnly || everyone ? 'Nothing waiting here. Nice.' : 'Nothing waiting on you. Nice.'}</p>}
 
       {desk.budgetsNotSent?.length > 0 && (
-        <Section title="Budgets made, not sent" count={desk.budgetsNotSent.length}>
+        <Section id="budgets-not-sent" title="Budgets made, not sent" count={desk.budgetsNotSent.length}>
           <p className="text-xs text-slate-500 mb-2">A budget figure is on file but no sent date. Send it, or set the date on the project.</p>
           <ul className="space-y-2">
             {desk.budgetsNotSent.map(p => (
@@ -537,8 +553,8 @@ function MyDeskPage() {
 
       {!lookOnly && !everyone && (
         <>
-          <IntroductionsCard title="New people introduced to us" limit={10} onChange={changed} />
-          <FieldSuggestionsCard title="Email signatures say" limit={10} onChange={changed} />
+          <IntroductionsCard title="New people introduced to us" limit={10} onChange={cardChanged} />
+          <FieldSuggestionsCard title="Email signatures say" limit={10} onChange={cardChanged} />
         </>
       )}
 
@@ -549,7 +565,7 @@ function MyDeskPage() {
       )}
 
       {desk.meetings?.length > 0 && (
-        <Section title="Met someone not in the system" count={desk.meetings.length}>
+        <Section id="new-people" title="Met someone not in the system" count={desk.meetings.length}>
           <ul className="space-y-2">{desk.meetings.map(m => <MeetingRow key={m.id} m={m} onDone={changed} />)}</ul>
         </Section>
       )}
@@ -557,7 +573,7 @@ function MyDeskPage() {
       {desk.groups.map(g => {
         const folded = (g.key === 'SNOOZED' || g.key === 'PAUSED') && !openGroups[g.key];
         return (
-          <Section key={g.key} title={g.label} count={g.items.length}
+          <Section key={g.key} id={`group-${g.key}`} title={g.label} count={g.items.length}
             right={(g.key === 'SNOOZED' || g.key === 'PAUSED') && (
               <button type="button" onClick={() => setOpenGroups(o => ({ ...o, [g.key]: !o[g.key] }))} className="text-xs font-semibold text-slate-600 hover:underline">
                 {folded ? 'Show' : 'Hide'}
@@ -569,7 +585,7 @@ function MyDeskPage() {
       })}
 
       {desk.drafts.length > 0 && (
-        <Section title="Emails to review" count={desk.drafts.length}>
+        <Section id="drafts" title="Emails to review" count={desk.drafts.length}>
           <p className="text-xs text-slate-500 mb-2">Nothing sends on its own. Edit, copy, or dismiss. Check-in emails are written the day before each one comes due.</p>
           <div className="space-y-2">
             {desk.drafts.map(d => (
@@ -585,7 +601,7 @@ function MyDeskPage() {
       )}
 
       {checkIns.length > 0 && !lookOnly && (
-        <Section title="Check-ins due" count={checkIns.length}
+        <Section id="check-ins" title="Check-ins due" count={checkIns.length}
           right={<Link href="/sales/check-ins" className="text-xs font-semibold text-slate-600 hover:underline">All check-ins</Link>}>
           <ul className="space-y-2">
             {checkIns.slice(0, 10).map(c => <CheckInRow key={c.id} c={c} draft={desk.drafts.find(d => d.contactId === c.id)}
