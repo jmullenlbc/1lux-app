@@ -289,6 +289,13 @@ model Client {
   name         String
   type         String    @default("developer")
   locationType String    @default("standalone")
+  // National company with local branches (Mike 10-28: never "(CITY)" in the
+  // name). A branch is its own Client with its own salesperson and projects;
+  // one level only, a branch never has branches.
+  parentClientId String?
+  parent         Client?  @relation("ClientBranches", fields: [parentClientId], references: [id], onDelete: SetNull)
+  branches       Client[] @relation("ClientBranches")
+  branchMarket   String? // the city or region this branch covers, e.g. "Denver"
 
   email   String?
   phone   String?
@@ -361,6 +368,8 @@ model Client {
   salesDocSpaces             SalesDocSpace[]   @relation("SalesDocSpaceClient")
   salesDocLinks              SalesDocLink[]    @relation("SalesDocLinkClient")
   salesDocVisitors           SalesDocVisitor[] @relation("SalesDocVisitorClient")
+
+  @@index([parentClientId])
 }
 
 model ClientPlaybook {

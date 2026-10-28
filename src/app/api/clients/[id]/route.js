@@ -81,11 +81,25 @@ export async function PATCH(request, { params }) {
     linkedIn, primaryContact, primaryContactTitle,
     primaryContactEmail, primaryContactPhone,
     tier, markets, geographies, projectTypes, projectsPerYear, pipelinePerUnit, developerType, orgTypes, ownerId, paymentTerms,
-    developerTypes, rating, tagIds,
+    developerTypes, rating, tagIds, parentClientId, branchMarket,
   } = body;
 
   if (name !== undefined && !name?.trim()) {
     return NextResponse.json({ error: 'Client name cannot be empty' }, { status: 400 });
+  }
+
+  // Branches are one level deep: a national company has branches, a branch
+  // never does. Linking a branch also sets both location types so the two
+  // labels can never disagree with the link.
+  const parentId = parentClientId === undefined ? undefined : (parentClientId || null);
+  if (parentId) {
+    const refuse = (msg) => NextResponse.json({ error: `${msg} Nothing was changed. (BRANCH_LINK)` }, { status: 400 });
+    if (parentId === params.id) return refuse('A company cannot be a branch of itself.');
+    const parent = await prisma.client.findUnique({ where: { id: parentId }, select: { id: true, parentClientId: true, archivedAt: true } });
+    if (!parent || parent.archivedAt) return refuse('That national company was not found or is archived. Pick another one.');
+    if (parent.parentClientId) return refuse('That company is itself a branch. Pick the national company it belongs to.');
+    const ownBranches = await prisma.client.count({ where: { parentClientId: params.id, archivedAt: null } });
+    if (ownBranches) return refuse('This company has its own branches, so it cannot become a branch. Move its branches first.');
   }
 
   // Client Type is the multi-select now. When it changes, the single `type`
@@ -130,6 +144,12 @@ export async function PATCH(request, { params }) {
       ...(derivedType                       && { type: derivedType }),
       ...(ownerId             !== undefined && { ownerId: ownerId || null }),
       ...(paymentTerms        !== undefined && { paymentTerms: paymentTerms || null }),
+      ...(branchMarket        !== undefined && { branchMarket: branchMarket?.trim() || null }),
+      ...(parentId            !== undefined && {
+        parentClientId: parentId,
+        locationType:   parentId ? 'localBranch' : 'standalone',
+        ...(!parentId && { branchMarket: null }),
+      }),
       // Tags: replace the whole set in one write, so the links can never end up
       // half-applied if something fails partway.
       ...(Array.isArray(tagIds) && {
@@ -141,6 +161,10 @@ export async function PATCH(request, { params }) {
     },
     include: { tagLinks: { include: { tag: true } } },
   });
+
+  if (parentId) {
+    await prisma.client.update({ where: { id: parentId }, data: { locationType: 'national' } });
+  }
 
   return NextResponse.json({ client: updated });
 }

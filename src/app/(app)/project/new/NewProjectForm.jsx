@@ -313,7 +313,7 @@ export default function NewProjectForm({ existingProjects = [], clients: initial
                 >
                   <option value="">No client assigned</option>
                   {clients.map(c => (
-                    <option key={c.id} value={c.id}>{c.name}</option>
+                    <option key={c.id} value={c.id}>{c.name}{c.branchMarket ? ` · ${c.branchMarket}` : ''}</option>
                   ))}
                 </select>
                 <button

@@ -550,8 +550,156 @@ function LinkProjectsModal({ clientId, available, onClose, onSave }) {
 }
 
 // ── KB Attachment Card ────────────────────────────────────────────────────────
+// ── Branches (0140) ───────────────────────────────────────────────────────────
+// A national company's local offices, never "(CITY)" in the name (Mike 10-28).
+// Each branch is its own company with its own salesperson, people and projects.
+function BranchesPanel({ client, candidates, ownerOptions, onLocal }) {
+  const branches = client.branches || [];
+  const [mode, setMode]       = useState(null); // 'add' | 'link'
+  const [market, setMarket]   = useState('');
+  const [ownerId, setOwnerId] = useState('');
+  const [linkId, setLinkId]   = useState('');
+  const [busy, setBusy]       = useState(false);
+  const [err, setErr]         = useState('');
+  const [pool, setPool]       = useState(candidates);
+
+  const reset = () => { setMode(null); setMarket(''); setOwnerId(''); setLinkId(''); setErr(''); };
+  const ownerOf = id => ownerOptions.find(u => u.id === id) || null;
+  const linkBranch = (id, body) => fetch(`/api/clients/${id}`, {
+    method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ parentClientId: client.id, branchMarket: market.trim() || null, ...body }),
+  });
+  const added = (row) => {
+    onLocal({ branches: [...branches, row].sort((a, b) => (a.branchMarket || '').localeCompare(b.branchMarket || '')), locationType: 'national' });
+    reset();
+  };
+
+  async function addBranch() {
+    if (!market.trim()) { setErr('Type the market first, e.g. Denver.'); return; }
+    setBusy(true); setErr('');
+    try {
+      const res = await fetch('/api/clients', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: client.name, orgTypes: parseJSON(client.orgTypes), ownerId: ownerId || null, city: market.trim(), state: client.state || null }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok || !d.client?.id) {
+        setErr(`${d.error || 'The app could not make the branch.'} Nothing was saved. Try again. (BRANCH_ADD)`);
+        return;
+      }
+      const link = await linkBranch(d.client.id);
+      if (!link.ok) {
+        const e = await link.json().catch(() => ({}));
+        setErr(`A new company named ${client.name} was made, but linking it as a branch failed: ${e.error || 'no reason given'}. Open Clients, find it, and link it here with "Link an existing company". (BRANCH_LINK)`);
+        return;
+      }
+      added({ id: d.client.id, name: client.name, branchMarket: market.trim(), city: market.trim(), state: client.state, owner: ownerOf(ownerId), _count: { projects: 0, contacts: 0 } });
+    } catch {
+      setErr('The connection dropped before the branch was saved. Refresh the page to see if it was made, then try again. (BRANCH_NET)');
+    } finally { setBusy(false); }
+  }
+
+  async function linkExisting() {
+    const pick = pool.find(c => c.id === linkId);
+    if (!pick) { setErr('Pick a company to link first.'); return; }
+    setBusy(true); setErr('');
+    try {
+      const res = await linkBranch(pick.id);
+      const d = await res.json().catch(() => ({}));
+      if (!res.ok) { setErr(d.error || 'The app could not link that company. Nothing was changed. Try again. (BRANCH_LINK)'); return; }
+      setPool(p => p.filter(c => c.id !== pick.id));
+      added({ ...pick, branchMarket: market.trim() || null, owner: null, _count: { projects: null, contacts: null } });
+    } catch {
+      setErr('The connection dropped before the link was saved. Refresh the page and check. (BRANCH_NET)');
+    } finally { setBusy(false); }
+  }
+
+  async function unlink(b) {
+    setErr('');
+    const res = await fetch(`/api/clients/${b.id}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ parentClientId: null }),
+    }).catch(() => null);
+    if (!res?.ok) { setErr(`${b.name} (${b.branchMarket || 'no market'}) could not be unlinked. Nothing was changed. Try again. (BRANCH_UNLINK)`); return; }
+    onLocal({ branches: branches.filter(x => x.id !== b.id) });
+    setPool(p => [...p, { id: b.id, name: b.name, city: b.city, state: b.state }].sort((x, y) => x.name.localeCompare(y.name)));
+  }
+
+  const field = 'rounded-lg border border-slate-200 px-2 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-orange-500';
+
+  return (
+    <div className={`${CARD} p-4 md:p-6`}>
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+        <h3 className={CARD_TITLE}>Branches {branches.length > 0 && <span className="text-slate-400 font-normal">({branches.length})</span>}</h3>
+        {!mode && (
+          <div className="flex gap-2">
+            <button type="button" className={BTN_COMPACT_PRIMARY} onClick={() => setMode('add')}>Add a branch</button>
+            <button type="button" className={BTN_COMPACT} onClick={() => setMode('link')}>Link an existing company</button>
+          </div>
+        )}
+      </div>
+
+      {branches.length === 0 && !mode && (
+        <p className="text-sm text-slate-500">No branches. For a national company, add each local office here with its own market and salesperson.</p>
+      )}
+
+      {branches.length > 0 && (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left">
+                {['Market', 'Branch', 'Salesperson', 'Projects', 'People', ''].map(h => <th key={h} className={`${LABEL} pb-2 pr-3`}>{h}</th>)}
+              </tr>
+            </thead>
+            <tbody>
+              {branches.map(b => (
+                <tr key={b.id} className="border-t border-slate-100">
+                  <td className={`${TD} pr-3 font-medium text-slate-800`}>{b.branchMarket || <span className="text-slate-400">No market</span>}</td>
+                  <td className={`${TD} pr-3`}><Link href={`/clients/${b.id}`} className="text-orange-600 hover:text-orange-700">{b.name}</Link></td>
+                  <td className={`${TD} pr-3 text-slate-600`}>{b.owner ? (b.owner.name || b.owner.email) : <span className="text-slate-400">Unassigned</span>}</td>
+                  <td className={`${TD} pr-3 tabular-nums`}>{b._count?.projects ?? ''}</td>
+                  <td className={`${TD} pr-3 tabular-nums`}>{b._count?.contacts ?? ''}</td>
+                  <td className={`${TD} text-right`}>
+                    <button type="button" className="text-xs text-slate-400 hover:text-red-600 underline" onClick={() => unlink(b)}>Unlink</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {mode && (
+        <div className="mt-3 rounded-lg bg-slate-50 p-3 space-y-2">
+          <div className="flex flex-wrap gap-2 items-center">
+            {mode === 'link' && (
+              <select value={linkId} onChange={e => setLinkId(e.target.value)} className={`${field} min-w-[16rem]`}>
+                <option value="">Pick a company</option>
+                {pool.map(c => <option key={c.id} value={c.id}>{c.name}{c.city ? ` · ${c.city}` : ''}{c.state ? `, ${c.state}` : ''}</option>)}
+              </select>
+            )}
+            <input value={market} onChange={e => setMarket(e.target.value)} placeholder="Market, e.g. Denver" className={`${field} w-48`} />
+            {mode === 'add' && (
+              <select value={ownerId} onChange={e => setOwnerId(e.target.value)} className={`${field} w-48`}>
+                <option value="">Salesperson: unassigned</option>
+                {ownerOptions.map(u => <option key={u.id} value={u.id}>{u.name || u.email}</option>)}
+              </select>
+            )}
+            <button type="button" disabled={busy} className={BTN_COMPACT_PRIMARY} onClick={mode === 'add' ? addBranch : linkExisting}>
+              {busy ? 'Saving…' : mode === 'add' ? 'Add branch' : 'Link as branch'}
+            </button>
+            <button type="button" className={BTN_COMPACT} onClick={reset}>Cancel</button>
+          </div>
+          {mode === 'add' && <p className="text-[11px] text-slate-500">Makes a new company named {client.name} for this market. Its people and projects stay separate from the national company.</p>}
+        </div>
+      )}
+
+      {err && <p className="mt-2 text-sm text-red-600">{err}</p>}
+    </div>
+  );
+}
+
 // ── Overview Tab ──────────────────────────────────────────────────────────────
-function OverviewTab({ client, onPatch }) {
+function OverviewTab({ client, onPatch, onLocal, branchCandidates = [] }) {
   const orgTypes     = parseJSON(client.orgTypes);
   const markets      = parseJSON(client.markets);
   const geographies  = parseJSON(client.geographies);
@@ -616,6 +764,20 @@ function OverviewTab({ client, onPatch }) {
               <p className="text-sm text-slate-500 mt-0.5">
                 {location}{location && locType ? ' · ' : ''}{locType}
               </p>
+            )}
+            {client.parentClientId && client.parent && (
+              <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-slate-600 mt-1">
+                <span>Branch of</span>
+                <Link href={`/clients/${client.parent.id}`} className="font-semibold text-orange-600 hover:text-orange-700">{client.parent.name}</Link>
+                <span className="text-slate-400">·</span>
+                <span className="text-slate-500">Market</span>
+                <PersonField value={client.branchMarket} placeholder="Add the market, e.g. Denver" width="w-48"
+                  className="text-sm text-slate-700" onSave={v => onPatch({ branchMarket: v })} />
+                <button type="button" className="text-xs text-slate-400 hover:text-red-600 underline"
+                  onClick={() => onPatch({ parentClientId: null }).then(ok => ok && onLocal({ parent: null, branchMarket: null, locationType: 'standalone' }))}>
+                  Not a branch
+                </button>
+              </div>
             )}
             <div className="flex flex-wrap items-center gap-1.5 mt-2">
               {client.tier && (
@@ -834,6 +996,11 @@ function OverviewTab({ client, onPatch }) {
           Added by {client.createdBy?.name || client.createdBy?.email}
         </div>
       </div>
+
+      {/* ── Local branches of a national company (0140) ── */}
+      {!client.parentClientId && (
+        <BranchesPanel client={client} candidates={branchCandidates} ownerOptions={ownerOptions} onLocal={onLocal} />
+      )}
 
       {/* ── Meetings and money before the first project (0129) ── */}
       <FirstProjectCostCard clientId={client.id} />
@@ -2206,7 +2373,7 @@ function ProjectDataTab({ clientId }) {
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
-export default function ClientDetailClient({ client: initial, availableProjects, relatedProjects = [], user, canEditStandards = false, initialStandardsAnswers = [], canEditPlaybook = false }) {
+export default function ClientDetailClient({ client: initial, availableProjects, branchCandidates = [], relatedProjects = [], user, canEditStandards = false, initialStandardsAnswers = [], canEditPlaybook = false }) {
   const [client,    setClient]    = useState(initial);
   const [available, setAvailable] = useState(availableProjects);
   const [activeTab, setActiveTab] = useState('overview');
@@ -2255,6 +2422,8 @@ export default function ClientDetailClient({ client: initial, availableProjects,
           name:            data.client.name,
           developerType:   data.client.developerType,
           projectsPerYear: data.client.projectsPerYear,
+          locationType:    data.client.locationType,
+          branchMarket:    data.client.branchMarket,
           tagLinks:        data.client.tagLinks ?? c.tagLinks,
           // The owner's name in the top bar has to follow the dropdown, and the
           // save route does not send the person back.
@@ -2344,7 +2513,8 @@ export default function ClientDetailClient({ client: initial, availableProjects,
         {saveError && (
           <div className="mb-4 rounded-lg bg-red-50 border border-red-100 px-3 py-2 text-sm text-red-600">{saveError}</div>
         )}
-        {activeTab === 'overview'  && <OverviewTab client={client} onPatch={patchClient} />}
+        {activeTab === 'overview'  && <OverviewTab client={client} onPatch={patchClient} branchCandidates={branchCandidates}
+          onLocal={patch => setClient(c => ({ ...c, ...patch }))} />}
         {activeTab === 'people'    && <PeopleTab contacts={client.contacts || []} clientId={client.id} onContactsChange={(contacts) => setClient(c => ({ ...c, contacts }))} />}
         {activeTab === 'playbook'  && (
           <PlaybookTab

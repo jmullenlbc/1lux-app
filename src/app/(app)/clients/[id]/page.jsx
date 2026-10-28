@@ -54,8 +54,29 @@ export default async function ClientDetailPage({ params }) {
       createdBy: { select: { name: true, email: true } },
       owner:     { select: { id: true, name: true, email: true } },
       archivedBy: { select: { name: true, email: true } },
+      parent:     { select: { id: true, name: true } },
+      // Archived branches stay hidden; the $extends archive filter misses nested includes.
+      branches: {
+        where: { archivedAt: null },
+        orderBy: [{ branchMarket: 'asc' }, { name: 'asc' }],
+        select: {
+          id: true, name: true, branchMarket: true, city: true, state: true,
+          owner: { select: { id: true, name: true, email: true } },
+          _count: { select: { projects: { where: { archivedAt: null } }, contacts: { where: { archivedAt: null } } } },
+        },
+      },
     },
   });
+
+  // Companies that could be linked as a branch here: not this one, not
+  // already a branch, and with no branches of their own.
+  const branchCandidates = client && !client.parentClientId
+    ? await prisma.client.findMany({
+        where: { archivedAt: null, parentClientId: null, id: { not: params.id }, branches: { none: {} } },
+        orderBy: { name: 'asc' },
+        select: { id: true, name: true, city: true, state: true },
+      })
+    : [];
 
   if (!client) notFound();
   if (!canSeeAllData(session) && client.createdById !== session.id) notFound();
@@ -106,6 +127,7 @@ export default async function ClientDetailPage({ params }) {
       client={client}
       relatedProjects={relatedProjects}
       availableProjects={unlinkableProjects}
+      branchCandidates={branchCandidates}
       user={session}
       canEditStandards={canEditStandards}
       canEditPlaybook={canEditPlaybook}

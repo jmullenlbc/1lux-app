@@ -275,6 +275,7 @@ export default function ClientsClient({ clients: initial, user }) {
       (c.type         || '').toLowerCase().includes(q) ||
       (c.locationType || '').toLowerCase().includes(q) ||
       (c.city         || '').toLowerCase().includes(q) ||
+      (c.branchMarket || '').toLowerCase().includes(q) ||
       (c.state        || '').toLowerCase().includes(q) ||
       parseList(c.orgTypes).some(t => String(t).toLowerCase().includes(q)) ||
       (c.notes        || '').toLowerCase().includes(q);
@@ -374,7 +375,7 @@ export default function ClientsClient({ clients: initial, user }) {
                     href={`/clients/${client.id}`}
                     className="font-semibold text-slate-900 hover:text-orange-600 transition-colors leading-snug block truncate"
                   >
-                    {client.name}
+                    {client.name}{client.branchMarket ? <span className="font-normal text-slate-500"> · {client.branchMarket}</span> : null}
                   </Link>
                   {(client.city || client.state || (client.locationType && client.locationType !== 'none')) && (
                     <div className={`${HELPER} mt-0.5`}>

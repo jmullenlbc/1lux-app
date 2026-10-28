@@ -21,7 +21,7 @@ export default async function NewProjectPage({ searchParams }) {
       }),
       prisma.client.findMany({
         orderBy: { name: 'asc' },
-        select: { id: true, name: true, type: true, locationType: true },
+        select: { id: true, name: true, type: true, locationType: true, branchMarket: true },
       }),
     ]);
   } catch (err) {

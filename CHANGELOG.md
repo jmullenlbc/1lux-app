@@ -5,6 +5,20 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [National companies with local branches] - October 28, 2026 (DEPLOYED) - migration 0140
+
+Mike 10-28: national companies get real branches instead of "(CITY)" in the name; each branch has its own salesperson.
+
+- Migration 0140_client_branches (additive): `Client.parentClientId` (the national company, one level only) and `Client.branchMarket`. Schema-guard: SAFE.
+- Company page: a Branches card on a national company (market, salesperson, projects, people) with "Add a branch" (new company with the same name, market and salesperson) and "Link an existing company"; Unlink per row. A branch shows "Branch of X", its market, and "Not a branch".
+- PATCH /api/clients/[id] takes `parentClientId` and `branchMarket`; refuses self links, a branch under a branch, and a company that has branches becoming a branch. Linking sets the branch to Local branch and the parent to National.
+- Clients list and the new project company picker show "Name · Market"; list search finds the market.
+- Test: scripts/tests/clientBranchesE2e.test.mjs.
+- Files: prisma/schema.prisma, prisma/migrations/0140_client_branches/, src/app/api/clients/[id]/route.js, src/app/(app)/clients/[id]/page.jsx, src/app/(app)/clients/[id]/ClientDetailClient.jsx, src/app/(app)/clients/ClientsClient.jsx, src/app/(app)/project/new/page.jsx, src/app/(app)/project/new/NewProjectForm.jsx.
+- Shipped alone: the parked 0138/0139 schema blocks and folders stayed out.
+
+---
+
 ## [Bid leveling: read a quote, check it, download the leveled sheet, poles on their own] - October 26 to 28, 2026 (DEPLOYED 9587784) - no migration
 
 Mike 10-23 to 10-28: bid tool steps 1 and 2 (read competitor quotes, check what we read, leveled sheet in Excel); poles priced on their own row.
