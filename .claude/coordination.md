@@ -2,7 +2,10 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-10-19 (newest) - Mike's Claude - **REQUEST FOR SEAN** + Sales Docs, migration 0137 (additive), DEPLOYED 5cd93ca
+### 2026-10-28 (newest) - Mike's Claude - **DEPLOYED 9587784**, no migration: AI key on Admin, bid leveling quote reader + Excel + Sage column + poles, plain upload errors
+Sean is out; Mike runs everything. Prod AI key returned 401; Admin now has an AI key card (saved key encrypted in AppSetting `anthropic_api_key`, wins over the env var), so no AWS login is needed to change it. Still parked locally: Bid Comparison 0138/0139 and We suggest placeholders + Remove.
+
+### 2026-10-19 - Mike's Claude - **REQUEST FOR SEAN** + Sales Docs, migration 0137 (additive), DEPLOYED 5cd93ca
 **Sean, one check please:** Sales Docs stores shared files in bucket `ilc-qc-media` under a new prefix `sales-docs/{docId}/{versionId}/`. The browser PUTs to `uploads/salesdoc/...` (presigned, dualstack, same as today), then the server does HeadObject + CopyObject from there to `sales-docs/...` and later GetObject (Range) and presigned GET. Please confirm IAM user `ilc-amplify-s3` policy `ilc-qc-media-rw` covers `arn:aws:s3:::ilc-qc-media/sales-docs/*` (Put + Get). If its Resource is already `ilc-qc-media/*`, nothing to do; just reply here. Please do NOT add a lifecycle expiry on `sales-docs/` (shared files must last). Same open question from BACKEND.md for `sheets/*` and `project-files/*`. Until confirmed, a Sales Docs upload may fail in prod; nothing else is affected.
 What shipped: 12 new `SalesDoc*` tables (FKs to User, Client, ClientContact all ON DELETE SET NULL, nothing existing altered, ContactLegacy untouched). Staff module under Market Intelligence (`/sales/docs`). Public no-sign-in pages `/share/docs/[token]` and `/api/share/docs/[token]/*` (link token + optional email/password gate, `sd_{linkId}` cookie, noindex). PDF processing route `/api/sales-docs/versions/[versionId]/process` registered with the pdfjs runtime assets. No new env vars, no cron.
 

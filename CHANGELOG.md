@@ -5,7 +5,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [Bid leveling: read a quote, check it, download the leveled sheet, poles on their own] - October 26 to 28, 2026 (DEPLOYED) - no migration
+## [Bid leveling: read a quote, check it, download the leveled sheet, poles on their own] - October 26 to 28, 2026 (DEPLOYED 9587784) - no migration
 
 Mike 10-23 to 10-28: bid tool steps 1 and 2 (read competitor quotes, check what we read, leveled sheet in Excel); poles priced on their own row.
 
@@ -15,7 +15,7 @@ Mike 10-23 to 10-28: bid tool steps 1 and 2 (read competitor quotes, check what 
 - Plain errors on the bid upload and on file uploads: what went wrong, whose side, that nothing was saved, and what to do.
 - Files: src/lib/bidLeveling/readQuote.js (new), exportSheet.js (new), engine.js, fromSources.js, normalizeTag.js; src/components/bidLeveling/QuoteReader.jsx (new), BidLevelingTab.jsx; src/app/api/projects/[id]/bid-leveling/[levelingId]/bids/route.js, export/route.js (new); src/lib/uploadStorage.js; scripts/tests/bidLeveling.test.mjs, bidLevelingSources.test.mjs, bidLevelingExport.test.mjs (new), errorNumbers.test.mjs; scripts/verify.mjs.
 
-## [Bid leveling: Sage alternate column] - October 28, 2026 (DEPLOYED) - no migration
+## [Bid leveling: Sage alternate column] - October 28, 2026 (DEPLOYED 9587784) - no migration
 
 - New "Sage alternate" column on the leveled screen and on the Excel "By type" tab, from the 37 kind list Mike approved 10-28.
 - Main items and unit decoratives always get a plain Sage name; the corridor unit entry sconce gets "Dunton House unit number sconce"; other decoratives only when the quantity is over 50.
@@ -23,7 +23,7 @@ Mike 10-23 to 10-28: bid tool steps 1 and 2 (read competitor quotes, check what 
 - A bulb word on a fixture line ("3 lamp vanity") no longer makes the line a bulb.
 - Files: src/lib/bidLeveling/sageAlternates.js (new), src/lib/bidLeveling/exportSheet.js, src/components/bidLeveling/BidLevelingTab.jsx, scripts/tests/bidLevelingSage.test.mjs (new), scripts/tests/bidLevelingExport.test.mjs, scripts/verify.mjs.
 
-## [Admin: AI key set inside the app] - October 28, 2026 (DEPLOYED) - no migration
+## [Admin: AI key set inside the app] - October 28, 2026 (DEPLOYED 9587784) - no migration
 
 Mike 10-28: Sean is out and AWS may be locked, while the prod AI key returns 401. "Move the AI key into an Admin setting inside the app, so you could change it without AWS."
 
