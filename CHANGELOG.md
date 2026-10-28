@@ -5,6 +5,36 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Bid leveling: read a quote, check it, download the leveled sheet, poles on their own] - October 26 to 28, 2026 (DEPLOYED) - no migration
+
+Mike 10-23 to 10-28: bid tool steps 1 and 2 (read competitor quotes, check what we read, leveled sheet in Excel); poles priced on their own row.
+
+- Step 1, read a quote: drop a competitor quote spreadsheet (xlsx, xls, csv) on the bid leveling tab. The tool finds the columns, the type tags and the totals, then shows "Check what we read" with each line that needs a look marked in plain words (no type, quantity times price does not add up, sums that disagree with the quote total, quote expired). Nothing is saved until the person presses Save. Spreadsheets only, read in the browser; no AI and no PDF reader.
+- Step 2, Download Excel: the leveled sheet as an Excel file (summary plus a By type tab, one column set per bid). Never carries CN, DN or We suggest.
+- Poles get their own row (Mike 10-28: pole about $650, head about $325). A bid that prices the pole inside the head shows "In fixture price".
+- Plain errors on the bid upload and on file uploads: what went wrong, whose side, that nothing was saved, and what to do.
+- Files: src/lib/bidLeveling/readQuote.js (new), exportSheet.js (new), engine.js, fromSources.js, normalizeTag.js; src/components/bidLeveling/QuoteReader.jsx (new), BidLevelingTab.jsx; src/app/api/projects/[id]/bid-leveling/[levelingId]/bids/route.js, export/route.js (new); src/lib/uploadStorage.js; scripts/tests/bidLeveling.test.mjs, bidLevelingSources.test.mjs, bidLevelingExport.test.mjs (new), errorNumbers.test.mjs; scripts/verify.mjs.
+
+## [Bid leveling: Sage alternate column] - October 28, 2026 (DEPLOYED) - no migration
+
+- New "Sage alternate" column on the leveled screen and on the Excel "By type" tab, from the 37 kind list Mike approved 10-28.
+- Main items and unit decoratives always get a plain Sage name; the corridor unit entry sconce gets "Dunton House unit number sconce"; other decoratives only when the quantity is over 50.
+- No part numbers and no prices. "Already Sage" when the spec maker is a Sage brand. Poles get their own Terrain pole name.
+- A bulb word on a fixture line ("3 lamp vanity") no longer makes the line a bulb.
+- Files: src/lib/bidLeveling/sageAlternates.js (new), src/lib/bidLeveling/exportSheet.js, src/components/bidLeveling/BidLevelingTab.jsx, scripts/tests/bidLevelingSage.test.mjs (new), scripts/tests/bidLevelingExport.test.mjs, scripts/verify.mjs.
+
+## [Admin: AI key set inside the app] - October 28, 2026 (DEPLOYED) - no migration
+
+Mike 10-28: Sean is out and AWS may be locked, while the prod AI key returns 401. "Move the AI key into an Admin setting inside the app, so you could change it without AWS."
+
+- New AI key card on Admin (super admins only). Paste a key, press Test and save: the key is tried against Anthropic first and only saved if it works. Shows where the key in use comes from (saved in the app, or the server key set in AWS), when and by whom it was saved, and Working or Not working. "Use the server key" removes the saved key.
+- The saved key is encrypted (AES-256-GCM, keyed from JWT_SECRET) in AppSetting `anthropic_api_key`, never sent back to the browser. Every server picks up a change within a minute; no redeploy.
+- Lookup order: saved key, then ANTHROPIC_API_KEY, then .env. `getAnthropicKey()` is now async; all 28 callers await it. Clients that were built once at load are now built per call so a new key takes effect.
+- Errors in plain terms with codes AIKEY-401, AIKEY-NET, AIKEY-400, AIKEY-LEN; a failed test saves nothing.
+- The build needs no AI key, so this deploys while the prod key is bad; after the deploy paste a new key on Admin.
+
+Files: `src/lib/anthropicKey.js`, `src/app/api/admin/ai-key/route.js` (new), `src/components/admin/AiKeyCard.jsx` (new), `src/app/(app)/admin/AdminClient.jsx` (card only; the Bid Comparison tab edits in that file stay parked), plus the 28 AI callers.
+
 ## [My Desk: morning briefing (early version), endless reload fixed] - October 24, 2026 (DEPLOYED 47698c6) - no migration
 
 Mike 10-23: no Claude Duet work; put a placeholder morning briefing on My Desk built from data and the API we already have.

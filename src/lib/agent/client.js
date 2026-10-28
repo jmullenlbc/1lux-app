@@ -252,7 +252,7 @@ export async function agentClient(task, context = {}) {
     import('@anthropic-ai/sdk'),
     import('@/lib/anthropicKey'),
   ]);
-  return wrapClient(new Anthropic({ apiKey: getAnthropicKey() }), task, context);
+  return wrapClient(new Anthropic({ apiKey: (await getAnthropicKey()) }), task, context);
 }
 
 /**

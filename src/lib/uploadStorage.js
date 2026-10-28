@@ -130,7 +130,7 @@ export function presignAvailable() {
  */
 export function validatePresignRequest({ fileName, size, scope = 'intake' } = {}) {
   if (!SCOPES.includes(scope)) {
-    return { ok: false, code: 'bad_request', message: 'Unknown upload type.' };
+    return { ok: false, code: 'bad_request', message: 'Your browser and our server got out of step, so nothing was read. Refresh the page and upload the file again.' };
   }
   const name = String(fileName ?? '').trim();
   const ext = name.includes('.') ? name.split('.').pop().toLowerCase() : '';
@@ -148,11 +148,11 @@ export function validatePresignRequest({ fileName, size, scope = 'intake' } = {}
   }
   const bytes = Number(size);
   if (!Number.isFinite(bytes) || bytes <= 0) {
-    return { ok: false, code: 'bad_request', message: 'Missing file size.' };
+    return { ok: false, code: 'bad_request', message: 'Your browser and our server got out of step, so nothing was read. Refresh the page and upload the file again.' };
   }
   const ceiling = limitForScope(scope);
   if (bytes > ceiling) {
-    return { ok: false, code: 'too_large', message: `That file is larger than ${mb(ceiling)} MB. Please upload a smaller file.` };
+    return { ok: false, code: 'too_large', message: `That file is larger than ${mb(ceiling)} MB, so it was not saved. Save a smaller copy or split it, then upload again.` };
   }
   return { ok: true, ext, contentType: types[ext], scope, limit: ceiling };
 }
@@ -241,7 +241,7 @@ export async function presignMultipart({ scope = 'intake', ext, contentType, siz
  * @returns { ok: true, key } | { ok: false, code, message }
  */
 export async function completeMultipart({ key, uploadId, expectedParts }) {
-  if (!isUploadKey(key)) return { ok: false, code: 'bad_key', message: 'Not a valid upload reference.' };
+  if (!isUploadKey(key)) return { ok: false, code: 'bad_key', message: 'We lost track of this upload, so nothing was read. Please upload the file again.' };
   const client = s3Client();
 
   const listed = await client.send(new ListPartsCommand({
@@ -297,11 +297,11 @@ export function isUploadKey(key) {
  */
 export async function getUploadedObject(key, { limit = MAX_INTAKE_UPLOAD_BYTES } = {}) {
   if (!isUploadKey(key)) {
-    return { ok: false, code: 'bad_key', message: 'Not a valid upload reference.' };
+    return { ok: false, code: 'bad_key', message: 'We lost track of this upload, so nothing was read. Please upload the file again.' };
   }
   if (!presignAvailable()) {
     if (!devStoreOn()) {
-      return { ok: false, code: 'unavailable', message: 'Direct uploads are not configured.' };
+      return { ok: false, code: 'unavailable', message: 'Uploads are switched off right now. This is on our side, not your file. Please try again later, or email the file to precon@ilcstudios.com.' };
     }
     try {
       return { ok: true, buffer: await devGet(key) };
@@ -314,7 +314,7 @@ export async function getUploadedObject(key, { limit = MAX_INTAKE_UPLOAD_BYTES }
       Bucket: process.env.S3_BUCKET, Key: key,
     }));
     if ((head.ContentLength ?? 0) > limit) {
-      return { ok: false, code: 'too_large', message: `That file is larger than ${mb(limit)} MB.` };
+      return { ok: false, code: 'too_large', message: `That file is larger than ${mb(limit)} MB, so it was not saved. Save a smaller copy or split it, then upload again.` };
     }
     const res = await s3Client().send(new GetObjectCommand({
       Bucket: process.env.S3_BUCKET, Key: key,
@@ -356,11 +356,11 @@ export async function deleteUploadedObject(key) {
  */
 export async function headUploadedObject(key) {
   if (!isUploadKey(key)) {
-    return { ok: false, code: 'bad_key', message: 'Not a valid upload reference.' };
+    return { ok: false, code: 'bad_key', message: 'We lost track of this upload, so nothing was read. Please upload the file again.' };
   }
   if (!presignAvailable()) {
     if (!devStoreOn()) {
-      return { ok: false, code: 'unavailable', message: 'Direct uploads are not configured.' };
+      return { ok: false, code: 'unavailable', message: 'Uploads are switched off right now. This is on our side, not your file. Please try again later, or email the file to precon@ilcstudios.com.' };
     }
     try {
       return { ok: true, size: (await fs.stat(devPath(key))).size, contentType: null };
@@ -686,10 +686,10 @@ async function writeScan(key, state) {
  */
 export async function getScanState(key, { quiet = false } = {}) {
   if (!isScanKey(key)) {
-    return { ok: false, code: 'bad_key', message: 'Not a valid scan reference.' };
+    return { ok: false, code: 'bad_key', message: 'We lost track of this upload, so nothing was read. Please upload the file again.' };
   }
   if (!presignAvailable() && !devStoreOn()) {
-    return { ok: false, code: 'unavailable', message: 'Direct uploads are not configured.' };
+    return { ok: false, code: 'unavailable', message: 'Uploads are switched off right now. This is on our side, not your file. Please try again later, or email the file to precon@ilcstudios.com.' };
   }
   try {
     const raw = await gunzip(presignAvailable()

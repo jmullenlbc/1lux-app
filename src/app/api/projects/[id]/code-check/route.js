@@ -109,7 +109,7 @@ export async function POST(request, { params }) {
   const { user, error } = await requireAuth();
   if (error) return error;
 
-  const apiKey = getAnthropicKey()?.trim();
+  const apiKey = (await getAnthropicKey())?.trim();
   if (!apiKey) return NextResponse.json({ error: 'ANTHROPIC_API_KEY not configured' }, { status: 503 });
 
   const { body } = await readJobRequest(request);
@@ -124,7 +124,7 @@ export async function POST(request, { params }) {
  * body with an `error` string, the same two shapes the stream used to carry.
  */
 async function reviewSchedule({ projectId, user }) {
-  const apiKey = getAnthropicKey()?.trim();
+  const apiKey = (await getAnthropicKey())?.trim();
   if (!apiKey) throw jobError(503, { error: 'ANTHROPIC_API_KEY not configured' });
 
   const [scheduleData, takeoffFile, projectData, project] = await Promise.all([

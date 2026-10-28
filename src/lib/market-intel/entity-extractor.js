@@ -6,7 +6,7 @@ import { buildUntrustedPrompt, warnOnInjection } from '@/lib/agent/untrusted';
 import { developerNamesFrom, unitCountFrom } from './tagRules.js';
 
 // Recorded: see src/lib/agent/ledger.js.
-const client = wrapClient(new Anthropic({ apiKey: getAnthropicKey() }), 'marketIntel.entityExtract');
+const client = async () => wrapClient(new Anthropic({ apiKey: await getAnthropicKey() }), 'marketIntel.entityExtract');
 
 // 10-7 (Mike): besides the developer, pull every company with its role, the
 // project's name, where it is, and how many units it holds. Each becomes a
@@ -63,7 +63,7 @@ export async function extractFromArticle(title, rawContent) {
   warnOnInjection('marketIntel.entityExtract', null, sealed);
 
   try {
-    const response = await client.messages.create({
+    const response = await (await client()).messages.create({
       ...modelParams('market.entityExtract'),
       max_tokens: 700,
       system:     sealed.system,

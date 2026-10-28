@@ -85,7 +85,7 @@ Return ONLY a JSON array. Each element:
     const Anthropic = (await import('@anthropic-ai/sdk')).default;
     // Recorded: see src/lib/agent/ledger.js.
     const anthropic = wrapClient(
-      new Anthropic({ apiKey: getAnthropicKey() }),
+      new Anthropic({ apiKey: (await getAnthropicKey()) }),
       'bot.note.extractActions',
       { projectId: note?.projectId || null, userId: note?.createdById || null },
     );

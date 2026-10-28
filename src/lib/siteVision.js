@@ -33,6 +33,7 @@ import { isPdfDoc } from './drawingExtract.js';
 import { ATTACHED_DOCUMENT_RULE } from './agent/untrusted.js';
 import { normalizeSiteFeatures } from './siteFeatures.js';
 import { modelFor, textFrom, answerBudget, warnIfTruncated } from './aiModels.js';
+import { visionFailure, VISION_GARBLED } from './aiFailure.js';
 
 /**
  * Long-edge pixels for the render handed to the model.
@@ -505,14 +506,7 @@ export async function extractSiteData(images, anthropic, { model = modelFor('dra
     // a 400 with a big byte count is a picture problem, a 529 is their
     // weather, and anything else is ours.
     console.error('site vision error:', e?.status ?? 'no-status', 'image bytes:', images.map(i => i.png?.length), e);
-    // An empty credit balance is OUR outage, not the visitor's drawing, and
-    // billing words have no business on a public page. Found the hard way
-    // 2026-08-31: it surfaced as "Could not read the drawing", which blames
-    // the drawing and sends everyone hunting phone bugs. V3 = pay the bill.
-    if (/credit balance/i.test(e?.message ?? '')) {
-      return { ok: false, code: 'ai_unavailable', message: 'Our drawing reader is temporarily unavailable. This is on our side, not your file. Please email the set to precon@ilcstudios.com and we will run it for you. (V3)' };
-    }
-    return { ok: false, code: 'extraction_failed', message: `Could not read the drawing. (V1${e?.status ? '-' + e.status : ''})` };
+    return { ok: false, ...visionFailure(e) };
   }
 
   const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
@@ -521,7 +515,7 @@ export async function extractSiteData(images, anthropic, { model = modelFor('dra
     data = JSON.parse(cleaned);
   } catch {
     console.error('site vision, bad JSON:', raw.slice(0, 400));
-    return { ok: false, code: 'bad_output', message: 'Could not read the extraction result. (V2)' };
+    return { ok: false, code: 'bad_output', message: VISION_GARBLED };
   }
 
   return { ok: true, data: { ...validateSiteData(data), model } };

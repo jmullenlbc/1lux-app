@@ -5,14 +5,14 @@
  *   "LT03" / "LT 03" / "LT-3"   all match "LT-03"      (matchKey LT3)
  *   "R1-24'" / "R1 24FT"         type R1, length 24 ft  (rolls up into R1)
  *   "S4-10.5'"                   type S4, length 10.5 ft
- *   "ZP1-P" / "ZP1 POLE"         type ZP1, variant P    (folds into ZP1's price)
+ *   "ZP1-P" / "ZP1 POLE"         type ZP1, variant P    (its own row: Mike 10-28, poles price on their own)
  *   R4 + "FIRE HOOD ALLOWANCE"   type R4, variant HOOD  (its own matrix row)
  *   "S3.1"                       stays S3.1 (a dotted suffix is a real type)
  */
 
-// Variants whose price is part of the parent fixture (a pole is bought with
-// its head). Other variants (HOOD) stay their own matrix row.
-export const FOLD_VARIANTS = new Set(['P']);
+// Variants whose price is part of the parent fixture. Empty since 10-28: Mike
+// wants poles (about $650) on their own row, apart from the head (about $325).
+export const FOLD_VARIANTS = new Set();
 
 export function cleanTag(raw) {
   return String(raw ?? '')

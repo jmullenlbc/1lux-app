@@ -114,7 +114,7 @@ async function readUnitMatrix({ fileId }, { projectId, user }) {
       // Best-effort throughout: any failure here leaves contentText exactly as
       // it was, which is the behaviour this route had before.
       if (pages && pages.length > SET_PAGE_THRESHOLD) {
-        const anthropicKey = getAnthropicKey()?.trim();
+        const anthropicKey = (await getAnthropicKey())?.trim();
         const picked = await pickKeySheets(
           buildSheetIndex(pages),
           anthropicKey
@@ -138,7 +138,7 @@ async function readUnitMatrix({ fileId }, { projectId, user }) {
     throw jobError(422, { error: 'Unsupported file type' });
   }
 
-  const apiKey = getAnthropicKey()?.trim();
+  const apiKey = (await getAnthropicKey())?.trim();
   if (!apiKey) throw jobError(503, { error: 'ANTHROPIC_API_KEY not configured' });
 
   // Truncation, model choice, the prompt, code-fence stripping and shape

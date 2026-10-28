@@ -159,7 +159,7 @@ Respond with JSON only: { "subject": "...", "body": "..." }`;
     const Anthropic = (await import('@anthropic-ai/sdk')).default;
     // Recorded: see src/lib/agent/ledger.js. Scheduled work, so no userId.
     const anthropic = wrapClient(
-      new Anthropic({ apiKey: getAnthropicKey() }),
+      new Anthropic({ apiKey: (await getAnthropicKey()) }),
       'bot.followUp.draft',
       { projectId: project.id },
     );

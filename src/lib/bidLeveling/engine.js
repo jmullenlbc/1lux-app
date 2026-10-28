@@ -15,6 +15,8 @@ import { normalizeTag, rollUpLengths, FOLD_VARIANTS } from './normalizeTag.js';
 import { BID_FLAG_KEYS } from './bidFlags.js';
 
 const NOT_PRICED = new Set(['NO_QUOTE', 'NOT_USED']);
+/** specBasis of a pole cell whose price sits inside its head's price. */
+export const IN_HEAD = 'IN_HEAD';
 const VARIANCE_PCT = 0.10;
 const VARIANCE_UNITS = 25;
 const VARIANCE_DOLLARS = 2500;
@@ -57,7 +59,7 @@ function tagAll(bids) {
   return { tagged, uomHint };
 }
 
-/** One cell per matrix row for one bid: lengths rolled up, poles folded in. */
+/** One cell per matrix row for one bid: lengths rolled up, folded variants (none today) folded in. */
 function cellsForBid(lines, uomHint) {
   const groups = new Map();
   for (const l of lines) {
@@ -150,6 +152,18 @@ export function buildMatrix(bids, baselineBidId) {
       rows.get(k).cells[bid.id] = c;
     }
   }
+  // Poles are their own row (Mike 10-28). A bid that prices the head but has
+  // no pole line carries the pole inside the head price, not a missing pole.
+  for (const row of rows.values()) {
+    if (row.variant !== 'P') continue;
+    const head = rows.get(rowKey(row.matchKey, ''));
+    for (const bid of bids) {
+      const h = head?.cells[bid.id];
+      if (!row.cells[bid.id] && hasQty(h)) {
+        row.cells[bid.id] = { matchKey: row.matchKey, variant: 'P', typeTag: row.typeTag, qty: null, uom: h.uom, unitPrice: null, extPrice: null, specBasis: IN_HEAD };
+      }
+    }
+  }
 
   const types = [];
   const scopeGaps = [];
@@ -176,7 +190,7 @@ export function buildMatrix(bids, baselineBidId) {
       }
     }
     const presentIn = bids.filter((b) => hasQty(row.cells[b.id])).map((b) => b.id);
-    const missingIn = bids.filter((b) => !hasQty(row.cells[b.id])).map((b) => b.id);
+    const missingIn = bids.filter((b) => !hasQty(row.cells[b.id]) && row.cells[b.id]?.specBasis !== IN_HEAD).map((b) => b.id);
     if (presentIn.length && missingIn.length) {
       scopeGaps.push({
         typeTag: row.typeTag, variant: row.variant, key: row.key, presentIn, missingIn,
@@ -264,12 +278,20 @@ export function normalize(bids, baselineBidId, settings = {}, matrix = buildMatr
     let fixturesPlaceholder = 0;
     const placeholderLines = [];
     let fixturesOwnQty = 0;
+    let poleOwnQty = 0;
     const ownQtyLines = [];
     const extras = [];
     for (const row of matrix.types) {
       const base = row.cells[baseId];
       const c = row.cells[bid.id];
-      if (hasQty(base)) {
+      if (hasQty(base) && c?.specBasis === IN_HEAD) {
+        // Pole already paid for in this bid's head price.
+      } else if (base?.specBasis === IN_HEAD && hasQty(c) && c.unitPrice != null) {
+        // The baseline prices poles inside the head: this bid's own pole line is added at its own qty.
+        fixturesOwnQty += c.qty * c.unitPrice;
+        poleOwnQty += c.qty * c.unitPrice;
+        ownQtyLines.push({ typeTag: row.typeTag, variant: row.variant, qty: c.qty, uom: c.uom, amount: r2(c.qty * c.unitPrice), why: 'POLE_IN_HEAD' });
+      } else if (hasQty(base)) {
         const sameUnit = !c?.uomMismatch;
         if (bid.id === baseId || (hasQty(c) && c.unitPrice != null && sameUnit)) {
           fixturesMatched += base.qty * (bid.id === baseId ? (c.unitPrice || 0) : c.unitPrice);
@@ -296,7 +318,8 @@ export function normalize(bids, baselineBidId, settings = {}, matrix = buildMatr
     const tax = taxRate * taxBase;
     const grand = fixtures + controls + adders + spares + freight + warehousing + tax;
 
-    const placeholderShare = fixtures > 0 ? (fixturesPlaceholder + fixturesOwnQty) / fixtures : 0;
+    // A pole line is the bid's own real price, so it does not lower confidence.
+    const placeholderShare = fixtures > 0 ? (fixturesPlaceholder + fixturesOwnQty - poleOwnQty) / fixtures : 0;
     perBid[bid.id] = {
       sectionOnly: false,
       fixturesMatched: r2(fixturesMatched), fixturesPlaceholder: r2(fixturesPlaceholder), placeholderLines,
@@ -401,6 +424,9 @@ export function buildClarifications(bid, matrix, { today = new Date(), bids = []
     return c && num(c.qty) === 0 && (c.lineNote || otherIds.some((id) => hasQty(r.cells[id])));
   }).map((r) => r.typeTag);
   if (zeroes.length) out.push(`${list(zeroes)}: quoted at zero. Priced or excluded?`);
+
+  const inHead = rows.filter((r) => cell(r)?.specBasis === IN_HEAD && otherIds.some((id) => hasQty(r.cells[id]))).map((r) => r.typeTag);
+  if (inHead.length) out.push(`${list(inHead)}: no separate pole line. Confirm the pole is included in the fixture price.`);
 
   const missing = rows.filter((r) => !cell(r) && otherIds.some((id) => hasQty(r.cells[id]))).map((r) => r.typeTag + (r.variant ? ` ${r.variant}` : ''));
   if (missing.length) out.push(`${list(missing)}: not on this quote. Price them or confirm they are excluded.`);

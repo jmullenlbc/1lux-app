@@ -108,7 +108,7 @@ const VALID_TYPES = ['COFFEE','MEAL','GOLF','HAPPY_HOUR','SITE_VISIT','TRAVEL','
   'LUNCH'];  // LUNCH kept so an older answer still parses; normalized to MEAL below
 
 async function classifyWithAI(event) {
-  const apiKey = getAnthropicKey();
+  const apiKey = (await getAnthropicKey());
   if (!apiKey) return null;
 
   const externalCount = event.attendeeCount

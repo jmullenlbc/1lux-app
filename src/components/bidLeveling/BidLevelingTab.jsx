@@ -8,18 +8,16 @@ import WidgetFrame, { WidgetEmpty, WidgetLoading, WidgetError } from '@/componen
 import { INPUT, LABEL, HELPER, TH, TD, NUM, BTN_SECONDARY, TONE } from '@/components/ui/tokens';
 import { BID_FLAG_KEYS, FLAG_STATES, FLAG_STATE_LABELS, FLAG_GROUPS } from '@/lib/bidLeveling/bidFlags';
 import { readMatrixSheets, newestLines } from '@/lib/matrixImport/readMatrix';
+import { sageColumn, SAGE_GROUP } from '@/lib/bidLeveling/sageAlternates';
+import QuoteReader from './QuoteReader';
 
 const money = (n) => (n == null ? '' : `$${Math.round(n).toLocaleString('en-US')}`);
 const money2 = (n) => (n == null ? '' : `$${Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
 const qtyText = (c) => (c?.qty == null ? '' : `${Number(c.qty).toLocaleString('en-US')}${c.uom && c.uom !== 'EA' ? ` ${c.uom}` : ''}`);
-const rowLabel = (r) => r.typeTag + (r.variant ? ` ${r.variant}` : '');
+const rowLabel = (r) => r.typeTag + (r.variant === 'P' ? ' pole' : r.variant ? ` ${r.variant}` : '');
 const TOTAL_ROWS = [
   ['fixtures', 'Fixtures'], ['controls', 'Controls'], ['adders', 'Adders'], ['spares', 'Spares'],
   ['freight', 'Freight'], ['warehousing', 'Warehousing'], ['tax', 'Tax'],
-];
-const BUCKET_INPUTS = [
-  ['FIXTURES', 'Fixtures'], ['CONTROLS', 'Controls'], ['FREIGHT', 'Freight'],
-  ['WAREHOUSING', 'Warehousing'], ['TAX', 'Tax'], ['GRAND', 'Grand total'],
 ];
 const CONF_TONE = { HIGH: TONE.success, MEDIUM: TONE.warning, LOW: TONE.danger };
 const STATE_TONE = {
@@ -34,7 +32,7 @@ const MATRIX_KEEP = ['type', 'section', 'description', 'origMfr', 'origCatalog',
 async function api(url, opts = {}) {
   const res = await fetch(url, { ...opts, headers: { 'Content-Type': 'application/json' } });
   const body = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(body.error || `Request failed (${res.status})`);
+  if (!res.ok) throw new Error(body.error || `We could not reach the server (error ${res.status}), so nothing changed. Wait a minute and try again.`);
   return body;
 }
 
@@ -105,13 +103,13 @@ export default function BidLevelingTab({ projectId }) {
         <WidgetFrame><WidgetEmpty>No leveling yet. Start one, then add our bid and each competitor quote.</WidgetEmpty></WidgetFrame>
       ) : !view ? <WidgetLoading /> : (
         <>
-          <AddBidBar onAdd={addBid} busy={busy === 'add'} adding={adding} setAdding={setAdding} setError={setError} />
+          <AddBidBar onAdd={addBid} busy={busy === 'add'} adding={adding} setAdding={setAdding} error={error} setError={setError} />
           {view.bids.length === 0 ? (
-            <WidgetFrame><WidgetEmpty>No bids yet. Add our bid from Peer Review or a matrix file, then paste a competitor quote.</WidgetEmpty></WidgetFrame>
+            <WidgetFrame><WidgetEmpty>No bids yet. Add our bid from Peer Review or a matrix file, then add each competitor quote.</WidgetEmpty></WidgetFrame>
           ) : (
             <>
               <SettingsBar view={view} onPatch={patchLeveling} />
-              <TotalsCard view={view} />
+              <TotalsCard view={view} exportUrl={`${base}/${view.leveling.id}/export`} />
               <MatrixCard view={view} />
               <PackagesCard view={view} />
               <FlagsCard view={view} onPatch={patchBid} />
@@ -125,7 +123,7 @@ export default function BidLevelingTab({ projectId }) {
   );
 }
 
-function AddBidBar({ onAdd, busy, adding, setAdding, setError }) {
+function AddBidBar({ onAdd, busy, adding, setAdding, error, setError }) {
   const onMatrixFile = async (e) => {
     const file = e.target.files?.[0];
     e.target.value = '';
@@ -137,13 +135,13 @@ function AddBidBar({ onAdd, busy, adding, setAdding, setError }) {
         name, rows: XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, defval: '', raw: true }),
       })));
       const lines = newestLines(tables).map((l) => Object.fromEntries(MATRIX_KEEP.map((k) => [k, l[k] ?? null])));
-      if (!lines.length) { setError('No fixture table found in that file.'); return; }
+      if (!lines.length) { setError('We found no fixture table in that file, so nothing was added. Check it is a peer review matrix.'); return; }
       onAdd({ source: 'MATRIX', fileName: file.name, lines });
-    } catch (err) { setError(`Could not read that file: ${err.message}`); }
+    } catch { setError('We could not open that file, so nothing was added. Save it again as an Excel file (.xlsx) and pick it once more.'); }
   };
 
   return (
-    <WidgetFrame title="Add a bid" sub="Our bid comes from this project's Peer Review rows or a peer review matrix file. Competitor quotes are pasted.">
+    <WidgetFrame title="Add a bid" sub="Our bid comes from this project's Peer Review rows or a peer review matrix file. Competitor quotes are read from Excel or pasted, then you check what we read.">
       <div className="flex flex-wrap gap-2">
         <Button variant="secondary" loading={busy} onClick={() => onAdd({ source: 'PEER_REVIEW' })}>Our bid from Peer Review</Button>
         <label className={`${BTN_SECONDARY} cursor-pointer`}>
@@ -152,45 +150,8 @@ function AddBidBar({ onAdd, busy, adding, setAdding, setError }) {
         </label>
         <Button onClick={() => setAdding(!adding)}>{adding ? 'Close' : 'Competitor quote'}</Button>
       </div>
-      {adding && <PasteForm onAdd={onAdd} busy={busy} />}
+      {adding && <QuoteReader onAdd={onAdd} busy={busy} error={error} />}
     </WidgetFrame>
-  );
-}
-
-function PasteForm({ onAdd, busy }) {
-  const [f, setF] = useState({ bidderName: '', bidderType: 'UNKNOWN', quoteNumber: '', quoteDate: '', expiresAt: '', taxRateStated: '', text: '', notesRaw: '', totals: {} });
-  const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
-  const setTotal = (k) => (e) => setF({ ...f, totals: { ...f.totals, [k]: e.target.value } });
-  return (
-    <div className="mt-4 space-y-4 border-t border-slate-100 pt-4">
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-        <Field label="Bidder"><input className={INPUT} value={f.bidderName} onChange={set('bidderName')} placeholder="Company name" /></Field>
-        <Field label="Price level">
-          <select className={INPUT} value={f.bidderType} onChange={set('bidderType')}>
-            <option value="UNKNOWN">Not stated</option>
-            <option value="REP">Rep</option>
-            <option value="DISTRIBUTOR">Distributor net</option>
-            <option value="CONTRACTOR_NET">Contractor net</option>
-          </select>
-        </Field>
-        <Field label="Quote number"><input className={INPUT} value={f.quoteNumber} onChange={set('quoteNumber')} /></Field>
-        <Field label="Quote date"><input type="date" className={INPUT} value={f.quoteDate} onChange={set('quoteDate')} /></Field>
-        <Field label="Valid until"><input type="date" className={INPUT} value={f.expiresAt} onChange={set('expiresAt')} /></Field>
-        <Field label="Tax rate stated (%)"><input className={INPUT} value={f.taxRateStated} onChange={set('taxRateStated')} placeholder="8.6" /></Field>
-      </div>
-      <Field label="Quote lines" hint="Copy the table from the quote (Excel or PDF) and paste it here. With a header row, columns are matched by name; without one the order is Type, Qty, Manufacturer, Catalog, Unit price, Extended.">
-        <textarea className={`${INPUT} font-mono text-xs h-40`} value={f.text} onChange={set('text')} />
-      </Field>
-      <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
-        {BUCKET_INPUTS.map(([k, label]) => (
-          <Field key={k} label={label}><input className={INPUT} value={f.totals[k] || ''} onChange={setTotal(k)} placeholder="$" /></Field>
-        ))}
-      </div>
-      <Field label="Terms and notes" hint="Paste the quote's terms block as written.">
-        <textarea className={`${INPUT} h-24`} value={f.notesRaw} onChange={set('notesRaw')} />
-      </Field>
-      <Button loading={busy} onClick={() => onAdd({ source: 'PASTE', ...f })}>Add quote</Button>
-    </div>
   );
 }
 
@@ -252,12 +213,15 @@ const asQuoted = (bid) => {
   return g || bid.totals.filter((t) => t.bucket !== 'GRAND').reduce((s, t) => s + t.amount, 0) || null;
 };
 
-function TotalsCard({ view }) {
+function TotalsCard({ view, exportUrl }) {
   const { bids, normalized } = view;
   const per = normalized?.perBid || {};
   const lowest = Math.min(...bids.map((b) => per[b.id]?.grand ?? Infinity));
   return (
-    <WidgetFrame title="Leveled totals" sub="Same quantities for every bid. Missing types are filled at the other bids' price (a placeholder), so confidence drops as placeholders grow." flush>
+    <WidgetFrame title="Leveled totals" sub="Same quantities for every bid. Missing types are filled at the other bids' price (a placeholder), so confidence drops as placeholders grow."
+      actions={<a href={exportUrl} download className={BTN_SECONDARY}>Download Excel</a>}
+      flush
+    >
       <div className="overflow-x-auto">
         <table className="w-full">
           <thead className="bg-slate-50"><tr><th className={TH}></th>{bids.map((b) => <th key={b.id} className={`${TH} text-right`}>{b.bidderName}</th>)}</tr></thead>
@@ -309,6 +273,7 @@ function MatrixCard({ view }) {
   const gapKeys = useMemo(() => new Set([...matrix.scopeGaps.map((g) => g.key), ...matrix.qtyVariances.map((v) => v.key)]), [matrix]);
   const rows = onlyGaps ? matrix.types.filter((r) => gapKeys.has(r.key)) : matrix.types;
   const varianceFor = (key, bidId) => matrix.qtyVariances.find((v) => v.key === key && v.bidId === bidId);
+  const sage = useMemo(() => sageColumn(view), [view]);
   return (
     <WidgetFrame
       title={`By type (${matrix.types.length})`}
@@ -322,6 +287,7 @@ function MatrixCard({ view }) {
             <tr>
               <th className={TH}>Type</th>
               <th className={TH}>Spec asked for</th>
+              <th className={TH}>Sage alternate</th>
               {bids.map((b) => <th key={b.id} className={TH}>{b.bidderName}</th>)}
               <th className={TH}>We suggest</th>
             </tr>
@@ -335,15 +301,23 @@ function MatrixCard({ view }) {
                   <td className={`${TD} text-xs`}>
                     {s?.spec ? <>{s.spec.mfr} <span className="text-slate-500">{s.spec.catalog}</span>{s.spec.fromOffer && <span className={`${HELPER} block`}>from a bid, not the drawings</span>}</> : <span className="text-slate-400">Not known</span>}
                   </td>
+                  <td className={`${TD} text-xs`}>
+                    {sage[r.key]?.name
+                      ? <><span className="font-semibold text-slate-800">{sage[r.key].name}</span><span className={`${HELPER} block`}>{SAGE_GROUP[sage[r.key].group]}</span></>
+                      : <span className="text-slate-400">{sage[r.key]?.why || ''}</span>}
+                  </td>
                   {bids.map((b) => {
                     const c = r.cells[b.id];
-                    const missing = !c || !(c.qty > 0);
+                    const inHead = c?.specBasis === 'IN_HEAD';
+                    const missing = !inHead && (!c || !(c.qty > 0));
                     const v = varianceFor(r.key, b.id);
                     const offered = c && (c.mfr || c.catalog);
                     const swapped = offered && c.requestedCatalog && c.catalog && c.requestedCatalog !== c.catalog;
                     return (
                       <td key={b.id} className={`${TD} text-xs ${missing ? 'bg-red-50' : v ? 'bg-amber-50' : ''}`}>
-                        {missing ? (
+                        {inHead ? (
+                          <span className="text-slate-500">In fixture price</span>
+                        ) : missing ? (
                           <span className="text-red-600">{c?.specBasis === 'NOT_USED' ? 'Not used' : c?.specBasis === 'NO_QUOTE' ? 'No quote' : c ? 'Zero' : 'Missing'}</span>
                         ) : (
                           <>

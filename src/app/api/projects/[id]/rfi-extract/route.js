@@ -18,7 +18,7 @@ export async function POST(req, { params }) {
   // Recorded: see src/lib/agent/ledger.js. The two modes below are named
   // separately, one reads a stored file, the other parses a pasted email
   // and they fail for different reasons, so the rollup should keep them apart.
-  const raw = new Anthropic({ apiKey: getAnthropicKey() });
+  const raw = new Anthropic({ apiKey: (await getAnthropicKey()) });
   const ctx = { projectId: params.id, userId: user.id };
 
   // ── Mode 1: Extract question from existing file ──────────────────────────

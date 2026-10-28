@@ -96,7 +96,7 @@ async function readSite({ fileId, pages }, { projectId, user }) {
     });
   }
 
-  const apiKey = getAnthropicKey()?.trim();
+  const apiKey = (await getAnthropicKey())?.trim();
   if (!apiKey) throw jobError(503, { error: 'ANTHROPIC_API_KEY not configured' });
 
   const client = (task) =>

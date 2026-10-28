@@ -68,7 +68,7 @@ function citedPages(content) {
 
 async function research(question, win, userId) {
   const Anthropic = (await import('@anthropic-ai/sdk')).default;
-  const client = wrapClient(new Anthropic({ apiKey: getAnthropicKey() }), JOB, { userId });
+  const client = wrapClient(new Anthropic({ apiKey: (await getAnthropicKey()) }), JOB, { userId });
   const user = { role: 'user', content: promptFor(question, win) };
   const tools = [{ type: 'web_search_20260209', name: 'web_search', max_uses: MAX_SEARCHES }];
   let messages = [user];

@@ -53,3 +53,30 @@ test('every server code used by the intake pipeline has a number', () => {
     assert.ok(ERROR_NUMBERS[code], `no number mapped for code "${code}"`);
   }
 });
+
+// Mike 10-26: every error in plain terms, saying whose side it is on and what
+// to do. A rejected AI key once read "Could not read the drawing. (V1-401)".
+import { visionFailure, VISION_GARBLED } from '../../src/lib/aiFailure.js';
+
+test('a failed AI call never blames the drawing and always says what to do', () => {
+  const cases = [
+    [{ status: 401 }, 'V1-401', /sign in to the AI service/],
+    [{ status: 403 }, 'V1-403', /sign in to the AI service/],
+    [{ status: 429 }, 'V1-429', /Wait a minute/],
+    [{ status: 400 }, 'V1-400', /very large/],
+    [{ status: 529 }, 'V1-529', /on their side/],
+    [{ status: 500 }, 'V1-500', /on their side/],
+    [{}, 'V1', /lost its connection/],
+    [{ status: 418 }, 'V1-418', /could not explain/],
+    [{ status: 400, message: 'Your credit balance is too low' }, 'V3', /switched off/],
+  ];
+  for (const [err, tag, words] of cases) {
+    const { message } = visionFailure(err);
+    assert.ok(message.endsWith(`(${tag})`), message);
+    assert.match(message, words);
+    assert.match(message, /not your file|Retry/);
+    assert.doesNotMatch(message, /Could not read the drawing|[–—]|--/);
+  }
+  assert.equal(visionFailure({ status: 401 }).code, 'ai_unavailable');
+  assert.ok(VISION_GARBLED.endsWith('(V2)'));
+});

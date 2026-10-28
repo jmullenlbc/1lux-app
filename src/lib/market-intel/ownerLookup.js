@@ -39,7 +39,7 @@ function placeOf(signal) {
  */
 export async function lookupOwner(signal, { userId } = {}) {
   const Anthropic = (await import('@anthropic-ai/sdk')).default;
-  const client = wrapClient(new Anthropic({ apiKey: getAnthropicKey() }), JOB, { userId });
+  const client = wrapClient(new Anthropic({ apiKey: (await getAnthropicKey()) }), JOB, { userId });
   const user  = { role: 'user', content: ownerPrompt({ ...signal, ...placeOf(signal) }) };
   const tools = [{ type: 'web_search_20260209', name: 'web_search', max_uses: MAX_OWNER_SEARCHES }];
   let messages = [user];

@@ -99,7 +99,7 @@ async function readDesignSchedule(record, { projectId }) {
 async function readConstructionSchedule(record, { projectId, user }) {
   // Recorded: see src/lib/agent/ledger.js.
   const anthropic = wrapClient(
-    new Anthropic({ apiKey: getAnthropicKey() }),
+    new Anthropic({ apiKey: (await getAnthropicKey()) }),
     'schedule.milestones.reparse',
     { projectId, userId: user.id },
   );

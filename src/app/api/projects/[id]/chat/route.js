@@ -76,7 +76,7 @@ export async function POST(request, { params }) {
   const { question, history = [], conversationId: existingConvId = null } = await request.json();
   if (!question?.trim()) return NextResponse.json({ error: 'No question provided' }, { status: 400 });
 
-  const apiKey = getAnthropicKey()?.trim();
+  const apiKey = (await getAnthropicKey())?.trim();
   if (!apiKey) {
     return new Response('Error: ANTHROPIC_API_KEY is not set', { headers: { 'Content-Type': 'text/plain' } });
   }

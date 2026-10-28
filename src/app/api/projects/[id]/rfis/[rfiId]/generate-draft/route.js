@@ -150,7 +150,7 @@ Generate ONLY the response text. No preamble. No explanations. No markdown.`;
     const Anthropic = (await import('@anthropic-ai/sdk')).default;
     // Recorded: see src/lib/agent/ledger.js.
     const anthropic  = wrapClient(
-      new Anthropic({ apiKey: getAnthropicKey() }),
+      new Anthropic({ apiKey: (await getAnthropicKey()) }),
       'rfi.draft',
       { projectId: params.id, userId: user?.id || null },
     );

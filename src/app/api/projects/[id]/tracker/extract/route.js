@@ -229,7 +229,7 @@ async function extractSubmittal(args, { projectId, user }) {
       // loop below is capped at 50, so the per-run cost is bounded and worth
       // recording individually rather than as one opaque batch.
       const anthropic  = wrapClient(
-        new Anthropic({ apiKey: getAnthropicKey() }),
+        new Anthropic({ apiKey: (await getAnthropicKey()) }),
         'tracker.review.classify',
         { projectId, userId: user.id },
       );

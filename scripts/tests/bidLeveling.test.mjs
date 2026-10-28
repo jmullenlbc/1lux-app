@@ -41,8 +41,11 @@ test('matrix lines up Sun Valley on the type tag', () => {
     assert.equal(row(k).cells.fisher.qty, q, k);
     assert.equal(row(k).cells.ilc.deltaQtyVsBaseline, 0, `${k} exact match`);
   }
-  // ILC's pole line folds into the head price.
-  near(row('ZP1').cells.ilc.unitPrice, 1159.74 + 505.19, 0.01, 'ZP1 with pole');
+  // Poles are their own row (Mike 10-28); Fisher prices the pole inside the head.
+  near(row('ZP1').cells.ilc.unitPrice, 1159.74, 0.01, 'ZP1 head only');
+  near(row('ZP1/P').cells.ilc.unitPrice, 505.19, 0.01, 'ZP1 pole');
+  assert.equal(row('ZP1/P').cells.fisher.specBasis, 'IN_HEAD');
+  assert.ok(!matrix.scopeGaps.some((g) => g.key === 'ZP1/P'), 'a pole in the head price is not a gap');
   assert.equal(row('R4/HOOD').cells.ilc, undefined);
   assert.equal(row('LT3').cells.fisher.specBasis, 'NOT_USED');
   // R6: Fisher 1 EA vs ILC 8 LF is a unit clash, not a delta.
@@ -71,7 +74,9 @@ test('ILC normalized on Fisher quantities', () => {
   assert.equal(ilc.fixturesPlaceholder, 319785);
   // Plan section 12 values; actuals on 10-18: matched 647,942, tax 100,102,
   // freight 69,877, warehousing 34,939, grand 1,298,926.
-  near(ilc.fixturesMatched, 648114, 500, 'matched');
+  // 10-28: ILC's ZP1 and ZP3 pole lines (7,592) moved from matched to own qty; grand unchanged.
+  near(ilc.fixturesMatched, 648114 - 7592, 500, 'matched');
+  near(ilc.fixturesOwnQty, 6 * 505.19 + 8 * 570.13, 0.01, 'poles at their own qty');
   near(ilc.controls, 126282, 1, 'controls');
   near(ilc.tax, 100118, 500, 'tax');
   near(ilc.freight, 69889, 500, 'freight');
@@ -116,9 +121,9 @@ test('Fisher clarifications', () => {
   const all = qs.join('\n');
   for (const re of [/unit pricing by type/, /expired Aug 5, 2026/, /\$162,964 does not match 8%/, /S6E, W1E/,
     /Stage and store/, /UR1: .*1,399/, /LT-08, ZS1: quoted at zero/, /PS1: not on this quote/, /LT05: marked no quote/,
-    /R6 \(EA\)/, /US1B/, /Tariff clause/, /contractor net or distributor net/]) {
+    /R6 \(EA\)/, /US1B/, /ZP1, ZP3: no separate pole line/, /Tariff clause/, /contractor net or distributor net/]) {
     assert.match(all, re);
   }
-  assert.equal(qs.length, 13);
+  assert.equal(qs.length, 14);
   assert.doesNotMatch(all, /[–—]|--/, 'no dashes in text that goes out');
 });

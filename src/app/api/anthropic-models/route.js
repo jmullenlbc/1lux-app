@@ -6,7 +6,7 @@ export async function GET(request) {
   const { user, error } = await requireAuth(request);
   if (error) return error;
 
-  const apiKey = getAnthropicKey()?.trim();
+  const apiKey = (await getAnthropicKey())?.trim();
   if (!apiKey) return NextResponse.json({ error: 'No API key set' }, { status: 500 });
 
   // Deliberately NOT recorded in the agent ledger. This is `/v1/models`, a

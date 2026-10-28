@@ -211,7 +211,7 @@ const month = t => (t ? new Date(t).toLocaleDateString('en-US', { month: 'short'
 
 async function askJson(job, budget, prompt, userId) {
   const Anthropic = (await import('@anthropic-ai/sdk')).default;
-  const client = wrapClient(new Anthropic({ apiKey: getAnthropicKey() }), `${job}.build`, { userId });
+  const client = wrapClient(new Anthropic({ apiKey: (await getAnthropicKey()) }), `${job}.build`, { userId });
   const msg = await client.messages.create({
     ...modelParams(job),
     max_tokens: answerBudget(job, budget),

@@ -162,7 +162,7 @@ export async function composeContactEmail(group) {
   const sender = await senderFor(group);
   const me = firstName(sender?.name) || 'Mike';
   let key;
-  try { key = getAnthropicKey()?.trim(); } catch { key = null; }
+  try { key = (await getAnthropicKey())?.trim(); } catch { key = null; }
   if (!key) return finish(fallbackEmail(group, sender), group, sender, emailKind);
 
   const items = group.nudge
@@ -210,7 +210,7 @@ Return ONLY JSON: {"subject": "...", "body": "..."}`;
 async function composeAppendParagraphs(group, newAsks) {
   const fallback = () => newAsks.map(a => a.detail).filter(Boolean).map(d => `• ${d}`).join('\n');
   let key;
-  try { key = getAnthropicKey()?.trim(); } catch { key = null; }
+  try { key = (await getAnthropicKey())?.trim(); } catch { key = null; }
   if (!key) return fallback();
 
   const askList = newAsks.map(a => `- ${a.label}: ${a.detail}${a.targetName ? ` (re ${a.targetName})` : ''}`).join('\n');

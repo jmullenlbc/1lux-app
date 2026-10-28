@@ -130,7 +130,7 @@ async function parseSheet(args, { projectId, user }) {
       const res = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
-          'x-api-key':         getAnthropicKey(),
+          'x-api-key':         (await getAnthropicKey()),
           'anthropic-version': '2023-06-01',
           'content-type':      'application/json',
         },

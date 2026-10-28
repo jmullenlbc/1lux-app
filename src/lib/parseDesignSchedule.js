@@ -4,9 +4,9 @@ import { wrapClient } from '@/lib/agent/client';
 import { buildUntrustedPrompt, warnOnInjection } from '@/lib/agent/untrusted';
 import { modelParams, answerBudget, warnIfTruncated } from '@/lib/aiModels';
 
-// Recorded: see src/lib/agent/ledger.js. wrapClient is a synchronous Proxy, so a
-// module-level client can be wrapped in place without making this an await.
-const anthropic = wrapClient(new Anthropic({ apiKey: getAnthropicKey() }), 'schedule.design.parse');
+// Recorded: see src/lib/agent/ledger.js. Built per call so a key saved on
+// Admin is picked up without a restart.
+const designClient = async () => wrapClient(new Anthropic({ apiKey: await getAnthropicKey() }), 'schedule.design.parse');
 
 const DESIGN_MILESTONE_IDS = [
   {
@@ -76,7 +76,7 @@ Rules:
   });
   warnOnInjection('schedule.design.parse', ctx.projectId, sealed);
 
-  const msg = await anthropic.messages.create({
+  const msg = await (await designClient()).messages.create({
     // Mike, 2026-08-19: all schedules are read by Fable 5. Same reason as the
     // construction pass in scheduleExtract.js, the old 8,000-character cap was
     // narrow enough that a design schedule of any length lost its tail silently.

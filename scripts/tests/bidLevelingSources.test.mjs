@@ -105,3 +105,125 @@ test('baseline lists a type with no qty: the bidder\'s own qty counts, flagged',
   assert.equal(n.perBid.c.fixturesOwnQty, 250);
   assert.equal(n.perBid.c.ownQtyLines[0].typeTag, 'A1');
 });
+
+// Quote reader + "Check what we read" (Mike 10-26, bid tool step 1). Made up quotes.
+import { readQuoteSheets, readPastedQuote, lineReasons, quoteWarnings, cleanCheckedLines, tagLike } from '../../src/lib/bidLeveling/readQuote.js';
+
+const MADE_UP = [
+  ['Bright Line Lighting Sales'],
+  ['Quote #:', 'Q-24117', '', 'Date:', '10/02/2026'],
+  ['Project:', 'Made Up Apartments', '', 'Valid for 30 days'],
+  [],
+  ['Type', 'Qty', 'Manufacturer', 'Catalog #', 'Description', 'Unit Price', 'Extended'],
+  ['INTERIOR'],
+  ['A1', 400, 'Acme', 'DL6-30K', '6 in downlight', 18.5, 7400],
+  ['', '', '', 'WHITE TRIM', '', '', ''],
+  ['B2', 12, 'Acme', 'STR-48', '4 ft strip', 40, 500],
+  ['C3', 0, 'Acme', 'WP-1', 'Wall pack', '', ''],
+  ['A1', 10, 'Acme', 'DL6-30K', '6 in downlight', 18.5, 185],
+  ['', 4, 'Acme', 'MK-1', 'Mounting kit', 5, 20],
+  [],
+  ['SITE LIGHTING'],
+  ['S1-P', 6, 'Pole Co', 'P-20', '20 ft pole', 900, 5400],
+  [],
+  ['', '', '', '', 'Subtotal', '', 13505],
+  ['', '', '', '', 'Freight', '', 600],
+  ['', '', '', '', 'Sales Tax (10.1%)', '', 1364.01],
+  ['', '', '', '', 'Total', '', 15469.01],
+  ['Lead time 6 to 8 weeks after approved submittals.'],
+];
+
+test('reads a made up quote: heading row, sections, second lines, totals, quote info', () => {
+  const q = readQuoteSheets([{ name: 'Quote', rows: MADE_UP }], { fileName: 'bright_line.xlsx' });
+  assert.equal(q.ok, true);
+  assert.equal(q.bidderName, 'Bright Line Lighting Sales');
+  assert.equal(q.info.quoteNumber, 'Q-24117');
+  assert.equal(q.info.quoteDate, '2026-10-02');
+  assert.equal(q.info.expiresAt, '2026-11-01');
+  assert.equal(q.info.taxRateStated, 10.1);
+  assert.equal(q.lines.length, 6);
+  assert.equal(q.lines[0].catalog, 'DL6-30K WHITE TRIM');
+  assert.equal(q.lines[0].section, 'INTERIOR');
+  assert.equal(q.lines[5].section, 'SITE LIGHTING');
+  assert.equal(q.lines[5].typeTag, 'S1');
+  assert.equal(q.lines[5].variant, 'P');
+  assert.equal(q.lines[2].specBasis, 'NO_QUOTE');
+  assert.deepEqual(q.totals, { FIXTURES: 13505, FREIGHT: 600, TAX: 1364.01, GRAND: 15469.01 });
+  assert.match(q.notesRaw, /Lead time/);
+});
+
+test('marks the lines a person should look at, in plain words', () => {
+  const q = readQuoteSheets([{ name: 'Quote', rows: MADE_UP }]);
+  const r = lineReasons(q.lines).map((x) => x.map((y) => y.key));
+  assert.deepEqual(r[0], ['TWICE']);
+  assert.deepEqual(r[1], ['MATH']);
+  assert.deepEqual(r[2], ['ZERO_QTY']);
+  assert.deepEqual(r[4], ['NO_TYPE']);
+  assert.equal(lineReasons(q.lines)[4][0].blocking, true);
+  for (const x of lineReasons(q.lines).flat()) assert.doesNotMatch(x.text, /[–—]|--/);
+});
+
+test('whole quote warnings: lines versus subtotal, parts versus total, expired', () => {
+  const q = readQuoteSheets([{ name: 'Quote', rows: MADE_UP }]);
+  assert.deepEqual(quoteWarnings(q.lines, q.totals, q.info, { today: new Date('2026-10-20') }), []);
+  const w = quoteWarnings(q.lines, { ...q.totals, FIXTURES: 13000 }, q.info, { today: new Date('2026-11-05') });
+  assert.equal(w.length, 3);
+  assert.match(w[0], /lines add up to \$13,505\.00.*says \$13,000\.00/);
+  assert.match(w[1], /parts add up to \$14,964\.01.*says \$15,469\.01/);
+  assert.match(w[2], /expired on 2026-11-01/);
+});
+
+test('no table found says what to do', () => {
+  const q = readQuoteSheets([{ name: 'Cover', rows: [['Thank you for the opportunity'], ['Call me']] }]);
+  assert.equal(q.ok, false);
+  assert.match(q.message, /nothing was read/);
+  assert.equal(readPastedQuote('just some words').ok, false);
+});
+
+test('pasted rows go through the same reader', () => {
+  const q = readPastedQuote('Type\tQty\tMfr\tPart\tUnit\tExt\nA1\t10\tAcme\tDL6\t$18.50\t$185.00\nFreight\t\t\t\t\t$50\n');
+  assert.equal(q.lines.length, 1);
+  assert.equal(q.lines[0].unitPrice, 18.5);
+  assert.equal(q.totals.FREIGHT, 50);
+});
+
+test('a quote with no type column takes the type from the description', () => {
+  const q = readQuoteSheets([{ name: 'S', rows: [['Qty', 'Description', 'Catalog', 'Price'], [5, 'Type B4: wall sconce', 'WS-2', 80]] }]);
+  assert.equal(q.lines[0].typeTag, 'B4');
+});
+
+test('checked lines are cleaned on the server and the tag is read again', () => {
+  const { lines, missingType } = cleanCheckedLines([
+    { typeTagRaw: 'lt-03', typeTag: 'HACKED', qty: '10', unitPrice: '$5', uom: 'BOX', optionGroup: 'X', needsReview: 1 },
+    { typeTagRaw: '  ', qty: 2 },
+    { typeTagRaw: 'B2', qty: 0, unitPrice: -4 },
+  ]);
+  assert.equal(missingType, 1);
+  assert.equal(lines[0].typeTag, 'LT-03');
+  assert.equal(lines[0].extPrice, 50);
+  assert.equal(lines[0].uom, 'EA');
+  assert.equal(lines[0].optionGroup, 'BASE');
+  assert.equal(lines[0].needsReview, true);
+  assert.equal(lines[1].specBasis, 'NO_QUOTE');
+  assert.equal(lines[1].unitPrice, null);
+  assert.equal(lines[1].sortOrder, 1);
+});
+
+test('type tags versus words', () => {
+  assert.ok(tagLike('A1') && tagLike('LT-03') && tagLike('EM') && tagLike('S1-P'));
+  assert.ok(!tagLike('SITE LIGHTING') && !tagLike('Mounting kit for poles') && !tagLike(''));
+});
+
+test('a tax row with its rate in the type column is a total, not a fixture', () => {
+  const q = readQuoteSheets([{ name: 'S', rows: [
+    ['Type', 'Qty', 'Catalog', 'Unit Price', 'Extended'],
+    ['A1', 10, 'X-1', 10, 100],
+    ['T10', '', 'TRACK-10', 5, 5],
+    ['Subtotal', '', '', '', 105],
+    ['Tax 10.1%', '', '', '', 10.61],
+    ['Total', '', '', '', 115.61],
+  ] }]);
+  assert.deepEqual(q.lines.map((l) => l.typeTag), ['A1', 'T10']);
+  assert.equal(q.totals.TAX, 10.61);
+  assert.equal(q.info.taxRateStated, 10.1);
+});

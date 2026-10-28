@@ -22,7 +22,6 @@ export const maxDuration = 300;
 const CONTRACT_INFLIGHT_MS = 300_000;
 const MAX_CONTRACT_BYTES   = 28 * 1024 * 1024;
 
-const anthropic = new Anthropic({ apiKey: getAnthropicKey() });
 
 // POST /api/projects/[id]/analyze-contract
 // Body: { fileId }, ID of an already-uploaded ProjectFile (PDF)
@@ -172,7 +171,7 @@ async function reviewContent({ textContent, pdfBase64, fileName, savedFileId }, 
     // Recorded per request rather than at the module-level client, so the run
     // carries the project and user it was for. wrapClient returns a Proxy, so
     // wrapping the shared client again per call is free.
-    const recorded = wrapClient(anthropic, 'contract.analyze', { projectId: projectId, userId: user.id });
+    const recorded = wrapClient(new Anthropic({ apiKey: await getAnthropicKey() }), 'contract.analyze', { projectId: projectId, userId: user.id });
     message = await recorded.messages.create({
       ...modelParams('contract.analyze'),
       max_tokens: answerBudget('contract.analyze', 16000),

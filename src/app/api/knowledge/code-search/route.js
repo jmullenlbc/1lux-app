@@ -192,7 +192,7 @@ export async function POST(request) {
   if (error) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const { getAnthropicKey } = await import('@/lib/anthropicKey');
-  const apiKey = getAnthropicKey();
+  const apiKey = (await getAnthropicKey());
   if (!apiKey) return NextResponse.json({ error: 'ANTHROPIC_API_KEY not configured' }, { status: 503 });
 
   let body;

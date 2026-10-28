@@ -222,7 +222,7 @@ async function parseSchedule(args, { projectId, user }) {
   // Call Claude
   let rows = [];
   try {
-    const apiKey = getAnthropicKey();
+    const apiKey = (await getAnthropicKey());
     if (!apiKey) {
       throw new Error('Anthropic API key not configured on the server. Set ANTHROPIC_API_KEY in the Amplify environment variables.');
     }

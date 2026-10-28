@@ -9,7 +9,6 @@ import { modelParams, answerBudget } from '@/lib/aiModels';
 import { buildUntrustedPrompt, warnOnInjection } from '@/lib/agent/untrusted';
 import { runParkedJob, readJobRequest, jobError } from '@/lib/parkedJob';
 
-const anthropic = new Anthropic({ apiKey: getAnthropicKey() });
 
 // `ctx` carries the project and user this run was for, the module-level client
 // cannot know either, and a ledger entry without them cannot answer "what did we
@@ -50,7 +49,7 @@ RULES:
   });
   warnOnInjection('tracker.toc.extract', ctx.projectId, sealed);
 
-  const msg = await wrapClient(anthropic, 'tracker.toc.extract', ctx).messages.create({
+  const msg = await wrapClient(new Anthropic({ apiKey: await getAnthropicKey() }), 'tracker.toc.extract', ctx).messages.create({
     ...modelParams('tracker.importToc'),
     max_tokens: answerBudget('tracker.importToc', 1500),
     system:     sealed.system,

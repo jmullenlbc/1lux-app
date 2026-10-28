@@ -73,7 +73,7 @@ export async function composeCheckInEmail(contact, ownerUserId, lastNote = null)
   });
 
   let key;
-  try { key = getAnthropicKey()?.trim(); } catch { key = null; }
+  try { key = (await getAnthropicKey())?.trim(); } catch { key = null; }
   if (!key) return done(fallbackEmail(contact, sender));
 
   const company = contact.client?.name || contact.company || '';

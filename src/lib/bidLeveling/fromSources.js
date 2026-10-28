@@ -99,21 +99,61 @@ export function bidLinesFromPeerReview(items) {
     });
 }
 
-const PASTE_FIELDS = {
-  type: /^(TYPE|TAG|FIXTURE( TYPE)?|MARK)$/,
+export const PASTE_FIELDS = {
+  type: /^(TYPE|TAG|FIXTURE( TYPE| TAG| MARK)?|MARK|TYPE MARK|LUMINAIRE( TYPE)?|SYMBOL)$/,
   description: /^DESC/,
   requestedMfr: /^(REQ|REQUESTED|SPEC(IFIED)?|ORIGINAL)\b.*(MFR|MANUF|BRAND)/,
   requestedCatalog: /^(REQ|REQUESTED|SPEC(IFIED)?|ORIGINAL)\b.*(CAT|PART|MODEL|SPEC)/,
-  mfr: /^(OFFERED |QUOTED )?(MFR|MANUF|MANUFACTURER|BRAND)/,
+  mfr: /^(OFFERED |QUOTED )?(MFR|MANUF|MANUFACTURER|BRAND|VENDOR|MAKE)/,
   catalog: /^(OFFERED |QUOTED )?(CAT|CATALOG|PART|MODEL)/,
-  qty: /^(QTY|QUANTITY)$/,
-  uom: /^(UOM|UNIT OF|QTY TYPE)/,
-  unitPrice: /^(UNIT( PRICE| COST| CN)?|EACH|PRICE EA)$/,
-  extPrice: /^(EXT|EXTENDED|TOTAL|AMOUNT)/,
+  qty: /^(QTY|QUANTITY|QUAN)\b/,
+  uom: /^(UOM|U\/M|UNIT OF|QTY TYPE)/,
+  unitPrice: /^(UNIT( PRICE| COST| CN| SELL| NET)?|EACH|PRICE( EA| EACH)?|EA PRICE|SELL( PRICE)?|NET( PRICE)?)$/,
+  extPrice: /^(EXT|EXTENDED|TOTAL|AMOUNT|LINE TOTAL)/,
   optionGroup: /^(OPTION|PACKAGE|GROUP|VE|ALT)/,
   lineNote: /^(NOTE|NOTES|COMMENT)/,
 };
 const DEFAULT_ORDER = ['type', 'qty', 'mfr', 'catalog', 'unitPrice', 'extPrice'];
+
+/** Column index per field from a heading row (cells already trimmed). */
+export function columnsOf(head) {
+  const up = head.map((c) => String(c ?? '').trim().toUpperCase().replace(/[.:#]+$/, '').trim());
+  const map = {};
+  const used = new Set();
+  for (const [f, re] of Object.entries(PASTE_FIELDS)) {
+    const i = up.findIndex((h, idx) => h && !used.has(idx) && re.test(h));
+    if (i >= 0) { map[f] = i; used.add(i); }
+  }
+  return map;
+}
+
+/** One bid line from a row, given `get(field)` that returns the cell text. */
+export function lineFromCells(get, sortOrder) {
+  const qty = toNumber(get('qty'));
+  const unitPrice = toNumber(get('unitPrice'));
+  const extPrice = toNumber(get('extPrice')) ?? (unitPrice != null && qty != null ? Math.round(unitPrice * qty * 100) / 100 : null);
+  const mfr = blank(get('mfr'));
+  const catalog = blank(get('catalog'));
+  const requestedMfr = blank(get('requestedMfr'));
+  const requestedCatalog = blank(get('requestedCatalog'));
+  const swapped = requestedCatalog && catalog && requestedCatalog.toUpperCase() !== catalog.toUpperCase();
+  return {
+    ...tagged(get('type'), { description: get('description'), catalog, mfr }),
+    description: blank(get('description')),
+    mfr,
+    catalog,
+    qty,
+    uom: uomOf(get('uom')),
+    unitPrice,
+    extPrice,
+    requestedMfr,
+    requestedCatalog,
+    specBasis: qty === 0 ? 'NO_QUOTE' : swapped ? 'SUBSTITUTE' : null,
+    optionGroup: optionGroupOf(get('optionGroup')),
+    lineNote: blank(get('lineNote')),
+    sortOrder,
+  };
+}
 
 /**
  * Rows pasted from Excel (tab separated). A first row of headings maps the
@@ -122,43 +162,12 @@ const DEFAULT_ORDER = ['type', 'qty', 'mfr', 'catalog', 'unitPrice', 'extPrice']
 export function parsePastedLines(text) {
   const rows = String(text || '').split(/\r?\n/).map((r) => r.split('\t')).filter((r) => r.some((c) => c.trim()));
   if (!rows.length) return [];
-  const head = rows[0].map((c) => c.trim().toUpperCase());
-  const map = {};
-  const used = new Set();
-  for (const [f, re] of Object.entries(PASTE_FIELDS)) {
-    const i = head.findIndex((h, idx) => h && !used.has(idx) && re.test(h));
-    if (i >= 0) { map[f] = i; used.add(i); }
-  }
+  const map = columnsOf(rows[0]);
   const hasHeader = 'type' in map && Object.keys(map).length >= 3;
   const cols = hasHeader ? map : Object.fromEntries(DEFAULT_ORDER.map((f, i) => [f, i]));
   const body = hasHeader ? rows.slice(1) : rows;
-  const get = (r, f) => (f in cols ? (r[cols[f]] ?? '').trim() : '');
+  const getter = (r) => (f) => (f in cols ? (r[cols[f]] ?? '').trim() : '');
   return body
-    .filter((r) => get(r, 'type'))
-    .map((r, i) => {
-      const qty = toNumber(get(r, 'qty'));
-      const unitPrice = toNumber(get(r, 'unitPrice'));
-      const extPrice = toNumber(get(r, 'extPrice')) ?? (unitPrice != null && qty != null ? Math.round(unitPrice * qty * 100) / 100 : null);
-      const mfr = blank(get(r, 'mfr'));
-      const catalog = blank(get(r, 'catalog'));
-      const requestedMfr = blank(get(r, 'requestedMfr'));
-      const requestedCatalog = blank(get(r, 'requestedCatalog'));
-      const swapped = requestedCatalog && catalog && requestedCatalog.toUpperCase() !== catalog.toUpperCase();
-      return {
-        ...tagged(get(r, 'type'), { description: get(r, 'description'), catalog, mfr }),
-        description: blank(get(r, 'description')),
-        mfr,
-        catalog,
-        qty,
-        uom: uomOf(get(r, 'uom')),
-        unitPrice,
-        extPrice,
-        requestedMfr,
-        requestedCatalog,
-        specBasis: qty === 0 ? 'NO_QUOTE' : swapped ? 'SUBSTITUTE' : null,
-        optionGroup: optionGroupOf(get(r, 'optionGroup')),
-        lineNote: blank(get(r, 'lineNote')),
-        sortOrder: i,
-      };
-    });
+    .filter((r) => getter(r)('type'))
+    .map((r, i) => lineFromCells(getter(r), i));
 }

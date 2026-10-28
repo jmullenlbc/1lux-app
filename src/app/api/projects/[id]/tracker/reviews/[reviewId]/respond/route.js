@@ -107,7 +107,7 @@ Respond with ONLY the response text. No subject line, no signature, no preamble.
     const Anthropic = (await import('@anthropic-ai/sdk')).default;
     // Recorded: see src/lib/agent/ledger.js.
     const anthropic = wrapClient(
-      new Anthropic({ apiKey: getAnthropicKey() }),
+      new Anthropic({ apiKey: (await getAnthropicKey()) }),
       'tracker.review.respond',
       { projectId: params.id, userId: user.id },
     );

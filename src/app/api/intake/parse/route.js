@@ -304,7 +304,7 @@ export async function POST(request) {
     try {
       body = await request.json();
     } catch {
-      return bad('bad_request', 'Could not read the upload.');
+      return bad('bad_request', 'Your file did not reach us in one piece, so nothing was saved. Press Retry.');
     }
     stage   = body?.stage ? String(body.stage) : null;
     scanKey = body?.scanKey ?? null;
@@ -321,16 +321,16 @@ export async function POST(request) {
       file  = form.get('file');
       stage = form.get('stage') ? String(form.get('stage')) : null;
     } catch {
-      return bad('bad_request', 'Could not read the upload.');
+      return bad('bad_request', 'Your file did not reach us in one piece, so nothing was saved. Press Retry.');
     }
     if (!file || typeof file.arrayBuffer !== 'function') {
-      return bad('bad_request', 'No file received.');
+      return bad('bad_request', 'We did not receive a file, so nothing was saved. Please choose the file again.');
     }
     name = file.name || 'upload';
     // The multipart door is local dev and small files only, Amplify caps this
     // path at ~4.4 MB regardless, so the modest ceiling is the right one here.
     if (typeof file.size === 'number' && file.size > MAX_SHEET_BYTES) {
-      return bad('too_large', `That file is larger than ${mb(MAX_SHEET_BYTES)} MB.`, 413);
+      return bad('too_large', `That file is larger than ${mb(MAX_SHEET_BYTES)} MB, so it was not saved. Save a smaller copy or split it, then upload again.`, 413);
     }
     buffer = Buffer.from(await file.arrayBuffer());
   }
@@ -344,7 +344,7 @@ export async function POST(request) {
   }
 
   if (stage && !ALL_STAGES.includes(stage)) {
-    return bad('bad_request', 'Unknown stage.');
+    return bad('bad_request', 'Your browser and our server got out of step, so nothing was read. Refresh the page and upload the file again.');
   }
 
   // Now that we know which kind of request this is, charge the upload counter
@@ -445,7 +445,7 @@ export async function POST(request) {
   }
 
   // ── Everything below starts from a file ──
-  if (!s3Key && !buffer) return bad('bad_request', 'No file received.');
+  if (!s3Key && !buffer) return bad('bad_request', 'We did not receive a file, so nothing was saved. Please choose the file again.');
 
   const ext = fileExt(name);
 
@@ -455,7 +455,7 @@ export async function POST(request) {
       'Image files can\'t be read yet. Please upload the original PDF or an Excel file.', 422);
   }
   if (!ACCEPTED_EXTS.includes(ext)) {
-    return bad('unsupported_type', 'Unsupported file type. Please upload a PDF or Excel file.', 422);
+    return bad('unsupported_type', 'We can only read PDF and Excel files, so this one was not saved. Please upload the drawings as a PDF.', 422);
   }
 
   const openStarted = Date.now();
@@ -509,8 +509,8 @@ async function openSource({ s3Key, buffer, ext, chunkBytes }) {
   return { source: fetched.buffer, handle: null };
 }
 
-function anthropicClient() {
-  const apiKey = getAnthropicKey()?.trim();
+async function anthropicClient() {
+  const apiKey = (await getAnthropicKey())?.trim();
   if (!apiKey) {
     // Bare 503 rather than a detailed message, this is a config fault on our
     // side and a public caller should not learn about our key setup.
@@ -521,7 +521,7 @@ function anthropicClient() {
 }
 
 const unavailable = () =>
-  bad('unavailable', 'Parsing is temporarily unavailable.', 503);
+  bad('unavailable', 'Our file reader is switched off right now. This is on our side, not your file. Please email the set to precon@ilcstudios.com and we will run it for you.', 503);
 
 /** One place for "a throw reached the top", so every stage fails the same way. */
 function unexpected(e, name) {
@@ -664,7 +664,7 @@ async function renderAndKeep({ source, chosenPages, opened, keepPng = false }) {
 
 /** Stage 1, read the text layer, pick the sheets, park the result. */
 async function stageScan({ source, opened, name, ext, s3Key, buffer, state = null, scanKey = null, openMs = 0 }) {
-  const client = anthropicClient();
+  const client = await anthropicClient();
   if (!client) return unavailable();
 
   const picked = await readAndPick({
@@ -870,10 +870,10 @@ function scanShardRanges({ ext, totalPages, nextPage }) {
  */
 async function runScanShard(scanKey, state, shardIndex, range) {
   if (shardIndex < 0 || shardIndex >= SCAN_SHARDS) {
-    return bad('bad_request', 'Unknown scan shard.');
+    return bad('bad_request', 'Your browser and our server got out of step, so nothing was read. Refresh the page and upload the file again.');
   }
   if (state.ext !== 'pdf' || !state.s3Key) {
-    return bad('bad_request', 'This file has no pages to shard.');
+    return bad('bad_request', 'Your browser and our server got out of step, so nothing was read. Refresh the page and upload the file again.');
   }
 
   const shardKey = shardStateKeyFor(scanKey, shardIndex);
@@ -886,7 +886,7 @@ async function runScanShard(scanKey, state, shardIndex, range) {
     const from = Math.max(1, Math.trunc(range?.from ?? 0));
     const to = Math.min(cap, Math.trunc(range?.to ?? 0));
     if (!from || !to || from > to) {
-      return bad('bad_request', 'Bad scan shard range.');
+      return bad('bad_request', 'Your browser and our server got out of step, so nothing was read. Refresh the page and upload the file again.');
     }
     sh = { shard: shardIndex, from, to, pages: [], nextPage: from };
   }
@@ -1000,7 +1000,7 @@ async function stageScanPick(scanKey, state) {
   }
   const kicks = (inFlight ? marker.kicks : 0) ?? 0;
 
-  const client = anthropicClient();
+  const client = await anthropicClient();
   if (!client) return unavailable();
 
   const pageScan = state.pages ?? [];
@@ -1076,7 +1076,7 @@ async function stageIndex(scanKey, state) {
   const nothing = (reason) => NextResponse.json({ stage: 'index', found: false, reason });
   if (state.ext !== 'pdf' || !state.s3Key) return nothing('not_a_set');
 
-  const client = anthropicClient();
+  const client = await anthropicClient();
   if (!client) return nothing('no_client');
 
   // Which front sheet this request is about. Parked rather than passed, so a
@@ -1199,7 +1199,7 @@ async function stageSheets(scanKey, state) {
   });
   if (!vi?.tileKeys?.length) return nothing('no_tiles');
 
-  const client = anthropicClient();
+  const client = await anthropicClient();
   if (!client) return nothing('no_client');
 
   // A hunt already under way continues; the tiles below are all read by now.
@@ -1390,7 +1390,7 @@ async function recheckLanding(state, landedPage, fallbackPng, source) {
   const vi = state.visionIndex;
   if (!vi?.entries?.length || !vi.targets?.length || !landedPage) return null;
 
-  const client = anthropicClient();
+  const client = await anthropicClient();
   if (!client) return null;
 
   const expected = vi.targets[0].sheetNumber;
@@ -1729,7 +1729,7 @@ async function stageMatrix(scanKey, state) {
     return NextResponse.json(payload);
   }
 
-  const client = anthropicClient();
+  const client = await anthropicClient();
   if (!client) return unavailable();
 
   await putScanAttempt(matrixKey, { stage: 'matrix', startedAt: Date.now(), kicks: kicks + 1 });
@@ -1787,7 +1787,7 @@ async function stageMatrix(scanKey, state) {
  * against itself.
  */
 async function stageSite(scanKey, state) {
-  const client = anthropicClient();
+  const client = await anthropicClient();
   if (!client) return unavailable();
 
   const images = await loadKeptImages(state);
@@ -1908,7 +1908,7 @@ async function loadKeptImages(state) {
  * same precedence rule, so the two cannot drift.
  */
 async function runWhole({ source, opened, name, ext }) {
-  const client = anthropicClient();
+  const client = await anthropicClient();
   if (!client) return unavailable();
 
   const picked = await readAndPick({ source, name, ext, opened, client });
