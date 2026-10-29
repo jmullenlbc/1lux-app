@@ -73,9 +73,12 @@ export async function createProject(db, userId, fields) {
       createdById:     userId,
       clientId:        clientId     || null,
       pricingSnapshot,
+      // The CRM importer (Mike 10-28) also hands in statuses, money and dates,
+      // so the "created" history line opens on the real status.
+      ...(fields.extra || {}),
       // Every project starts at ILC's standard margin (Mike 2026-09-05:
       // "Margin should default at 23%"); editable per project on the dashboard.
-      projectData: { create: { marginPct: 0.23, ...(salesTax != null && { salesTaxPct: salesTax }) } },
+      projectData: { create: { marginPct: 0.23, ...(salesTax != null && { salesTaxPct: salesTax }), ...(fields.extraData || {}) } },
     },
     include: { projectData: true },
   });

@@ -5,6 +5,22 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Admin > CRM Upload] - October 28, 2026 (DEPLOYED, see deploy log) - no migration
+
+Mike 10-28: load the final CRM clean up sheet into the app in one go. Super admins only.
+
+- New page `/admin/crm-import` (sidebar: CRM Upload under AI Access Keys). Upload the sheet, see a dry run (companies, branches, people, tags, projects by status and service, owners matched to logins, anything unmatched), then type WIPE AND LOAD.
+- Wipe = DELETE (Mike 10-28: "delete all data for projects, companies, and people only. Leave everything else."). Every project, company and person goes, archived ones too, with no undo. Files, budgets and matrices on those projects go with them; notes stay with the project link emptied; manufacturers, products and everything else stay. Runs 40 rows per request and the page repeats until done, so no request nears the 30 s wall.
+- Loads in small batches (25 companies, 50 people, 15 projects); every batch finds before it creates, so a dropped batch can be resent. Stops on an error with Continue.
+- Companies with offices load as national with one branch per market; other spellings become "Also written as". Same name at the same company twice becomes one person with the extra email kept.
+- People with "Office: X" sit on that branch (a new branch is made when the Companies tab did not list it); everyone else sits on the parent company.
+- Blank company type stays blank; "Client rep" is a type. A project with no stage on the sheet loads with no phase (not SD).
+- Projects keep sheet statuses (real opening status events), contract values, units and expected order date.
+- Local run of the v6 sheet: wipe of 551 projects, 672 companies, 2,442 people in 94 steps (slowest 185 ms); load of 277 companies + 47 branches, 1,206 people, 261 projects in 32 s. A note on a deleted project survived.
+- Files: `src/lib/crmImport.js`, `src/lib/crmImportLoad.js`, `src/app/api/admin/crm-import/route.js`, `src/app/(app)/admin/crm-import/*`, `src/lib/projects/createProject.js` (extra fields), `src/components/layout/Sidebar.jsx`, `scripts/tests/crmImportE2e.test.mjs`.
+
+---
+
 ## [People tags and "Already in the CRM twice?" merges] - October 28, 2026 (DEPLOYED 733dc9f) - migration 0141
 
 Mike 10-28: tags on people (first one "Catalina Golf mixer") and a My Desk review for companies and people already in the CRM twice. Archive only.

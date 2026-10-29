@@ -495,7 +495,7 @@ export default function Sidebar({ user }) {
   const softwareRelated = startsWith('/admin/changelog') || startsWith('/admin/roadmap') ||
                           startsWith('/admin/tasks') || startsWith('/admin/tech-stack') ||
                           startsWith('/admin/usage') || startsWith('/admin/agent-runs') ||
-                          startsWith('/admin/mcp-keys');
+                          startsWith('/admin/mcp-keys') || startsWith('/admin/crm-import');
   const adminRelated    = at('/admin') || startsWith('/admin/intake');
 
   // ── Collapsible open states ───────────────────────────────────────────────────
@@ -682,6 +682,7 @@ export default function Sidebar({ user }) {
                 {isIlcAdmin && <SubNavItem href="/admin/usage" icon={<IconBarChart />} label="Usage & Health" expanded={expanded} active={startsWith('/admin/usage')} />}
                 {isIlcAdmin && <SubNavItem href="/admin/agent-runs" icon={<IconSignature />} label="AI Review Queue" expanded={expanded} active={startsWith('/admin/agent-runs')} />}
                 {isIlcAdmin && <SubNavItem href="/admin/mcp-keys" icon={<IconKey />} label="AI Access Keys" expanded={expanded} active={startsWith('/admin/mcp-keys')} />}
+                {isIlcAdmin && <SubNavItem href="/admin/crm-import" icon={<IconUsers />} label="CRM Upload" expanded={expanded} active={startsWith('/admin/crm-import')} />}
               </div>
             )}
           </div>
