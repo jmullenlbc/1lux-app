@@ -8,6 +8,7 @@ import { oversizeMessage } from '@/lib/uploadErrorMessage';
 import { appendUpload } from '@/lib/uploadClient';
 import { postParked } from '@/lib/parkedFetch';
 import ReadingWait, { READING_TIME_HINT } from '@/components/ReadingWait';
+import RepSelect from '@/components/rfq/RepSelect';
 import ConfirmArchiveModal, { setArchived, ArchiveBoxIcon, KEPT_ON_ARCHIVE_PAGE } from '@/components/salesAutomation/ConfirmArchiveModal';
 
 // ── Location Tags ─────────────────────────────────────────────────────────────
@@ -2314,10 +2315,16 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
                                   onMfrProductAdded={handleMfrProductAdded} />
                               </td>
                               <td className="px-3 py-2 align-middle">
-                                <Link href={`/project/${project.id}?tab=rfqs`} title={rfqByItem[item.id]?.how || 'Set on the RFQs tab'}
-                                  className="block text-sm text-slate-600 hover:text-orange-600 truncate">
-                                  {rfqByItem[item.id]?.repName || <span className="text-slate-300">None</span>}
-                                </Link>
+                                <div className="flex items-center gap-1.5" title={rfqByItem[item.id]?.how || 'Set on the RFQs tab'}>
+                                  <Link href={`/project/${project.id}?tab=rfqs`} className="min-w-0 text-sm text-slate-600 hover:text-orange-600 truncate">
+                                    {rfqByItem[item.id]?.repName || <span className="text-slate-300">None</span>}
+                                  </Link>
+                                  {rfqByItem[item.id]?.manufacturerId && (
+                                    <RepSelect projectId={project.id} manufacturerIds={[rfqByItem[item.id].manufacturerId]} placeholder="Change…"
+                                      directName={rfqByItem[item.id].manufacturer} className="border border-slate-200 rounded px-1 py-0.5 text-xs bg-white w-20"
+                                      onState={d => d?.lines && setRfqByItem(Object.fromEntries(d.lines.map(l => [l.id, l])))} setErr={msg => msg && alert(msg)} />
+                                  )}
+                                </div>
                               </td>
                               <td className="px-3 py-2 align-middle border-r border-slate-100">
                                 <Link href={`/project/${project.id}?tab=rfqs`} className="block text-sm text-slate-600 hover:text-orange-600">

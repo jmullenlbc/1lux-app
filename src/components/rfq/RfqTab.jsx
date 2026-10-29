@@ -10,6 +10,8 @@ import { rfqApi } from './rfqApi';
 import SentRfqs from './SentRfqs';
 import RfqReceived from './RfqReceived';
 import SentNotice from './SentNotice';
+import RepSelect, { SELECT } from './RepSelect';
+import { BOX, usePicks } from './picks';
 
 // Project > RFQs (Mike 10-29, 0144). The bid matrix lines grouped by the rep
 // who quotes them. One press sends a group: the RFQ number is made, the lines
@@ -27,26 +29,12 @@ export function StatusChip({ status }) {
   return <span className={`text-xs font-semibold rounded-full px-2 py-0.5 ${STATUS_TONE[status]}`}>{status}</span>;
 }
 
-const SELECT = 'border border-slate-300 rounded-lg px-2 py-1 text-sm bg-white';
-
 function RepPick({ projectId, mfr, choices, onState, setErr }) {
-  const reps = mfr.reps.length ? mfr.reps : choices;
-  async function pick(v) {
-    const body = v === 'default' ? { action: 'pick', manufacturerId: mfr.id, clear: true }
-      : { action: 'pick', manufacturerId: mfr.id, salesRepId: v === 'direct' ? null : v };
-    const d = await rfqApi(`/api/projects/${projectId}/rfqs`, { method: 'POST', body, what: 'The rep pick' });
-    if (d.error) setErr(d.error); else onState(d);
-  }
   return (
     <div className="flex flex-wrap items-center gap-2 text-sm">
       <Link href={`/manufacturers/${mfr.id}`} className="font-medium text-slate-800 hover:text-orange-600">{mfr.name}</Link>
       <span className="text-slate-400">{mfr.how}</span>
-      <select className={SELECT} value="" onChange={(e) => e.target.value && pick(e.target.value)} aria-label={`Change the rep for ${mfr.name}`}>
-        <option value="">Change rep for this job…</option>
-        {reps.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
-        <option value="direct">Buy direct from {mfr.name}</option>
-        <option value="default">Back to the default</option>
-      </select>
+      <RepSelect projectId={projectId} manufacturerIds={[mfr.id]} linked={mfr.reps.length ? mfr.reps : choices} directName={mfr.name} onState={onState} setErr={setErr} />
     </div>
   );
 }
@@ -54,14 +42,17 @@ function RepPick({ projectId, mfr, choices, onState, setErr }) {
 function GroupCard({ projectId, group, onState, onSent, setErr }) {
   const [notes, setNotes] = useState('');
   const [busy, setBusy] = useState(false);
-  const ready = !group.problems.length && group.draftCount > 0;
+  const picks = usePicks(group.lines.map((l) => l.id));
+  const n = picks.picked.size;
+  const ready = !group.problems.length && (n > 0 || group.draftCount > 0);
 
   async function send() {
     setBusy(true); setErr('');
-    const d = await rfqApi(`/api/projects/${projectId}/rfqs`, { method: 'POST', body: { action: 'send', groupKey: group.key, notes: notes.trim() || undefined }, what: 'The RFQ' });
+    const d = await rfqApi(`/api/projects/${projectId}/rfqs`, { method: 'POST', body: { action: 'send', groupKey: group.key, lineIds: n ? [...picks.picked] : undefined, notes: notes.trim() || undefined }, what: 'The RFQ' });
     setBusy(false);
     if (d.error) { setErr(d.error); return; }
     setNotes('');
+    picks.clear();
     onSent(d);
   }
 
@@ -81,7 +72,7 @@ function GroupCard({ projectId, group, onState, onSent, setErr }) {
         </div>
         <div className="ml-auto">
           <Button size="sm" disabled={!ready || busy} loading={busy} onClick={send}>
-            {group.draftCount ? `Send RFQ (${group.draftCount} line${group.draftCount === 1 ? '' : 's'})` : 'All sent'}
+            {n ? `Send RFQ (${n} picked)` : group.draftCount ? `Send RFQ (${group.draftCount} line${group.draftCount === 1 ? '' : 's'})` : 'All sent'}
           </Button>
         </div>
       </div>
@@ -90,9 +81,18 @@ function GroupCard({ projectId, group, onState, onSent, setErr }) {
         {group.manufacturers.map((m) => <RepPick key={m.id} projectId={projectId} mfr={m} choices={group.choices} onState={onState} setErr={setErr} />)}
       </div>
       <table className="w-full text-sm mt-3">
+        <thead className="text-xs text-slate-500">
+          <tr>
+            <th className="py-1 pr-2 w-6 text-left"><input type="checkbox" className={BOX} checked={picks.all} onChange={picks.toggleAll} aria-label={`Select all lines for ${group.toName}`} /></th>
+            <th colSpan={4} className="py-1 text-left font-normal">
+              {n ? `${n} picked. Send sends only these.` : 'Select all, or tick lines to send only those. With none ticked, Send sends every line not sent yet.'}
+            </th>
+          </tr>
+        </thead>
         <tbody className="divide-y divide-slate-100">
           {group.lines.map((l) => (
-            <tr key={l.id}>
+            <tr key={l.id} className={picks.has(l.id) ? 'bg-orange-50' : ''}>
+              <td className="py-1 pr-2 w-6"><input type="checkbox" className={BOX} checked={picks.has(l.id)} onChange={() => picks.toggle(l.id)} aria-label={`Pick line ${l.typeCode || l.description}`} /></td>
               <td className="py-1 pr-2 font-mono text-slate-700 w-20">{l.typeCode}</td>
               <td className="py-1 pr-2 text-slate-600">{l.partNumber || l.description}</td>
               <td className="py-1 pr-2 text-right tabular-nums w-16">{l.qty ?? ''}</td>
@@ -101,7 +101,7 @@ function GroupCard({ projectId, group, onState, onSent, setErr }) {
           ))}
         </tbody>
       </table>
-      {group.draftCount > 0 && !group.problems.length && (
+      {ready && (
         <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Notes for this rep (optional, prints on the RFQ)"
           className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm mt-3 min-h-[2.5rem]" />
       )}
@@ -122,6 +122,7 @@ export default function RfqTab({ projectId }) {
   }, [projectId]);
   useEffect(() => { load(); }, [load]);
 
+  const linePicks = usePicks((state?.lines || []).map((l) => l.id));
   const onSent = (d) => { setState(d.state); setSent((s) => [{ rfq: d.rfq, email: d.email }, ...s]); };
 
   async function setOffice(officeId) {
@@ -187,24 +188,46 @@ export default function RfqTab({ projectId }) {
 
       <SentRfqs projectId={projectId} state={state} onState={setState} onSent={onSent} reload={load} />
 
-      <RfqReceived projectId={projectId} rfqs={state.rfqs} onChanged={load} />
+      <RfqReceived projectId={projectId} rfqs={state.rfqs} onChanged={load} lines={state.lines} onState={setState} />
 
-      <WidgetFrame title="Every matrix line" sub="Rep and RFQ status, kept up to date by the app" flush>
+      <WidgetFrame title="Every matrix line" sub="Rep and RFQ status, kept up to date by the app. Tick lines to change the rep for all of them." flush>
+        {linePicks.picked.size > 0 && (() => {
+          const chosen = state.lines.filter((l) => linePicks.has(l.id));
+          const mfrIds = [...new Set(chosen.map((l) => l.manufacturerId).filter(Boolean))];
+          const left = chosen.filter((l) => !l.manufacturerId).length;
+          return (
+            <div className="mx-4 mt-3 rounded-lg border border-orange-200 bg-orange-50 px-3 py-2 text-sm text-slate-700 flex flex-wrap items-center gap-3">
+              <span className="font-semibold tabular-nums">{chosen.length} picked</span>
+              <RepSelect projectId={projectId} manufacturerIds={mfrIds} placeholder={`Change rep for ${mfrIds.length} manufacturer${mfrIds.length === 1 ? '' : 's'}…`}
+                onState={(d) => { setState(d); linePicks.clear(); }} setErr={setErr} />
+              {left > 0 && <span className="text-xs text-slate-500">{left} with no manufacturer in the app {left === 1 ? 'is' : 'are'} skipped.</span>}
+              <button type="button" onClick={linePicks.clear} className="ml-auto text-xs text-slate-500 hover:text-orange-600">Clear</button>
+            </div>
+          );
+        })()}
+        {err && linePicks.picked.size > 0 && <p className="text-sm text-red-600 mx-4 mt-2">{err}</p>}
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-slate-50 text-xs text-slate-500 uppercase tracking-wide">
               <tr>
+                <th className="px-3 py-2 w-8 text-left"><input type="checkbox" className={BOX} checked={linePicks.all} onChange={linePicks.toggleAll} aria-label="Select all lines" /></th>
                 {['Type', 'Manufacturer', 'Part', 'Qty', 'Rep', 'Status', 'RFQ', 'DN price'].map((h) => <th key={h} className="text-left font-semibold px-3 py-2">{h}</th>)}
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {state.lines.map((l) => (
-                <tr key={l.id}>
+                <tr key={l.id} className={linePicks.has(l.id) ? 'bg-orange-50' : ''}>
+                  <td className="px-3 py-1.5"><input type="checkbox" className={BOX} checked={linePicks.has(l.id)} onChange={() => linePicks.toggle(l.id)} aria-label={`Pick line ${l.typeCode || l.description || ''}`} /></td>
                   <td className="px-3 py-1.5 font-mono">{l.typeCode}</td>
-                  <td className="px-3 py-1.5">{l.manufacturer}</td>
+                  <td className="px-3 py-1.5">{l.manufacturerId ? <Link href={`/manufacturers/${l.manufacturerId}`} className="hover:text-orange-600">{l.manufacturer}</Link> : l.manufacturer}</td>
                   <td className="px-3 py-1.5 text-slate-600">{l.partNumber}</td>
                   <td className="px-3 py-1.5 tabular-nums">{l.qty ?? ''}</td>
-                  <td className="px-3 py-1.5" title={l.how}>{l.repName || <span className="text-slate-400">{l.how}</span>}</td>
+                  <td className="px-3 py-1.5" title={l.how}>
+                    <div className="flex items-center gap-2">
+                      <span className="min-w-0 truncate">{l.repName || <span className="text-slate-400">{l.how}</span>}</span>
+                      {l.manufacturerId && <RepSelect projectId={projectId} manufacturerIds={[l.manufacturerId]} placeholder="Change…" directName={l.manufacturer} onState={setState} setErr={setErr} className={`${SELECT} w-24`} />}
+                    </div>
+                  </td>
                   <td className="px-3 py-1.5"><StatusChip status={l.status} /></td>
                   <td className="px-3 py-1.5 font-mono text-slate-600">{l.rfqNumber ? rfqNumber(l.rfqNumber) : ''}</td>
                   <td className="px-3 py-1.5 tabular-nums">{l.dnPrice != null ? `$${Number(l.dnPrice).toFixed(2)}` : ''}</td>

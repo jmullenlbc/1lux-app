@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db';
 import { rfqState } from '@/lib/rfq/resolve';
 import { sendRfq } from '@/lib/rfq/actions';
 import { emailBody, emailSubject } from '@/lib/rfq/format';
+import { linkHistory } from '@/lib/salesReps/links';
 
 const NO_PROJECT = () => NextResponse.json({ error: 'That project is not in the app any more. Nothing was changed. (RFQ_NO_PROJECT)' }, { status: 404 });
 
@@ -17,7 +18,7 @@ export async function GET(request, { params }) {
 }
 
 // POST { action: 'office', officeId }                       which ILC office works the job
-//      { action: 'pick', manufacturerId, salesRepId | null } this job's rep for a manufacturer (null = buy direct); clear:true goes back to the default
+//      { action: 'pick', manufacturerId | manufacturerIds, salesRepId | null } this job's rep for a manufacturer (null = buy direct); clear:true goes back to the default
 //      { action: 'send', groupKey, lineIds?, notes?, revisesId? }
 export async function POST(request, { params }) {
   const { user, error } = await requireStaff(request);
@@ -33,16 +34,33 @@ export async function POST(request, { params }) {
   }
 
   if (body.action === 'pick') {
-    const { manufacturerId, salesRepId = null, clear = false } = body;
-    if (!manufacturerId) return NextResponse.json({ error: 'Pick a manufacturer first. Nothing was changed. (RFQ_PICK_NO_MFR)' }, { status: 400 });
-    if (clear) await prisma.projectRepPick.deleteMany({ where: { projectId, manufacturerId } });
-    else {
-      await prisma.projectRepPick.upsert({
-        where: { projectId_manufacturerId: { projectId, manufacturerId } },
-        create: { projectId, manufacturerId, salesRepId },
-        update: { salesRepId },
-      });
+    const { salesRepId = null, clear = false } = body;
+    const ids = [...new Set([...(body.manufacturerIds || []), body.manufacturerId].filter(Boolean))];
+    if (!ids.length) return NextResponse.json({ error: 'Pick a manufacturer first. Nothing was changed. (RFQ_PICK_NO_MFR)' }, { status: 400 });
+    if (salesRepId && !(await prisma.salesRep.findUnique({ where: { id: salesRepId }, select: { id: true } }))) {
+      return NextResponse.json({ error: 'That rep is not in the app any more. Nothing was changed. Reload the page. (RFQ_PICK_NO_REP)' }, { status: 400 });
     }
+    // Any rep can be picked (Mike 10-29). A rep who does not sell the
+    // manufacturer yet gets the link, for this job's office, so the next job
+    // offers them too.
+    const officeId = salesRepId ? (await rfqState(projectId))?.office?.id || null : null;
+    await prisma.$transaction(async (tx) => {
+      for (const manufacturerId of ids) {
+        if (clear) { await tx.projectRepPick.deleteMany({ where: { projectId, manufacturerId } }); continue; }
+        if (salesRepId && !(await tx.manufacturerRep.findFirst({ where: { manufacturerId, salesRepId, active: true } }))) {
+          const dup = await tx.manufacturerRep.findFirst({ where: { manufacturerId, salesRepId } });
+          const link = dup
+            ? await tx.manufacturerRep.update({ where: { id: dup.id }, data: { active: true } })
+            : await tx.manufacturerRep.create({ data: { manufacturerId, salesRepId, officeId } });
+          await linkHistory(tx, link, 'ADD', user);
+        }
+        await tx.projectRepPick.upsert({
+          where: { projectId_manufacturerId: { projectId, manufacturerId } },
+          create: { projectId, manufacturerId, salesRepId },
+          update: { salesRepId },
+        });
+      }
+    });
     return NextResponse.json(await rfqState(projectId));
   }
 

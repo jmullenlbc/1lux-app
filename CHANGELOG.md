@@ -5,6 +5,24 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Project page layout, RFQ line checkboxes, pick a rep anywhere, Manufacturers like Sales Reps, RFQs above Budgets] - October 29, 2026 (DEPLOYED, see deploy log) - no migration
+
+Mike 10-29: select box with multi select and Select all on the line items; Manufacturers the same as Sales Reps (click into one); assign a rep to a manufacturer within a project, quote and RFQ; RFQs button between Proposals and Budgets; test on 9TH + CLERMONT.
+
+- RFQs tab: a checkbox on every line, Select all, and a bulk bar to pick the rep for the ticked lines' manufacturers or send only the ticked lines. A Rep column picks per line.
+- Picking a rep who does not sell that manufacturer yet links them (with history), so the next job finds them.
+- Rep quote screen: checkboxes on quote lines, Select all, a "Not ours" bulk action, and a rep picker.
+- Bid matrix: the Rep column is a rep picker.
+- Manufacturers list matches Sales Reps (filters in the URL, search, Add manufacturer); each row opens the manufacturer page: details, Buying (buy direct and its emails), reps by office, RFQs for the manufacturer, products, history.
+- Project sidebar: RFQs sits right above Budgets.
+- Project page layout (Mike 10-29, every project): the project menu now runs from the top left of the page, tighter, and stays put while the page scrolls, so Meetings and Correspondence show without scrolling. The title, phase, service, Budget, people and Client card moved into the right column above the tab content and take less height. The Proposal menu item has its icon again. `ProjectHubClient.jsx`, `src/components/project/ProjectSidebar.jsx`.
+- When no rep sells a manufacturer in the job's office, the RFQ tab names the rep who sells it elsewhere (9th + Clermont: Porter Lighting Sales has Nora only in Long Beach).
+- Tested locally on 9th + Clermont with the real quotes (TLA26-316307, PLS25-10012-3, CT Lighting, Illumination Systems): reviewed reps loaded locally, lines grouped by rep, Gotham and Acuity picked to The Lighting Agency, partial send RFQ0009, Nora picked to Porter and sent RFQ0010, Porter's T HEADS line auto priced at $106.21. SPI Lighting is not in the manufacturer list.
+- Tests: `rfq.test.mjs` + `rfqE2e.test.mjs` 9 pass; `verify.mjs --full` passes.
+- Files: `src/lib/projectNavConfig.js`, `src/app/api/projects/[id]/rfqs/route.js`, `src/lib/rfq/resolve.js`, `src/components/rfq/RepSelect.jsx` (new), `src/components/rfq/picks.js` (new), `src/components/rfq/RfqTab.jsx`, `src/components/rfq/RfqReceived.jsx`, `src/app/(app)/project/[id]/PeerReviewClient.jsx`, `src/app/(app)/manufacturers/page.jsx`, `src/app/(app)/manufacturers/ManufacturersClient.jsx`, `src/app/(app)/manufacturers/[id]/page.jsx`, `src/app/(app)/manufacturers/[id]/ManufacturerDetailClient.jsx`, `scripts/tests/rfqE2e.test.mjs`.
+
+---
+
 ## [RFQ need by is 3 business days; rep review workbook upload] - October 29, 2026 (DEPLOYED aa863cb) - no migration
 
 Mike 10-29: "No business days, so let's change it to 3 business days." Then: skip holidays too, and clean the Trackvia reps down to the ones we need (no Logiq or AMPS, no rep without a manufacturer, no rep never on a job, keep the ones with a job in the last 2 years).

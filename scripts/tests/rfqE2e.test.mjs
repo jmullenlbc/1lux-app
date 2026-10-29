@@ -82,6 +82,22 @@ test('RFQ send, price, quote match and pages', async (t) => {
     const again = sent.json.state.groups.find((g) => g.key === g1.key);
     assert.ok(!again || again.lines.every((l) => l.status === 'Sent'));
 
+    // Pick a rep who does not sell Maker Two yet: the app links them (Mike 10-29).
+    const pickd = await post(base, { action: 'pick', manufacturerIds: [m2.id], salesRepId: rep.id }, cookie);
+    assert.equal(pickd.status, 200, pickd.text);
+    const link = await prisma.manufacturerRep.findFirst({ where: { manufacturerId: m2.id, salesRepId: rep.id, active: true } });
+    assert.ok(link, 'the pick linked the rep to the manufacturer');
+    const c1 = lineOf(pickd.json, 'C1');
+    const g3 = pickd.json.groups.find((g) => g.lines.some((l) => l.id === c1.id));
+    assert.equal(g3.salesRepId, rep.id);
+    assert.equal(g3.problems.length, 0, g3.problems.join(' '));
+
+    // Send only the ticked line.
+    const sent2 = await post(base, { action: 'send', groupKey: g3.key, lineIds: [c1.id] }, cookie);
+    assert.equal(sent2.status, 201, sent2.text);
+    assert.equal(sent2.json.rfq.lines?.length ?? 1, 1);
+    assert.equal(lineOf(sent2.json.state, 'C1').status, 'Sent');
+
     // Open it and type one price.
     const one = await get(`${base}/${rfq.id}`, cookie);
     assert.equal(one.status, 200, one.text);
@@ -130,14 +146,14 @@ test('RFQ send, price, quote match and pages', async (t) => {
     if (hist != null) assert.ok(hist >= 1, 'RFQ has history rows');
 
     // The pages open for staff.
-    for (const path of [`/sales-reps/${rep.id}`, '/sales-reps', '/admin/offices', '/admin/sales-reps-import', `/manufacturers/${m1.id}`, `/project/${project.id}?tab=rfqs`, `/project/${project.id}/wizard`, '/pre-con', '/pre-con?tab=rfqs']) {
+    for (const path of [`/sales-reps/${rep.id}`, '/sales-reps', '/manufacturers', '/admin/offices', '/admin/sales-reps-import', `/manufacturers/${m1.id}`, `/project/${project.id}?tab=rfqs`, `/project/${project.id}/wizard`, '/pre-con', '/pre-con?tab=rfqs']) {
       const page = await get(path, cookie);
       assert.equal(page.status, 200, `${path} gave ${page.status}`);
     }
   } finally {
     if (made.project) {
       const rfqs = await prisma.rfq.findMany({ where: { projectId: made.project }, select: { id: true } });
-      await prisma.recordHistory?.deleteMany({ where: { entityId: { in: rfqs.map((r) => r.id) } } }).catch(() => {});
+      await prisma.recordHistory?.deleteMany({ where: { entityId: { in: [...rfqs.map((r) => r.id), ...made.reps, ...made.mfrs] } } }).catch(() => {});
       await prisma.project.delete({ where: { id: made.project } }).catch(() => {});
     }
     await prisma.salesRep.deleteMany({ where: { id: { in: made.reps } } }).catch(() => {});

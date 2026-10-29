@@ -699,12 +699,21 @@ export default function ProjectHubClient({ userId, userRole, canEditMoney = fals
         onClose={() => setMarkupFile(null)}
       />
     )}
-    <div className="min-h-screen bg-slate-50">
-      {/* Top bar */}
+    <div className="min-h-screen bg-slate-50 flex">
+      {/* Project menu runs from the top of the page so every item fits one screen (Mike 10-29) */}
+      <ProjectSidebar
+        config={navConfig}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        userId={userId}
+        badges={{ meetings: meetingNotesCount }}
+      />
+      <div className="flex-1 min-w-0">
+      {/* Top bar, right of the menu */}
       <div className="bg-white border-b border-slate-200">
-        <div className="max-w-6xl mx-auto px-6 py-4">
+        <div className="px-6 py-3">
           {/* Breadcrumb + admin tools */}
-          <div className="flex items-center justify-between gap-2 mb-3">
+          <div className="flex items-center justify-between gap-2 mb-1.5">
             <div className="flex items-center gap-2 text-xs text-slate-400">
               <Link href="/dashboard" className="hover:text-orange-600 transition-colors">Dashboard</Link>
               <span>›</span>
@@ -787,6 +796,24 @@ export default function ProjectHubClient({ userId, userRole, canEditMoney = fals
                     {flagNote ? `"${flagNote}"` : 'Add note'}
                   </button>
                 )}
+                {/* Assignees */}
+                <div className="flex items-center gap-2 ml-2">
+                  <div className="flex -space-x-1">
+                    {assignees.map(u => (
+                      <div key={u.id}
+                        className="w-6 h-6 rounded-full bg-amber-100 text-amber-700 text-[11px] font-bold flex items-center justify-center border-2 border-white"
+                        title={u.name || u.email}>
+                        {initials(u)}
+                      </div>
+                    ))}
+                  </div>
+                  <button
+                    onClick={() => setShowAssignees(v => !v)}
+                    className="text-xs text-slate-400 hover:text-orange-600 transition-colors"
+                  >
+                    {assignees.length === 0 ? '+ Assign people' : '+ Edit'}
+                  </button>
+                </div>
               </div>
 
               {/* Flag note input */}
@@ -805,7 +832,7 @@ export default function ProjectHubClient({ userId, userRole, canEditMoney = fals
                 </div>
               )}
 
-              <div className="flex flex-wrap items-center gap-2 mt-2">
+              <div className="flex flex-wrap items-center gap-2 mt-1.5">
                 {/* Phase selector */}
                 <select
                   disabled={savingPhase}
@@ -913,25 +940,6 @@ export default function ProjectHubClient({ userId, userRole, canEditMoney = fals
                 )}
               </div>
 
-              {/* Assignees */}
-              <div className="flex items-center gap-2 mt-2">
-                <div className="flex -space-x-1">
-                  {assignees.map(u => (
-                    <div key={u.id}
-                      className="w-6 h-6 rounded-full bg-amber-100 text-amber-700 text-[11px] font-bold flex items-center justify-center border-2 border-white"
-                      title={u.name || u.email}>
-                      {initials(u)}
-                    </div>
-                  ))}
-                </div>
-                <button
-                  onClick={() => setShowAssignees(v => !v)}
-                  className="text-xs text-slate-400 hover:text-orange-600 transition-colors"
-                >
-                  {assignees.length === 0 ? '+ Assign people' : '+ Edit'}
-                </button>
-              </div>
-
               {/* Assignee picker */}
               {showAssignees && (
                 <div className="mt-2 bg-white border border-slate-200 rounded-xl shadow-lg p-3 w-64">
@@ -1030,16 +1038,8 @@ export default function ProjectHubClient({ userId, userRole, canEditMoney = fals
 
       </div>
 
-      {/* Two-column body: sidebar + content */}
-      <div className="flex">
-        <ProjectSidebar
-          config={navConfig}
-          activeTab={activeTab}
-          onTabChange={setActiveTab}
-          userId={userId}
-          badges={{ meetings: meetingNotesCount }}
-        />
-        <div className="flex-1 min-w-0">
+      {/* Content, under the top bar */}
+        <div>
           {/* Project Search */}
           <ProjectSearch projectId={project.id} />
 

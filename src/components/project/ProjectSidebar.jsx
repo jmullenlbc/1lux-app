@@ -3,14 +3,14 @@ import { useState, useEffect } from 'react';
 import {
   LayoutDashboard, Calculator, Ruler, FileText, ListChecks, Code2,
   CalendarDays, HelpCircle, Receipt, ClipboardCheck, Truck, FileDiff,
-  CalendarClock, Users, Calendar, Mail, Lightbulb, Pin, PinOff, Scale,
+  CalendarClock, Users, Calendar, Mail, Lightbulb, Pin, PinOff, Scale, FileSignature,
 } from 'lucide-react';
 
 // Map icon name string → Lucide component
 const ICON_MAP = {
   LayoutDashboard, Calculator, Ruler, FileText, ListChecks, Code2,
   CalendarDays, HelpCircle, Receipt, ClipboardCheck, Truck, FileDiff,
-  CalendarClock, Users, Calendar, Mail, Lightbulb, Scale,
+  CalendarClock, Users, Calendar, Mail, Lightbulb, Scale, FileSignature,
 };
 
 function NavIcon({ name, size = 15 }) {
@@ -52,7 +52,7 @@ export default function ProjectSidebar({ config, activeTab, onTabChange, userId,
   // ── Collapsed rail ──────────────────────────────────────────────────────────
   if (collapsed) {
     return (
-      <aside className="w-11 shrink-0 bg-white border-r border-slate-200 self-start sticky top-0 min-h-screen flex flex-col items-center py-2 gap-1">
+      <aside className="w-11 shrink-0 bg-white border-r border-slate-200 self-start sticky top-0 h-screen overflow-y-auto flex flex-col items-center py-2 gap-1">
         {/* Unpin button */}
         <button
           onClick={togglePin}
@@ -92,28 +92,28 @@ export default function ProjectSidebar({ config, activeTab, onTabChange, userId,
 
   // ── Expanded sidebar ────────────────────────────────────────────────────────
   return (
-    <aside className="w-56 shrink-0 bg-white border-r border-slate-200 self-start sticky top-0 min-h-screen overflow-y-auto">
+    <aside className="w-52 shrink-0 bg-white border-r border-slate-200 self-start sticky top-0 h-screen overflow-y-auto">
       {/* Pin button in header area */}
-      <div className="flex items-center justify-end px-3 pt-2 pb-0">
+      <div className="flex items-center justify-end px-2 pt-1 pb-0">
         <button
           onClick={togglePin}
           title="Collapse sidebar"
-          className="w-7 h-7 flex items-center justify-center rounded-md text-amber-500 hover:bg-amber-50 transition-colors"
+          className="w-6 h-6 flex items-center justify-center rounded-md text-amber-500 hover:bg-amber-50 transition-colors"
         >
           <Pin size={13} />
         </button>
       </div>
 
-      <nav className="py-1">
+      <nav className="pb-2">
         {config.map((section, si) => {
           const isExpanded = expandedSections.includes(section.section);
           return (
             <div key={section.section}>
-              {si > 0 && <div className="mx-3 border-t border-slate-100 my-1.5" />}
+              {si > 0 && <div className="mx-3 border-t border-slate-100 my-1" />}
 
               <button
                 onClick={() => toggleSection(section.section)}
-                className="w-full flex items-center gap-2 px-4 py-1.5 text-left hover:bg-slate-50 transition-colors group"
+                className="w-full flex items-center gap-2 px-4 py-1 text-left hover:bg-slate-50 transition-colors group"
               >
                 <span className="text-slate-300 text-xs">{section.icon}</span>
                 <span className="flex-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500 group-hover:text-slate-500 transition-colors">
@@ -128,7 +128,7 @@ export default function ProjectSidebar({ config, activeTab, onTabChange, userId,
               </button>
 
               {isExpanded && (
-                <div className="mt-0.5 mb-1">
+                <div className="mb-0.5">
                   {section.items.map(item => {
                     const isActive = activeTab === item.id;
                     const badge = badges[item.id];
@@ -137,7 +137,7 @@ export default function ProjectSidebar({ config, activeTab, onTabChange, userId,
                         key={item.id}
                         onClick={() => onTabChange(item.id)}
                         className={[
-                          'w-full text-left px-4 py-2 text-sm transition-colors border-l-2 flex items-center gap-2',
+                          'w-full text-left px-4 py-1 text-sm transition-colors border-l-2 flex items-center gap-2',
                           isActive
                             ? 'border-orange-500 bg-amber-50 text-amber-700 font-semibold'
                             : 'border-transparent text-slate-600 hover:bg-slate-50 hover:text-slate-900',

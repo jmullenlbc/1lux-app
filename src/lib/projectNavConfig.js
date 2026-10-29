@@ -18,10 +18,10 @@ export const NAV_CONFIG = {
       section: 'Pre-Construction',
       icon: '◈',
       items: [
+        { id: 'rfqs',            label: 'RFQs',            icon: 'Mail' },
         { id: 'budgets',         label: 'Budgets',         icon: 'Calculator' },
         { id: 'takeoffs',        label: 'Takeoffs',        icon: 'Ruler' },
         { id: 'bid-leveling',    label: 'Bid Leveling',    icon: 'Scale' },
-        { id: 'rfqs',            label: 'RFQs',            icon: 'Mail' },
       ],
     },
     {
@@ -73,10 +73,10 @@ export const NAV_CONFIG = {
       icon: '◈',
       items: [
         { id: 'proposal',        label: 'Proposal',        icon: 'FileSignature' },
+        { id: 'rfqs',            label: 'RFQs',            icon: 'Mail' },
         { id: 'budgets',         label: 'Budgets',         icon: 'Calculator' },
         { id: 'takeoffs',        label: 'Takeoffs',        icon: 'Ruler' },
         { id: 'bid-leveling',    label: 'Bid Leveling',    icon: 'Scale' },
-        { id: 'rfqs',            label: 'RFQs',            icon: 'Mail' },
       ],
     },
     {
@@ -127,12 +127,12 @@ export const NAV_CONFIG = {
       icon: '◈',
       items: [
         { id: 'proposal',        label: 'Proposal',        icon: 'FileSignature' },
+        { id: 'rfqs',            label: 'RFQs',            icon: 'Mail' },
         { id: 'budgets',         label: 'Budgets',         icon: 'Calculator' },
         { id: 'drawings',        label: 'Drawings',        icon: 'FileText' },
         { id: 'fixture-schedule',label: 'Fixture Schedule',icon: 'ListChecks' },
         { id: 'takeoffs',        label: 'Takeoffs',        icon: 'Ruler' },
         { id: 'bid-leveling',    label: 'Bid Leveling',    icon: 'Scale' },
-        { id: 'rfqs',            label: 'RFQs',            icon: 'Mail' },
       ],
     },
     {

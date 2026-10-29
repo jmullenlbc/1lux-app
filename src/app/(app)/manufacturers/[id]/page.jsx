@@ -24,11 +24,18 @@ export default async function ManufacturerDetailPage({ params }) {
   }
   if (!manufacturer) notFound();
 
-  // Reps by office (0144).
-  const [offices, reps] = await Promise.all([
+  // Reps by office (0144), and every RFQ that asked for this manufacturer:
+  // sent to it direct, or to a rep with one of its lines on it.
+  const [offices, reps, rfqs] = await Promise.all([
     prisma.ourOffice.findMany({ where: { active: true }, orderBy: { sortOrder: 'asc' }, select: { id: true, name: true } }),
     prisma.salesRep.findMany({ where: { active: true }, orderBy: { name: 'asc' }, select: { id: true, name: true } }),
+    prisma.rfq.findMany({
+      where: { OR: [{ manufacturerId: manufacturer.id }, { lines: { some: { manufacturer: manufacturer.name } } }] },
+      orderBy: { number: 'desc' },
+      take: 50,
+      select: { id: true, number: true, status: true, toName: true, createdAt: true, needBy: true, project: { select: { id: true, name: true } } },
+    }),
   ]);
 
-  return <ManufacturerDetailClient manufacturer={JSON.parse(JSON.stringify(manufacturer))} offices={offices} reps={reps} />;
+  return <ManufacturerDetailClient manufacturer={JSON.parse(JSON.stringify(manufacturer))} offices={offices} reps={reps} rfqs={JSON.parse(JSON.stringify(rfqs))} />;
 }

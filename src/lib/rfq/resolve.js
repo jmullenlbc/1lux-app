@@ -77,7 +77,9 @@ export async function rfqState(projectId) {
     if (def) return { kind: 'REP', rep: def.salesRep, how: 'Default for this office' };
     const reps = [...new Map(here.map((l) => [l.salesRepId, l.salesRep])).values()];
     if (reps.length === 1) return { kind: 'REP', rep: reps[0], how: 'Only rep for this office' };
-    return { kind: 'NONE', how: reps.length ? 'More than one rep, pick one' : 'No rep on file', choices: reps };
+    // A rep in another office is named, so the pick is easy (9th + Clermont: Porter has Nora in Long Beach only).
+    const elsewhere = reps.length ? [] : [...new Set(m.repLinks.map((l) => l.salesRep.name))];
+    return { kind: 'NONE', how: reps.length ? 'More than one rep, pick one' : 'No rep on file', choices: reps, elsewhere };
   };
 
   const lines = [];
@@ -103,7 +105,7 @@ export async function rfqState(projectId) {
         key, kind: who.kind, salesRepId: who.kind === 'REP' ? who.rep.id : null, manufacturerId: who.kind === 'DIRECT' ? m.id : null,
         toName: who.kind === 'REP' ? who.rep.name : who.kind === 'DIRECT' ? m.name : (m?.name || mfrName),
         quoteEmails: emails.filter((e) => e.purpose === 'QUOTES').map((e) => e.email),
-        manufacturers: [], choices: who.choices || [], noMfr: !m, lines: [],
+        manufacturers: [], choices: who.choices || [], elsewhere: who.elsewhere || [], officeName: office?.name || '', noMfr: !m, lines: [],
       });
     }
     const g = groups.get(key);
@@ -133,7 +135,9 @@ export async function rfqState(projectId) {
 /** Plain reasons a group cannot be sent yet. */
 export function sendProblems(g) {
   const p = [];
-  if (g.kind === 'NONE') p.push(g.noMfr ? 'This manufacturer is not in the app yet. Add it under Manufacturers.' : (g.choices?.length ? 'More than one rep sells this manufacturer here. Pick one.' : 'No rep is on file for this manufacturer. Add one, or mark it buy direct.'));
+  if (g.kind === 'NONE') p.push(g.noMfr ? 'This manufacturer is not in the app yet. Add it under Manufacturers.' : (g.choices?.length ? 'More than one rep sells this manufacturer here. Pick one.'
+    : g.elsewhere?.length ? `No rep sells this manufacturer in ${g.officeName ? 'the ' + g.officeName + ' office' : 'this office'}. ${g.elsewhere.join(', ')} sells it elsewhere. Pick a rep to send.`
+    : 'No rep is on file for this manufacturer. Pick a rep, or mark it buy direct.'));
   if (g.kind !== 'NONE' && !g.quoteEmails.length) p.push(g.kind === 'DIRECT' ? 'This manufacturer has no Quotes email. Add one on its page.' : 'This rep has no Quotes email. Add one on the rep page.');
   return p;
 }
