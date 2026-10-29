@@ -5,6 +5,19 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [People tags and "Already in the CRM twice?" merges] - October 28, 2026 (NOT deployed) - migration 0141
+
+Mike 10-28: tags on people (first one "Catalina Golf mixer") and a My Desk review for companies and people already in the CRM twice. Archive only.
+
+- Migration 0141_contact_tags (additive): `ContactTag`, `ContactTagLink`, `ContactEmail` (extra addresses for one person), `CrmMergeDecision` (Same / Different answers, so a pair never comes back).
+- People: tag chips on each person on the company page (same picker as company tags); Contacts list gets a Tags column, a Tag filter, row checkboxes + Select all, and a bar to add or take off a tag for everyone picked. The Department filter now has data (it was never loaded).
+- My Desk, Pool tab: "Already in the CRM twice?" lists company pairs (almost the same name, or the same email domain) and people pairs (same email, or same name at the same company). Pick the one to keep; Same moves people, jobs (all 7 seats), notes, tags, branches, history and emails over, fills blanks, keeps the old name as an alias and archives the other. Different is remembered.
+- API: /api/contact-tags (+ [id], [id]/links), /api/crm/duplicates; lib src/lib/crmMerge.js.
+- Test: scripts/tests/crmTagsMergeE2e.test.mjs.
+- Files: prisma/schema.prisma (0141 block only), prisma/migrations/0141_contact_tags/, src/lib/crmMerge.js, src/app/api/contact-tags/, src/app/api/crm/duplicates/route.js, src/app/api/clients/[id]/contacts/[contactId]/route.js, src/app/(app)/clients/[id]/page.jsx, src/app/(app)/clients/[id]/ClientDetailClient.jsx, src/app/(app)/crm/contacts/page.jsx, src/app/(app)/crm/contacts/ContactsClient.jsx, src/components/crm/CrmDuplicates.jsx, src/app/(app)/sales/desk/page.jsx.
+
+---
+
 ## [National companies with local branches] - October 28, 2026 (DEPLOYED bdf3310) - migration 0140
 
 Mike 10-28: national companies get real branches instead of "(CITY)" in the name; each branch has its own salesperson.

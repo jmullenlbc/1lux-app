@@ -11,6 +11,7 @@ import QuickNote from '@/components/desk/QuickNote';
 import MorningBriefing from '@/components/desk/MorningBriefing';
 import PersonPicker from '@/components/desk/PersonPicker';
 import { ReviewRow } from '@/components/crm/LookAlikeReviews';
+import CrmDuplicates from '@/components/crm/CrmDuplicates';
 import AlertMark from '@/components/ui/AlertMark';
 import IntelClient from '../../crm/intel/IntelClient';
 import IntroductionsCard from '@/components/crm/IntroductionsCard';
@@ -411,6 +412,7 @@ function MyDeskPage() {
   const [tab, setTabState] = useState(urlTab);
   const { filters, setFilter, clearFilters, sort, setSort, ready } = useUrlView({ fields: VIEW_FIELDS, sortDefault: SORT_DEFAULT });
   const [filterOpen, setFilterOpen] = useState(false);
+  const [dupeCount, setDupeCount] = useState(0);
   const whose = filters.whose || 'mine';
   const [desk, setDesk] = useState(null);
   const [checkIns, setCheckIns] = useState([]);
@@ -492,7 +494,7 @@ function MyDeskPage() {
   const steps = desk.groups.reduce((n, g) => n + (g.key === 'SNOOZED' || g.key === 'PAUSED' ? 0 : g.items.length), 0);
   const quiet = steps === 0 && desk.drafts.length === 0 && checkIns.length === 0 && !notesToFinish && !desk.meetings?.length && !desk.noOwner?.length
     && !desk.budgetsNotSent?.length;
-  const poolCount = (desk.reviews?.length || 0) + (desk.pool?.length || 0);
+  const poolCount = (desk.reviews?.length || 0) + (desk.pool?.length || 0) + dupeCount;
 
   return (
     <div className="px-4 py-5">
@@ -518,6 +520,7 @@ function MyDeskPage() {
               <PoolList pool={desk.pool} salesPeople={desk.salesPeople || []} myId={myId} onDone={changed} />
             </Section>
           )}
+          <CrmDuplicates onCount={setDupeCount} />
           {poolCount === 0 && <p className="text-sm text-slate-500 rounded-lg border border-dashed border-slate-200 p-6 text-center">No look-alikes to answer and no web budgets waiting for a salesperson.</p>}
         </>
       )}

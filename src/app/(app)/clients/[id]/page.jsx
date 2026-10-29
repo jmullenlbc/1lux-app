@@ -37,6 +37,7 @@ export default async function ClientDetailPage({ params }) {
         where: { archivedAt: null },
         orderBy: { createdAt: 'asc' },
         include: {
+          tagLinks: { include: { tag: { select: { id: true, name: true } } } },
           projectLinks: {
             where: { project: { archivedAt: null } },
             select: {

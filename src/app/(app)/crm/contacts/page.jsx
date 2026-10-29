@@ -16,6 +16,7 @@ export default async function ContactsPage() {
       name: true,
       preferredName: true,
       title: true,
+      department: true,
       email: true,
       phone: true,
       company: true,
@@ -25,8 +26,11 @@ export default async function ContactsPage() {
       lastTouchpointAt: true,
       nextCheckInAt: true,
       client: { select: { id: true, name: true, cadenceDays: true } },
+      tagLinks: { select: { tag: { select: { id: true, name: true } } } },
     },
   });
 
-  return <ContactsClient contacts={contacts} />;
+  const tags = await prisma.contactTag.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } });
+
+  return <ContactsClient contacts={contacts} tags={tags} />;
 }

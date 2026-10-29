@@ -6,6 +6,7 @@ import { splitName, joinName, isValidEmail } from '@/lib/crmClient';
 import { cleanDepartment } from '@/lib/contactDepartments';
 
 const PROJECT_LINK_INCLUDE = {
+  tagLinks: { include: { tag: { select: { id: true, name: true } } } },
   projectLinks: {
     where: { project: { archivedAt: null } },
     include: {
@@ -39,7 +40,7 @@ export async function PATCH(request, { params }) {
 
   const {
     name, firstName, lastName, title, email, phone,
-    cellPhone, workPhone, linkedInUrl, department,
+    cellPhone, workPhone, linkedInUrl, department, tagIds,
   } = await request.json();
 
   if (name !== undefined && !name?.trim())
@@ -72,6 +73,14 @@ export async function PATCH(request, { params }) {
   const phoneData = {};
   if (workPhone !== undefined) { phoneData.workPhone = workPhone || null; phoneData.phone = workPhone || null; }
   else if (phone !== undefined) { phoneData.phone = phone || null; phoneData.workPhone = phone || null; }
+
+  // tagIds replaces the person's tags (same as company tags).
+  if (Array.isArray(tagIds)) {
+    const ids = [...new Set(tagIds.map(String))];
+    const real = ids.length ? await prisma.contactTag.findMany({ where: { id: { in: ids } }, select: { id: true } }) : [];
+    await prisma.contactTagLink.deleteMany({ where: { contactId: contact.id } });
+    if (real.length) await prisma.contactTagLink.createMany({ data: real.map(t => ({ contactId: contact.id, tagId: t.id })) });
+  }
 
   const updated = await prisma.contact.update({
     where: { id: contact.id },

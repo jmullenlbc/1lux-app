@@ -568,6 +568,8 @@ model Contact {
   personalFacts       ContactPersonalFact[]
   botDrafts           BotDraft[]          @relation("ContactBotDrafts")
   salesDocVisitors    SalesDocVisitor[]   @relation("SalesDocVisitorContact")
+  tagLinks            ContactTagLink[]
+  otherEmails         ContactEmail[]
 
   @@index([ownerId])
   @@index([clientId])
@@ -3887,6 +3889,55 @@ model ClientTagLink {
 
   @@unique([clientId, tagId])
   @@index([tagId])
+}
+
+// ── People tags + other emails + merge answers (migration 0141) ─────────────
+// Tags on people, same shape as ClientTag ("Catalina Golf mixer").
+model ContactTag {
+  id        String           @id @default(cuid())
+  name      String           @unique
+  createdAt DateTime         @default(now())
+  links     ContactTagLink[]
+}
+
+model ContactTagLink {
+  id        String     @id @default(cuid())
+  contactId String
+  contact   Contact    @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  tagId     String
+  tag       ContactTag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  createdAt DateTime   @default(now())
+
+  @@unique([contactId, tagId])
+  @@index([tagId])
+}
+
+// Extra email addresses for one person (the main one stays on Contact.email).
+model ContactEmail {
+  id        String   @id @default(cuid())
+  contactId String
+  contact   Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  email     String
+  createdAt DateTime @default(now())
+
+  @@unique([contactId, email])
+  @@index([email])
+}
+
+// One row per answer on the My Desk "Same company? / Same person?" review of
+// records already in the CRM. aId < bId so a pair is stored once. DIFFERENT
+// keeps the pair from coming back; MERGED records which one survived.
+model CrmMergeDecision {
+  id          String   @id @default(cuid())
+  kind        String // client | contact
+  aId         String
+  bId         String
+  decision    String // DIFFERENT | MERGED
+  survivorId  String?
+  decidedById String?
+  createdAt   DateTime @default(now())
+
+  @@unique([kind, aId, bId])
 }
 
 // ── Alert feedback (migration 0093) ───────────────────────────────────────────

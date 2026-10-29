@@ -366,17 +366,21 @@ function ChoiceChips({ value, options, onSave }) {
 
 // The tag library, edited from here: tick, rename, delete, add. Ticking saves
 // straight away. Rename and delete still ask first, those two reach across
-// every client that carries the tag, not just this one.
-function TagPicker({ tagIds, onSave }) {
+// every client that carries the tag, not just this one. People tags (0141)
+// use the same picker with endpoint /api/contact-tags; one per person, so
+// those load the library only when opened and show names from pickedTags.
+function TagPicker({ tagIds, onSave, endpoint = '/api/tags', noun = 'client', pickedTags = null }) {
   const [tags, setTags]     = useState([]);
   const [open, setOpen]     = useState(false);
   const [newTag, setNewTag] = useState('');
   const [busy, setBusy]     = useState(false);
   const ids = Array.isArray(tagIds) ? tagIds : [];
 
+  const lazy = Array.isArray(pickedTags);
   useEffect(() => {
-    fetch('/api/tags').then(r => r.json()).then(d => setTags(d.tags || [])).catch(() => {});
-  }, []);
+    if (lazy && !open) return;
+    fetch(endpoint).then(r => r.json()).then(d => setTags(d.tags || [])).catch(() => {});
+  }, [endpoint, lazy, open]);
 
   async function toggle(tagId) {
     const next = ids.includes(tagId) ? ids.filter(i => i !== tagId) : [...ids, tagId];
@@ -390,7 +394,7 @@ function TagPicker({ tagIds, onSave }) {
     if (!name || busy) return;
     setBusy(true);
     try {
-      const res = await fetch('/api/tags', {
+      const res = await fetch(endpoint, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name }),
       });
@@ -406,7 +410,7 @@ function TagPicker({ tagIds, onSave }) {
   async function renameTag(tag) {
     const name = prompt('Rename this tag. It renames everywhere it is used.', tag.name);
     if (!name || name.trim() === tag.name) return;
-    const res = await fetch(`/api/tags/${tag.id}`, {
+    const res = await fetch(`${endpoint}/${tag.id}`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: name.trim() }),
     });
@@ -417,15 +421,15 @@ function TagPicker({ tagIds, onSave }) {
   }
 
   async function deleteTag(tag) {
-    if (!confirm(`Delete the tag "${tag.name}"? It comes off every client that has it.`)) return;
-    const res = await fetch(`/api/tags/${tag.id}`, { method: 'DELETE' });
+    if (!confirm(`Delete the tag "${tag.name}"? It comes off every ${noun} that has it.`)) return;
+    const res = await fetch(`${endpoint}/${tag.id}`, { method: 'DELETE' });
     if (res.ok) {
       setTags(list => list.filter(t => t.id !== tag.id));
       if (ids.includes(tag.id)) await onSave(ids.filter(i => i !== tag.id));
     }
   }
 
-  const picked = tags.filter(t => ids.includes(t.id));
+  const picked = tags.length ? tags.filter(t => ids.includes(t.id)) : (pickedTags || []).filter(t => ids.includes(t.id));
 
   return (
     <div>
@@ -450,7 +454,7 @@ function TagPicker({ tagIds, onSave }) {
       {open && (
         <div className="mt-2 rounded-lg border border-orange-200 bg-orange-50/40 p-2.5">
           <p className="text-[11px] text-slate-500 mb-2">
-            Make your own labels. Renaming or deleting one here changes it on every client that has it.
+            Make your own labels. Renaming or deleting one here changes it on every {noun} that has it.
           </p>
           <div className="flex flex-wrap gap-1.5 mb-2.5">
             {tags.length === 0 && <span className="text-xs text-slate-500">No tags yet. Add the first one below.</span>}
@@ -1465,6 +1469,10 @@ function PeopleTab({ contacts: initial, clientId, onContactsChange }) {
                 <a href={c.linkedInUrl} target="_blank" rel="noopener noreferrer"
                   className="text-slate-600 hover:text-orange-600" title="Open their LinkedIn in a new tab">↗</a>
               )}
+              <TagPicker endpoint="/api/contact-tags" noun="person"
+                tagIds={(c.tagLinks || []).map(l => l.tagId)}
+                pickedTags={(c.tagLinks || []).map(l => l.tag).filter(Boolean)}
+                onSave={v => saveField(c, 'tagIds', v)} />
               {WORK_HISTORY_READY && (
                 <button type="button" onClick={() => setHistoryFor(h => (h === c.id ? null : c.id))}
                   className="text-slate-400 hover:text-orange-600" title="Where they have worked: paste from LinkedIn or type it in">
