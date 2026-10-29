@@ -161,17 +161,20 @@ const NOTE_STATUSES = ['LOST', 'ABANDONED'];
 export async function loadProjects(db, user, rows) {
   const users = await db.user.findMany({ select: { id: true, name: true } });
   const companies = await companyIds(db);
+  const branches = await branchIds(db);
   const existing = await db.project.findMany({ where: { name: { in: rows.map(p => p.name) } }, select: { name: true, clientId: true } });
   const have = new Set(existing.map(p => `${low(p.name)}|${p.clientId || ''}`));
   const pricingSnapshot = JSON.stringify(await loadPricing());
   let created = 0;
   for (const p of rows) {
-    const clientId = p.company ? companies.get(low(p.company)) || null : null;
+    const parentId = p.company ? companies.get(low(p.company)) || null : null;
+    const clientId = (parentId && p.office && branches.get(`${low(p.company)}|${low(p.office)}`)) || parentId;
     const key = `${low(p.name)}|${clientId || ''}`;
     if (have.has(key)) continue;
     const owner = matchUser(users, p.salesperson);
     await createProject(db, user.id, {
       name: p.name, clientId, phase: p.phase, serviceType: p.serviceType, pricingSnapshot,
+      city: p.city, state: p.state,
       extra: {
         // No stage on the sheet = no phase (Mike 10-28), not the SD default.
         phase: p.phase || '',
@@ -185,7 +188,7 @@ export async function loadProjects(db, user, rows) {
         expectedOrderDate: p.expectedOrderDate ? new Date(p.expectedOrderDate) : null,
         salesOwnerId: owner?.id || null,
       },
-      extraData: p.numUnits ? { numUnits: p.numUnits } : {},
+      extraData: { ...(p.numUnits && { numUnits: p.numUnits }), ...(p.grossSf && { grossSf: p.grossSf }) },
     });
     have.add(key);
     created++;

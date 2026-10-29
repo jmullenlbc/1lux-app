@@ -48,6 +48,7 @@ export function day(v) {
 }
 
 // Hive phases read like "DESIGN, PRECON/BUDGET / CA": the last stage named wins.
+// Trackvia (v7) writes the bare stage: SD, DD, CD or CA.
 // Anything else (PRECONSTRUCTION, blank) loads with no phase (Mike 10-28).
 export function phaseOf(v) {
   let out = null;
@@ -55,6 +56,7 @@ export function phaseOf(v) {
     if (bit === 'CA' || bit === 'CONSTRUCTION') out = 'construction';
     else if (bit === 'CD') out = 'cd';
     else if (bit === 'DD') out = 'dd';
+    else if (bit === 'SD') out = 'sd';
   }
   return out;
 }
@@ -70,7 +72,9 @@ function typeOf(row) {
   return { type: 'developer', guessed: true };
 }
 
-const titleCase = w => w.length <= 3 ? w.toUpperCase() : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
+// Short words are abbreviations (LA, SLC, DC) unless they start a place name (Los Angeles, San Diego).
+const PLACE_WORDS = new Set(['los', 'las', 'san', 'new', 'el', 'del', 'de']);
+const titleCase = w => w.length <= 3 && !PLACE_WORDS.has(w.toLowerCase()) ? w.toUpperCase() : w.charAt(0).toUpperCase() + w.slice(1).toLowerCase();
 export const marketName = m => s(m).split(/\s+/).map(titleCase).join(' ');
 
 // Finds a company on the Companies tab from however a project or person wrote it.
@@ -175,6 +179,7 @@ export function buildImport(rows) {
     const company = match(r.Company);
     if (s(r.Company) && !company) projectNoCompany.push(`${name} (${s(r.Company)})`);
     const units = Math.round(money(r.Units) ?? 0);
+    const sf = Math.round(money(r['Total SF']) ?? 0);
     projects.push({
       key: `${low(name)}|${low(company)}`,
       name, company,
@@ -188,6 +193,11 @@ export function buildImport(rows) {
       phase: phaseOf(r['Hive phase']),
       salesperson: s(r.Salesperson) || null,
       numUnits: units > 0 ? units : null,
+      grossSf: sf > 0 ? sf : null,
+      city: s(r.City) || null,
+      state: s(r.State) || null,
+      // "Office" puts the project on that branch of its company (Lincoln, Mike 10-28).
+      office: s(r.Office) ? marketName(r.Office) : null,
     });
   }
 

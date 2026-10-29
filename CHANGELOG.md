@@ -5,7 +5,19 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [Admin > CRM Upload] - October 28, 2026 (DEPLOYED, see deploy log) - no migration
+## [CRM Upload reads the Trackvia history (v7)] - October 29, 2026 - no migration
+
+Mike 10-28: fold the Trackvia project history into the clean up sheet (v7) so it is one upload, and load square footage, location and the SD phase ("1. Yes").
+
+- Projects tab now reads `Total SF` (into the project's gross SF), `City` and `State` (location "City, ST") and `Office` (puts the project on that branch of its company, e.g. Lincoln Property Company Arizona / Los Angeles).
+- Hive phase "SD" loads as SD (Trackvia writes the bare stage).
+- Branch names keep place words: "Los Angeles" no longer reads as "LOS Angeles"; LA, SLC and DC stay capitals.
+- v7 dry run: 278 companies, 49 branches, 1,206 people, 354 projects (93 from Trackvia), 103 with square footage, 56 with a city, 0 unmatched.
+- Files: `src/lib/crmImport.js`, `src/lib/crmImportLoad.js`, `scripts/tests/crmImportE2e.test.mjs`.
+
+---
+
+## [Admin > CRM Upload] - October 28, 2026 (DEPLOYED 612c98d) - no migration
 
 Mike 10-28: load the final CRM clean up sheet into the app in one go. Super admins only.
 

@@ -82,6 +82,14 @@ test('CRM upload batches', async (t) => {
     assert.deepEqual(pr.statusEvents.map(e => e.toStatus).sort(), ['LOST', 'WON']);
     assert.equal((await post('/api/admin/crm-import', { action: 'projects', rows: [bare] }, cookie)).json.created, 1);
     assert.equal((await prisma.project.findFirst({ where: { name: bare.name } })).phase, '', 'no stage = no phase');
+
+    const branchJob = { ...job, name: `${TAG} Branch Job`, office: 'Denver', grossSf: 120000, city: 'Denver', state: 'CO', phase: 'sd' };
+    assert.equal((await post('/api/admin/crm-import', { action: 'projects', rows: [branchJob] }, cookie)).json.created, 1);
+    const bj = await prisma.project.findFirst({ where: { name: branchJob.name }, include: { projectData: true } });
+    assert.equal(bj.clientId, parent.branches[0].id, 'office puts the project on the branch');
+    assert.equal(bj.projectData.grossSf, 120000);
+    assert.equal(bj.location, 'Denver, CO');
+    assert.equal(bj.phase, 'sd');
   } finally {
     const mine = { name: { startsWith: TAG } };
     await prisma.project.deleteMany({ where: mine }).catch(() => {});

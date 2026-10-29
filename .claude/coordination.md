@@ -2,7 +2,15 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-10-28 (newest) - Mike's Claude - **DEPLOYED 733dc9f**, migration 0141 (additive): people tags + "Already in the CRM twice?" merges
+### 2026-10-29 (newest) - Mike's Claude - **DEPLOYED (see deploy log)**, no migration: CRM Upload reads Trackvia v7
+
+Projects tab reads Total SF (grossSf), City/State (location), Office (project onto company branch) and Hive phase SD. "Los Angeles" title case fix. Next: Mike uploads v7 (354 projects) at Admin > CRM Upload. Still parked, NOT in this commit: Bid Comparison 0138/0139, We suggest change + Remove, spec-swaps, matrixImport, verify.mjs, AdminClient.
+
+### 2026-10-28 - Mike's Claude - **DEPLOYED 612c98d**, no migration: Admin > CRM Upload
+
+`/admin/crm-import` (super admins): dry run of the CRM clean up sheet, then typed WIPE AND LOAD. Wipe HARD DELETES projects, companies and people (notes, manufacturers, products and the rest stay), 40 rows per request. Prod wipe + load not run; Mike presses it.
+
+### 2026-10-28 - Mike's Claude - **DEPLOYED 733dc9f**, migration 0141 (additive): people tags + "Already in the CRM twice?" merges
 New tables `ContactTag`, `ContactTagLink`, `ContactEmail`, `CrmMergeDecision` (FKs to ClientContact/Client, nothing existing altered, ContactLegacy untouched). Contacts list bulk tag bar + Tag filter; tag chips on company page people; My Desk Pool tab merges company and people pairs (archive only, Different remembered). Still parked, NOT in this commit: Bid Comparison 0138/0139, We suggest change + Remove, spec-swaps, matrixImport, verify.mjs, AdminClient. Next: Admin CRM importer (dry run, typed "Wipe and load").
 
 ### 2026-10-28 - Mike's Claude - **DEPLOYED bdf3310**, migration 0140 (additive): national companies with local branches
