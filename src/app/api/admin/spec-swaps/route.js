@@ -39,6 +39,8 @@ export async function GET(request) {
 }
 
 // POST { job, sheetDate, lines }: replace that job's rows.
+// POST { job, remove: true }: take the job out (Mike 10-20). Archive only;
+// loading its file again brings it back.
 export async function POST(request) {
   const { error } = await requireAdmin(request);
   if (error) return error;
@@ -46,6 +48,13 @@ export async function POST(request) {
   let body;
   try { body = await request.json(); } catch { body = null; }
   const job = String(body?.job || '').trim().slice(0, 300);
+  if (job && body?.remove === true) {
+    const { count } = await prisma.specSwap.updateMany({
+      where: { ...live, sourceName: job },
+      data: { archivedAt: new Date() },
+    });
+    return NextResponse.json({ job, removed: count });
+  }
   const lines = Array.isArray(body?.lines) ? body.lines : null;
   if (!job || !lines) return NextResponse.json({ error: 'job and lines are required' }, { status: 400 });
   if (lines.length > MAX_LINES) return NextResponse.json({ error: `More than ${MAX_LINES} lines in one matrix` }, { status: 400 });

@@ -335,7 +335,7 @@ function MatrixCard({ view }) {
                   <td className={`${TD} text-xs`}>
                     {s?.options?.length ? s.options.map((o, i) => (
                       <span key={i} className="block" title={o.exampleCatalog || ''}>
-                        <span className={i === 0 ? 'font-semibold text-slate-800' : 'text-slate-600'}>{o.kept ? 'Keep the spec' : `${o.propMfr || ''} ${o.propFamily || ''}`}</span>
+                        <span className={i === 0 ? 'font-semibold text-slate-800' : 'text-slate-600'}>{o.kept ? 'Keep the spec' : o.placeholder ? 'Placeholder' : `${o.propMfr || ''} ${o.familyLabel || o.propFamily || ''}`}</span>
                         <span className="text-slate-400"> {o.jobs} job{o.jobs === 1 ? '' : 's'}{o.medianUnitCn != null ? `, ${money2(o.medianUnitCn)} CN` : ''}</span>
                       </span>
                     )) : <span className="text-slate-400">{s ? 'No past match' : ''}</span>}

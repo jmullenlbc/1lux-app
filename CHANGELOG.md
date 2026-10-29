@@ -5,7 +5,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [CRM Upload reads the Trackvia history (v7)] - October 29, 2026 - no migration
+## [CRM Upload reads the Trackvia history (v7)] - October 29, 2026 (DEPLOYED 887b5c0) - no migration
 
 Mike 10-28: fold the Trackvia project history into the clean up sheet (v7) so it is one upload, and load square footage, location and the SD phase ("1. Yes").
 
@@ -133,6 +133,56 @@ Mike 10-20 review of Sales Docs: viewer controls "like Bluebeam", page time on t
 - **Engagement tab removed**; old addresses redirect to the matching document, Folder, Links or Documents. Bell alerts for a Folder link open that Folder.
 - **Back buttons**: "Back to Documents" or "Back to {Folder}" on a document (opened from a Folder it keeps the Folder), "Back to Folders" on a Folder.
 - Files: DocViewers.jsx, EngagementParts.jsx (`EngagementPanel`, `UnitTimeBars`), LinksTable.jsx, `sales/docs/[docId]/page.jsx`, `sales/docs/spaces/[spaceId]/page.jsx`, `sales/docs/spaces/page.jsx`, `sales/docs/links/page.jsx`, `sales/docs/engagement/page.jsx` (redirect, force-dynamic), SalesDocShareView.jsx, SectionTabs.jsx, `src/lib/salesDocs/events.js`, `api/sales-docs/engagement/route.js`, API error wording in the links and spaces routes. `salesDocsE2e.test.mjs` checks the page totals (passes). Build passes. Local check on a 6 page PDF link: Fit page, next page and page time all work.
+
+## [Bid Comparison: learning loop, Sage one brand, everyone edits] - October 22, 2026 (DEPLOYED 10-29, see below) - Migration 0143 (built as 0139)
+
+Mike 10-22: Sage is one brand and its sub brands are not rated for now; large amenity fans stay bid to bid; everyone on staff edits kinds and brands and marks lines for now; build the learning loop before the upload page.
+
+- Migration 0143 (built as 0139) (additive): `BidLineMark` (one mark per person per line: Right, Wrong kind + which, Wrong grade + Builder or Spec, with a snapshot of the line) and `RuleProposal` (the change the marks add up to, PROPOSED / APPROVED / REJECTED, counts for and against). Schema guard to run before commit.
+- Sage Brands is now ONE brand row (`SAGE`, Sage Brands ticked, no grade). Eluma, Ascent, Candela, Lynx, Terrain, Dunton House and Peacock lines are recognised as Sage but carry no Builder / Spec grade; grade on those lines comes from the words only. Coverage after the change: 15% of spec lines and 44% of ILC priced lines get a level (was 19% / 47%).
+- Try it on a past job has an "Is this right?" column: Right / Wrong kind (pick the kind) / Wrong grade (Builder or Spec); "You said: ..." with Change and Clear. Marks are per person; marking again changes the mark.
+- Suggested changes card on Admin > Fixture kinds: when 3 marks agree (any mix of people and lines) the tool proposes one change (a word a kind reads from, or a brand's grade). A Right mark that cuts the other way counts against; more against than for drops it. A person approves (can change the word or grade first) or turns it down; approved changes apply through the same store as hand edits (source HUMAN, note "From staff marks"). Turned down suggestions do not come back.
+- Everyone on staff (not only admins) may edit kinds and brands and mark lines; client viewers get 403. Non admins still have no page for it (Admin redirects them); asked Mike where it should live.
+- Local sqlite trap: a Postgres migration applied with `prisma db execute` makes TIMESTAMP(3) columns Prisma cannot read. Local copies use DATETIME / REAL and no FK ALTERs (`.tmp-bc/0139_sqlite.sql`, never committed); the migration folder stays Postgres.
+- Tests: `bidComparisonLearn.test.mjs` (7 pass, pure proposal logic), `bidComparisonRulesE2e.test.mjs` + learning test (2 pass), `bidComparisonE2e.test.mjs` Sage one unrated brand (1 pass), `bidComparison.test.mjs` (16 pass). Headless screenshot check of the marks column and the Suggested changes card passed.
+
+Files: `prisma/schema.prisma`, `prisma/migrations/0143_bid_comparison_learning/`; `src/lib/bidComparison/learnRules.js` (new), `learn.js` (new), `rulesStore.js` (`addKindWord`), `kinds.js`, `typicals.js`; `src/app/api/admin/bid-comparison/route.js`; `src/components/bidComparison/FixtureKindsTab.jsx`; `scripts/bidComparisonCoverage.mjs`; `scripts/verify.mjs`; `scripts/tests/bidComparisonLearn.test.mjs` (new), `bidComparisonRulesE2e.test.mjs`, `bidComparisonE2e.test.mjs`.
+
+## [Bid Comparison: staff edit kinds and brands, Sage Brands cross] - October 22, 2026 (DEPLOYED 10-29, see below) - Migration 0142 (built as 0138)
+
+Mike 10-22: the cross is Sage Brands (Eluma is part of it); spec fan $200 to $400 for 48 to 55 in; garage is Sage only; "Yes absolutely" to editing on screen.
+
+- Migration 0142 (built as 0138) (additive): `FixtureKind`, `FixtureKindWord`, `BrandGrade` tables. Empty until the first edit; code defaults apply until then, and the first edit saves every starting kind and brand. Schema guard PASS.
+- Admin > Fixture kinds is editable: add, edit, move up or down, archive and bring back kinds; add brands, set Builder / Spec / Both, tick Sage Brands, Approve or Turn down suggested grades. Archive only. Edits reach the next check (10 minute cache cleared on save). Buttons sit under the name so it works on a phone.
+- Sage Brands list (Sage, Eluma, Ascent, Candela, Lynx, Terrain, Dunton House, Peacock) replaces the Eluma pick everywhere; draft grades Ascent Spec, the rest Builder (superseded the same day: Sage is one unrated brand, see above).
+- Ceiling fan is 48 to 55 in: builder $80 to $185, spec $200 to $400. New Large amenity fan kind (56 in and up), compared bid to bid only. Garage is Sage Brands only, no builder or spec split.
+- Fix: `compareBids` crashed on its `sage` option (shadowed by a later variable).
+- Tests: `bidComparison.test.mjs` (16 pass), new `bidComparisonRulesE2e.test.mjs` (add, edit, move, archive, bad input 400, signed out 401/403).
+- Plan for the learning loop and brand grading stages: 26.10.22 Bid Comparison Learning and Sage Cross.html.
+
+Files: `prisma/schema.prisma`, `prisma/migrations/0142_bid_comparison_rules/`; `src/lib/bidComparison/kinds.js`, `typicals.js`, `check.js`, `load.js`, `rulesStore.js`; `src/app/api/admin/bid-comparison/route.js`; `src/components/bidComparison/FixtureKindsTab.jsx`; `scripts/bidComparisonCoverage.mjs`; `scripts/tests/bidComparison.test.mjs`, `bidComparisonRulesE2e.test.mjs`.
+
+## [Bid Comparison step 1: fixture kinds and the check] - October 21, 2026 (DEPLOYED 10-29, see below) - no migration
+
+Mike 10-21: "Yes go" on step 1. Internal only. Kinds and brand grades live in code, read only on screen.
+
+- 30 fixture kinds with size, builder and spec grade words, notes and price ranges (fan: pull chain builder about $80 to $185, hugger or DC motor spec $250 to $750). 91 brand grades; brands that sell both grades stay blank.
+- Typical prices from past jobs: same product first (3+ prices on 2+ jobs), else same kind, size and grade when half or more agree within 15%. Bad lines (more than 15% off their family middle) are left out.
+- The check lines bids up by type, rates each line High / Medium / Low vs past jobs and vs the other bids (2+ bids), adds the grade explainer and the Eluma pick, and trims by viewer (staff, outside, reps).
+- Admin > Users and settings > Fixture kinds: the kinds, brand grades, and "Try it on a past job" (leaves that job out of its own typicals).
+- Tested on 91 matrix jobs: 94% of lines read a kind, 19% of spec lines and 47% of ILC priced lines get a level vs past jobs. Report: 26.10.21 Bid Comparison Coverage.html.
+- levelOf compares the price ratio so exactly 15% stays Medium.
+
+Files: `src/lib/bidComparison/kinds.js`, `typicals.js`, `check.js`, `load.js`; `src/app/api/admin/bid-comparison/route.js`; `src/components/bidComparison/FixtureKindsTab.jsx`; `src/app/(app)/admin/AdminClient.jsx`; `scripts/bidComparisonCoverage.mjs`; `scripts/tests/bidComparison.test.mjs`, `bidComparisonE2e.test.mjs`; `scripts/verify.mjs`.
+
+## [We suggest uses placeholders and added lines] - October 20, 2026 (DEPLOYED 10-29, see below) - no migration
+
+Mike 10-20: "1. We suggest" (placeholder and added matrix lines feed the suggestions).
+
+- `suggestFor` (`src/lib/specSwap/suggest.js`) now reads all four outcomes. Added lines (no original spec) meet a spec by kind of fixture only. Placeholders group as one "Placeholder" option after the real products, its CN the allowance we carried, taken from the closest match level; a spec with only placeholder history shows just that.
+- Suggestion labels show brand plus catalog family ("ELUMA DL-12"), not the internal key ("ELUMA ELUMA|DL12").
+- `src/lib/bidLeveling/load.js` loads ADDED and PLACEHOLDER rows; `BidLevelingTab.jsx` labels placeholders. Tests extended (9 pass). Local check: 2,095 distinct specs, 84 now show a placeholder option.
+- **Remove a matrix job** (Mike 10-20 "1. Both"): a Remove button on each row of the loaded jobs list (Admin > Peer review matrices) takes that job out of "We suggest". `POST /api/admin/spec-swaps { job, remove: true }` archives its rows only; loading the file again brings it back. For TEMPLATE W DROPDOWNS and COPY OF ITHACA FOR PARSPEC (a copy of ITHACA) in prod. New test `scripts/tests/specSwapRemoveE2e.test.mjs` passes locally.
 
 ## [Peer review matrices load from Admin] - October 19, 2026 (DEPLOYED 5cd93ca) - no migration
 

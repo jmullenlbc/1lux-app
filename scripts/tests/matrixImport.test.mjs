@@ -152,6 +152,19 @@ test('we suggest: family match ranked by jobs, brand + category fallback', () =>
   assert.equal(c.options[0].propFamily, 'STR-48-40L');
 
   assert.equal(suggestFor({ mfr: 'Bega', catalog: '33054' }, swaps).match, 'NONE');
+
+  // Placeholders come after the real products; added lines meet a spec by kind of fixture.
+  assert.equal(s.options.length, 3);
+  assert.equal(s.options[2].placeholder, true);
+  assert.equal(s.options[2].jobs, 1);
+  assert.equal(s.options[0].familyLabel, 'DL-7');
+  const added = { sourceName: 'JOB G', origMfr: null, origFamily: null, category: 'step/stair', propMfr: 'ELUMA', propFamily: 'ELUMA|ST1', propCatalog: 'ST-1', outcome: 'ADDED', unitCn: 40 };
+  const st = suggestFor({ mfr: 'Bega', catalog: '33054', description: 'STEP LIGHT' }, [...swaps, added]);
+  assert.equal(st.match, 'CATEGORY');
+  assert.equal(st.options[0].propFamily, 'ELUMA|ST1');
+  const onlyPh = suggestFor({ mfr: 'WAC', catalog: 'HR-2' }, [{ ...added, outcome: 'PLACEHOLDER', origMfr: 'WAC', origFamily: 'WAC|HR2', propMfr: 'Placeholder' }]);
+  assert.equal(onlyPh.match, 'FAMILY');
+  assert.equal(onlyPh.options[0].placeholder, true);
 });
 
 test('matrix loader: rows from browser lines, skips, links our product, strings only', () => {

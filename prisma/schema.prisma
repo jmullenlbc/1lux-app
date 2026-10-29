@@ -150,6 +150,10 @@ model User {
   salesDocSpacesOwned        SalesDocSpace[]              @relation("SalesDocSpaceOwner")
   salesDocLinksCreated       SalesDocLink[]               @relation("SalesDocLinkCreator")
   salesDocLinksRevoked       SalesDocLink[]               @relation("SalesDocLinkRevoker")
+  fixtureKindsUpdated        FixtureKind[]                @relation("FixtureKindUpdater")
+  brandGradesDecided         BrandGrade[]                 @relation("BrandGradeDecider")
+  bidLineMarks               BidLineMark[]                @relation("BidLineMarkUser")
+  ruleProposalsDecided       RuleProposal[]               @relation("RuleProposalDecider")
 }
 
 model UserAlert {
@@ -4740,4 +4744,128 @@ model SalesDocEvent {
 
   @@index([linkId, type, createdAt])
   @@index([docId, createdAt])
+}
+
+// Bid Comparison rules staff edit on screen (migration 0138, Mike 10-22).
+// An empty table means the defaults in src/lib/bidComparison/kinds.js; the
+// first edit copies them in. Archive only. source says who set a row
+// (DEFAULT | HUMAN | AI) so the learning step can tell people from the bot.
+
+// What a bid line IS (disk, downlight, ceiling fan). Words are FixtureKindWord rows.
+model FixtureKind {
+  id          String            @id @default(cuid())
+  key         String            @unique
+  name        String
+  sortOrder   Int               @default(0) // first kind whose words match wins
+  sizeUnit    String? // IN | FT | GRID, or null when size does not matter
+  sizeMin     Float? // the read size must be at or over this (large amenity fans, 56 in)
+  sizeMax     Float? // a read size over this is not this kind (48 to 55 in fans)
+  sageOnly    Boolean           @default(false) // only ever Sage Brands (garage); no builder or spec split
+  noTypical   Boolean           @default(false) // compared bid to bid only
+  builderNote String            @default("")
+  specNote    String            @default("")
+  builderLow  Float?
+  builderHigh Float?
+  specLow     Float?
+  specHigh    Float?
+  source      String            @default("DEFAULT") // DEFAULT | HUMAN | AI
+  updatedById String?
+  updatedBy   User?             @relation("FixtureKindUpdater", fields: [updatedById], references: [id], onDelete: SetNull)
+  archivedAt  DateTime?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  words       FixtureKindWord[]
+
+  @@index([sortOrder])
+}
+
+// One phrase on a kind: MATCH reads the kind, NOT stops it, BUILDER / SPEC name the grade.
+model FixtureKindWord {
+  id        String      @id @default(cuid())
+  kindId    String
+  kind      FixtureKind @relation(fields: [kindId], references: [id], onDelete: Cascade)
+  list      String // MATCH | NOT | BUILDER | SPEC
+  phrase    String
+  sortOrder Int         @default(0)
+
+  @@unique([kindId, list, phrase])
+  @@index([phrase])
+}
+
+// A brand's grade (normMfr spelling). BOTH = sells both grades, the words decide.
+// sage = part of Sage Brands (ILC's cross). PROPOSED rows are suggestions a
+// person has not decided yet; only APPROVED rows grade lines.
+model BrandGrade {
+  id          String    @id @default(cuid())
+  brand       String    @unique
+  grade       String? // BUILDER | SPEC | BOTH, or null when only the Sage flag is set
+  sage        Boolean   @default(false)
+  status      String    @default("APPROVED") // APPROVED | PROPOSED | REJECTED
+  source      String    @default("DEFAULT") // DEFAULT | HUMAN | AI
+  confidence  Float? // AI suggestions only, 0 to 1
+  note        String    @default("")
+  decidedById String?
+  decidedBy   User?     @relation("BrandGradeDecider", fields: [decidedById], references: [id], onDelete: SetNull)
+  decidedAt   DateTime?
+  archivedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([status])
+  @@index([sage])
+}
+
+// Bid Comparison learning (migration 0139, Mike 10-22). A mark is one staff
+// press on one bid line: Right, Wrong kind (with the kind it should be) or
+// Wrong grade (Builder or Spec). The line is kept as a snapshot so the mark
+// still reads after the rules change. One mark per person per line.
+model BidLineMark {
+  id          String   @id @default(cuid())
+  job         String // past job name (an upload id later)
+  lineKey     String // the comparison row key inside the job
+  typeTag     String   @default("")
+  description String   @default("")
+  mfr         String   @default("")
+  catalog     String   @default("")
+  kindRead    String? // kind key the check read, null when none
+  gradeRead   String? // BUILDER | SPEC the check read
+  gradeBy     String? // words | brand
+  mark        String // RIGHT | WRONG_KIND | WRONG_GRADE
+  kindShould  String?
+  gradeShould String?
+  userId      String
+  user        User     @relation("BidLineMarkUser", fields: [userId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([job, lineKey, userId])
+  @@index([mark])
+  @@index([createdAt])
+}
+
+// A rule change the marks add up to (3 agreeing marks): a word a kind reads
+// from, or a brand's grade. A person approves or turns it down; nothing
+// applies on its own. key is the change itself, so a turned down one does
+// not come back.
+model RuleProposal {
+  id          String    @id @default(cuid())
+  key         String    @unique // KIND_WORD|<kind key>|<phrase> or BRAND_GRADE|<brand>|<grade>
+  kind        String // KIND_WORD | BRAND_GRADE
+  kindKey     String?
+  phrase      String?
+  brand       String?
+  grade       String?
+  status      String    @default("PROPOSED") // PROPOSED | APPROVED | REJECTED
+  marks       Int       @default(0) // marks that agree
+  against     Int       @default(0) // Right marks that cut the other way
+  sample      String    @default("") // one line the marks came from
+  appliedAs   String    @default("") // what was approved when the person changed it
+  proposedAt  DateTime  @default(now())
+  decidedById String?
+  decidedBy   User?     @relation("RuleProposalDecider", fields: [decidedById], references: [id], onDelete: SetNull)
+  decidedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([status])
 }

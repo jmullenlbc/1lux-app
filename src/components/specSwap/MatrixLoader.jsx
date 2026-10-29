@@ -6,7 +6,7 @@
 // scripts/loadSpecSwaps.mjs. Only CN columns are sent, never DN.
 
 import { useEffect, useRef, useState } from 'react';
-import { CARD, BTN_PRIMARY, BTN_SECONDARY, H2, HELPER, TH } from '@/components/ui/tokens';
+import { CARD, BTN_PRIMARY, BTN_SECONDARY, BTN_COMPACT, H2, HELPER, TH } from '@/components/ui/tokens';
 import { WidgetLoading, WidgetError } from '@/components/ui/WidgetFrame';
 import { readMatrixSheets, newestLines, jobNameFromFile } from '@/lib/matrixImport/readMatrix';
 
@@ -43,6 +43,7 @@ export default function MatrixLoader() {
   const [queue, setQueue] = useState([]); // { job, file, status, note }
   const [running, setRunning] = useState(false);
   const [showJobs, setShowJobs] = useState(false);
+  const [removing, setRemoving] = useState('');
   const inputRef = useRef(null);
 
   const loadSummary = () => fetch('/api/admin/spec-swaps')
@@ -58,6 +59,25 @@ export default function MatrixLoader() {
   };
 
   const setRow = (i, patch) => setQueue((q) => q.map((r, k) => (k === i ? { ...r, ...patch } : r)));
+
+  // Take a job out of the learning set. Loading its file again brings it back.
+  const remove = async (job) => {
+    if (!window.confirm(`Take "${job}" out? "We suggest" stops learning from it. Loading its file again brings it back.`)) return;
+    setRemoving(job);
+    try {
+      const res = await fetch('/api/admin/spec-swaps', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ job, remove: true }),
+      });
+      if (!res.ok) throw new Error();
+      await loadSummary();
+    } catch {
+      setError(`Couldn't take out ${job}.`);
+    } finally {
+      setRemoving('');
+    }
+  };
 
   const run = async () => {
     setRunning(true);
@@ -185,6 +205,7 @@ export default function MatrixLoader() {
                   <th className={`${TH} text-right px-4 py-3`}>Lines</th>
                   <th className={`${TH} px-4 py-3`}>File date</th>
                   <th className={`${TH} px-4 py-3`}>Loaded</th>
+                  <th className={`${TH} px-4 py-3`} />
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50">
@@ -194,6 +215,11 @@ export default function MatrixLoader() {
                     <td className="px-4 py-2 text-right tabular-nums">{j.rows}</td>
                     <td className="px-4 py-2 text-slate-500">{fmtDate(j.fileDate)}</td>
                     <td className="px-4 py-2 text-slate-500">{fmtDate(j.loadedAt)}</td>
+                    <td className="px-4 py-2 text-right">
+                      <button type="button" className={BTN_COMPACT} disabled={running || !!removing} onClick={() => remove(j.job)}>
+                        {removing === j.job ? 'Removing' : 'Remove'}
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>

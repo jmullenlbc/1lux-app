@@ -2,7 +2,11 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-10-29 (newest) - Mike's Claude - **DEPLOYED (see deploy log)**, no migration: CRM Upload reads Trackvia v7
+### 2026-10-29 (newest) - Mike's Claude - **DEPLOYED (see deploy log)**, migrations 0142 + 0143 (additive): parked work shipped
+
+Bid Comparison (Admin > Fixture kinds editing, learning marks, Suggested changes, Sage one unrated brand), We suggest uses placeholder + added matrix lines, Remove a matrix job button, matrix loader test. Migrations built as 0138/0139 renumbered to 0142 (FixtureKind, FixtureKindWord, BrandGrade) and 0143 (BidLineMark, RuleProposal): five new empty tables, FKs to User only, schema guard OK. Next free migration 0144. Mike: Remove TEMPLATE W DROPDOWNS and COPY OF ITHACA FOR PARSPEC at Admin > Peer review matrices.
+
+### 2026-10-29 - Mike's Claude - **DEPLOYED 887b5c0**, no migration: CRM Upload reads Trackvia v7
 
 Projects tab reads Total SF (grossSf), City/State (location), Office (project onto company branch) and Hive phase SD. "Los Angeles" title case fix. Next: Mike uploads v7 (354 projects) at Admin > CRM Upload. Still parked, NOT in this commit: Bid Comparison 0138/0139, We suggest change + Remove, spec-swaps, matrixImport, verify.mjs, AdminClient.
 

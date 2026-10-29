@@ -44,7 +44,7 @@ export async function loadLevelingView(levelingId) {
   }, matrix);
 
   const swaps = await prisma.specSwap.findMany({
-    where: { archivedAt: null, outcome: { in: ['SWAPPED', 'KEPT'] } },
+    where: { archivedAt: null, outcome: { in: ['SWAPPED', 'KEPT', 'ADDED', 'PLACEHOLDER'] } },
     select: { sourceName: true, origMfr: true, origFamily: true, category: true, propMfr: true, propFamily: true, propCatalog: true, productId: true, outcome: true, unitCn: true, sheetDate: true },
   });
   const specs = requestedSpecs(bids);

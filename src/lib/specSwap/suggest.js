@@ -35,7 +35,7 @@ function time(d) {
 function rank(rows) {
   const groups = new Map();
   for (const s of rows) {
-    const key = s.outcome === 'KEPT' ? 'KEPT' : (s.propFamily || normMfr(s.propMfr) || '?');
+    const key = s.outcome === 'KEPT' || s.outcome === 'PLACEHOLDER' ? s.outcome : (s.propFamily || normMfr(s.propMfr) || '?');
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(s);
   }
@@ -49,12 +49,16 @@ function rank(rows) {
         const c = String(s.propCatalog || '').split(/\r?\n/)[0].trim();
         if (c) catalogs.set(c, (catalogs.get(c) || 0) + 1);
       }
+      const exampleCatalog = [...catalogs.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || null;
+      const named = key !== 'KEPT' && key !== 'PLACEHOLDER';
       return {
         key,
         kept: key === 'KEPT',
+        placeholder: key === 'PLACEHOLDER',
         propMfr: list[0].propMfr || null,
-        propFamily: key === 'KEPT' ? null : key,
-        exampleCatalog: [...catalogs.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || null,
+        propFamily: named ? key : null,
+        familyLabel: named ? splitCatalog(exampleCatalog).family || null : null,
+        exampleCatalog,
         productId: [...products.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] || null,
         jobs: jobs.size,
         lines: list.length,
@@ -75,21 +79,26 @@ export function suggestFor(spec, swaps, { limit = 3 } = {}) {
   const key = familyKey(spec.mfr, spec.catalog);
   const { options } = splitCatalog(spec.catalog);
   const cct = cctOf(options.cct);
-  const usable = swaps.filter((s) => s.outcome === 'SWAPPED' || s.outcome === 'KEPT');
-
-  if (key) {
-    const hits = usable.filter((s) => s.origFamily === key);
-    if (hits.length) return { match: 'FAMILY', familyKey: key, cct, options: rank(hits).slice(0, limit) };
-  }
   const brand = normMfr(spec.mfr);
   const category = categoryOf(spec.description || '', spec.catalog || '');
-  if (brand && category !== 'other') {
-    const hits = usable.filter((s) => normMfr(s.origMfr) === brand && s.category === category);
-    if (hits.length) return { match: 'BRAND_CATEGORY', familyKey: key, cct, options: rank(hits).slice(0, limit) };
+
+  // Mike 10-20: placeholders and added lines feed this too. Added lines have no
+  // original spec, so they only meet a spec by kind of fixture. Placeholders
+  // ride along after the real products (their CN is an allowance), taken from
+  // the closest level that has one.
+  const levels = [];
+  if (key) levels.push(['FAMILY', (s) => s.origFamily === key]);
+  if (brand && category !== 'other') levels.push(['BRAND_CATEGORY', (s) => normMfr(s.origMfr) === brand && s.category === category]);
+  if (category !== 'other') levels.push(['CATEGORY', (s) => s.outcome !== 'KEPT' && s.category === category]);
+
+  let placeholder = null;
+  for (const [match, hit] of levels) {
+    const ranked = rank(swaps.filter(hit));
+    const real = ranked.filter((o) => !o.placeholder).slice(0, limit);
+    const ph = ranked.find((o) => o.placeholder);
+    if (ph && !placeholder) placeholder = { match, option: ph };
+    if (real.length) return { match, familyKey: key, cct, options: placeholder ? [...real, placeholder.option] : real };
   }
-  if (category !== 'other') {
-    const hits = usable.filter((s) => s.outcome === 'SWAPPED' && s.category === category);
-    if (hits.length) return { match: 'CATEGORY', familyKey: key, cct, options: rank(hits).slice(0, limit) };
-  }
+  if (placeholder) return { match: placeholder.match, familyKey: key, cct, options: [placeholder.option] };
   return { match: 'NONE', familyKey: key, cct, options: [] };
 }
