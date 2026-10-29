@@ -5,7 +5,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [National companies with local branches] - October 28, 2026 (DEPLOYED) - migration 0140
+## [National companies with local branches] - October 28, 2026 (DEPLOYED bdf3310) - migration 0140
 
 Mike 10-28: national companies get real branches instead of "(CITY)" in the name; each branch has its own salesperson.
 
