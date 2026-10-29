@@ -2,7 +2,7 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-10-29 (newest) - Mike's Claude - **DEPLOYED (see deploy log)**, no migration: RFQ need by 3 business days + rep review workbook upload
+### 2026-10-29 (newest) - Mike's Claude - **DEPLOYED aa863cb**, no migration: RFQ need by 3 business days + rep review workbook upload
 
 Need by = 3 business days, Denver calendar, weekends and observed office holidays skipped (`isHoliday` in `src/lib/rfq/format.js`). Admin > Sales Rep Upload also takes the marked review workbook (.xlsx, Reps + Links tabs): only KEEP Yes reps load, DEFAULT Yes sets the default. Workbook is internal, lives in Software engineering, not committed. Mike: upload it in prod. RFQ auto reminder check-in PARKED.
 

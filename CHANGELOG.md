@@ -5,7 +5,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [RFQ need by is 3 business days; rep review workbook upload] - October 29, 2026 (DEPLOYED) - no migration
+## [RFQ need by is 3 business days; rep review workbook upload] - October 29, 2026 (DEPLOYED aa863cb) - no migration
 
 Mike 10-29: "No business days, so let's change it to 3 business days." Then: skip holidays too, and clean the Trackvia reps down to the ones we need (no Logiq or AMPS, no rep without a manufacturer, no rep never on a job, keep the ones with a job in the last 2 years).
 
