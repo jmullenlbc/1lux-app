@@ -1,126 +1,115 @@
 'use client';
-import { useState, useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import Button from '@/components/ui/Button';
+import Card from '@/components/ui/Card';
+import { FilterToolbar, FilterPanel, SearchBox, countFilters } from '@/components/ui/FilterPanel';
+import { useUrlView } from '@/lib/useUrlView';
 
-export default function SalesRepsClient({ reps, currentUser }) {
-  const [search, setSearch] = useState('');
+// Sales Reps list (Mike 10-29, 0144). Search runs here in the browser so it
+// ignores case on every database.
 
-  const filtered = useMemo(() => {
-    if (!search.trim()) return reps;
-    const q = search.toLowerCase();
-    return reps.filter(r =>
-      r.name.toLowerCase().includes(q) ||
-      (r.email || '').toLowerCase().includes(q) ||
-      r.projects.some(p => p.name.toLowerCase().includes(q))
-    );
-  }, [reps, search]);
+export default function SalesRepsClient({ initialReps, offices }) {
+  const router = useRouter();
+  const fields = useMemo(() => [
+    { key: 'office', label: 'ILC office', kind: 'pick' },
+    { key: 'inactive', label: 'Show inactive', kind: 'yesno' },
+  ], []);
+  const view = useUrlView({ fields });
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState('');
+  const [adding, setAdding] = useState(false);
+  const [name, setName] = useState('');
+  const [err, setErr] = useState('');
+
+  const officeName = useMemo(() => new Map(offices.map((o) => [o.id, o.name])), [offices]);
+  const rows = useMemo(() => initialReps.map((r) => {
+    const quotes = r.emails.filter((e) => e.purpose === 'QUOTES').map((e) => e.email);
+    const mfrs = [...new Map(r.links.map((l) => [l.manufacturer.id, l.manufacturer.name])).values()].sort();
+    const officesFor = [...new Set(r.links.map((l) => (l.officeId ? officeName.get(l.officeId) : 'All offices')).filter(Boolean))];
+    return { ...r, quotes, mfrs, officesFor, defaults: r.links.filter((l) => l.isDefault).length };
+  }), [initialReps, officeName]);
+
+  const shown = rows.filter((r) => {
+    if (view.filters.inactive !== 'yes' && !r.active) return false;
+    if (view.filters.office && !r.officesFor.includes(view.filters.office) && !r.officesFor.includes('All offices')) return false;
+    if (!q.trim()) return true;
+    const hay = [r.name, r.abbreviation, r.city, r.state, ...r.quotes, ...r.mfrs].join(' ').toLowerCase();
+    return q.toLowerCase().split(/\s+/).every((w) => hay.includes(w));
+  });
+
+  async function add() {
+    if (!name.trim()) return;
+    setErr('');
+    const res = await fetch('/api/sales-reps', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: name.trim() }) }).catch(() => null);
+    const d = await res?.json().catch(() => ({}));
+    if (!res?.ok) { setErr(d?.error || 'The rep was not added. Nothing was saved. Try again. (REP_ADD)'); return; }
+    router.push(`/sales-reps/${d.rep.id}`);
+  }
 
   return (
-    <div className="flex flex-col min-h-screen bg-slate-50">
-      {/* Header */}
-      <div className="bg-white border-b border-slate-200 px-6 py-5 shrink-0">
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <p className="text-[11px] font-bold text-amber-500 uppercase tracking-wide mb-0.5">ILC Studios</p>
-            <h1 className="text-xl font-bold text-slate-900">Sales Reps</h1>
-            <p className="text-sm text-slate-500 mt-0.5">
-              {reps.length} rep{reps.length !== 1 ? 's' : ''} on record from submittal history
-            </p>
-          </div>
-
-          {/* Search */}
-          <div className="relative w-56">
-            <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-            </svg>
-            <input
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Search reps or projects…"
-              className="w-full pl-8 pr-3 py-2 text-xs border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-orange-500"
-            />
-          </div>
+    <div className="max-w-7xl mx-auto">
+      <div className="px-6 py-8 border-b border-slate-200 flex items-end justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Sales Reps</h1>
+          <p className="text-slate-500 text-sm mt-1">Who quotes each manufacturer, by ILC office. RFQs go to each rep&apos;s Quotes emails.</p>
         </div>
-      </div>
-
-      {/* Body */}
-      <div className="flex-1 overflow-y-auto px-6 py-6">
-        {reps.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-24 text-center">
-            <div className="w-16 h-16 rounded-xl bg-slate-100 flex items-center justify-center text-3xl mb-4">🤝</div>
-            <p className="text-slate-500 font-semibold mb-1">No sales reps on record yet</p>
-            <p className="text-sm text-slate-500 max-w-xs">
-              Sales rep names are captured from submittal tracking. They'll appear here once peer review items are added.
-            </p>
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <p className="text-slate-500">No reps match "{search}"</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {filtered.map(rep => (
-              <div key={rep.name}
-                className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden hover:shadow-md hover:border-slate-300 transition-all">
-
-                {/* Card header */}
-                <div className="flex items-center gap-3 px-5 py-4 border-b border-slate-100">
-                  <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center shrink-0">
-                    <span className="text-sm font-bold text-green-700">
-                      {rep.name.slice(0, 1).toUpperCase()}
-                    </span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-slate-900 truncate">{rep.name}</p>
-                    {rep.email ? (
-                      <a href={`mailto:${rep.email}`}
-                        className="text-xs text-orange-600 hover:underline truncate block"
-                        onClick={e => e.stopPropagation()}>
-                        {rep.email}
-                      </a>
-                    ) : (
-                      <p className="text-xs text-slate-500">No email on record</p>
-                    )}
-                  </div>
-                  {rep.email && (
-                    <a href={`mailto:${rep.email}`}
-                      className="shrink-0 w-8 h-8 rounded-lg bg-slate-50 hover:bg-orange-50 flex items-center justify-center text-slate-500 hover:text-orange-600 transition-colors border border-slate-200"
-                      onClick={e => e.stopPropagation()}
-                      title={`Email ${rep.name}`}>
-                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
-                      </svg>
-                    </a>
-                  )}
-                </div>
-
-                {/* Projects */}
-                <div className="px-5 py-3">
-                  <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-2">
-                    {rep.projects.length} project{rep.projects.length !== 1 ? 's' : ''}
-                  </p>
-                  <div className="space-y-1">
-                    {rep.projects.slice(0, 4).map(p => (
-                      <Link key={p.id} href={`/project/${p.id}`}
-                        className="flex items-center gap-2 group">
-                        <div className="w-1 h-1 rounded-full bg-slate-300 shrink-0" />
-                        <span className="text-xs text-slate-600 group-hover:text-amber-600 transition-colors truncate">
-                          {p.name}
-                          {p.client ? <span className="text-slate-500"> · {p.client.name}</span> : ''}
-                        </span>
-                      </Link>
-                    ))}
-                    {rep.projects.length > 4 && (
-                      <p className="text-[11px] text-slate-500 pl-3">
-                        +{rep.projects.length - 4} more
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
-            ))}
+        {!adding && <Button onClick={() => setAdding(true)}>Add rep</Button>}
+        {adding && (
+          <div className="flex items-center gap-2">
+            <input autoFocus value={name} onChange={(e) => setName(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && add()}
+              placeholder="Rep agency name" className="border border-slate-300 rounded-lg px-3 py-2 text-sm w-64" />
+            <Button onClick={add} disabled={!name.trim()}>Add</Button>
+            <Button variant="secondary" onClick={() => { setAdding(false); setName(''); }}>Cancel</Button>
           </div>
         )}
+      </div>
+
+      <div className="p-6 space-y-4">
+        {err && <p className="text-sm text-red-600">{err}</p>}
+        <FilterToolbar count={countFilters(view.filters, fields)} open={open} onToggle={() => setOpen((o) => !o)}
+          onClear={view.clearFilters} shown={shown.length} total={rows.length} noun="reps"
+          right={<SearchBox value={q} onChange={setQ} placeholder="Search reps, emails, manufacturers" className="w-72" />} />
+        <FilterPanel open={open} fields={fields} filters={view.filters} choices={{ office: offices.map((o) => o.name) }} onChange={view.setFilter} />
+
+        <Card className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-slate-50 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">
+              <tr>
+                <th className="px-4 py-2">Rep</th>
+                <th className="px-4 py-2">Offices</th>
+                <th className="px-4 py-2">Manufacturers</th>
+                <th className="px-4 py-2">Quotes emails</th>
+                <th className="px-4 py-2 text-right">RFQs</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {shown.map((r) => (
+                <tr key={r.id} className={`hover:bg-slate-50 ${r.active ? '' : 'opacity-50'}`}>
+                  <td className="px-4 py-2">
+                    <Link href={`/sales-reps/${r.id}`} className="font-medium text-slate-900 hover:text-orange-600">{r.name}</Link>
+                    {!r.active && <span className="ml-2 text-xs text-slate-400">Inactive</span>}
+                    {(r.city || r.state) && <div className="text-xs text-slate-400">{[r.city, r.state].filter(Boolean).join(', ')}</div>}
+                  </td>
+                  <td className="px-4 py-2 text-slate-600">{r.officesFor.join(', ') || <span className="text-slate-300">None</span>}</td>
+                  <td className="px-4 py-2 text-slate-600 max-w-md">
+                    {r.mfrs.slice(0, 6).join(', ')}{r.mfrs.length > 6 && <span className="text-slate-400"> and {r.mfrs.length - 6} more</span>}
+                  </td>
+                  <td className="px-4 py-2 text-slate-600">
+                    {r.quotes.length ? r.quotes.join(', ') : <span className="text-red-600 text-xs">No Quotes email</span>}
+                  </td>
+                  <td className="px-4 py-2 text-right tabular-nums text-slate-600">{r._count.rfqs || ''}</td>
+                </tr>
+              ))}
+              {!shown.length && (
+                <tr><td colSpan={5} className="px-4 py-8 text-center text-slate-400">
+                  {rows.length ? 'No reps match.' : 'No reps yet. An admin can load them from Admin, Sales Rep upload, or press Add rep.'}
+                </td></tr>
+              )}
+            </tbody>
+          </table>
+        </Card>
       </div>
     </div>
   );

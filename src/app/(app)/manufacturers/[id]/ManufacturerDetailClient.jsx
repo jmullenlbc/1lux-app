@@ -1,6 +1,10 @@
 'use client';
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import RecordHistory from '@/components/RecordHistory';
+import EmailLists from '@/components/salesReps/EmailLists';
+import RepLinksCard from '@/components/salesReps/RepLinksCard';
 
 const TERMS_OPTIONS = ['NET 30', 'NET 60', 'PAY IN ADVANCE', '1%/10 NET 25th', 'NET 45', 'COD'];
 const STATES_US = ['AL','AK','AZ','AR','CA','CO','CT','DE','FL','GA','HI','ID','IL','IN','IA','KS','KY','LA','ME','MD','MA','MI','MN','MS','MO','MT','NE','NV','NH','NJ','NM','NY','NC','ND','OH','OK','OR','PA','RI','SC','SD','TN','TX','UT','VT','VA','WA','WV','WI','WY'];
@@ -74,24 +78,49 @@ function EditableField({ label, value, onSave, type = 'text', options, mono = fa
   );
 }
 
-export default function ManufacturerDetailClient({ manufacturer: initial }) {
+export default function ManufacturerDetailClient({ manufacturer: initial, offices = [], reps = [] }) {
+  const router = useRouter();
   const [mfr, setMfr] = useState(initial);
   const [saving, setSaving] = useState(false);
   const [saved,  setSaved]  = useState(false);
+  const [err, setErr] = useState('');
+  const [version, setVersion] = useState(0);
 
   async function patch(field, value) {
     setSaving(true);
     setSaved(false);
+    setErr('');
+    const before = mfr[field];
     setMfr(prev => ({ ...prev, [field]: value }));
-    await fetch(`/api/manufacturers/${mfr.id}`, {
+    const res = await fetch(`/api/manufacturers/${mfr.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ [field]: value }),
-    });
+    }).catch(() => null);
     setSaving(false);
+    if (!res?.ok) {
+      const d = await res?.json().catch(() => ({}));
+      setMfr(prev => ({ ...prev, [field]: before }));
+      setErr(d?.error || `The change was not saved${res ? ` (our server said ${res.status})` : ', no signal reaching our server'}. Try again. (MFR_SAVE)`);
+      return;
+    }
     setSaved(true);
+    setVersion(v => v + 1);
     setTimeout(() => setSaved(false), 2000);
   }
+
+  async function saveEmails(emails) {
+    const res = await fetch(`/api/manufacturers/${mfr.id}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ emails }),
+    }).catch(() => null);
+    const d = await res?.json().catch(() => ({}));
+    if (!res?.ok) return d?.error || 'The emails were not saved. Try again. (MFR_EMAILS)';
+    setMfr(prev => ({ ...prev, emails: d.manufacturer?.emails || prev.emails }));
+    setVersion(v => v + 1);
+    return null;
+  }
+
+  function linksChanged() { router.refresh(); setVersion(v => v + 1); }
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -116,6 +145,7 @@ export default function ManufacturerDetailClient({ manufacturer: initial }) {
           </div>
         </div>
         <div className="flex items-center gap-3">
+          {err && <span className="text-[10px] text-red-600 max-w-xs">{err}</span>}
           {saving && <span className="text-[10px] text-slate-400">Saving…</span>}
           {saved  && <span className="text-[10px] text-green-600">Saved</span>}
           {mfr.setupToSell && (
@@ -174,6 +204,25 @@ export default function ManufacturerDetailClient({ manufacturer: initial }) {
           </div>
         </div>
 
+        {/* Who quotes it (0144): buy direct uses the emails below, else the rep for the job's office. */}
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm px-5 py-5">
+          <h2 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-4">Buying</h2>
+          <Field label="Buy direct">
+            <button onClick={() => patch('buyDirect', !mfr.buyDirect)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${mfr.buyDirect ? 'bg-green-100 text-green-700 hover:bg-green-200' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'}`}>
+              {mfr.buyDirect ? 'YES' : 'NO'}
+            </button>
+          </Field>
+          <p className="text-xs text-slate-500 mt-2 mb-4">
+            {mfr.buyDirect ? 'RFQs go straight to this manufacturer, not a rep.' : "RFQs go to the default rep for the job's office. Turn on to skip the rep."}
+          </p>
+          {mfr.buyDirect && <EmailLists key={(mfr.emails || []).map(e => e.id).join()} emails={mfr.emails || []} onSave={saveEmails} />}
+        </div>
+
+        {!mfr.buyDirect && (
+          <RepLinksCard side="manufacturer" ownerId={mfr.id} links={initial.repLinks || []} offices={offices} options={reps} onChanged={linksChanged} />
+        )}
+
         {/* Notes */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm px-5 py-5">
           <h2 className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-4">Notes</h2>
@@ -219,6 +268,7 @@ export default function ManufacturerDetailClient({ manufacturer: initial }) {
           )}
         </div>
 
+        <RecordHistory type="MANUFACTURER" id={mfr.id} version={version} />
       </div>
     </div>
   );

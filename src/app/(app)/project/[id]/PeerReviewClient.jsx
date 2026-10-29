@@ -51,7 +51,6 @@ const TAG_ACTIVE = {
   common:   'bg-blue-500',
 };
 
-const RFQ_OPTIONS = ['Received', 'Budget Price', 'Pending', 'Needs Review'];
 const ALT_OPTIONS = ['eLuma', 'Original Spec', 'Alt Spec', 'ILC Standard'];
 
 // ── Formatters ────────────────────────────────────────────────────────────────
@@ -1092,6 +1091,16 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
     fetch('/api/manufacturers').then(r => r.json()).then(d => setManufacturers(d.manufacturers || []));
   }, []);
 
+  // Rep and RFQ status are worked out by the RFQs tab (0144), not typed here.
+  // Reloads when lines are added or removed, or a manufacturer changes.
+  const [rfqByItem, setRfqByItem] = useState({});
+  const rfqKey = items.map(i => `${i.id}:${i.propManufacturer || ''}`).join('|');
+  useEffect(() => {
+    fetch(`/api/projects/${project.id}/rfqs`).then(r => (r.ok ? r.json() : null))
+      .then(d => { if (d?.lines) setRfqByItem(Object.fromEntries(d.lines.map(l => [l.id, l]))); })
+      .catch(() => {});
+  }, [project.id, rfqKey]);
+
   // Load bid version history (full matrix objects with items)
   useEffect(() => {
     fetch(`/api/projects/${project.id}/design-bid-matrix`)
@@ -1418,8 +1427,8 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
       }),
       [isDesignBid ? 'Manufacturer' : 'Prop. Manufacturer']: item.propManufacturer || '',
       [isDesignBid ? 'Part #'       : 'Prop. Spec']:          item.propModel || '',
-      'Sales Rep':          item.repName || '',
-      'RFQ Status':         item.rfqStatus || '',
+      'Sales Rep':          rfqByItem[item.id]?.repName || '',
+      'RFQ Status':         rfqByItem[item.id]?.status || '',
       'DN $/unit':          item.propUnitDN ?? '',
       'CN $/unit':          item.propUnitPrice ?? '',
       'CN Total':           item.totalSavings ?? '',
@@ -2305,13 +2314,15 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
                                   onMfrProductAdded={handleMfrProductAdded} />
                               </td>
                               <td className="px-3 py-2 align-middle">
-                                <Cell value={item.repName} cellId={`${item.id}||repName`}
-                                  placeholder="Rep name" onSave={v => patch(item.id, { repName: v })}
-                                  className="text-slate-600 w-full" />
+                                <Link href={`/project/${project.id}?tab=rfqs`} title={rfqByItem[item.id]?.how || 'Set on the RFQs tab'}
+                                  className="block text-sm text-slate-600 hover:text-orange-600 truncate">
+                                  {rfqByItem[item.id]?.repName || <span className="text-slate-300">None</span>}
+                                </Link>
                               </td>
                               <td className="px-3 py-2 align-middle border-r border-slate-100">
-                                <SelectCell value={item.rfqStatus} options={RFQ_OPTIONS} placeholder="Status"
-                                  onSave={v => patch(item.id, { rfqStatus: v })} />
+                                <Link href={`/project/${project.id}?tab=rfqs`} className="block text-sm text-slate-600 hover:text-orange-600">
+                                  {rfqByItem[item.id]?.status || <span className="text-slate-300">None</span>}
+                                </Link>
                               </td>
                               <td className="px-1 py-2 align-middle">
                                 <Cell value={item.qty} cellId={`${item.id}||qty`}

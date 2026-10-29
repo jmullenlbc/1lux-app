@@ -59,6 +59,7 @@ const REQUIREMENTS = [
     'api/projects/[id]/budget/pdf',
     'api/projects/[id]/peer-review/pdf',
     'api/projects/[id]/design-bid-matrix/pdf',
+    'api/projects/[id]/rfqs/[rfqId]/pdf',
     'api/intake/pdf',
   ].map(route => ({ route, asset: 'sparticuz', why: 'PDF generation cannot launch a browser without the chromium binary' })),
   // @napi-rs/canvas ships a platform-specific native binary (skia .node) used to

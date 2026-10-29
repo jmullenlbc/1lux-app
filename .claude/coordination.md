@@ -2,7 +2,11 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-10-29 (newest) - Mike's Claude - **DEPLOYED (see deploy log)**, migrations 0142 + 0143 (additive): parked work shipped
+### 2026-10-29 (newest) - Mike's Claude - **DEPLOYED (see deploy log)**, migration 0144 (additive): Sales Reps and RFQs
+
+0144_sales_reps_rfq: new tables OurOffice (3 seeded offices, Florida placeholder 555 Main St., Your Home, FL), SalesRep, RepEmail, ManufacturerRep, ProjectRepPick, Rfq, RfqLine, RfqQuote, RfqQuoteLine, RecordHistory. New columns Project.ourOfficeId (nullable, SET NULL) and Manufacturer.buyDirect (default false). No drops, renames or type changes; no existing data touched; schema guard OK, both deploy guards pass. Next free migration 0145. RFQs tab per project, Pre-Con RFQs tab, rep pages with Add rep, Admin > Sales rep load (Trackvia), Our Offices. Email is a Gmail draft hand off until Microsoft. Mike: press the Trackvia rep load in prod and settle rep ties.
+
+### 2026-10-29 - Mike's Claude - **DEPLOYED b2f348f**, migrations 0142 + 0143 (additive): parked work shipped
 
 Bid Comparison (Admin > Fixture kinds editing, learning marks, Suggested changes, Sage one unrated brand), We suggest uses placeholder + added matrix lines, Remove a matrix job button, matrix loader test. Migrations built as 0138/0139 renumbered to 0142 (FixtureKind, FixtureKindWord, BrandGrade) and 0143 (BidLineMark, RuleProposal): five new empty tables, FKs to User only, schema guard OK. Next free migration 0144. Mike: Remove TEMPLATE W DROPDOWNS and COPY OF ITHACA FOR PARSPEC at Admin > Peer review matrices.
 

@@ -9,10 +9,48 @@ import PreConBudgetsTable from './PreConBudgetsTable';
 import GuessAccuracyCard from './GuessAccuracyCard';
 import { conceptualAccuracy } from '@/lib/budgetAmounts';
 import { CARD, H1, H2, HELPER, STAT_VALUE } from '@/components/ui/tokens';
+import SectionTabs from '@/components/ui/SectionTabs';
+import PreConRfqs from './PreConRfqs';
 
-export default async function PreConPage() {
+const TABS = [
+  { key: 'budgets', href: '/pre-con', label: 'Budgets' },
+  { key: 'rfqs', href: '/pre-con?tab=rfqs', label: 'RFQs' },
+];
+
+export default async function PreConPage({ searchParams }) {
   const { error, user } = await requireAuth();
   if (error) redirect('/login');
+  const tab = searchParams?.tab === 'rfqs' ? 'rfqs' : 'budgets';
+
+  if (tab === 'rfqs') {
+    let rfqs = [];
+    try {
+      const rows = await prisma.rfq.findMany({
+        where: { project: projectScopeWhere(user) },
+        select: {
+          id: true, number: true, status: true, toName: true, needBy: true, sentByName: true,
+          receivedAt: true, createdAt: true, updatedAt: true,
+          project: { select: { id: true, name: true } },
+          lines: { select: { dnPrice: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 500,
+      });
+      rfqs = rows.map(({ lines, ...r }) => ({ ...r, total: lines.length, priced: lines.filter((l) => l.dnPrice != null).length }));
+    } catch (err) {
+      console.error('[/pre-con rfqs] DB query failed:', err?.message ?? err);
+    }
+    return (
+      <div className="min-h-screen bg-slate-50 p-8">
+        <div className="max-w-6xl mx-auto">
+          <h1 className={H1}>Pre-Construction</h1>
+          <p className={`${HELPER} mt-1 mb-4`}>Every RFQ sent to reps, across your jobs.</p>
+          <SectionTabs tabs={TABS} active="rfqs" />
+          <PreConRfqs rfqs={rfqs} />
+        </div>
+      </div>
+    );
+  }
 
   let mfrCount = 0, productCount = 0, projects = [];
   try {
@@ -77,7 +115,8 @@ export default async function PreConPage() {
 
         <div>
           <h1 className={H1}>Pre-Construction</h1>
-          <p className={`${HELPER} mt-1`}>Manage your manufacturer catalog, products, and all budgets.</p>
+          <p className={`${HELPER} mt-1 mb-4`}>Manage your manufacturer catalog, products, and all budgets.</p>
+          <SectionTabs tabs={TABS} active="budgets" className="-mt-1" />
         </div>
 
         {/* ── Catalog cards ── */}

@@ -15,6 +15,7 @@ import { afterUploadReads } from '@/lib/scheduleReadClient';
 import ProjectChat from '@/components/ProjectChat';
 import TakeoffDashboard from '@/components/TakeoffDashboard';
 import BidLevelingTab from '@/components/bidLeveling/BidLevelingTab';
+import RfqTab from '@/components/rfq/RfqTab';
 import UnitMatrixUpload from '@/components/unitMatrix/UnitMatrixUpload';
 import SiteDataUpload from '@/components/site/SiteDataUpload';
 import ContractWidgets from '@/components/ContractWidgets';
@@ -1659,6 +1660,7 @@ export default function ProjectHubClient({ userId, userRole, canEditMoney = fals
 
         {/* ── BID LEVELING ─────────────────────────────────────────────── */}
         {activeTab === 'bid-leveling' && <BidLevelingTab projectId={project.id} />}
+        {activeTab === 'rfqs' && <RfqTab projectId={project.id} />}
 
         {/* ── ESTIMATE ─────────────────────────────────────────────────── */}
         {/* TODO: estimate tab removed per nav refactor, content to be absorbed into Drawings tab (Feature 1) */}

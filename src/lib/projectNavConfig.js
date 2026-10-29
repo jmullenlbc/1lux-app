@@ -21,6 +21,7 @@ export const NAV_CONFIG = {
         { id: 'budgets',         label: 'Budgets',         icon: 'Calculator' },
         { id: 'takeoffs',        label: 'Takeoffs',        icon: 'Ruler' },
         { id: 'bid-leveling',    label: 'Bid Leveling',    icon: 'Scale' },
+        { id: 'rfqs',            label: 'RFQs',            icon: 'Mail' },
       ],
     },
     {
@@ -75,6 +76,7 @@ export const NAV_CONFIG = {
         { id: 'budgets',         label: 'Budgets',         icon: 'Calculator' },
         { id: 'takeoffs',        label: 'Takeoffs',        icon: 'Ruler' },
         { id: 'bid-leveling',    label: 'Bid Leveling',    icon: 'Scale' },
+        { id: 'rfqs',            label: 'RFQs',            icon: 'Mail' },
       ],
     },
     {
@@ -130,6 +132,7 @@ export const NAV_CONFIG = {
         { id: 'fixture-schedule',label: 'Fixture Schedule',icon: 'ListChecks' },
         { id: 'takeoffs',        label: 'Takeoffs',        icon: 'Ruler' },
         { id: 'bid-leveling',    label: 'Bid Leveling',    icon: 'Scale' },
+        { id: 'rfqs',            label: 'RFQs',            icon: 'Mail' },
       ],
     },
     {

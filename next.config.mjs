@@ -90,6 +90,7 @@ const nextConfig = {
                 '/api/projects/[id]/budget/pdf': ['./node_modules/@sparticuz/chromium/**/*'],
                 '/api/projects/[id]/peer-review/pdf': ['./node_modules/@sparticuz/chromium/**/*'],
                 '/api/projects/[id]/design-bid-matrix/pdf': ['./node_modules/@sparticuz/chromium/**/*'],
+                '/api/projects/[id]/rfqs/[rfqId]/pdf': ['./node_modules/@sparticuz/chromium/**/*'],
                 // Public conceptual-budget PDF download (/conceptual_budget review step).
                 '/api/intake/pdf': ['./node_modules/@sparticuz/chromium/**/*'],
                 // Every route that reads a PDF server-side needs BOTH of these.

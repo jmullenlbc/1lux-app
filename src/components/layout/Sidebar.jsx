@@ -495,7 +495,8 @@ export default function Sidebar({ user }) {
   const softwareRelated = startsWith('/admin/changelog') || startsWith('/admin/roadmap') ||
                           startsWith('/admin/tasks') || startsWith('/admin/tech-stack') ||
                           startsWith('/admin/usage') || startsWith('/admin/agent-runs') ||
-                          startsWith('/admin/mcp-keys') || startsWith('/admin/crm-import');
+                          startsWith('/admin/mcp-keys') || startsWith('/admin/crm-import') ||
+                          startsWith('/admin/sales-reps-import') || startsWith('/admin/offices');
   const adminRelated    = at('/admin') || startsWith('/admin/intake');
 
   // ── Collapsible open states ───────────────────────────────────────────────────
@@ -683,6 +684,8 @@ export default function Sidebar({ user }) {
                 {isIlcAdmin && <SubNavItem href="/admin/agent-runs" icon={<IconSignature />} label="AI Review Queue" expanded={expanded} active={startsWith('/admin/agent-runs')} />}
                 {isIlcAdmin && <SubNavItem href="/admin/mcp-keys" icon={<IconKey />} label="AI Access Keys" expanded={expanded} active={startsWith('/admin/mcp-keys')} />}
                 {isIlcAdmin && <SubNavItem href="/admin/crm-import" icon={<IconUsers />} label="CRM Upload" expanded={expanded} active={startsWith('/admin/crm-import')} />}
+                {isIlcAdmin && <SubNavItem href="/admin/sales-reps-import" icon={<IconUsers />} label="Sales Rep Upload" expanded={expanded} active={startsWith('/admin/sales-reps-import')} />}
+                {isIlcAdmin && <SubNavItem href="/admin/offices" icon={<IconUsers />} label="Our Offices" expanded={expanded} active={startsWith('/admin/offices')} />}
               </div>
             )}
           </div>

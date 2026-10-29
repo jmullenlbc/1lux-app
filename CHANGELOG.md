@@ -5,6 +5,28 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Sales Reps and RFQs] - October 29, 2026 (NOT DEPLOYED) - Migration 0144
+
+Mike 10-29: each manufacturer on a bid matrix is tied to a sales rep; group the lines by rep, build one RFQ per rep and send it with one click. Better than Trackvia; Logiq and AMPS removed from everything ("7. Yes go").
+
+- **Sales Reps** are their own table like manufacturers: `/sales-reps` list and a rep page with phones, address, quote and order emails, the manufacturers they carry per office (default rep per manufacturer and office), and a history at the bottom (what, when, who). Anyone on staff edits.
+- **Manufacturers** show their connected reps and a Buying card: "Buy direct" with its own Quotes and Orders emails skips the rep.
+- **Our Offices** (`/admin/offices`): company name, address, phone and emails per office that print on the RFQ, plus the RFQ notes. Florida address is a placeholder (555 Main St., Your Home, FL) until Mike has the real one.
+- **Pre-Con RFQs tab** (`/pre-con?tab=rfqs`, Mike 10-29: a pre-con activity, not My Desk): Open, Overdue and Received tiles, open RFQs with overdue first, recently received, each linking to the project's RFQs tab.
+- **Add rep** button on `/sales-reps`.
+- **Projects** get "Which ILC office works this job".
+- **RFQs tab** on every project (Budget module): lines grouped by rep (project pick, then buy direct, then the office default, then the only rep), plain reasons when a group cannot be sent, per job rep pick, notes, Send or Send all. Sending numbers from RFQ0001, need by 72 hours (PDF and email), marks lines Sent, and hands over the email (Gmail draft, copy buttons) with the PDF. The app does not send email itself yet.
+- **Sent RFQs**: type DN prices, get the email and PDF again, Send revision (new number pointing back).
+- **RFQ received**: bring in the rep's quote with the Bid Leveling reader; lines matched at 75% or better are priced straight away, the rest ask which line (best matches first) or "Not ours".
+- **Bid matrix** rep and RFQ status cells (Draft, Sent, Received) are now automatic and link to the RFQs tab.
+- **Admin > Sales rep load**: reads the three Trackvia exports (reps, manufacturer reps, project reps), drops Logiq and AMPS, maps Denver, Los Angeles (Long Beach) and Florida, picks defaults by past jobs and lists ties for a person. Missing manufacturers are added.
+- Fixed: a quote mark on the manufacturer page that stopped it opening.
+- Email stays a Gmail draft hand off until Microsoft is set up (Mike 10-29).
+- Tests: `scripts/tests/rfq.test.mjs` (numbers, 72 hours, matching, Trackvia load; in verify), `scripts/tests/rfqE2e.test.mjs` (send, price, quote match, pick, skip, PDF, pages including both Pre-Con tabs; passes locally).
+- Files: `prisma/schema.prisma`, `prisma/migrations/0144_sales_reps_rfq/`; `src/lib/rfq/*`, `src/lib/salesReps/*`, `src/lib/recordHistory.js`; `src/app/api/{sales-reps,manufacturer-reps,offices,history,admin/sales-reps-import,projects/[id]/rfqs}/`; `src/components/rfq/*`, `src/components/salesReps/*`, `src/components/RecordHistory.jsx`; `src/app/(app)/sales-reps/*`, `pre-con/{page,PreConRfqs}.jsx`, `admin/offices`, `admin/sales-reps-import`, `manufacturers/[id]/*`, `project/[id]/{PeerReviewClient,ProjectHubClient}.jsx`; `src/app/api/manufacturers/[id]/route.js`; Sidebar, projectNavConfig, `src/lib/auth.js`, `src/lib/pdf.js`, `next.config.mjs`, `scripts/check-runtime-assets.mjs`, `scripts/verify.mjs`.
+
+---
+
 ## [CRM Upload reads the Trackvia history (v7)] - October 29, 2026 (DEPLOYED 887b5c0) - no migration
 
 Mike 10-28: fold the Trackvia project history into the clean up sheet (v7) so it is one upload, and load square footage, location and the SD phase ("1. Yes").
@@ -134,7 +156,7 @@ Mike 10-20 review of Sales Docs: viewer controls "like Bluebeam", page time on t
 - **Back buttons**: "Back to Documents" or "Back to {Folder}" on a document (opened from a Folder it keeps the Folder), "Back to Folders" on a Folder.
 - Files: DocViewers.jsx, EngagementParts.jsx (`EngagementPanel`, `UnitTimeBars`), LinksTable.jsx, `sales/docs/[docId]/page.jsx`, `sales/docs/spaces/[spaceId]/page.jsx`, `sales/docs/spaces/page.jsx`, `sales/docs/links/page.jsx`, `sales/docs/engagement/page.jsx` (redirect, force-dynamic), SalesDocShareView.jsx, SectionTabs.jsx, `src/lib/salesDocs/events.js`, `api/sales-docs/engagement/route.js`, API error wording in the links and spaces routes. `salesDocsE2e.test.mjs` checks the page totals (passes). Build passes. Local check on a 6 page PDF link: Fit page, next page and page time all work.
 
-## [Bid Comparison: learning loop, Sage one brand, everyone edits] - October 22, 2026 (DEPLOYED 10-29, see below) - Migration 0143 (built as 0139)
+## [Bid Comparison: learning loop, Sage one brand, everyone edits] - October 22, 2026 (DEPLOYED b2f348f 10-29) - Migration 0143 (built as 0139)
 
 Mike 10-22: Sage is one brand and its sub brands are not rated for now; large amenity fans stay bid to bid; everyone on staff edits kinds and brands and marks lines for now; build the learning loop before the upload page.
 
@@ -148,7 +170,7 @@ Mike 10-22: Sage is one brand and its sub brands are not rated for now; large am
 
 Files: `prisma/schema.prisma`, `prisma/migrations/0143_bid_comparison_learning/`; `src/lib/bidComparison/learnRules.js` (new), `learn.js` (new), `rulesStore.js` (`addKindWord`), `kinds.js`, `typicals.js`; `src/app/api/admin/bid-comparison/route.js`; `src/components/bidComparison/FixtureKindsTab.jsx`; `scripts/bidComparisonCoverage.mjs`; `scripts/verify.mjs`; `scripts/tests/bidComparisonLearn.test.mjs` (new), `bidComparisonRulesE2e.test.mjs`, `bidComparisonE2e.test.mjs`.
 
-## [Bid Comparison: staff edit kinds and brands, Sage Brands cross] - October 22, 2026 (DEPLOYED 10-29, see below) - Migration 0142 (built as 0138)
+## [Bid Comparison: staff edit kinds and brands, Sage Brands cross] - October 22, 2026 (DEPLOYED b2f348f 10-29) - Migration 0142 (built as 0138)
 
 Mike 10-22: the cross is Sage Brands (Eluma is part of it); spec fan $200 to $400 for 48 to 55 in; garage is Sage only; "Yes absolutely" to editing on screen.
 
@@ -162,7 +184,7 @@ Mike 10-22: the cross is Sage Brands (Eluma is part of it); spec fan $200 to $40
 
 Files: `prisma/schema.prisma`, `prisma/migrations/0142_bid_comparison_rules/`; `src/lib/bidComparison/kinds.js`, `typicals.js`, `check.js`, `load.js`, `rulesStore.js`; `src/app/api/admin/bid-comparison/route.js`; `src/components/bidComparison/FixtureKindsTab.jsx`; `scripts/bidComparisonCoverage.mjs`; `scripts/tests/bidComparison.test.mjs`, `bidComparisonRulesE2e.test.mjs`.
 
-## [Bid Comparison step 1: fixture kinds and the check] - October 21, 2026 (DEPLOYED 10-29, see below) - no migration
+## [Bid Comparison step 1: fixture kinds and the check] - October 21, 2026 (DEPLOYED b2f348f 10-29) - no migration
 
 Mike 10-21: "Yes go" on step 1. Internal only. Kinds and brand grades live in code, read only on screen.
 
@@ -175,7 +197,7 @@ Mike 10-21: "Yes go" on step 1. Internal only. Kinds and brand grades live in co
 
 Files: `src/lib/bidComparison/kinds.js`, `typicals.js`, `check.js`, `load.js`; `src/app/api/admin/bid-comparison/route.js`; `src/components/bidComparison/FixtureKindsTab.jsx`; `src/app/(app)/admin/AdminClient.jsx`; `scripts/bidComparisonCoverage.mjs`; `scripts/tests/bidComparison.test.mjs`, `bidComparisonE2e.test.mjs`; `scripts/verify.mjs`.
 
-## [We suggest uses placeholders and added lines] - October 20, 2026 (DEPLOYED 10-29, see below) - no migration
+## [We suggest uses placeholders and added lines] - October 20, 2026 (DEPLOYED b2f348f 10-29) - no migration
 
 Mike 10-20: "1. We suggest" (placeholder and added matrix lines feed the suggestions).
 

@@ -228,3 +228,14 @@ export async function requireSuperAdmin(request) {
 
 // Legacy alias
 export const requireILCAdmin = requireSuperAdmin;
+
+// Any ILC staff login; Client Viewers are turned away. Reps, offices and RFQs
+// (Mike 10-29: "anyone can send RFQs", "anyone can edit").
+export async function requireStaff(request) {
+  const { user, error } = await requireAuth(request);
+  if (error) return { user: null, error };
+  if (isClientViewer(user.role)) {
+    return { user: null, error: NextResponse.json({ error: 'Client logins cannot see reps or RFQs. (STAFF_ONLY)' }, { status: 403 }) };
+  }
+  return { user, error: null };
+}

@@ -658,6 +658,9 @@ model Project {
   name                          String
   buildingType                  String?
   location                      String?
+  // Which ILC office works this job (Mike 10-29). RFQs print its address and emails.
+  ourOfficeId                   String?
+  ourOffice                     OurOffice?     @relation(fields: [ourOfficeId], references: [id], onDelete: SetNull)
   contactEmail                  String?
   address                       String?
   date                          String?
@@ -804,6 +807,9 @@ model Project {
   // The unfinished public budget this project was made from (0116), if any.
   conceptualDraft      ConceptualDraft?            @relation("DraftProject")
   duplicateReviews     DuplicateReview[]           @relation("ReviewExistingProject")
+  rfqs                 Rfq[]
+  repPicks             ProjectRepPick[]
+  rfqQuotes            RfqQuote[]
 
   // A company's Related Projects reads all six of these at once.
   @@index([developerId])
@@ -1146,6 +1152,7 @@ model PeerReviewItem {
   sortOrder          Int      @default(0)
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
+  rfqLines           RfqLine[]
 }
 
 model QuestionnaireResponse {
@@ -1316,9 +1323,15 @@ model Manufacturer {
   city               String?
   state              String?
   zip                String?
+  // Buy direct (Mike 10-29): no rep. RFQs go to its own Quotes emails, POs to its Orders emails.
+  buyDirect          Boolean               @default(false)
   createdAt          DateTime              @default(now())
   updatedAt          DateTime              @updatedAt
   products           ManufacturerProduct[]
+  repLinks           ManufacturerRep[]
+  emails             RepEmail[]
+  repPicks           ProjectRepPick[]
+  rfqs               Rfq[]
 }
 
 model ManufacturerProduct {
@@ -4868,4 +4881,214 @@ model RuleProposal {
   updatedAt   DateTime  @updatedAt
 
   @@index([status])
+}
+
+// ── Sales reps and RFQs (Mike 10-29, migration 0144) ─────────────────────────
+// Replaces the Trackvia rep tables. Reps are their own table like manufacturers.
+// Which rep quotes a matrix line is worked out live (src/lib/rfq/resolve.js):
+// project pick > buy direct > office default > the only rep at that office.
+
+// An ILC office (Denver, Long Beach, Florida). Everything printed on an RFQ.
+model OurOffice {
+  id           String            @id @default(cuid())
+  name         String // Denver | Long Beach | Florida
+  companyName  String            @default("Innovative Lighting Consultants dba ILC Studios")
+  street       String?
+  city         String?
+  state        String?
+  zip          String?
+  phone        String?
+  pricingEmail String? // "Send pricing to"
+  ordersEmail  String? // RFQ email From and Reply-To
+  rfqNotes     String? // the bullets under the RFQ header, one per line; blank = the standard four
+  active       Boolean           @default(true)
+  sortOrder    Int               @default(0)
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  projects     Project[]
+  repLinks     ManufacturerRep[]
+  rfqs         Rfq[]
+}
+
+model SalesRep {
+  id           String            @id @default(cuid())
+  name         String
+  abbreviation String?
+  mainPhone    String?
+  secondPhone  String?
+  street       String?
+  city         String?
+  state        String?
+  zip          String?
+  notes        String?
+  active       Boolean           @default(true)
+  trackviaId   String?           @unique // TRACKVIA SALES REP #, so a second load updates instead of adding
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  emails       RepEmail[]
+  links        ManufacturerRep[]
+  picks        ProjectRepPick[]
+  rfqs         Rfq[]
+
+  @@index([name])
+}
+
+// One email for a rep, or for a buy direct manufacturer. QUOTES get RFQs; ORDERS get POs.
+model RepEmail {
+  id             String        @id @default(cuid())
+  salesRepId     String?
+  salesRep       SalesRep?     @relation(fields: [salesRepId], references: [id], onDelete: Cascade)
+  manufacturerId String?
+  manufacturer   Manufacturer? @relation(fields: [manufacturerId], references: [id], onDelete: Cascade)
+  purpose        String // QUOTES | ORDERS
+  email          String
+  sortOrder      Int           @default(0)
+  createdAt      DateTime      @default(now())
+
+  @@index([salesRepId])
+  @@index([manufacturerId])
+}
+
+// Rep A sells manufacturer B for ILC office C. One default per manufacturer and office.
+model ManufacturerRep {
+  id             String       @id @default(cuid())
+  manufacturerId String
+  manufacturer   Manufacturer @relation(fields: [manufacturerId], references: [id], onDelete: Cascade)
+  salesRepId     String
+  salesRep       SalesRep     @relation(fields: [salesRepId], references: [id], onDelete: Cascade)
+  officeId       String?
+  office         OurOffice?   @relation(fields: [officeId], references: [id], onDelete: SetNull)
+  isDefault      Boolean      @default(false)
+  active         Boolean      @default(true)
+  notes          String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([manufacturerId])
+  @@index([salesRepId])
+}
+
+// A project's own choice of rep for a manufacturer; only when it differs from the default.
+// salesRepId null = buy direct on this job.
+model ProjectRepPick {
+  id             String       @id @default(cuid())
+  projectId      String
+  project        Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  manufacturerId String
+  manufacturer   Manufacturer @relation(fields: [manufacturerId], references: [id], onDelete: Cascade)
+  salesRepId     String?
+  salesRep       SalesRep?    @relation(fields: [salesRepId], references: [id], onDelete: SetNull)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@unique([projectId, manufacturerId])
+}
+
+// One request for quote, made when it is sent. number 1 prints as RFQ0001.
+model Rfq {
+  id             String        @id @default(cuid())
+  number         Int           @unique
+  projectId      String
+  project        Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  salesRepId     String?
+  salesRep       SalesRep?     @relation(fields: [salesRepId], references: [id], onDelete: SetNull)
+  manufacturerId String? // buy direct: the manufacturer itself
+  manufacturer   Manufacturer? @relation(fields: [manufacturerId], references: [id], onDelete: SetNull)
+  officeId       String?
+  office         OurOffice?    @relation(fields: [officeId], references: [id], onDelete: SetNull)
+  status         String        @default("SENT") // SENT | RECEIVED
+  toName         String // the rep or manufacturer name as sent
+  sentTo         String        @default("") // comma separated quote emails
+  needBy         DateTime
+  notes          String? // Project Manager comments
+  sentById       String?
+  sentByName     String?
+  revisesId      String? // the RFQ this one replaces (Send revision)
+  receivedAt     DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  lines          RfqLine[]
+  quotes         RfqQuote[]
+
+  @@index([projectId])
+  @@index([salesRepId])
+}
+
+// A matrix line as it went out on the RFQ, and the DN price that came back.
+model RfqLine {
+  id               String          @id @default(cuid())
+  rfqId            String
+  rfq              Rfq             @relation(fields: [rfqId], references: [id], onDelete: Cascade)
+  peerReviewItemId String?
+  peerReviewItem   PeerReviewItem? @relation(fields: [peerReviewItemId], references: [id], onDelete: SetNull)
+  typeCode         String          @default("")
+  manufacturer     String          @default("")
+  partNumber       String          @default("")
+  notes            String          @default("")
+  qty              Float?
+  dnPrice          Float?
+  priceSource      String? // AUTO | PICKED | TYPED
+  confidence       Float? // 0 to 1, when the price came from a quote file
+  receivedAt       DateTime?
+  sortOrder        Int             @default(0)
+  createdAt        DateTime        @default(now())
+
+  @@index([rfqId])
+  @@index([peerReviewItemId])
+}
+
+// A rep quote brought in on the RFQ received screen.
+model RfqQuote {
+  id             String         @id @default(cuid())
+  projectId      String
+  project        Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  rfqId          String?
+  rfq            Rfq?           @relation(fields: [rfqId], references: [id], onDelete: SetNull)
+  fileName       String         @default("")
+  quoteNumber    String?
+  uploadedById   String?
+  uploadedByName String?
+  createdAt      DateTime       @default(now())
+  lines          RfqQuoteLine[]
+
+  @@index([projectId])
+}
+
+// One priced line read from a rep quote and the RFQ line it was matched to.
+model RfqQuoteLine {
+  id           String   @id @default(cuid())
+  quoteId      String
+  quote        RfqQuote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  typeTag      String   @default("")
+  manufacturer String   @default("")
+  catalog      String   @default("")
+  description  String   @default("")
+  qty          Float?
+  unitPrice    Float?
+  rfqLineId    String? // the RFQ line it priced
+  confidence   Float? // the best match score, 0 to 1
+  status       String   @default("OPEN") // AUTO (75% or better) | PICKED | SKIPPED | OPEN
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+
+  @@index([quoteId])
+}
+
+// Who did what to a record, and when (Mike 10-29: "like everything we need a
+// history at the bottom"). One row per field changed. entityType: SALES_REP,
+// MANUFACTURER, OUR_OFFICE, RFQ.
+model RecordHistory {
+  id         String   @id @default(cuid())
+  entityType String
+  entityId   String
+  action     String // CREATE | UPDATE | ADD | REMOVE | SEND | RECEIVE | LOAD
+  field      String?
+  oldValue   String?
+  newValue   String?
+  note       String?
+  userId     String?
+  userName   String?
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId, createdAt])
 }

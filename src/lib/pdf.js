@@ -21,7 +21,7 @@ function findLocalChrome() {
   return found;
 }
 
-export async function htmlToPdf(html, { landscape = false, margin = {} } = {}) {
+export async function htmlToPdf(html, { landscape = false, margin = {}, footer = '' } = {}) {
   console.log('[htmlToPdf] IS_LAMBDA:', IS_LAMBDA, 'env vars:', {
     AWS_LAMBDA_FUNCTION_NAME: process.env.AWS_LAMBDA_FUNCTION_NAME,
     LAMBDA_TASK_ROOT: process.env.LAMBDA_TASK_ROOT,
@@ -52,6 +52,8 @@ export async function htmlToPdf(html, { landscape = false, margin = {} } = {}) {
       format: 'Letter',
       landscape,
       printBackground: true,
+      // footer: puppeteer footer HTML (pageNumber / totalPages spans work in it).
+      ...(footer ? { displayHeaderFooter: true, headerTemplate: '<span></span>', footerTemplate: footer } : {}),
       margin: { top: '0', right: '0', bottom: '0', left: '0', ...margin },
     });
     return Buffer.from(pdf);
