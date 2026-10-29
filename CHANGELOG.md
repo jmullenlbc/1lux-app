@@ -5,7 +5,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [People tags and "Already in the CRM twice?" merges] - October 28, 2026 (NOT deployed) - migration 0141
+## [People tags and "Already in the CRM twice?" merges] - October 28, 2026 (DEPLOYED 733dc9f) - migration 0141
 
 Mike 10-28: tags on people (first one "Catalina Golf mixer") and a My Desk review for companies and people already in the CRM twice. Archive only.
 

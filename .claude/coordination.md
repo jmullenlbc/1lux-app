@@ -2,7 +2,10 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-10-28 (newest) - Mike's Claude - **DEPLOYED bdf3310**, migration 0140 (additive): national companies with local branches
+### 2026-10-28 (newest) - Mike's Claude - **DEPLOYED 733dc9f**, migration 0141 (additive): people tags + "Already in the CRM twice?" merges
+New tables `ContactTag`, `ContactTagLink`, `ContactEmail`, `CrmMergeDecision` (FKs to ClientContact/Client, nothing existing altered, ContactLegacy untouched). Contacts list bulk tag bar + Tag filter; tag chips on company page people; My Desk Pool tab merges company and people pairs (archive only, Different remembered). Still parked, NOT in this commit: Bid Comparison 0138/0139, We suggest change + Remove, spec-swaps, matrixImport, verify.mjs, AdminClient. Next: Admin CRM importer (dry run, typed "Wipe and load").
+
+### 2026-10-28 - Mike's Claude - **DEPLOYED bdf3310**, migration 0140 (additive): national companies with local branches
 `Client.parentClientId` (FK to Client, ON DELETE SET NULL, one level only) and `Client.branchMarket`, plus an index. Branches card on the company page, "Branch of" link, market shown in the Clients list and new project picker. Shipped alone: parked 0138/0139 blocks and folders stayed out of schema.prisma in this commit. Still parked locally: Bid Comparison 0138/0139 and We suggest placeholders + Remove. Next migration 0141 (0138/0139 numbers stay reserved).
 
 ### 2026-10-28 - Mike's Claude - **DEPLOYED 9587784**, no migration: AI key on Admin, bid leveling quote reader + Excel + Sage column + poles, plain upload errors
