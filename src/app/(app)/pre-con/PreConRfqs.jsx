@@ -56,7 +56,7 @@ export default function PreConRfqs({ rfqs }) {
     <div className="space-y-6">
       <div className="grid grid-cols-3 gap-4">
         <StatTile label="Open" value={open.length} sub="Sent, waiting on the rep" />
-        <StatTile label="Overdue" value={overdue} tone={overdue ? 'danger' : 'default'} sub="Past the 72 hour need by" />
+        <StatTile label="Overdue" value={overdue} tone={overdue ? 'danger' : 'default'} sub="Past the 3 business day need by" />
         <StatTile label="Received" value={rfqs.length - open.length} tone="success" sub="Quote back and priced" />
       </div>
       <WidgetFrame title="Open RFQs" sub="Overdue first. Open the project to bring in the rep's quote.">

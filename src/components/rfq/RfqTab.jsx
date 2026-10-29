@@ -168,7 +168,7 @@ export default function RfqTab({ projectId }) {
           <StatTile label="Not sent" value={count(LINE_STATUS.DRAFT)} sub="Draft lines" />
           <StatTile label="Sent" value={count(LINE_STATUS.SENT)} sub="waiting on price" />
           <StatTile label="Received" value={count(LINE_STATUS.RECEIVED)} sub="priced" />
-          <StatTile label="Overdue RFQs" value={state.rfqs.filter((r) => r.overdue).length} sub="past the 72 hour need by" />
+          <StatTile label="Overdue RFQs" value={state.rfqs.filter((r) => r.overdue).length} sub="past the 3 business day need by" />
         </div>
         {noMfr > 0 && <p className="text-sm text-slate-500 mt-3">{noMfr} matrix line{noMfr === 1 ? ' has' : 's have'} no manufacturer, so {noMfr === 1 ? 'it is' : 'they are'} left off the RFQs.</p>}
       </WidgetFrame>

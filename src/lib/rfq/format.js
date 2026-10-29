@@ -1,7 +1,34 @@
 // RFQ wording, numbers and dates (Mike 10-29). Browser safe: the RFQ tab shows
 // the same email text the PDF and the copy buttons use. Trackvia layout kept.
 
-export const NEED_BY_HOURS = 72;
+export const NEED_BY_BUSINESS_DAYS = 3; // Mike 10-29: business days, weekends and holidays skipped
+
+const DAY_MS = 24 * 3600 * 1000;
+const dayIn = new Intl.DateTimeFormat('en-US', { timeZone: 'America/Denver', weekday: 'short' });
+const ymdIn = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Denver', year: 'numeric', month: '2-digit', day: '2-digit' });
+const isWeekend = (d) => ['Sat', 'Sun'].includes(dayIn.format(d));
+
+// Office holidays, observed: a Saturday holiday is taken Friday, a Sunday one Monday.
+export const HOLIDAY_NAMES = ["New Year's Day", 'Memorial Day', 'Independence Day', 'Labor Day', 'Thanksgiving', 'Day after Thanksgiving', 'Christmas Day'];
+const pad = (n) => String(n).padStart(2, '0');
+const ymd = (y, m, d) => { const x = new Date(Date.UTC(y, m - 1, d)); return `${x.getUTCFullYear()}-${pad(x.getUTCMonth() + 1)}-${pad(x.getUTCDate())}`; };
+const nthWeekday = (y, m, wd, n) => 1 + ((wd - new Date(Date.UTC(y, m - 1, 1)).getUTCDay() + 7) % 7) + (n - 1) * 7;
+const lastWeekday = (y, m, wd) => { const last = new Date(Date.UTC(y, m, 0)).getUTCDate(); return last - ((new Date(Date.UTC(y, m - 1, last)).getUTCDay() - wd + 7) % 7); };
+const observed = (y, m, d) => { const wd = new Date(Date.UTC(y, m - 1, d)).getUTCDay(); return ymd(y, m, d + (wd === 6 ? -1 : wd === 0 ? 1 : 0)); };
+const holidayCache = new Map();
+/** The observed holiday dates (YYYY-MM-DD) of year y. */
+export function holidaysOf(y) {
+  if (!holidayCache.has(y)) {
+    const thanks = nthWeekday(y, 11, 4, 4);
+    holidayCache.set(y, [
+      observed(y, 1, 1), ymd(y, 5, lastWeekday(y, 5, 1)), observed(y, 7, 4), ymd(y, 9, nthWeekday(y, 9, 1, 1)),
+      ymd(y, 11, thanks), ymd(y, 11, thanks + 1), observed(y, 12, 25),
+    ]);
+  }
+  return holidayCache.get(y);
+}
+// Next year too: New Year's on a Saturday is taken Dec 31.
+export const isHoliday = (d) => { const s = ymdIn.format(d); const y = Number(s.slice(0, 4)); return holidaysOf(y).includes(s) || holidaysOf(y + 1).includes(s); };
 
 export const DEFAULT_COMPANY = 'Innovative Lighting Consultants dba ILC Studios';
 
@@ -17,8 +44,15 @@ export function rfqNumber(n) {
   return `RFQ${String(n ?? 0).padStart(4, '0')}`;
 }
 
+// Same time of day, 3 business days later (Denver calendar). Weekends and
+// office holidays don't count; sent on one, the count starts the next workday.
 export function needByFrom(sentAt = new Date()) {
-  return new Date(new Date(sentAt).getTime() + NEED_BY_HOURS * 3600 * 1000);
+  let t = new Date(sentAt).getTime();
+  for (let left = NEED_BY_BUSINESS_DAYS; left > 0;) {
+    t += DAY_MS;
+    if (!isWeekend(new Date(t)) && !isHoliday(new Date(t))) left -= 1;
+  }
+  return new Date(t);
 }
 
 export function showDate(d) {
@@ -59,7 +93,7 @@ export function emailBody({ number, projectName, needBy, notes, office }) {
   const lines = [
     'Hello,',
     '',
-    `Attached is an RFQ request (${rfqNumber(number)}) for ${projectName || 'this project'}. Please respond within 1 business day to confirm you received it. We need pricing within ${NEED_BY_HOURS} hours${needBy ? `, by ${showDateTime(needBy)}` : ''}.`,
+    `Attached is an RFQ request (${rfqNumber(number)}) for ${projectName || 'this project'}. Please respond within 1 business day to confirm you received it. We need pricing within ${NEED_BY_BUSINESS_DAYS} business days${needBy ? `, by ${showDateTime(needBy)}` : ''}.`,
     '',
     'Register this project with ILC as the Designer and Distributor.',
     '',

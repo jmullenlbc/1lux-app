@@ -5,7 +5,20 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [Sales Reps and RFQs] - October 29, 2026 (NOT DEPLOYED) - Migration 0144
+## [RFQ need by is 3 business days; rep review workbook upload] - October 29, 2026 (DEPLOYED) - no migration
+
+Mike 10-29: "No business days, so let's change it to 3 business days." Then: skip holidays too, and clean the Trackvia reps down to the ones we need (no Logiq or AMPS, no rep without a manufacturer, no rep never on a job, keep the ones with a job in the last 2 years).
+
+- Need by is the same time of day 3 business days later (Denver calendar). Saturdays, Sundays and observed office holidays are skipped: New Year's Day, Memorial Day, July 4, Labor Day, Thanksgiving, the day after Thanksgiving, Christmas Day. A Saturday holiday is taken Friday, a Sunday one Monday. Sent on a day off, the count starts the next workday. Email text reads "within 3 business days"; the Overdue tiles say "3 business day need by".
+- Already sent RFQs keep the need by they were sent with.
+- Admin > Sales Rep upload now also takes the marked review workbook (.xlsx, Reps and Links tabs). Only reps with KEEP = Yes load, with their links; links marked DEFAULT = Yes set the default rep per manufacturer and office (one row in a group is the default on its own). A group with none or more than one marked is listed for a person to pick on the manufacturer page. The dry run lists the reps left out because KEEP is not Yes. The three CSVs still work as before.
+- The workbook itself is internal (personal data) and is not committed; it lives in Software engineering.
+- Tests: `rfq.test.mjs` (Thursday, Monday, Saturday, Friday evening, Thanksgiving week and Christmas cases, holiday dates, review workbook load), `rfqE2e.test.mjs` passes.
+- Files: `src/lib/rfq/format.js`, `src/components/rfq/RfqTab.jsx`, `src/app/(app)/pre-con/PreConRfqs.jsx`, `src/lib/salesReps/trackvia.js`, `src/app/(app)/admin/sales-reps-import/SalesRepsImportClient.jsx`, `scripts/tests/rfq.test.mjs`, `scripts/tests/rfqE2e.test.mjs`.
+
+---
+
+## [Sales Reps and RFQs] - October 29, 2026 (DEPLOYED 3fb117c) - Migration 0144
 
 Mike 10-29: each manufacturer on a bid matrix is tied to a sales rep; group the lines by rep, build one RFQ per rep and send it with one click. Better than Trackvia; Logiq and AMPS removed from everything ("7. Yes go").
 

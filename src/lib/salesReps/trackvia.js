@@ -8,6 +8,10 @@
 //                      per manufacturer and office becomes the default
 //
 // Logiq and AMPS are left out entirely (Mike 10-29).
+//
+// The cleaned review workbook (Mike 10-29) loads the same way: its Reps tab
+// has a KEEP column (only Yes loads) and its Links tab a DEFAULT column (Yes
+// marks the rep an RFQ goes to), so no job counts are needed.
 
 export const OFFICE_FROM_LOCATION = { DENVER: 'Denver', 'LOS ANGELES': 'Long Beach', FLORIDA: 'Florida' };
 export const BATCH = { reps: 40, links: 80 };
@@ -41,9 +45,24 @@ const col = (row, name) => {
   return k ? row[k] : '';
 };
 
+/** Rows from every tab of an .xlsx, each with its kind. */
+export function readWorkbook(XLSX, buffer) {
+  const wb = XLSX.read(buffer, { type: 'array' });
+  return wb.SheetNames.map((name) => {
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets[name], { defval: '', raw: false });
+    return { name, rows, kind: kindOf(Object.keys(rows[0] || {})) };
+  });
+}
+
+const yes = (v) => /^(y|yes|x|true|1)$/i.test(t(v));
+const hasCol = (rows, name) => rows.length > 0 && Object.keys(rows[0]).some((x) => x.toUpperCase().trim() === name);
+
 /** { reps, mfrReps, projectReps } rows -> the load plan with a summary. */
 export function buildRepLoad({ reps = [], mfrReps = [], projectReps = [] }) {
-  const skipped = { reps: [], links: 0, noRep: [] };
+  const skipped = { reps: [], links: 0, noRep: [], notKept: [] };
+  const review = hasCol(reps, 'KEEP');
+  const picked = hasCol(mfrReps, 'DEFAULT');
+  const notKept = new Set();
 
   const repByName = new Map();
   const outReps = [];
@@ -51,6 +70,7 @@ export function buildRepLoad({ reps = [], mfrReps = [], projectReps = [] }) {
     const name = t(col(r, 'Name'));
     if (!name) continue;
     if (dropped(name)) { skipped.reps.push(name); continue; }
+    if (review && !yes(col(r, 'KEEP'))) { skipped.notKept.push(name); notKept.add(key(name)); continue; }
     const rep = {
       trackviaId: t(col(r, 'TRACKVIA SALES REP #')) || null,
       name,
@@ -86,6 +106,7 @@ export function buildRepLoad({ reps = [], mfrReps = [], projectReps = [] }) {
     if (!manufacturer || !repName) continue;
     if (dropped(manufacturer) || dropped(repName)) { skipped.links += 1; continue; }
     const rep = repByName.get(key(repName));
+    if (!rep && notKept.has(key(repName))) continue;
     if (!rep) { skipped.noRep.push(`${repName} - ${manufacturer}`); continue; }
     const office = OFFICE_FROM_LOCATION[key(col(m, 'LOCATION'))] || '';
     const recordId = key(col(m, 'Record ID')) || key(`${repName} - ${manufacturer}`);
@@ -95,6 +116,7 @@ export function buildRepLoad({ reps = [], mfrReps = [], projectReps = [] }) {
       active: key(col(m, 'INACTIVE')) !== 'YES',
       jobs: used.get(`${recordId}|${office}`) || 0,
       isDefault: false,
+      marked: picked && yes(col(m, 'DEFAULT')),
     });
   }
 
@@ -110,12 +132,20 @@ export function buildRepLoad({ reps = [], mfrReps = [], projectReps = [] }) {
   }
   for (const list of groups.values()) {
     if (list.length === 1) { list[0].isDefault = true; continue; }
+    if (picked) {
+      // The review workbook: exactly one row marked Yes is the default.
+      const best = list.filter((l) => l.marked);
+      if (best.length === 1) best[0].isDefault = true;
+      else ties.push(`${list[0].manufacturer} (${list[0].office || 'any office'}): ${(best.length ? best : list).map((l) => l.repName).join(', ')}${best.length > 1 ? ' all marked Yes' : ''}`);
+      continue;
+    }
     const top = Math.max(...list.map((l) => l.jobs));
     const best = list.filter((l) => l.jobs === top);
     if (top > 0 && best.length === 1) best[0].isDefault = true;
     else ties.push(`${list[0].manufacturer} (${list[0].office || 'any office'}): ${best.map((l) => l.repName).join(', ')}`);
   }
 
+  for (const l of links) delete l.marked;
   const manufacturers = [...new Set(links.map((l) => l.manufacturer))];
   return {
     reps: outReps,
@@ -126,6 +156,7 @@ export function buildRepLoad({ reps = [], mfrReps = [], projectReps = [] }) {
       inactiveLinks: links.filter((l) => !l.active).length,
       defaults: links.filter((l) => l.isDefault).length,
       manufacturers: manufacturers.length,
+      review,
       ties,
       skipped,
     },

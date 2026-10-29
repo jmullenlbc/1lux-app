@@ -2,7 +2,11 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-10-29 (newest) - Mike's Claude - **DEPLOYED (see deploy log)**, migration 0144 (additive): Sales Reps and RFQs
+### 2026-10-29 (newest) - Mike's Claude - **DEPLOYED (see deploy log)**, no migration: RFQ need by 3 business days + rep review workbook upload
+
+Need by = 3 business days, Denver calendar, weekends and observed office holidays skipped (`isHoliday` in `src/lib/rfq/format.js`). Admin > Sales Rep Upload also takes the marked review workbook (.xlsx, Reps + Links tabs): only KEEP Yes reps load, DEFAULT Yes sets the default. Workbook is internal, lives in Software engineering, not committed. Mike: upload it in prod. RFQ auto reminder check-in PARKED.
+
+### 2026-10-29 - Mike's Claude - **DEPLOYED 3fb117c**, migration 0144 (additive): Sales Reps and RFQs
 
 0144_sales_reps_rfq: new tables OurOffice (3 seeded offices, Florida placeholder 555 Main St., Your Home, FL), SalesRep, RepEmail, ManufacturerRep, ProjectRepPick, Rfq, RfqLine, RfqQuote, RfqQuoteLine, RecordHistory. New columns Project.ourOfficeId (nullable, SET NULL) and Manufacturer.buyDirect (default false). No drops, renames or type changes; no existing data touched; schema guard OK, both deploy guards pass. Next free migration 0145. RFQs tab per project, Pre-Con RFQs tab, rep pages with Add rep, Admin > Sales rep load (Trackvia), Our Offices. Email is a Gmail draft hand off until Microsoft. Mike: press the Trackvia rep load in prod and settle rep ties.
 

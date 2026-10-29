@@ -10,6 +10,7 @@ import assert from 'node:assert/strict';
 import { PrismaClient } from '@prisma/client';
 import { BASE, get, login, post, serverUp } from './_auth.mjs';
 import { ensureE2eAdmin } from './_e2eAdmin.mjs';
+import { needByFrom } from '../../src/lib/rfq/format.js';
 
 const TAG = `CLAUDE E2E RFQ ${Date.now()}`;
 
@@ -68,12 +69,12 @@ test('RFQ send, price, quote match and pages', async (t) => {
     assert.equal(blocked.status, 400);
     assert.match(blocked.json.error, /Nothing was sent/);
 
-    // Send: a number, 72 hours, the lines move to Sent.
+    // Send: a number, 3 business days, the lines move to Sent.
     const sent = await post(base, { action: 'send', groupKey: g1.key, notes: 'Test notes' }, cookie);
     assert.equal(sent.status, 201, sent.text);
     const rfq = sent.json.rfq;
     assert.ok(Number.isInteger(rfq.number) && rfq.number >= 1);
-    assert.equal(Math.round((new Date(rfq.needBy) - new Date(rfq.createdAt)) / 3600000), 72);
+    assert.ok(Math.abs(new Date(rfq.needBy) - needByFrom(rfq.createdAt)) < 5000, '3 business days');
     assert.match(sent.json.email.subject, /RFQ\d{4}/);
     assert.equal(sent.json.email.to, 'quotes@example.test');
     assert.equal(lineOf(sent.json.state, 'A1').status, 'Sent');

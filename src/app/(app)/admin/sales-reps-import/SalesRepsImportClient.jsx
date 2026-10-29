@@ -5,12 +5,14 @@ import * as XLSX from 'xlsx';
 import Button from '@/components/ui/Button';
 import Card, { CardHeader, CardBody } from '@/components/ui/Card';
 import StatTile from '@/components/ui/StatTile';
-import { kindOf, readCsv, buildRepLoad, chunks, BATCH } from '@/lib/salesReps/trackvia';
+import { kindOf, readCsv, readWorkbook, buildRepLoad, chunks, BATCH } from '@/lib/salesReps/trackvia';
 
 // Admin > Sales Rep upload (Mike 10-29, 0144). Read the three Trackvia exports
 // (Sales Reps, Manufacturer Reps, Project Reps) in the browser, show what would
 // load, then load reps and links in small batches. Nothing is deleted; a second
 // load updates the same reps by their Trackvia number, so Continue is safe.
+// The cleaned review workbook (.xlsx, Reps + Links tabs) loads here too: only
+// KEEP = Yes reps, with the DEFAULT picks marked in it.
 
 const KINDS = { reps: 'Sales Reps', mfrReps: 'Manufacturer Reps', projectReps: 'Project Reps' };
 const STEPS = ['reps', 'links'];
@@ -58,6 +60,12 @@ export default function SalesRepsImportClient() {
     const unknown = [];
     for (const f of files) {
       try {
+        if (/\.xlsx$/i.test(f.name)) {
+          const tabs = readWorkbook(XLSX, await f.arrayBuffer()).filter((x) => x.kind);
+          if (!tabs.length) { unknown.push(f.name); continue; }
+          for (const x of tabs) next[x.kind] = { name: `${f.name}, ${x.name} tab`, rows: x.rows };
+          continue;
+        }
         const rows = readCsv(XLSX, await f.text());
         const kind = kindOf(Object.keys(rows[0] || {}));
         if (!kind) { unknown.push(f.name); continue; }
@@ -67,7 +75,7 @@ export default function SalesRepsImportClient() {
       }
     }
     setSheets(next);
-    if (unknown.length) setErr(`Could not tell which Trackvia export ${unknown.join(', ')} is. Nothing was loaded. Upload the Sales Reps, Manufacturer Reps and Project Reps CSV exports. (REP_IMPORT_KIND)`);
+    if (unknown.length) setErr(`Could not tell which Trackvia export ${unknown.join(', ')} is. Nothing was loaded. Upload the cleaned rep review workbook, or the Sales Reps, Manufacturer Reps and Project Reps CSV exports. (REP_IMPORT_KIND)`);
   }
 
   const plan = sheets.reps && sheets.mfrReps
@@ -148,11 +156,11 @@ export default function SalesRepsImportClient() {
         </Card>
 
         <Card>
-          <CardHeader title="1. Upload the Trackvia exports" />
+          <CardHeader title="1. Upload the rep review workbook or the Trackvia exports" />
           <CardBody>
-            <input type="file" accept=".csv" multiple onChange={onFiles} disabled={busy}
+            <input type="file" accept=".csv,.xlsx" multiple onChange={onFiles} disabled={busy}
               className="block text-sm text-slate-700 file:mr-3 file:px-4 file:py-2 file:rounded-lg file:border file:border-slate-300 file:bg-white file:text-sm file:font-semibold" />
-            <p className="text-xs text-slate-500 mt-1">Pick all three CSVs at once. They are read in your browser. Nothing is saved until you press Load.</p>
+            <p className="text-xs text-slate-500 mt-1">Pick the marked review workbook (.xlsx), or all three CSVs at once. Files are read in your browser. Nothing is saved until you press Load.</p>
             <ul className="mt-3 text-sm space-y-0.5">
               {Object.entries(KINDS).map(([k, label]) => (
                 <li key={k} className={sheets[k] ? 'text-slate-700' : 'text-slate-400'}>
@@ -168,14 +176,15 @@ export default function SalesRepsImportClient() {
             <CardHeader title="2. Dry run: what would load" />
             <CardBody>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <StatTile label="Reps" value={s.reps} sub={`${s.skipped.reps.length} Logiq or AMPS left out`} />
+                <StatTile label="Reps" value={s.reps} sub={s.review ? `${s.skipped.notKept.length} marked KEEP No left out` : `${s.skipped.reps.length} Logiq or AMPS left out`} />
                 <StatTile label="Rep links" value={s.links} sub={`${s.inactiveLinks} inactive`} />
-                <StatTile label="Defaults" value={s.defaults} sub={sheets.projectReps ? 'from past job counts' : 'single rep only'} />
+                <StatTile label="Defaults" value={s.defaults} sub={s.review ? 'marked Yes on the Links tab' : sheets.projectReps ? 'from past job counts' : 'single rep only'} />
                 <StatTile label="Manufacturers" value={s.manufacturers} sub="new ones are added" />
               </div>
-              <List title="Ties: more than one rep with the same job count. No default is set; pick one on the manufacturer page" items={s.ties} tone="text-amber-700" />
+              <List title={s.review ? 'No default marked: none or more than one row says Yes. No default is set; pick one on the manufacturer page' : 'Ties: more than one rep with the same job count. No default is set; pick one on the manufacturer page'} items={s.ties} tone="text-amber-700" />
               <List title="Links whose rep is not on the Sales Reps export (left out)" items={s.skipped.noRep} tone="text-amber-700" />
               <List title="Reps left out (Logiq or AMPS)" items={s.skipped.reps} />
+              <List title="Reps left out (KEEP is not Yes)" items={s.skipped.notKept} />
               {s.skipped.links > 0 && <p className="text-sm text-slate-500 mt-3">{s.skipped.links} Logiq or AMPS links left out.</p>}
             </CardBody>
           </Card>
