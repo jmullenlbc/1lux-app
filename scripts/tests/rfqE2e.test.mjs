@@ -154,6 +154,12 @@ test('RFQ send, price, quote match and pages', async (t) => {
     if (made.project) {
       const rfqs = await prisma.rfq.findMany({ where: { projectId: made.project }, select: { id: true } });
       await prisma.recordHistory?.deleteMany({ where: { entityId: { in: [...rfqs.map((r) => r.id), ...made.reps, ...made.mfrs] } } }).catch(() => {});
+      // Local sqlite can skip the cascade and leave RFQs with no job, which breaks /pre-con.
+      const quotes = await prisma.rfqQuote.findMany({ where: { projectId: made.project }, select: { id: true } });
+      await prisma.rfqQuoteLine.deleteMany({ where: { quoteId: { in: quotes.map((x) => x.id) } } }).catch(() => {});
+      await prisma.rfqQuote.deleteMany({ where: { projectId: made.project } }).catch(() => {});
+      await prisma.rfqLine.deleteMany({ where: { rfqId: { in: rfqs.map((r) => r.id) } } }).catch(() => {});
+      await prisma.rfq.deleteMany({ where: { projectId: made.project } }).catch(() => {});
       await prisma.project.delete({ where: { id: made.project } }).catch(() => {});
     }
     await prisma.salesRep.deleteMany({ where: { id: { in: made.reps } } }).catch(() => {});

@@ -5,7 +5,6 @@ import { getSession } from '@/lib/auth';
 import Sidebar from '@/components/layout/Sidebar';
 import MobileTabBar from '@/components/layout/MobileTabBar';
 import AppBreadcrumb from '@/components/layout/AppBreadcrumb';
-import DraftReminderBanner from '@/components/layout/DraftReminderBanner';
 import QcCapture from '@/components/qc/QcCapture';
 import GlobalAIButton from '@/components/GlobalAIButton';
 // react-hot-toast ships its own "use client", so Toaster can sit in this server
@@ -30,7 +29,6 @@ export default async function AppLayout({ children }) {
     <div className="flex h-[100dvh] md:h-screen overflow-hidden bg-slate-50 print:h-auto print:overflow-visible print:block">
       <Sidebar user={session} />
       <main className="flex-1 overflow-y-auto flex flex-col print:overflow-visible">
-        <DraftReminderBanner />
         <AppBreadcrumb />
         <div className="flex-1 pb-28 md:pb-8 print:pb-0">
           {children}

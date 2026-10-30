@@ -55,11 +55,10 @@ test('the count route is signed-in only and counts only my own drafts', () => {
   assert.match(src, /draftReminderWhere\(user\.id\)/);
 });
 
-test('the banner is on every page and cannot be closed', () => {
-  assert.match(read('src/app/(app)/layout.jsx'), /<DraftReminderBanner \/>/);
-  const banner = read('src/components/layout/DraftReminderBanner.jsx').replace(/\/\/.*$/gm, '');
-  assert.doesNotMatch(banner, /dismiss|onClose|snooze|localStorage|sessionStorage|×|&times;/i);
-  assert.match(banner, /status=mine/);
+test('no page wide banner; the reminder lives in Sales Notes and My Desk (Mike 10-29)', () => {
+  assert.doesNotMatch(read('src/app/(app)/layout.jsx'), /DraftReminderBanner/);
+  assert.match(read('src/app/(app)/crm/notes/NotesClient.jsx'), /setStatusFilter\('mine'\)/);
+  assert.match(read('src/app/(app)/sales/desk/page.jsx'), /useDraftReminder\(\)/);
 });
 
 test('publishing or archiving a note refreshes the reminder straight away', () => {

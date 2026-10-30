@@ -5,7 +5,14 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [Project page layout, RFQ line checkboxes, pick a rep anywhere, Manufacturers like Sales Reps, RFQs above Budgets] - October 29, 2026 (DEPLOYED, see deploy log) - no migration
+## [No top banner, project menu sections fold, brighter Ask AI and Report a bug] - October 29, 2026 (NOT DEPLOYED) - no migration
+
+- The amber "meeting notes to finish" banner across the top of every page is gone (Mike: it made scrolling stutter). The reminder now lives inside its modules: the Sales Notes menu badge, the My Desk row, and a red alert mark on the Sales Notes page ("N need notes", click to show Mine to publish).
+- Project menu sections fold like the main menu. Only the section holding the open tab starts open, moving to a tab opens its section, and the sections you open stay open next time. A folded section that holds the open tab is tinted, and an orange dot shows when it hides a count.
+- Ask AI and Report a bug in the main menu footer are brighter and the bug icon is full size, so they are easy to spot when the menu is folded.
+- RFQ test cleanup deletes its own RFQs first; local sqlite had left 16 RFQs with no job, which broke the Pre-Con RFQs list locally. Prod is not affected (the cascade is in migration 0144).
+
+## [Project page layout, RFQ line checkboxes, pick a rep anywhere, Manufacturers like Sales Reps, RFQs above Budgets] - October 29, 2026 (DEPLOYED 13d51fb) - no migration
 
 Mike 10-29: select box with multi select and Select all on the line items; Manufacturers the same as Sales Reps (click into one); assign a rep to a manufacturer within a project, quote and RFQ; RFQs button between Proposals and Budgets; test on 9TH + CLERMONT.
 

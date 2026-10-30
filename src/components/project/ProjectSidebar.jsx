@@ -21,21 +21,39 @@ function NavIcon({ name, size = 15 }) {
 
 export default function ProjectSidebar({ config, activeTab, onTabChange, userId, badges = {} }) {
   const [collapsed, setCollapsed] = useState(false);
+  // Sections fold like the main menu (Mike 10-29): only the open tab's section
+  // starts open; the ones you open stay open per user.
+  const sectionOf = (tab) => config.find(s => s.items.some(i => i.id === tab))?.section;
   const [expandedSections, setExpandedSections] = useState(
-    () => config.map(s => s.section)
+    () => [sectionOf(activeTab)].filter(Boolean)
   );
+  const openKey = userId ? `project_menu_open_${userId}` : null;
 
   // SSR-safe: read localStorage after mount only
   useEffect(() => {
     if (!userId) return;
-    const stored = localStorage.getItem(`sidebar_collapsed_${userId}`);
-    if (stored === 'true') setCollapsed(true);
+    try {
+      if (localStorage.getItem(`sidebar_collapsed_${userId}`) === 'true') setCollapsed(true);
+      const saved = JSON.parse(localStorage.getItem(openKey) || 'null');
+      if (Array.isArray(saved)) setExpandedSections(prev => [...new Set([...saved, ...prev])]);
+    } catch {}
   }, [userId]);
+
+  // Moving to a tab opens its section.
+  useEffect(() => {
+    const s = sectionOf(activeTab);
+    if (s) setExpandedSections(prev => (prev.includes(s) ? prev : [...prev, s]));
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (!openKey) return;
+    try { localStorage.setItem(openKey, JSON.stringify(expandedSections)); } catch {}
+  }, [openKey, expandedSections]);
 
   function togglePin() {
     const next = !collapsed;
     setCollapsed(next);
-    if (userId) localStorage.setItem(`sidebar_collapsed_${userId}`, String(next));
+    if (userId) try { localStorage.setItem(`sidebar_collapsed_${userId}`, String(next)); } catch {}
   }
 
   function toggleSection(section) {
@@ -107,20 +125,26 @@ export default function ProjectSidebar({ config, activeTab, onTabChange, userId,
       <nav className="pb-2">
         {config.map((section, si) => {
           const isExpanded = expandedSections.includes(section.section);
+          const hasActive = section.items.some(i => i.id === activeTab);
+          const sectionBadge = section.items.reduce((n, i) => n + (badges[i.id] || 0), 0);
           return (
             <div key={section.section}>
               {si > 0 && <div className="mx-3 border-t border-slate-100 my-1" />}
 
               <button
                 onClick={() => toggleSection(section.section)}
-                className="w-full flex items-center gap-2 px-4 py-1 text-left hover:bg-slate-50 transition-colors group"
+                aria-expanded={isExpanded}
+                className={`w-full flex items-center gap-2 px-4 py-1.5 text-left transition-colors group ${hasActive && !isExpanded ? 'bg-amber-50' : 'hover:bg-slate-50'}`}
               >
                 <span className="text-slate-300 text-xs">{section.icon}</span>
-                <span className="flex-1 text-[11px] font-semibold uppercase tracking-wide text-slate-500 group-hover:text-slate-500 transition-colors">
+                <span className={`flex-1 text-[11px] font-semibold uppercase tracking-wide transition-colors ${hasActive ? 'text-amber-700' : 'text-slate-500 group-hover:text-slate-700'}`}>
                   {section.section}
                 </span>
+                {!isExpanded && sectionBadge > 0 && (
+                  <span className="w-2 h-2 rounded-full bg-orange-500" title={`${sectionBadge} waiting`} />
+                )}
                 <svg
-                  className={`w-3 h-3 text-slate-300 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
+                  className={`w-3 h-3 text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`}
                   fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
                 >
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />

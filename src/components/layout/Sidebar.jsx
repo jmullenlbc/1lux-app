@@ -307,16 +307,17 @@ function IconFactory() {
 function IconPackage() {
   return <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 9.776c.112-.017.227-.026.344-.026h15.812c.117 0 .232.009.344.026m-16.5 0a2.25 2.25 0 00-1.883 2.542l.857 6a2.25 2.25 0 002.227 1.932H19.05a2.25 2.25 0 002.227-1.932l.857-6a2.25 2.25 0 00-1.883-2.542m-16.5 0V6A2.25 2.25 0 016 3.75h3.879a1.5 1.5 0 011.06.44l2.122 2.12a1.5 1.5 0 001.06.44H18A2.25 2.25 0 0120.25 9v.776" /></svg>;
 }
-/** A sidebar footer button styled like Sign out: icon only when collapsed. */
+/** A sidebar footer button: icon only when collapsed. Brighter than Sign out
+ *  so Ask AI and Report a bug are easy to spot (Mike 10-29 thought they were gone). */
 function FooterAction({ icon, label, expanded, onClick }) {
   return (
     <button type="button" onClick={onClick}
       className={`w-full flex items-center py-1.5 rounded-lg text-xs font-medium transition-colors ${expanded ? 'gap-2.5 px-3' : 'justify-center px-0'}`}
-      style={{ color: '#627d98' }}
+      style={{ color: '#94b4d1' }}
       title={!expanded ? label : undefined}
       aria-label={label}
       onMouseEnter={e => { e.currentTarget.style.color = '#e2e8f0'; e.currentTarget.style.backgroundColor = '#1e293b'; }}
-      onMouseLeave={e => { e.currentTarget.style.color = '#627d98'; e.currentTarget.style.backgroundColor = 'transparent'; }}>
+      onMouseLeave={e => { e.currentTarget.style.color = '#94b4d1'; e.currentTarget.style.backgroundColor = 'transparent'; }}>
       {icon}
       {expanded && label}
     </button>
@@ -341,7 +342,7 @@ function IconTechStack() {
   return <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M6.75 7.5l3 2.25-3 2.25m4.5 0h3m-9 8.25h13.5A2.25 2.25 0 0021 18V6a2.25 2.25 0 00-2.25-2.25H5.25A2.25 2.25 0 003 6v12a2.25 2.25 0 002.25 2.25z" /></svg>;
 }
 function IconBug() {
-  return <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M12 6.75a5.25 5.25 0 015.25 5.25v3.75a5.25 5.25 0 01-10.5 0V12A5.25 5.25 0 0112 6.75z"/><path strokeLinecap="round" strokeLinejoin="round" d="M12 6.75V3.75M4.5 9.75l-2.25-1.5M19.5 9.75l2.25-1.5M4.5 15.75H2.25M21.75 15.75H19.5M6 20.25l-1.5 1.5M18 20.25l1.5 1.5"/></svg>;
+  return <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M12 6.75a5.25 5.25 0 015.25 5.25v3.75a5.25 5.25 0 01-10.5 0V12A5.25 5.25 0 0112 6.75z"/><path strokeLinecap="round" strokeLinejoin="round" d="M12 6.75V3.75M4.5 9.75l-2.25-1.5M19.5 9.75l2.25-1.5M4.5 15.75H2.25M21.75 15.75H19.5M6 20.25l-1.5 1.5M18 20.25l1.5 1.5"/></svg>;
 }
 function IconClientUsers() {
   return <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" /></svg>;
@@ -452,7 +453,8 @@ export default function Sidebar({ user }) {
   const isAdmin    = actsAsAdmin(user);
   const isIlcAdmin = normalizeRole(user?.role) === 'SUPER_ADMIN';
   // My calendar meetings still waiting for a published note, shown on Sales
-  // Notes until the count is zero (the banner says the same thing on every page).
+  // Notes until the count is zero. No page wide banner (Mike 10-29: alerts live
+  // inside their module, here, on My Desk and on the Sales Notes page).
   const waitingDrafts = useDraftReminder()?.count || 0;
   // My Desk: late + today reminders and emails to review (Mike 9-26: one place).
   const deskCount = useDeskCount(pathname);

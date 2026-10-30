@@ -10,6 +10,7 @@ import { shouldAutoPrep } from '@/lib/meetingPrep/due';
 import { centsToInput } from '@/lib/sales/expenses';
 import { FilterToolbar, FilterPanel, SearchBox, countFilters } from '@/components/ui/FilterPanel';
 import { useUrlView } from '@/lib/useUrlView';
+import AlertMark from '@/components/ui/AlertMark';
 import { BTN_PRIMARY, BTN_SECONDARY, BTN_COMPACT, BTN_COMPACT_PRIMARY, INPUT, H1, LABEL, CARD, MODAL, HELPER, TAB_ACTIVE, TAB_INACTIVE } from '@/components/ui/tokens';
 
 // Status and search live in the address (useUrlView). `status` is the same
@@ -1383,7 +1384,11 @@ export default function NotesClient({ initialNotes, clients, projects, currentUs
             <div>
               <h1 className={H1}>Sales Meetings</h1>
               <p className="text-xs text-slate-500">
-                {groups.upcoming.length} coming up · {groups.needsNotes.length} need notes
+                {groups.upcoming.length} coming up · {groups.needsNotes.length > 0 ? (
+                  <button type="button" onClick={() => setStatusFilter('mine')} className="inline-flex items-center gap-1 font-semibold text-red-700 hover:underline">
+                    <AlertMark size={12} label="Meeting notes to publish" />{groups.needsNotes.length} need notes
+                  </button>
+                ) : '0 need notes'}
               </p>
             </div>
             <button
