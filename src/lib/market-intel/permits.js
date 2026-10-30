@@ -3,6 +3,7 @@ import { matchCandidates } from './fuzzy-matcher';
 import { saveSignalTags, attachSignalToClient } from './tags';
 import { PERMIT_SOURCE_TYPE, profileForSource, permitQueryUrl, permitQueryBody, permitRows, permitToSignal, houstonProjects } from './permitRules';
 import { fetchHoustonRows } from './houstonFeed';
+import { fetchTdhcaRows } from './tdhcaFeed';
 import { walkAccela } from './accelaFeed';
 import { normalizeTagName, signalBuildingTags } from './tagRules';
 import { featuresOf, suppressedBy } from './feedbackRules';
@@ -37,6 +38,10 @@ export async function pollPermitSource(source, { limit = 500, now = new Date(), 
     if (profile.api === 'houston') {
       // One project, many building permits: fold them before the $10M floor.
       rows = houstonProjects(await fetchHoustonRows(profile, since, now));
+    } else if (profile.api === 'tdhca') {
+      // State spreadsheets, read whole: a refiled deal replaces its old number.
+      rows = await fetchTdhcaRows(profile);
+      if (profile.fold) rows = profile.fold(rows);
     } else {
       const body = permitQueryBody(profile, since, { now });
       const res  = await fetch(permitQueryUrl(profile, since, { limit, now }), {

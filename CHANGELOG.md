@@ -5,7 +5,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [Project pages on phones] - October 29, 2026 (DEPLOYED) - no migration
+## [Project pages on phones] - October 29, 2026 (DEPLOYED b380e78) - no migration
 
 - Phones: the project menu slides out from a "Sections" button, and the open section's tabs swipe sideways under the header. The header stacks and its small actions (rename, flag, flag note, people, location and type, Copy as JSON) sit behind "More".
 - Phone pass on Budgets, Meetings, Emails, RFIs, Code and Client Portal Access: cards stack, padding shrinks, headers wrap. Emails show the thread list or one open thread with "‹ All threads" back. RFI rows put the subject on top and the detail stacks. The "Open PDF" button on files now shows on touch screens.
@@ -18,6 +18,25 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 - Left for a real redesign: drawing markup body (tool column plus takeoff panel is wider than a phone), Ship Schedule expanded row, Peer Review bid matrix and the 960px change order line table (both scroll sideways).
 - Desktop is unchanged: every phone change sits under the md breakpoint.
 - Files: `ProjectSidebar.jsx`, `ProjectHubClient.jsx`, `CorrespondenceTab.jsx`, `RFIModule.jsx`, `BudgetDashboard.jsx`, `FileDropZone.jsx`, `MeetingNotes.jsx`, `NotificationSettingsTab.jsx`, `ContactsTab.jsx`, `ProjectCodeSearch.jsx`, plus the dashboard, contracts, takeoff, drawings, schedule, tracker, summary, wizard and `sections/` components listed by `git diff --stat`.
+
+## [Manufacturers and Sales Reps: pick many, edit or archive at once] - October 29, 2026 (DEPLOYED PENDING) - migration 0145
+
+- Both lists have a checkbox on every row and Select all at the top. Once anything is picked, a bar edits one field on all of them (Manufacturers: Terms, Setup to sell, Buy direct, State. Reps: City, State) or archives them, with an "are you sure" first. If every pick is already archived, the bar offers Restore.
+- Manufacturers can now be archived like reps (0145 adds `active`, default on). Archived ones hide from the list, the product pickers and the rep link picker; "Show archived" in Filters brings them back. Archive or Restore also sits on each detail page. Nothing is deleted.
+- "Inactive" reps are now called Archived everywhere.
+- New routes `POST /api/manufacturers/bulk` and `POST /api/sales-reps/bulk` (500 at a time, one history row per changed record). Archive and buy direct are open to all staff; other manufacturer fields need product edit rights.
+
+## [Texas concept feeds] - October 29, 2026 (DEPLOYED PENDING) - no migration
+
+- Market Intel adds six concept sources: Houston plats, Irving zoning cases, and Texas tax credit (TDHCA) applications for Dallas, Houston, Austin and San Antonio. Developer names flow into the signal.
+- After deploy: press "Add missing sources", then "Pull permits now" two or three times.
+
+## [Calendar Upload] - October 29, 2026 (DEPLOYED PENDING) - no migration
+
+- Software > Calendar Upload (`/admin/calendar-import`) plus a card on Admin. Pick a Google Takeout `.ics`; it is read in the browser and sent in batches of about 150.
+- Preview with row checkboxes and Select all; only accepted meetings count, personal events and travel days are left out. Past meetings become published Sales notes (`calendarRef ics:<uid>:<start>`), so they show on Sales Activity, the dashboard cards, Notes, Last contact, check-ins and My Desk.
+- "Archive this import" undoes a load. Uploading the same file again brings archived notes back instead of making copies.
+- Files: `src/lib/calendar/ics.js`, `src/lib/calendar/icsImport.js`, `src/app/api/admin/calendar-import/route.js`, `src/app/(app)/admin/calendar-import/`, `src/components/admin/CalendarUploadCard.jsx`, `Sidebar.jsx`, `AdminClient.jsx`, `scripts/verify.mjs`, `scripts/calendar/icsDryRun.mjs`, `scripts/tests/calendarImport.test.mjs`.
 
 ## [No top banner, project menu sections fold, brighter Ask AI and Report a bug] - October 29, 2026 (DEPLOYED e29e466) - no migration
 

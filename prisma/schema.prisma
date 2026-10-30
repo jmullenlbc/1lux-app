@@ -1325,6 +1325,8 @@ model Manufacturer {
   zip                String?
   // Buy direct (Mike 10-29): no rep. RFQs go to its own Quotes emails, POs to its Orders emails.
   buyDirect          Boolean               @default(false)
+  // Archive (0145, Mike 10-29): false hides it from the list and pickers, like Sales Reps.
+  active             Boolean               @default(true)
   createdAt          DateTime              @default(now())
   updatedAt          DateTime              @updatedAt
   products           ManufacturerProduct[]

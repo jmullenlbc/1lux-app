@@ -58,14 +58,14 @@ export default function SalesRepDetailClient({ rep, offices, manufacturers }) {
         </div>
         <div className="flex items-center gap-3 flex-wrap">
           <h1 className="text-2xl font-bold text-slate-900">{rep.name}</h1>
-          {!rep.active && <span className="text-xs font-semibold text-slate-500 bg-slate-100 rounded-full px-2 py-0.5">Inactive</span>}
+          {!rep.active && <span className="text-xs font-semibold text-slate-500 bg-slate-100 rounded-full px-2 py-0.5">Archived</span>}
           <div className="ml-auto">
             <Button variant="secondary" size="sm" disabled={busy} onClick={() => save({ active: !rep.active })}>
-              {rep.active ? 'Mark inactive' : 'Mark active'}
+              {rep.active ? 'Archive' : 'Restore'}
             </Button>
           </div>
         </div>
-        {!rep.active && <p className="text-sm text-slate-500 mt-1">Inactive reps are never picked for an RFQ. Their past RFQs stay.</p>}
+        {!rep.active && <p className="text-sm text-slate-500 mt-1">Archived reps are hidden and never picked for an RFQ. Their past RFQs stay. Nothing is deleted.</p>}
       </div>
 
       <div className="p-6 space-y-6">

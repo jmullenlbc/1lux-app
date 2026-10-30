@@ -1597,6 +1597,7 @@ function conceptToSignal(profile, p) {
     p.buildingKind ? p.buildingKind : null,
     p.ownerName ? `Owner ${p.ownerName}` : null,
     p.applicantName ? `Applicant ${p.applicantName}` : null,
+    p.developerName ? `Developer ${p.developerName}` : null,
     p.neighborhood ? `in ${p.neighborhood}` : null,
     `Case ${p.permitNumber}`,
   ].filter(Boolean);
@@ -1617,8 +1618,9 @@ function conceptToSignal(profile, p) {
     valuation:      null,
     contractorName: '',
     extracted: {
-      companies: filingCompanies(p.ownerName, p.applicantName),
-      developerNames: [p.ownerName, ['BUYER', 'DEVELOPER'].includes(applicantRole(p.ownerName, p.applicantName)) ? p.applicantName : null].filter(Boolean),
+      // A list that names the developer outright (TDHCA tax credits) tags it DEVELOPER.
+      companies: [...filingCompanies(p.ownerName, p.applicantName), ...(p.developerName ? [{ name: p.developerName, role: 'DEVELOPER' }] : [])],
+      developerNames: [p.ownerName, ['BUYER', 'DEVELOPER'].includes(applicantRole(p.ownerName, p.applicantName)) ? p.applicantName : null, p.developerName].filter(Boolean),
       projectNames:   projectNameOf(p.projectName, p.address) ? [projectNameOf(p.projectName, p.address)] : [],
       metro:          profile.metro,
       state:          profile.state,
@@ -2160,3 +2162,340 @@ export function money(n) {
   if (n >= 1_000)     return `$${Math.round(n / 1_000)}K`;
   return `$${Math.round(n)}`;
 }
+
+// ── Houston plats, Irving zoning, Texas tax credit list (Mike 10-29) ──
+
+/** Words in a Houston plat name that say apartments, senior or student housing, or build to rent. */
+export const HOUSTON_PLAT_HOUSING_RE = /apartments?|\bapts?\b|multi.?family|residences|\blofts?\b|\bflats\b|\bsenior\b|\bstudent\b|\bliving\b|\bvillas\b|town.?homes?|\bBTR\b|build.?to.?rent|for.?rent|\bcottages\b|\bhousing\b/i;
+/** The same words as the server filter (UPPER LIKE), so the feed returns tens of rows, not thousands. */
+const HOUSTON_PLAT_WORDS = ['APARTMENT', 'APTS', 'MULTIFAMILY', 'MULTI FAMILY', 'MULTI-FAMILY', 'RESIDENCES', 'LOFT', 'FLATS', 'SENIOR', 'STUDENT', 'LIVING', 'VILLAS', 'TOWNHOME', 'BTR', 'BUILD TO RENT', 'FOR RENT', 'COTTAGES', 'HOUSING'];
+const HOUSTON_PLAT_NOT_RE = /industrial|commercial|church|school|property owners|tower site|storage/i;
+const HOUSTON_PLAT_STAGES = { C3P: 'preliminary plat', C3F: 'final plat', C2R: 'replat', GP: 'general plan' };
+/** A plat needs an acre of reserve to hold 25 apartments. */
+export const HOUSTON_PLAT_MIN_ACRES = 1;
+
+/** "Lofts at Wayfarer partial replat no 1" -> "lofts-at-wayfarer": one project, every plat filed for it. */
+export function houstonPlatKey(name) {
+  return str(name).toLowerCase()
+    .replace(/\b(?:partial\s+)?replat\s+no\.?\s*\d+\b.*$/, '')
+    .replace(/\b(?:sec(?:tion)?\.?\s*\d+|amending plat.*)$/, '')
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+}
+
+/** Many plats per project (preliminary, final, replat): the newest one stands for it. */
+export function houstonPlatProjects(rows) {
+  const byKey = new Map();
+  for (const a of rows) {
+    const k = houstonPlatKey(a.SubdivisionName);
+    if (!k) continue;
+    const prior = byKey.get(k);
+    if (!prior) { byKey.set(k, { ...a, platCount: 1 }); continue; }
+    const newer = (Number(a.AppSubmitDate) || 0) > (Number(prior.AppSubmitDate) || 0) ? a : prior;
+    byKey.set(k, { ...newer, platCount: prior.platCount + 1 });
+  }
+  return [...byKey.values()];
+}
+
+/** Is this Houston plat a housing reserve we would light? Empty when kept, else the reason. */
+export function houstonPlatKeep(a) {
+  const name = str(a.SubdivisionName);
+  if (!HOUSTON_PLAT_HOUSING_RE.test(name) && !COUNCIL_TYPE_RE.test(name)) return 'not housing';
+  if (HOUSTON_PLAT_NOT_RE.test(name)) return 'not housing';
+  if (DEAD_CASE_RE.test(str(a.AppStatus))) return 'dead';
+  if (!((Number(a.ReserveCount) || 0) > 0) || !((Number(a.ReserveSize) || 0) >= HOUSTON_PLAT_MIN_ACRES)) return 'too small';
+  // Lots are houses; an apartment site is one reserve. Build to rent plats are lots by design.
+  if ((Number(a.LotCount) || 0) > 1 && !/\bBTR\b|build.?to.?rent|for.?rent/i.test(name)) return 'house lots';
+  return '';
+}
+
+PERMIT_PROFILES.HOUSTON_PLATS = {
+  key:        'HOUSTON_PLATS',
+  kind:       'CONCEPT',
+  api:        'arcgis',
+  metro:      'Houston, TX',
+  state:      'TX',
+  titleLead:  'Plat filed',
+  layerUrl:   'https://mycity2.houstontx.gov/geoplat01/rest/services/PlatTracker/PT365_PLAT_MAPPING/MapServer/1/query',
+  siteUrl:    'https://www.houstontx.gov/planning/DevelopRegs/platting.html',
+  dateField:  'AppSubmitDate',
+  firstLookbackDays: 365,
+  keepUnstated: true,
+  typeRequired: true,
+  whereFor: (since) => {
+    const iso = (since instanceof Date ? since : new Date(since)).toISOString().slice(0, 10);
+    const words = HOUSTON_PLAT_WORDS.map(w => `UPPER(SubdivisionName) LIKE '%${w}%'`).join(' OR ');
+    return `AppSubmitDate >= DATE '${iso}' AND ReserveCount > 0 AND ReserveSize >= ${HOUSTON_PLAT_MIN_ACRES} AND (${words})`;
+  },
+  outFields:  ['AppNo', 'AppCode', 'AppStatus', 'SubdivisionName', 'LotCount', 'ReserveCount', 'ReserveSize', 'AppSubmitDate'],
+  fold:       (rows) => houstonPlatProjects(rows),
+  map: (a) => {
+    const name  = str(a.SubdivisionName).replace(/\s+/g, ' ');
+    const key   = houstonPlatKey(name);
+    const why   = houstonPlatKeep(a);
+    const acres = Number(a.ReserveSize) || 0;
+    const stage = HOUSTON_PLAT_STAGES[str(a.AppCode)] || 'plat';
+    return {
+      // The project, not the filing: its preliminary, final and replat share one row.
+      permitNumber: key ? `HOU-PLAT-${key}` : '',
+      permitClass:  `Plat ${str(a.AppCode)}`.trim(),
+      projectName:  name,
+      buildingKind: `Housing reserve plat: ${name}, ${acres.toFixed(1)} acres${a.platCount > 1 ? `, ${a.platCount} plats filed` : ''}`,
+      address:      '',
+      placeText:    `${name}, Houston`,
+      neighborhood: [`${stage} ${str(a.AppNo)}`, a.AppStatus ? `status ${str(a.AppStatus).toLowerCase()}` : ''].filter(Boolean).join(', '),
+      ownerName:    '',
+      applicantName: '',
+      unitCount:    null,
+      multifamily:  true,
+      skip:         !!why,
+      issuedAt:     a.AppSubmitDate ? new Date(Number(a.AppSubmitDate)) : null,
+      url:          null,
+    };
+  },
+};
+
+/** "2025-166-ZC A", "old 2026-7-ZC" -> "2025-166-ZC". */
+export function irvingCaseKey(v) {
+  const m = str(v).match(/(\d{4})-(\d+)-([A-Z]+)/i);
+  return m ? `${m[1]}-${m[2]}-${m[3].toUpperCase()}` : '';
+}
+/** Irving case types worth a look: rezoning, special use, multifamily concept plan. CP (future land use) repeats the ZC case. */
+export const IRVING_KEEP_TYPES = ['ZC', 'CUP', 'MFCP'];
+// R-MF-1 / R-MF-2 are Irving's apartment zones. R-AB is a restaurant with alcohol, never apartments.
+const IRVING_MF_RE = /\bR-?MF-?\d|\bMFCP\b|multi.?family|apartment|retirement|senior (?:community|living|housing)|assisted living|independent living|mixed.?use[^.;]{0,40}\b(?:residential|units)\b/i;
+const IRVING_SMALL_RE = /conver\w* to (?:a )?(?:condo|quadplex|duplex)|\bquadplex\b|\bduplex\b|\bADU\b|accessory (?:dwelling|unit)|single.?family/i;
+const irvingType = (v) => (irvingCaseKey(v).match(/-([A-Z]+)$/) || [])[1] || '';
+
+/** Is this Irving case housing worth a look? Empty when kept, else the reason. */
+export function irvingKeep(a) {
+  if (!IRVING_KEEP_TYPES.includes(irvingType(a.CaseNumber))) return 'case type';
+  if (DEAD_CASE_RE.test(str(a.Status))) return 'dead';
+  const text = `${str(a.Request)} ${str(a.FLU_TO)}`;
+  if (IRVING_SMALL_RE.test(text) && !unitsFromText(text)) return 'small';
+  return '';
+}
+
+/** A real filing date: ApplicationDate is often 1970 or years off, so it must sit near ApplicationYear. */
+export function irvingFiledAt(a) {
+  const year = Number(a.ApplicationYear) || 0;
+  for (const v of [a.ApplicationDate, a.P_ZDate]) {
+    const d = v ? new Date(Number(v)) : null;
+    if (d && Number.isFinite(d.getTime()) && (!year || Math.abs(d.getUTCFullYear() - year) <= 1)) return d;
+  }
+  return year ? new Date(Date.UTC(year, 0, 1)) : null;
+}
+
+PERMIT_PROFILES.IRVING_ZONING = {
+  key:        'IRVING_ZONING',
+  kind:       'CONCEPT',
+  api:        'arcgis',
+  metro:      'Dallas, TX',
+  state:      'TX',
+  titleLead:  'Rezoning filed',
+  layerUrl:   'https://services3.arcgis.com/OfsJXUlu8pSkbl7B/arcgis/rest/services/Pending_Cases_and_Development_Activity_view/FeatureServer/4/query',
+  siteUrl:    'https://www.cityofirving.org/281/Planning-Zoning',
+  dateField:  'ApplicationYear',
+  firstLookbackDays: 365,
+  keepUnstated: true,
+  // The filing date is unreliable; the year is not.
+  whereFor: (since) => `ApplicationYear >= ${(since instanceof Date ? since : new Date(since)).getUTCFullYear()}`,
+  outFields:  ['CaseNumber', 'District', 'Request', 'Status', 'ApplicationDate', 'ApplicationYear', 'P_ZDate', 'CityCnclDate', 'Applicant', 'Owner', 'SiteAddress', 'FLU_TO'],
+  map: (a) => {
+    const text = `${str(a.Request)} ${str(a.FLU_TO)}`;
+    const why  = irvingKeep(a);
+    return {
+      permitNumber:  irvingCaseKey(a.CaseNumber),
+      permitClass:   `Zoning ${irvingType(a.CaseNumber)}`.trim(),
+      buildingKind:  shortText(str(a.Request), 160),
+      address:       a.SiteAddress ? `${titleCaseAddress(a.SiteAddress)}, Irving` : '',
+      placeText:     'Irving',
+      neighborhood:  a.Status ? `status ${str(a.Status).toLowerCase()}` : '',
+      ownerName:     cleanCompany(a.Owner),
+      applicantName: cleanCompany(a.Applicant),
+      unitCount:     unitsFromText(text),
+      // A multifamily concept plan (MFCP) is apartments by its case type, even with a blank request.
+      multifamily:   irvingType(a.CaseNumber) === 'MFCP' || IRVING_MF_RE.test(text) || COUNCIL_TYPE_RE.test(text),
+      skip:          !!why,
+      issuedAt:      irvingFiledAt(a),
+      url:           null,
+    };
+  },
+};
+
+// ── Texas housing tax credits (TDHCA) ──
+// The state posts each list as a dated spreadsheet on two program pages. The
+// newest file is found by its name, so a new upload is picked up on its own.
+export const TDHCA_9PCT_PAGE = 'https://www.tdhca.texas.gov/competitive-9-housing-tax-credits';
+export const TDHCA_4PCT_PAGE = 'https://www.tdhca.texas.gov/non-competitive-4-housing-tax-credits';
+
+/** Counties in each of our Texas markets; anywhere else is skipped. */
+export const TDHCA_COUNTY_METRO = {
+  'Dallas, TX':      ['Dallas', 'Collin', 'Denton', 'Tarrant', 'Rockwall', 'Kaufman', 'Ellis', 'Johnson', 'Parker', 'Wise', 'Hunt'],
+  'Houston, TX':     ['Harris', 'Fort Bend', 'Montgomery', 'Brazoria', 'Galveston', 'Chambers', 'Liberty', 'Waller', 'Austin'],
+  'Austin, TX':      ['Travis', 'Williamson', 'Hays', 'Bastrop', 'Caldwell'],
+  'San Antonio, TX': ['Bexar', 'Comal', 'Guadalupe', 'Medina', 'Kendall', 'Wilson', 'Atascosa', 'Bandera'],
+};
+const TDHCA_CITY_METRO = { dallas: 'Dallas, TX', 'fort worth': 'Dallas, TX', arlington: 'Dallas, TX', plano: 'Dallas, TX', irving: 'Dallas, TX', houston: 'Houston, TX', austin: 'Austin, TX', 'san antonio': 'San Antonio, TX' };
+
+/** Our metro for a TDHCA row, by county (city when the county is blank or wrong), else null. */
+export function tdhcaMetro(county, city) {
+  const c = str(county).toLowerCase();
+  for (const [metro, list] of Object.entries(TDHCA_COUNTY_METRO)) if (list.some(n => n.toLowerCase() === c)) return metro;
+  return TDHCA_CITY_METRO[str(city).toLowerCase()] || null;
+}
+
+/**
+ * The spreadsheets to read off a program page: the newest 9% award list or
+ * application log, or the newest 4% status log of each of the last two years
+ * (a deal approved last year is being built now). Hrefs as found.
+ */
+export function tdhcaLatestLinks(html, program) {
+  const hrefs = [...new Set([...String(html || '').matchAll(/href="([^"]+\.xlsx)"/gi)].map(m => m[1]))];
+  if (program === '9') {
+    const list = hrefs.map(h => ({ h, m: h.match(/htc-9pct\/(\d{6})-(?:HTC9pct-)?(?:AppLog|AwardWaitingList)(?!-Tentative)[^/]*\.xlsx$/i) })).filter(x => x.m);
+    list.sort((a, b) => b.m[1].localeCompare(a.m[1]));
+    return list.slice(0, 1).map(x => x.h);
+  }
+  const byYear = new Map();
+  for (const h of hrefs) {
+    const m = h.match(/htc-4pct\/(\d{4})(\d{6})-4HTC-StatusLog[^/]*\.xlsx$/i);
+    if (m && (!byYear.has(m[1]) || byYear.get(m[1]).d < m[2])) byYear.set(m[1], { d: m[2], h });
+  }
+  return [...byYear.entries()].sort((a, b) => b[0].localeCompare(a[0])).slice(0, 2).map(([, v]) => v.h);
+}
+
+// Some cells were typed as web text: "Graham St &amp; N Bagdad Rd".
+const unescapeAmp = (t) => t.replace(/&amp;/gi, '&');
+
+function excelDate(v) {
+  const n = Number(v);
+  if (!(n > 20000 && n < 80000)) return null;
+  return new Date(Date.UTC(1899, 11, 30) + Math.round(n) * 86400e3);
+}
+
+/**
+ * One sheet (an array of rows, as xlsx sheet_to_json header:1 gives it) into
+ * plain rows. The header row is the one starting "TDHCA Number" (4%) or
+ * "Application Number" (9%); region headings and totals between deals have
+ * no number and are left out. Footnote digits come off the column names.
+ */
+export function tdhcaSheetRows(aoa, program) {
+  const rows = Array.isArray(aoa) ? aoa : [];
+  const hi = rows.findIndex(r => /^(TDHCA Number|Application Number)$/i.test(str(r && r[0])));
+  if (hi < 0) throw new Error('TDHCA sheet has no header row');
+  let version = null;
+  for (const r of rows.slice(0, hi)) for (const cell of r || []) {
+    const m = str(cell).match(/(?:Updated as of|Version Date:)\s*(\d{1,2}\/\d{1,2}\/\d{4}|[A-Z][a-z]+ \d{1,2}, \d{4})/i);
+    if (m && !version) { const d = new Date(`${m[1]} 12:00 UTC`); if (Number.isFinite(d.getTime())) version = d; }
+  }
+  const head = rows[hi].map(h => str(h).replace(/\s+/g, ' ').replace(/([a-z)])\d$/i, '$1').trim().toLowerCase());
+  const col  = (...names) => { for (const n of names) { const i = head.indexOf(n.toLowerCase()); if (i >= 0) return i; } return -1; };
+  const at   = (r, i) => (i >= 0 ? r[i] : '');
+  const c = {
+    prev: col('Previous TDHCA #'), name: col('Development Name'), city: col('Development City', 'City'), county: col('Development County', 'County'),
+    address: col('Development Address'), units: col('Total Units'), construction: col('Construction Type'), population: col('Target Population', 'Target Population (Supp. Hsg. = SH)'),
+    status: col('Application Status'), submitted: col('Full Application Submission Date'), contact: col('Applicant Contact', 'Primary Contact'), email: col('Applicant Email'),
+    recommendation: col('Tentative Recommendation'), notes: col('Notes'),
+  };
+  const awardList = c.recommendation >= 0;
+  const out = [];
+  for (const r of rows.slice(hi + 1)) {
+    if (!r) continue;
+    // "24702/25453" is the old number then the new one.
+    const nums = str(r[0]).match(/\d{5}/g);
+    if (!nums) continue;
+    out.push({
+      program, awardList, version,
+      number:         nums[nums.length - 1],
+      prev:           (str(at(r, c.prev)).match(/\d{5}/) || [''])[0],
+      name:           unescapeAmp(str(at(r, c.name)).replace(/\s+/g, ' ')),
+      city:           str(at(r, c.city)),
+      county:         str(at(r, c.county)),
+      address:        unescapeAmp(str(at(r, c.address)).replace(/\s+/g, ' ')),
+      units:          unitsFrom(at(r, c.units)),
+      construction:   str(at(r, c.construction)),
+      population:     str(at(r, c.population)),
+      status:         str(at(r, c.status)),
+      submittedAt:    excelDate(at(r, c.submitted)),
+      contact:        str(at(r, c.contact)),
+      email:          str(at(r, c.email)),
+      recommendation: str(at(r, c.recommendation)),
+      notes:          str(at(r, c.notes)),
+    });
+  }
+  return out;
+}
+
+/** New buildings only: new construction, reconstruction, adaptive reuse. A bought and rehabbed complex is not a lighting job. */
+export const TDHCA_NEW_RE = /\bNC\b|new construction|recon|adaptive reuse/i;
+const FREE_MAIL_RE = /^(?:gmail|yahoo|hotmail|outlook|aol|icloud|me|msn|live|comcast|att|sbcglobal|protonmail)\./i;
+
+/** The developer behind the deal, from the applicant's email: "jtrevino@ldgdevelopment.com" -> "ldgdevelopment.com". */
+export function tdhcaDeveloper(email) {
+  const d = (str(email).toLowerCase().match(/@([a-z0-9.-]+\.[a-z]{2,})$/) || [])[1] || '';
+  return d && !FREE_MAIL_RE.test(d) ? d : '';
+}
+
+/** Is this TDHCA row a new housing deal in this market? Empty when kept, else the reason. */
+export function tdhcaKeep(a, metro) {
+  if (tdhcaMetro(a.county, a.city) !== metro) return 'other market';
+  if (/withdrawn|terminat|denied|cancel/i.test(`${a.status} ${a.notes}`)) return 'dead';
+  if (!TDHCA_NEW_RE.test(a.construction)) return 'rehab';
+  return '';
+}
+
+/** A deal filed again under a new number names the old one; keep only the new. */
+export function tdhcaLatest(rows) {
+  const replaced = new Set(rows.map(a => a.prev).filter(Boolean));
+  const seen = new Set();
+  return rows.filter(a => !replaced.has(a.number) && !seen.has(a.number) && seen.add(a.number));
+}
+
+function tdhcaStage(a) {
+  if (a.program === '9') {
+    if (!a.awardList) return '9% application';
+    if (/award/i.test(a.recommendation)) return '9% award recommended';
+    if (/forward/i.test(a.recommendation)) return '9% forward commitment';
+    return '9% waiting list';
+  }
+  return `4% bond deal${a.status ? `, status ${a.status.toLowerCase()}` : ''}`;
+}
+
+function tdhcaProfile(key, metro) {
+  return {
+    key,
+    kind:       'CONCEPT',
+    api:        'tdhca',
+    metro,
+    state:      'TX',
+    titleLead:  'Tax credit housing',
+    // The feed address only has to be its own; the pages read are listed below.
+    layerUrl:   `${TDHCA_4PCT_PAGE}#${key.replace(/^TDHCA_/, '').toLowerCase()}`,
+    siteUrl:    'https://www.tdhca.texas.gov/multifamily',
+    pages:      [{ url: TDHCA_9PCT_PAGE, program: '9' }, { url: TDHCA_4PCT_PAGE, program: '4' }],
+    typeRequired: true,
+    fold:       (rows) => tdhcaLatest(rows),
+    map: (a) => {
+      const why = tdhcaKeep(a, metro);
+      return {
+        permitNumber:  a.number ? `TDHCA ${a.number}` : '',
+        permitClass:   `Housing tax credit ${a.program}%`,
+        projectName:   a.name,
+        buildingKind:  [`Tax credit housing (${a.program}%)`, a.construction, a.population, a.contact ? `contact ${a.contact}` : ''].filter(Boolean).join(', '),
+        address:       a.address ? `${a.address}, ${a.city}` : '',
+        placeText:     a.city,
+        neighborhood:  tdhcaStage(a),
+        developerName: tdhcaDeveloper(a.email),
+        unitCount:     a.units,
+        multifamily:   true,
+        skip:          !!why,
+        issuedAt:      a.submittedAt || a.version || null,
+        url:           a.program === '9' ? TDHCA_9PCT_PAGE : TDHCA_4PCT_PAGE,
+      };
+    },
+  };
+}
+PERMIT_PROFILES.TDHCA_DALLAS      = tdhcaProfile('TDHCA_DALLAS',      'Dallas, TX');
+PERMIT_PROFILES.TDHCA_HOUSTON     = tdhcaProfile('TDHCA_HOUSTON',     'Houston, TX');
+PERMIT_PROFILES.TDHCA_AUSTIN      = tdhcaProfile('TDHCA_AUSTIN',      'Austin, TX');
+PERMIT_PROFILES.TDHCA_SAN_ANTONIO = tdhcaProfile('TDHCA_SAN_ANTONIO', 'San Antonio, TX');

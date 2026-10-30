@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Badge from '@/components/ui/Badge';
 import PublicAccessCard from '@/components/admin/PublicAccessCard';
 import AiKeyCard from '@/components/admin/AiKeyCard';
+import CalendarUploadCard from '@/components/admin/CalendarUploadCard';
 import { DEPARTMENTS, DEPARTMENT_LABEL } from '@/lib/departments';
 import { canAssignRole, canManageAccount } from '@/lib/roles';
 import { effectiveRole } from '@/lib/permissions';
@@ -738,6 +739,9 @@ export default function AdminClient({ users: initialUsers, projects, currentUser
 
       {/* AI key, changed here instead of AWS (10-28) */}
       <AiKeyCard />
+
+      {/* Calendar export as sales activity (10-29) */}
+      <CalendarUploadCard />
 
       {/* Tabs */}
       <div className="flex gap-1 border-b border-slate-200 mb-6">

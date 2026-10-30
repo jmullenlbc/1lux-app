@@ -20,7 +20,7 @@ export default async function SalesRepPage({ params }) {
       },
     }),
     prisma.ourOffice.findMany({ where: { active: true }, orderBy: { sortOrder: 'asc' }, select: { id: true, name: true } }),
-    prisma.manufacturer.findMany({ orderBy: { name: 'asc' }, select: { id: true, name: true } }),
+    prisma.manufacturer.findMany({ where: { active: true }, orderBy: { name: 'asc' }, select: { id: true, name: true } }),
   ]);
   if (!rep) notFound();
 

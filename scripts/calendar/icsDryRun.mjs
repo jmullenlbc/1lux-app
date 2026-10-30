@@ -20,6 +20,7 @@ import path from 'node:path';
 import XLSX from 'xlsx';
 
 import { isWorthANote, travelDays, dedupeOverlappingMeetings } from '../../src/lib/calendar/worthANote.js';
+import { readEvents, toNeutralEvent } from '../../src/lib/calendar/ics.js';
 
 const ICS_PATH     = process.argv[2];
 const SUMMARY_PATH = process.argv[3] || null;
@@ -31,146 +32,8 @@ const OUT_DIR      = process.argv[4] || null;
  */
 const START_YEAR = 2023;
 
-// ── Reading the file ─────────────────────────────────────────────────────────
-
-/**
- * An .ics file wraps long lines: a line starting with a space or tab is a
- * continuation of the one before it. Undo that before anything else, or half the
- * long meeting titles come out chopped.
- */
-function unfold(text) {
-  return text.replace(/\r\n[ \t]/g, '').replace(/\n[ \t]/g, '');
-}
-
-/** Calendar files escape commas, semicolons and newlines. Put them back. */
-function unescapeText(value) {
-  return String(value || '')
-    .replace(/\\n/gi, '\n')
-    .replace(/\\,/g, ',')
-    .replace(/\\;/g, ';')
-    .replace(/\\\\/g, '\\')
-    .trim();
-}
-
-/** Split "NAME;PARAM=x;PARAM=y:value" into its three parts. */
-function parseLine(line) {
-  const colon = line.indexOf(':');
-  if (colon === -1) return null;
-  const head  = line.slice(0, colon);
-  const value = line.slice(colon + 1);
-  const parts = head.split(';');
-  const name  = parts[0].toUpperCase();
-  const params = {};
-  for (const p of parts.slice(1)) {
-    const eq = p.indexOf('=');
-    if (eq === -1) continue;
-    params[p.slice(0, eq).toUpperCase()] = p.slice(eq + 1).replace(/^"|"$/g, '');
-  }
-  return { name, params, value };
-}
-
-function mailtoAddress(value) {
-  return String(value || '').replace(/^mailto:/i, '').trim().toLowerCase();
-}
-
-/**
- * A calendar timestamp is 20230104T100000Z, or the same without the Z, or just
- * 20230104 for an all-day event. We only need the year and the length, so this
- * stays deliberately simple rather than pretending to handle every time zone.
- */
-function parseStamp(value) {
-  const v = String(value || '').trim();
-  const m = /^(\d{4})(\d{2})(\d{2})(?:T(\d{2})(\d{2})(\d{2}))?/.exec(v);
-  if (!m) return null;
-  const [, y, mo, d, hh = '00', mm = '00', ss = '00'] = m;
-  return {
-    year: Number(y),
-    date: new Date(Date.UTC(+y, +mo - 1, +d, +hh, +mm, +ss)),
-  };
-}
-
-/** Pull every VEVENT out of the file as a plain object of its properties. */
-function readEvents(text) {
-  const lines  = unfold(text).split(/\r?\n/);
-  const events = [];
-  let current  = null;
-
-  for (const line of lines) {
-    if (line === 'BEGIN:VEVENT') { current = { attendees: [] }; continue; }
-    if (line === 'END:VEVENT')   { if (current) events.push(current); current = null; continue; }
-    if (!current) continue;
-
-    const parsed = parseLine(line);
-    if (!parsed) continue;
-    const { name, params, value } = parsed;
-
-    switch (name) {
-      case 'UID':           current.uid       = value.trim();            break;
-      case 'SUMMARY':       current.title     = unescapeText(value);     break;
-      case 'LOCATION':      current.location  = unescapeText(value);     break;
-      case 'DESCRIPTION':   current.body      = unescapeText(value);     break;
-      case 'STATUS':        current.status    = value.trim().toUpperCase(); break;
-      case 'RRULE':         current.rrule     = value.trim();            break;
-      case 'RECURRENCE-ID': current.recurrenceId = value.trim();         break;
-      case 'ORGANIZER':
-        current.organizerEmail = mailtoAddress(value);
-        current.organizerName  = params.CN || '';
-        break;
-      case 'ATTENDEE': {
-        const email = mailtoAddress(value);
-        if (email) current.attendees.push({ email, name: params.CN || '' });
-        break;
-      }
-      case 'DTSTART':
-        current.start   = parseStamp(value);
-        current.isAllDay = params.VALUE === 'DATE';
-        break;
-      case 'DTEND':
-        current.end = parseStamp(value);
-        break;
-      case 'X-MICROSOFT-CDO-ALLDAYEVENT':
-        if (/true/i.test(value)) current.isAllDay = true;
-        break;
-      case 'X-MICROSOFT-SKYPETEAMSMEETINGURL':
-      case 'X-MICROSOFT-ONLINEMEETINGCONFLINK':
-        if (value.trim()) current.onlineMeetingUrl = value.trim();
-        break;
-      default: break;
-    }
-  }
-  return events;
-}
-
-// ── Turning one into the shape the rules expect ──────────────────────────────
-
-function toNeutralEvent(raw) {
-  const emails = new Set(raw.attendees.map(a => a.email).filter(Boolean));
-  if (raw.organizerEmail) emails.add(raw.organizerEmail);
-  const minutes = raw.start?.date && raw.end?.date
-    ? Math.round((raw.end.date - raw.start.date) / 60000)
-    : null;
-  return {
-    externalId:       raw.uid || null,
-    title:            raw.title || '',
-    location:         raw.location || '',
-    body:             raw.body || '',
-    onlineMeetingUrl: raw.onlineMeetingUrl || null,
-    attendeeCount:    emails.size,
-    attendeeEmails:   [...emails],
-    organizerEmail:   raw.organizerEmail || '',
-    year:             raw.start?.year ?? null,
-    durationMinutes:  minutes && minutes > 0 ? minutes : null,
-    // The three flags the keep-or-throw-away gate reads. Recurring is carried
-    // for the report only, Mike's ruling is that repeating on its own never
-    // disqualifies anything: "Catalina golf mixer is every other week and is a
-    // business event. each of those should count always."
-    isCancelled:      raw.status === 'CANCELLED',
-    isAllDay:         !!raw.isAllDay,
-    isRecurring:      !!(raw.rrule || raw.recurrenceId),
-    startAt:          raw.start?.date ?? null,
-    endAt:            raw.end?.date ?? null,
-  };
-}
+// Reading the file lives in src/lib/calendar/ics.js, shared with Admin >
+// Calendar Upload, so the dry run and the upload read events the same way.
 
 // ── The report ───────────────────────────────────────────────────────────────
 //

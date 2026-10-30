@@ -9,16 +9,16 @@ import { badEmails, replaceEmails } from '@/lib/salesReps/emails';
 const MFR_FIELDS = [
   'name','acctLastUpdated','setupToSell','terms','credit','notes',
   'accountingEmail','ffa','paymentInfo','website','mainPhone',
-  'address','address2','city','state','zip','buyDirect',
+  'address','address2','city','state','zip','buyDirect','active',
 ];
-// Buy direct and the Quotes/Orders emails: any staff login (Mike 10-29, anyone can edit).
-const STAFF_FIELDS = ['buyDirect', 'emails'];
+// Buy direct, archive and the Quotes/Orders emails: any staff login (Mike 10-29, anyone can edit).
+const STAFF_FIELDS = ['buyDirect', 'active', 'emails'];
 
 function parseBody(body) {
   const data = {};
   for (const f of MFR_FIELDS) {
     if (!(f in body)) continue;
-    if (f === 'setupToSell' || f === 'buyDirect') { data[f] = Boolean(body[f]); continue; }
+    if (f === 'setupToSell' || f === 'buyDirect' || f === 'active') { data[f] = Boolean(body[f]); continue; }
     if (f === 'credit' || f === 'ffa') {
       const n = looseNumberOrNull(body[f]); // "1,250.00" reads as 1250
       data[f] = isNaN(n) ? null : n;

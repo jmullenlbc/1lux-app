@@ -17,6 +17,7 @@ export default async function ProductDetailPage({ params }) {
         include: { manufacturer: { select: { id: true, name: true, numericId: true } } },
       }),
       prisma.manufacturer.findMany({
+        where: { OR: [{ active: true }, { products: { some: { id: params.id } } }] },
         orderBy: { name: 'asc' },
         select: { id: true, name: true },
       }),

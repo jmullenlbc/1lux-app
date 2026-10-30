@@ -12,6 +12,7 @@ export default async function ProductsPage() {
   let manufacturers = [];
   try {
     manufacturers = await prisma.manufacturer.findMany({
+      where: { active: true },
       orderBy: { name: 'asc' },
       select: { id: true, name: true },
     });

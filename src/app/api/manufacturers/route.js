@@ -35,7 +35,9 @@ export async function GET() {
   if (error) return error;
   // Credit, terms and payment details are ILC's business. Staff only.
   if (isClientViewer(user.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  // Archived ones (0145) stay out of every picker.
   const manufacturers = await prisma.manufacturer.findMany({
+    where: { active: true },
     orderBy: { name: 'asc' },
     select: {
       id: true, numericId: true, name: true, setupToSell: true, terms: true,

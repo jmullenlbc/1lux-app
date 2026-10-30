@@ -79,13 +79,18 @@ export default function ManufacturerDetailClient({ manufacturer: mfr, offices = 
           <h1 className="text-2xl font-bold text-slate-900">{mfr.name}</h1>
           {mfr.setupToSell && <span className="text-xs font-semibold text-green-700 bg-green-50 rounded-full px-2 py-0.5">Setup to sell</span>}
           {mfr.buyDirect && <span className="text-xs font-semibold text-slate-600 bg-slate-100 rounded-full px-2 py-0.5">Buy direct</span>}
+          {!mfr.active && <span className="text-xs font-semibold text-slate-500 bg-slate-100 rounded-full px-2 py-0.5">Archived</span>}
           <span className="text-xs font-mono text-slate-400">#{mfr.numericId}</span>
-          <div className="ml-auto">
+          <div className="ml-auto flex gap-2">
+            <Button variant="secondary" size="sm" disabled={busy} onClick={() => save({ active: !mfr.active })}>
+              {mfr.active ? 'Archive' : 'Restore'}
+            </Button>
             <Button variant="secondary" size="sm" disabled={busy} onClick={() => save({ setupToSell: !mfr.setupToSell })}>
               {mfr.setupToSell ? 'Mark not setup to sell' : 'Mark setup to sell'}
             </Button>
           </div>
         </div>
+        {!mfr.active && <p className="text-sm text-slate-500 mt-1">Archived manufacturers are hidden from the list and pickers. Products, reps and history stay. Nothing is deleted.</p>}
       </div>
 
       <div className="p-6 space-y-6">
