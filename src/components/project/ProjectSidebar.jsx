@@ -19,7 +19,9 @@ function NavIcon({ name, size = 15 }) {
   return <Comp size={size} />;
 }
 
-export default function ProjectSidebar({ config, activeTab, onTabChange, userId, badges = {} }) {
+// drawer: the phone slide-out (Mike 10-29). Same folding sections, bigger
+// rows, no pin; the desktop menu hides under md.
+export default function ProjectSidebar({ config, activeTab, onTabChange, userId, badges = {}, drawer = false }) {
   const [collapsed, setCollapsed] = useState(false);
   // Sections fold like the main menu (Mike 10-29): only the open tab's section
   // starts open; the ones you open stay open per user.
@@ -68,9 +70,9 @@ export default function ProjectSidebar({ config, activeTab, onTabChange, userId,
   const allItems = config.flatMap(s => s.items);
 
   // ── Collapsed rail ──────────────────────────────────────────────────────────
-  if (collapsed) {
+  if (collapsed && !drawer) {
     return (
-      <aside className="w-11 shrink-0 bg-white border-r border-slate-200 self-start sticky top-0 h-screen overflow-y-auto flex flex-col items-center py-2 gap-1">
+      <aside className="hidden md:flex w-11 shrink-0 bg-white border-r border-slate-200 self-start sticky top-0 h-screen overflow-y-auto flex-col items-center py-2 gap-1">
         {/* Unpin button */}
         <button
           onClick={togglePin}
@@ -110,9 +112,9 @@ export default function ProjectSidebar({ config, activeTab, onTabChange, userId,
 
   // ── Expanded sidebar ────────────────────────────────────────────────────────
   return (
-    <aside className="w-52 shrink-0 bg-white border-r border-slate-200 self-start sticky top-0 h-screen overflow-y-auto">
+    <aside className={drawer ? 'w-full' : 'hidden md:block w-52 shrink-0 bg-white border-r border-slate-200 self-start sticky top-0 h-screen overflow-y-auto'}>
       {/* Pin button in header area */}
-      <div className="flex items-center justify-end px-2 pt-1 pb-0">
+      <div className={drawer ? 'hidden' : 'flex items-center justify-end px-2 pt-1 pb-0'}>
         <button
           onClick={togglePin}
           title="Collapse sidebar"
@@ -134,7 +136,7 @@ export default function ProjectSidebar({ config, activeTab, onTabChange, userId,
               <button
                 onClick={() => toggleSection(section.section)}
                 aria-expanded={isExpanded}
-                className={`w-full flex items-center gap-2 px-4 py-1.5 text-left transition-colors group ${hasActive && !isExpanded ? 'bg-amber-50' : 'hover:bg-slate-50'}`}
+                className={`w-full flex items-center gap-2 px-4 ${drawer ? 'py-3' : 'py-1.5'} text-left transition-colors group ${hasActive && !isExpanded ? 'bg-amber-50' : 'hover:bg-slate-50'}`}
               >
                 <span className="text-slate-300 text-xs">{section.icon}</span>
                 <span className={`flex-1 text-[11px] font-semibold uppercase tracking-wide transition-colors ${hasActive ? 'text-amber-700' : 'text-slate-500 group-hover:text-slate-700'}`}>
@@ -161,7 +163,7 @@ export default function ProjectSidebar({ config, activeTab, onTabChange, userId,
                         key={item.id}
                         onClick={() => onTabChange(item.id)}
                         className={[
-                          'w-full text-left px-4 py-1 text-sm transition-colors border-l-2 flex items-center gap-2',
+                          `w-full text-left px-4 ${drawer ? 'py-2.5 text-base' : 'py-1 text-sm'} transition-colors border-l-2 flex items-center gap-2`,
                           isActive
                             ? 'border-orange-500 bg-amber-50 text-amber-700 font-semibold'
                             : 'border-transparent text-slate-600 hover:bg-slate-50 hover:text-slate-900',

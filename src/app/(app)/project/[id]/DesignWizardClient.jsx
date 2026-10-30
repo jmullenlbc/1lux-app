@@ -256,8 +256,9 @@ export default function DesignWizardClient({ project, projectData, initialSectio
     isLast:  currentStep === 'controls',
   };
 
+  // Phones: steps on top, then the form, then the live budget, in one page scroll (Mike 10-29)
   return (
-    <div className="flex h-[calc(100vh-0px)] overflow-hidden">
+    <div className="flex flex-col md:flex-row md:h-[calc(100vh-0px)] md:overflow-hidden">
       {/* Left nav */}
       <SectionNav
         steps={navSteps}
@@ -269,8 +270,8 @@ export default function DesignWizardClient({ project, projectData, initialSectio
       />
 
       {/* Main content */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="max-w-3xl mx-auto px-6 py-8">
+      <div className="md:flex-1 md:overflow-y-auto">
+        <div className="max-w-3xl mx-auto px-4 py-5 md:px-6 md:py-8">
           {/* Step header */}
           <div className="mb-6">
             <div className="flex items-center gap-2 text-xs text-slate-500 mb-2">

@@ -132,8 +132,8 @@ export default function BudgetDashboard({ projectId, files, onFileAdded, onFileD
   return (
     <div className="space-y-6">
       {/* ── Budget Progression Chart ──────────────────────────────────────── */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-        <div className="flex items-center justify-between mb-5">
+      <div className="bg-white border border-slate-200 rounded-2xl p-4 md:p-6 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-5">
           <div>
             <h3 className="text-sm font-semibold text-slate-800">Budget Progression</h3>
             <p className="text-xs text-slate-400 mt-0.5">Grand total per submission, inc. tax &amp; freight</p>

@@ -217,7 +217,7 @@ export default function ProjectActivityFeed({ projectId }) {
 
   if (loading) {
     return (
-      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-4 md:p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-sm font-semibold text-slate-800">Project History</h3>
         </div>
@@ -263,7 +263,7 @@ export default function ProjectActivityFeed({ projectId }) {
 
   if (activities.length === 0) {
     return (
-      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-6">
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-4 md:p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-sm font-semibold text-slate-800">Project History</h3>
           <button onClick={() => fetchActivities()} className="text-xs text-slate-400 hover:text-amber-600 transition-colors">Refresh</button>
@@ -317,7 +317,7 @@ export default function ProjectActivityFeed({ projectId }) {
 
   return (
     <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-      <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+      <div className="flex items-center justify-between gap-3 px-4 md:px-6 py-4 border-b border-slate-100">
         <div>
           <h3 className="text-sm font-semibold text-slate-800">Project History</h3>
           <p className="text-xs text-slate-400 mt-0.5">Every change, upload, and update, tracked automatically</p>
@@ -334,7 +334,7 @@ export default function ProjectActivityFeed({ projectId }) {
       </div>
 
       {/* Filter bar */}
-      <div className="px-6 py-3 bg-slate-50 border-b border-slate-100">
+      <div className="px-4 md:px-6 py-3 bg-slate-50 border-b border-slate-100">
         <FilterToolbar
           count={[selectedModule, selectedUser, dateRange.from, dateRange.to].filter(Boolean).length}
           open={filtersOpen}
@@ -374,7 +374,7 @@ export default function ProjectActivityFeed({ projectId }) {
           grouped.map((item, idx) => {
           if (item.type === 'date') {
             return (
-              <div key={`date-${idx}`} className="px-6 py-2 bg-slate-50">
+              <div key={`date-${idx}`} className="px-4 md:px-6 py-2 bg-slate-50">
                 <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">{item.label}</span>
               </div>
             );
@@ -385,7 +385,7 @@ export default function ProjectActivityFeed({ projectId }) {
           const actor  = act.userName || act.userEmail || 'Unknown user';
 
           return (
-            <div key={act.id} className="flex gap-3.5 px-6 py-3.5 hover:bg-slate-50/60 transition-colors group">
+            <div key={act.id} className="flex gap-3.5 px-4 md:px-6 py-3.5 hover:bg-slate-50/60 transition-colors group">
               {/* Actor avatar */}
               <div className="shrink-0 mt-0.5">
                 <div className="w-7 h-7 rounded-full bg-amber-100 text-amber-700 text-[10px] font-bold flex items-center justify-center">
@@ -420,7 +420,7 @@ export default function ProjectActivityFeed({ projectId }) {
       </div>
 
       {hasMore && (
-        <div className="px-6 py-3 border-t border-slate-100 bg-slate-50">
+        <div className="px-4 md:px-6 py-3 border-t border-slate-100 bg-slate-50">
           <button
             onClick={() => fetchActivities({ append: true, afterCursor: cursor })}
             disabled={loadingMore}

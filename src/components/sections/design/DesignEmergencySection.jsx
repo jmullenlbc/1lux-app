@@ -73,7 +73,7 @@ export default function DesignEmergencySection({
       {hasSf && (
         <div className="bg-slate-50 rounded-xl border border-slate-200 p-4">
           <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Emergency Scope</div>
-          <div className="grid grid-cols-3 gap-3 text-center">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-center">
             {[
               { label: 'Corridor SF',       value: corridorSf   > 0 ? corridorSf.toLocaleString()   : '—' },
               { label: 'Interior Amenity',  value: intAmenitySf > 0 ? intAmenitySf.toLocaleString() : '—' },
@@ -199,7 +199,8 @@ export default function DesignEmergencySection({
         </div>
       </div>
 
-      <div className="flex gap-3 pt-2">
+      {/* Phones: Back and Next wrap; scope tiles stack (Mike 10-29) */}
+      <div className="flex flex-wrap gap-3 pt-2">
         <Button variant="secondary" onClick={onPrev}>Back</Button>
         <Button variant="amber" size="lg" loading={saving} onClick={handleNext}>
           Save &amp; Continue to Exit Signs

@@ -80,7 +80,9 @@ function GroupCard({ projectId, group, onState, onSent, setErr }) {
       <div className="mt-3 space-y-1.5">
         {group.manufacturers.map((m) => <RepPick key={m.id} projectId={projectId} mfr={m} choices={group.choices} onState={onState} setErr={setErr} />)}
       </div>
-      <table className="w-full text-sm mt-3">
+      {/* Phones: this small table scrolls sideways instead of crushing the Part column (Mike 10-29) */}
+      <div className="overflow-x-auto mt-3">
+      <table className="w-full min-w-[420px] md:min-w-0 text-sm">
         <thead className="text-xs text-slate-500">
           <tr>
             <th className="py-1 pr-2 w-6 text-left"><input type="checkbox" className={BOX} checked={picks.all} onChange={picks.toggleAll} aria-label={`Select all lines for ${group.toName}`} /></th>
@@ -101,6 +103,7 @@ function GroupCard({ projectId, group, onState, onSent, setErr }) {
           ))}
         </tbody>
       </table>
+      </div>
       {ready && (
         <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Notes for this rep (optional, prints on the RFQ)"
           className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm mt-3 min-h-[2.5rem]" />
@@ -154,7 +157,7 @@ export default function RfqTab({ projectId }) {
   return (
     <div className="space-y-6">
       <WidgetFrame title="RFQs" sub="Pricing requests to reps, built from the bid matrix" actions={
-        <label className="flex items-center gap-2 text-sm text-slate-600">
+        <label className="flex flex-wrap items-center gap-2 text-sm text-slate-600">
           Office working this job
           <select className={SELECT} value={state.office?.id || ''} onChange={(e) => setOffice(e.target.value)}>
             {!state.office && <option value="">Pick an office</option>}

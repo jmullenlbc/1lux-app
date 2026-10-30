@@ -746,7 +746,8 @@ export default function ExteriorSection({ responses, projectData, allSections, p
         </>
       )}
 
-      <div className="flex gap-3 pt-2">
+      {/* Phones: Back and Next wrap onto two lines when tight (Mike 10-29) */}
+      <div className="flex flex-wrap gap-3 pt-2">
         <Button variant="secondary" onClick={onPrev}>Back</Button>
         <Button variant="amber" size="lg" loading={saving} onClick={handleNext}>
           Save &amp; Continue to Emergency

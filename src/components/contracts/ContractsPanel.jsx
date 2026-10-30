@@ -228,7 +228,7 @@ function AnalysisPanel({ analysis, fileName }) {
       </div>
 
       {/* Tab bar */}
-      <div className="flex border-b border-slate-200 bg-white">
+      <div className="flex border-b border-slate-200 bg-white overflow-x-auto md:overflow-visible">
         {TABS.map(t => (
           <button
             key={t.id}
@@ -400,7 +400,8 @@ function ContractFileRow({ file, projectId, onDelete, analysisOverride, onView =
 
   return (
     <div className="border-b border-slate-100 last:border-0">
-      <div className={`flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors ${expanded ? 'bg-slate-50' : ''}`}>
+      {/* Phones: the action buttons drop to their own line (Mike 10-29) */}
+      <div className={`flex flex-wrap md:flex-nowrap items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors ${expanded ? 'bg-slate-50' : ''}`}>
         {/* File icon */}
         <div className="shrink-0">
           {isPdf ? (
@@ -460,7 +461,7 @@ function ContractFileRow({ file, projectId, onDelete, analysisOverride, onView =
         </div>
 
         {/* Actions */}
-        <div className="flex items-center gap-1.5 shrink-0">
+        <div className="flex flex-wrap items-center justify-end md:justify-start gap-1.5 shrink-0 w-full md:w-auto">
           {/* AI Review button, only for supply contracts with text */}
           {hasSupply && file.textContent && (
             analysis ? (
@@ -612,7 +613,7 @@ function SimpleFileRow({ file, projectId, onDelete, onView }) {
             {file.originalName}
           </a>
         )}
-        <div className="flex items-center gap-2 mt-0.5">
+        <div className="flex flex-wrap md:flex-nowrap items-center gap-2 mt-0.5">
           {tags.map(t => {
             const m = tagMeta(t);
             return <span key={t} className={`text-[11px] font-semibold px-1.5 py-0.5 rounded border ${m.color}`}>{m.label}</span>;
@@ -934,7 +935,7 @@ export default function ContractsPanel({ projectId, initialFiles = [], onFileAdd
           {/* Flat list for designOnly / default mode */}
           {files.length > 0 && (
             <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-              <div className="flex items-center gap-3 px-4 py-2.5 border-b border-slate-100 bg-slate-50">
+              <div className="flex flex-wrap items-center gap-3 px-4 py-2.5 border-b border-slate-100 bg-slate-50">
                 <span className="text-xs text-slate-500 font-medium">{files.length} document{files.length !== 1 ? 's' : ''}</span>
                 {supplyCount > 0 && (
                   <span className="text-xs text-slate-400">· {reviewedCount}/{supplyCount} reviewed</span>

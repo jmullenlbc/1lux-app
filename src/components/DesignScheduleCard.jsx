@@ -48,7 +48,8 @@ function GanttStrip({ milestones }) {
   const showToday = today > minTime && today < maxTime;
 
   return (
-    <div className="relative h-14 mb-5 select-none px-2">
+    <div className="overflow-x-auto md:overflow-visible mb-5">
+    <div className="relative h-14 select-none px-2 min-w-[480px] md:min-w-0">
       {/* baseline */}
       <div className="absolute top-7 left-2 right-2 h-px bg-slate-200" />
 
@@ -90,6 +91,7 @@ function GanttStrip({ milestones }) {
           </div>
         );
       })}
+    </div>
     </div>
   );
 }
@@ -153,9 +155,9 @@ export default function DesignScheduleCard({ projectId, initialMilestones, onSav
   const hasDates = milestones.some(m => m.date);
 
   return (
-    <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-sm">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4">
+    <div className="bg-white border border-slate-200 rounded-2xl p-4 md:p-5 shadow-sm">
+      {/* Header. Phones: timeline scrolls sideways, rows wrap, delete always shown (Mike 10-29) */}
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <div className="flex items-center gap-3">
           <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Design Schedule</p>
           {hasDates && (
@@ -231,7 +233,7 @@ export default function DesignScheduleCard({ projectId, initialMilestones, onSav
               <button
                 onClick={() => deleteMilestone(m.id)}
                 title="Remove milestone"
-                className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-300 hover:text-red-400 shrink-0 ml-1"
+                className="md:opacity-0 md:group-hover:opacity-100 transition-opacity text-slate-300 hover:text-red-400 shrink-0 ml-1"
               >
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -243,7 +245,7 @@ export default function DesignScheduleCard({ projectId, initialMilestones, onSav
 
         {/* Add new milestone */}
         {addingNew ? (
-          <div className="flex items-center gap-2 py-2 px-2 bg-slate-50 rounded-lg mt-1">
+          <div className="flex flex-wrap md:flex-nowrap items-center gap-2 py-2 px-2 bg-slate-50 rounded-lg mt-1">
             <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-400 shrink-0">
               NEW
             </span>
@@ -254,7 +256,7 @@ export default function DesignScheduleCard({ projectId, initialMilestones, onSav
               value={newLabel}
               onChange={e => setNewLabel(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && addMilestone()}
-              className="flex-1 text-sm border border-slate-200 rounded px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-amber-400 min-w-0"
+              className="flex-1 text-sm border border-slate-200 rounded px-2 py-0.5 focus:outline-none focus:ring-1 focus:ring-amber-400 min-w-[60%] md:min-w-0"
             />
             <input
               type="date"

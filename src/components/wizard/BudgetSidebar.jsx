@@ -63,7 +63,8 @@ export default function BudgetSidebar({ budget, projectData, currentStep, range 
   return (
     // Mike 10-15: one scrollbar per screen. The aside fills the page height
     // and its rows are tight enough to fit; it never scrolls on its own.
-    <aside className="w-64 bg-white border-l border-slate-100 flex flex-col shrink-0 min-h-0">
+    // Phones: the live budget drops below the form at full width (Mike 10-29).
+    <aside className="w-full md:w-64 bg-white border-t md:border-t-0 md:border-l border-slate-100 flex flex-col shrink-0 min-h-0">
       {/* Header */}
       <div className="px-4 py-4 bg-navy-950 border-b border-navy-800">
         {/* Mike 10-2: the project's name sits above the total at all times once it is typed. */}

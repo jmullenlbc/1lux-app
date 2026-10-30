@@ -432,7 +432,8 @@ export default function CorrespondenceTab({ projectId, projectName }) {
     <div className="flex h-[calc(100vh-220px)] border-t border-slate-200">
 
       {/* ── Thread list ───────────────────────────────────────────────────── */}
-      <div className="w-[272px] shrink-0 border-r border-[#ede9e2] flex flex-col bg-[#faf9f7] overflow-hidden">
+      {/* Phones show the list or the open thread, never both (Mike 10-29) */}
+      <div className={`${selectedThread ? 'hidden md:flex' : 'flex'} w-full md:w-[272px] shrink-0 md:border-r border-[#ede9e2] flex-col bg-[#faf9f7] overflow-hidden`}>
 
         {/* Header */}
         <div className="flex items-center justify-between px-3 py-2.5 border-b border-[#ede9e2]">
@@ -453,7 +454,7 @@ export default function CorrespondenceTab({ projectId, projectName }) {
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Search correspondence…"
-              className="w-full text-[11px] border border-[#e8e4dc] rounded-md pl-6 pr-2 py-1.5 text-[#4a4540] bg-white outline-none focus:border-orange-500 placeholder:text-[#b8b2a8]"
+              className="w-full text-base md:text-[11px] border border-[#e8e4dc] rounded-md pl-6 pr-2 py-1.5 text-[#4a4540] bg-white outline-none focus:border-orange-500 placeholder:text-[#b8b2a8]"
             />
           </div>
         </div>
@@ -516,7 +517,7 @@ export default function CorrespondenceTab({ projectId, projectName }) {
       </div>
 
       {/* ── Thread detail ─────────────────────────────────────────────────── */}
-      <div className="flex-1 flex flex-col overflow-hidden bg-white">
+      <div className={`${selectedThread ? 'flex' : 'hidden md:flex'} flex-1 flex-col overflow-hidden bg-white`}>
 
         {!selectedThread ? (
           <div className="flex-1 flex items-center justify-center text-sm text-slate-400">
@@ -525,7 +526,10 @@ export default function CorrespondenceTab({ projectId, projectName }) {
         ) : (
           <>
             {/* Detail header */}
-            <div className="px-5 py-3 border-b border-[#ede9e2] shrink-0">
+            <div className="px-4 md:px-5 py-3 border-b border-[#ede9e2] shrink-0">
+              <button onClick={() => setSelectedConvId(null)} className="md:hidden -ml-1 mb-2 px-2 py-1.5 text-sm font-medium text-orange-600">
+                ‹ All threads
+              </button>
               <div className="text-[15px] font-semibold text-[#1a1a1a] mb-1.5">
                 {selectedThread.subject}
               </div>
@@ -560,7 +564,7 @@ export default function CorrespondenceTab({ projectId, projectName }) {
             </div>
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto px-5 py-4">
+            <div className="flex-1 overflow-y-auto px-4 md:px-5 py-4">
               {msgsLoading ? (
                 <Skeleton />
               ) : messages.length === 0 ? (
@@ -583,7 +587,7 @@ export default function CorrespondenceTab({ projectId, projectName }) {
             </div>
 
             {/* Reply bar */}
-            <div className="px-5 py-3 border-t border-[#ede9e2] flex items-center gap-2 bg-[#faf9f7] shrink-0">
+            <div className="px-4 md:px-5 py-3 border-t border-[#ede9e2] flex flex-wrap items-center gap-2 bg-[#faf9f7] shrink-0">
               <svg className="w-4 h-4 text-[#b8b2a8] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>

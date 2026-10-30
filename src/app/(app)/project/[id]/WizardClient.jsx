@@ -241,8 +241,9 @@ export default function WizardClient({ project, projectData, initialSections, in
     }
   }, [sections]);
 
+  // Phones: steps on top, then the form, then the live budget, in one page scroll (Mike 10-29)
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="flex flex-col md:flex-row md:h-screen md:overflow-hidden">
       {/* Left nav */}
       <SectionNav
         steps={navSteps}
@@ -254,8 +255,8 @@ export default function WizardClient({ project, projectData, initialSections, in
       />
 
       {/* Main content */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="max-w-3xl mx-auto px-6 py-8">
+      <div className="md:flex-1 md:overflow-y-auto">
+        <div className="max-w-3xl mx-auto px-4 py-5 md:px-6 md:py-8">
           <button onClick={() => router.push(`/project/${project.id}`)} className="text-xs font-semibold text-slate-500 hover:text-orange-600 transition-colors mb-4 inline-block">
             ← Back to {project.name}
           </button>

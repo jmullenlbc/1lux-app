@@ -69,8 +69,9 @@ export default function NewSubmissionModal({ projectId, tracker, onClose, onCrea
             {error && <p className="text-sm text-red-500 bg-red-50 rounded-lg px-3 py-2">{error}</p>}
 
             {/* Submission meta */}
-            <div className="grid grid-cols-2 gap-4">
-              <div className="col-span-2">
+            {/* Phones: one column, spec table scrolls sideways (Mike 10-29) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="md:col-span-2">
                 <label className="block text-xs font-semibold text-slate-500 mb-1.5">Submission Name *</label>
                 <input
                   autoFocus
@@ -102,11 +103,11 @@ export default function NewSubmissionModal({ projectId, tracker, onClose, onCrea
 
             {/* Per-type specs */}
             <div>
-              <div className="flex items-center justify-between mb-2">
+              <div className="flex flex-wrap items-center justify-between gap-x-3 mb-2">
                 <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Fixture Specs in This Submission</p>
                 <p className="text-xs text-slate-500">Update if spec changed from prior submission</p>
               </div>
-              <div className="border border-slate-200 rounded-xl overflow-hidden">
+              <div className="border border-slate-200 rounded-xl overflow-x-auto md:overflow-hidden">
                 <table className="w-full text-xs">
                   <thead>
                     <tr className="bg-slate-50 border-b border-slate-200">

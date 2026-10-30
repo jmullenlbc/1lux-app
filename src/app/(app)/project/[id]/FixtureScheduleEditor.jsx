@@ -1081,7 +1081,8 @@ export default function FixtureScheduleEditor({ projectId, serviceType }) {
           )}
         </div>
 
-        <div className="flex items-center gap-2">
+        {/* Phones: header buttons wrap, wide table scrolls sideways (Mike 10-29) */}
+        <div className="flex flex-wrap md:flex-nowrap items-center gap-2">
           {/* Global search */}
           <div className="relative">
             <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -1299,7 +1300,7 @@ export default function FixtureScheduleEditor({ projectId, serviceType }) {
       {/* ── Table ──────────────────────────────────────────────────────────── */}
       {rawItems.length > 0 && (
         <div className={`${CARD} overflow-x-auto`}>
-          <table className="w-full text-left border-collapse table-fixed">
+          <table className="w-full min-w-[900px] md:min-w-0 text-left border-collapse table-fixed">
             <colgroup>
               {!isReadOnly && <col style={{ width: '24px' }} />}  {/* + insert */}
               {!isReadOnly && <col style={{ width: '32px' }} />}  {/* delete */}
@@ -1429,7 +1430,7 @@ export default function FixtureScheduleEditor({ projectId, serviceType }) {
 
       {/* ── Footer ─────────────────────────────────────────────────────────── */}
       {!isReadOnly && rawItems.length > 0 && (
-        <div className="flex items-center justify-between text-xs text-slate-500 px-1">
+        <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500 px-1">
           <span>
             {isFiltering
               ? `${items.length} of ${rawItems.length} rows · `

@@ -388,17 +388,17 @@ function DrawingFileRow({ file, projectId, onDeleteSubmission }) {
 
   return (
     <>
-      <div className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50/50 transition-colors group">
+      <div className="flex flex-wrap md:flex-nowrap items-center gap-x-3 gap-y-1.5 px-4 py-3 hover:bg-slate-50/50 transition-colors group">
         {/* PDF icon */}
         <svg className="w-6 h-7 text-red-400 shrink-0" viewBox="0 0 24 28" fill="none">
           <rect width="24" height="28" rx="2" fill="currentColor" fillOpacity="0.12"/>
           <text x="12" y="18" textAnchor="middle" fill="currentColor" fontSize="6" fontWeight="bold">PDF</text>
         </svg>
 
-        {/* Filename, click to open markup viewer */}
+        {/* Filename, click to open markup viewer. Phones: own line, meta wraps below (Mike 10-29) */}
         <button
           onClick={() => setMarkupOpen(true)}
-          className="flex-1 text-sm text-slate-800 hover:text-orange-600 transition-colors text-left truncate"
+          className="flex-1 min-w-[calc(100%-2.25rem)] md:min-w-0 text-sm text-slate-800 hover:text-orange-600 transition-colors text-left truncate"
         >
           {file.fileName}
         </button>
@@ -514,7 +514,7 @@ export default function DrawingsTab({ projectId }) {
       )}
 
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-sm text-slate-500">
             {submissions.length > 0

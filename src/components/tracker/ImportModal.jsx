@@ -191,7 +191,8 @@ export default function ImportModal({ projectId, trackerId, onClose, onImported 
               <p className="text-sm text-slate-600">
                 Ready to import <strong>{preview.length}</strong> fixture types:
               </p>
-              <div className="border border-slate-200 rounded-xl overflow-hidden">
+              {/* Phones: preview table scrolls sideways (Mike 10-29) */}
+              <div className="border border-slate-200 rounded-xl overflow-x-auto md:overflow-hidden">
                 <table className="w-full text-xs">
                   <thead>
                     <tr className="bg-slate-50 border-b border-slate-200">

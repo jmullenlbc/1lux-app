@@ -212,7 +212,7 @@ function LineItemRow({ item, groupId, projectId, coId, manufacturers, rates, onU
       {/* Action buttons column */}
       {!isLocked && (
         <td className="px-1 py-1 w-16">
-          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className="flex items-center gap-0.5 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
             {/* + Line */}
             <button onClick={() => onAddLine(item)}
               className="h-5 flex items-center gap-0.5 px-1 rounded text-[11px] font-bold text-slate-400 hover:text-green-600 hover:bg-green-50 transition-colors whitespace-nowrap"
@@ -501,7 +501,7 @@ function OptionGroupPanel({ group, co, projectId, coId, rates, manufacturers, on
 
       {/* Add line at bottom */}
       {!isLocked && (
-        <div className="px-4 py-2 border-t border-slate-100 flex items-center gap-3">
+        <div className="px-4 py-2 border-t border-slate-100 flex flex-wrap items-center gap-x-3 gap-y-1">
           <button onClick={() => addLineAfter(null)} disabled={saving}
             className="text-xs text-slate-500 hover:text-green-600 font-semibold flex items-center gap-1 transition-colors disabled:opacity-50">
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -858,14 +858,14 @@ export default function CODetailClient({ projectId, coId }) {
       {showShare && <ShareCOModal co={co} projectId={projectId} onClose={() => setShowShare(false)} />}
 
       {viewOnly && (
-        <div className="bg-slate-100 border-b border-slate-200 px-6 py-2 text-center text-xs text-slate-600">
+        <div className="bg-slate-100 border-b border-slate-200 px-4 md:px-6 py-2 text-center text-xs text-slate-600">
           View only. Only Construction, Operations, Finance or an admin can change change orders.
         </div>
       )}
 
-      {/* Top bar */}
+      {/* Top bar. Phones: buttons drop to their own line (Mike 10-29) */}
       <div className="bg-white border-b border-slate-200 sticky top-0 z-20">
-        <div className="max-w-6xl mx-auto px-6 py-3 flex items-center gap-4">
+        <div className="max-w-6xl mx-auto px-4 md:px-6 py-3 flex flex-wrap md:flex-nowrap items-center gap-x-4 gap-y-2">
           <Link href={`/project/${projectId}?tab=change-orders`}
             className="text-slate-400 hover:text-slate-600 transition-colors">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -882,7 +882,7 @@ export default function CODetailClient({ projectId, coId }) {
               {savingHeader && <span className="text-[11px] text-slate-400 italic">Saving…</span>}
             </div>
           </div>
-          <div className="flex items-center gap-2 shrink-0">
+          <div className="flex flex-wrap items-center gap-2 shrink-0 w-full md:w-auto">
             {co.status !== 'APPROVED' && !viewOnly && (
               <button onClick={() => setShowSend(true)}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-orange-500 text-white text-xs font-semibold hover:bg-orange-600 transition-colors">
@@ -916,10 +916,10 @@ export default function CODetailClient({ projectId, coId }) {
         </div>
       </div>
 
-      <div className="max-w-6xl mx-auto px-6 py-6 space-y-6">
+      <div className="max-w-6xl mx-auto px-4 md:px-6 py-4 md:py-6 space-y-6">
 
         {/* Header card */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 md:p-6">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div>
               <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1">Title</label>
@@ -979,7 +979,7 @@ export default function CODetailClient({ projectId, coId }) {
               </summary>
               <div className="mt-2 space-y-1">
                 {co.sends.map(s => (
-                  <div key={s.id} className="flex items-center gap-3 text-xs text-slate-500 bg-slate-50 rounded-lg px-3 py-2">
+                  <div key={s.id} className="flex flex-wrap md:flex-nowrap items-center gap-x-3 gap-y-0.5 text-xs text-slate-500 bg-slate-50 rounded-lg px-3 py-2">
                     <span>{fmtDate(s.sentAt)}</span>
                     <span>→ {s.recipients}</span>
                     <span className="text-slate-400">by {s.sentBy?.name || s.sentBy?.email}</span>
@@ -993,7 +993,7 @@ export default function CODetailClient({ projectId, coId }) {
 
         {/* Option Groups */}
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">
               Option Groups:
               <span className="ml-2 text-slate-400 font-normal normal-case">click the radio to select</span>

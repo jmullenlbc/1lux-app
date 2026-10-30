@@ -276,7 +276,8 @@ export default function ControlsSection({ responses, projectData, budget, pricin
         </>
       )}
 
-      <div className="flex gap-3 pt-2">
+      {/* Phones: Back and Next wrap onto two lines when tight (Mike 10-29) */}
+      <div className="flex flex-wrap gap-3 pt-2">
         <Button variant="secondary" onClick={onPrev}>Back</Button>
         <Button variant="amber" size="lg" loading={saving} onClick={handleNext}>
           {isLast ? 'Save & View Summary' : 'Save & Continue'}

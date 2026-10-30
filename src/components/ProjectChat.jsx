@@ -297,7 +297,7 @@ export default function ProjectChat({ projectId }) {
     <>
       {/* Chat panel */}
       {open && (
-        <div className="fixed bottom-6 right-6 z-40 w-[420px] max-w-[calc(100vw-2rem)] flex flex-col bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden"
+        <div className="fixed bottom-4 right-4 md:bottom-6 md:right-6 z-40 w-[420px] max-w-[calc(100vw-2rem)] max-h-[calc(100vh-2rem)] md:max-h-none flex flex-col bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden"
           style={{ height: '560px' }}>
 
           {/* ── Header ── */}
@@ -377,7 +377,7 @@ export default function ProjectChat({ projectId }) {
                                 <button
                                   onClick={e => deleteConversation(e, conv.id)}
                                   disabled={deletingId === conv.id}
-                                  className="opacity-0 group-hover:opacity-100 w-4 h-4 flex items-center justify-center text-slate-300 hover:text-red-400 transition-all"
+                                  className="md:opacity-0 md:group-hover:opacity-100 w-4 h-4 flex items-center justify-center text-slate-300 hover:text-red-400 transition-all"
                                 >
                                   {deletingId === conv.id ? (
                                     <svg className="animate-spin w-3 h-3" viewBox="0 0 24 24" fill="none">

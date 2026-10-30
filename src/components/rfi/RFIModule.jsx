@@ -59,7 +59,7 @@ function RFIList({ rfis, selectedId, onSelect }) {
           <div
             key={rfi.id}
             onClick={() => onSelect(rfi.id)}
-            className={`flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors border-b border-slate-50 last:border-0 ${
+            className={`flex flex-wrap md:flex-nowrap items-center gap-x-3 gap-y-1 px-4 py-3 cursor-pointer transition-colors border-b border-slate-50 last:border-0 ${
               selectedId === rfi.id ? 'bg-amber-50' : i % 2 === 0 ? 'bg-white hover:bg-slate-50' : 'bg-slate-50/40 hover:bg-slate-50'
             }`}
           >
@@ -72,7 +72,7 @@ function RFIList({ rfis, selectedId, onSelect }) {
             <span className="text-[11px] font-mono font-bold text-slate-700 shrink-0 w-20 truncate">{rfi.rfiNumber}</span>
 
             {/* Subject */}
-            <span className="flex-1 text-sm text-slate-700 truncate">{rfi.subject}</span>
+            <span className="order-first w-full md:order-none md:w-auto flex-1 text-sm text-slate-700 truncate">{rfi.subject}</span>
 
             {/* Type */}
             <span className="text-[11px] text-slate-400 shrink-0 hidden lg:block">{TYPE_LABELS[rfi.rfiType] ?? rfi.rfiType}</span>
@@ -304,7 +304,7 @@ function RFIDetail({ rfiId, projectId, currentUserName, onClose }) {
   const draftToShow = editing ? editText : (rfi.draftText ?? '');
 
   return (
-    <div className="flex gap-5 h-full">
+    <div className="flex flex-col md:flex-row gap-5 h-full">
       {/* Ship flag modal */}
       {shipModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
@@ -481,7 +481,7 @@ function RFIDetail({ rfiId, projectId, currentUserName, onClose }) {
       </div>
 
       {/* RIGHT, Context panel */}
-      <div className="w-72 shrink-0 space-y-3">
+      <div className="w-full md:w-72 shrink-0 space-y-3">
         <div className="border border-slate-200 rounded-xl overflow-hidden">
           <div className="px-3 py-2 bg-slate-50 border-b border-slate-200">
             <span className="text-[11px] font-mono uppercase tracking-wide text-slate-500">Details</span>
@@ -555,7 +555,7 @@ export default function RFIModule({ projectId, allUsers, currentUserName }) {
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold text-slate-800">RFIs</h2>
           <p className="text-xs text-slate-400 mt-0.5">
@@ -572,7 +572,7 @@ export default function RFIModule({ projectId, allUsers, currentUserName }) {
 
       {/* Detail view (inline when selected) */}
       {selectedId && (
-        <div className="bg-white border border-slate-200 rounded-xl p-5">
+        <div className="bg-white border border-slate-200 rounded-xl p-3 md:p-5">
           <RFIDetail
             rfiId={selectedId}
             projectId={projectId}
@@ -586,7 +586,7 @@ export default function RFIModule({ projectId, allUsers, currentUserName }) {
       {!selectedId && (
         <>
           {/* Column headers */}
-          <div className="flex items-center gap-3 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+          <div className="hidden md:flex items-center gap-3 px-4 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
             <span className="w-20">RFI #</span>
             <span className="flex-1">Subject</span>
             <span className="hidden lg:block w-24">Type</span>

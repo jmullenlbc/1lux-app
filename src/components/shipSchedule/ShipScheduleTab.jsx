@@ -573,7 +573,7 @@ export default function ShipScheduleTab({ projectId }) {
             <button
               onClick={() => setReleasing(item)}
               title="Release from warehouse"
-              className="w-6 h-6 flex items-center justify-center rounded text-slate-300 hover:text-amber-500 hover:bg-amber-50 transition-colors opacity-0 group-hover:opacity-100"
+              className="w-6 h-6 flex items-center justify-center rounded text-slate-300 hover:text-amber-500 hover:bg-amber-50 transition-colors md:opacity-0 md:group-hover:opacity-100"
             >
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 00-3.213-9.193 2.056 2.056 0 00-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 00-10.026 0 1.106 1.106 0 00-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" />
@@ -746,15 +746,15 @@ export default function ShipScheduleTab({ projectId }) {
         />
       )}
 
-      {/* Header */}
-      <div className="flex items-center justify-between">
+      {/* Header. Phones: buttons wrap, release button always shown, table scrolls sideways (Mike 10-29) */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold text-slate-800">Ship Schedule</h2>
           <p className="text-sm text-slate-400 mt-0.5">
             {items.length > 0 ? `${activeItems.length} active types${removedItems.length > 0 ? ` · ${removedItems.length} removed` : ''}` : 'Track fixture ordering → delivery → warehouse release'}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {/* PDF */}
           {items.length > 0 && (
             <a
@@ -822,7 +822,7 @@ export default function ShipScheduleTab({ projectId }) {
             <span className="text-sm font-bold text-amber-800">Pending Warehouse Release Requests ({pendingReleases.length})</span>
           </div>
           {pendingReleases.map(rel => (
-            <div key={rel.id} className="flex items-center gap-3 bg-white border border-amber-200 rounded-lg px-3 py-2 text-xs">
+            <div key={rel.id} className="flex flex-wrap md:flex-nowrap items-center gap-3 bg-white border border-amber-200 rounded-lg px-3 py-2 text-xs">
               <span className="font-bold text-slate-700 font-mono">{rel.lineItem.fixtureType}</span>
               <span className="text-slate-500 flex-1 truncate">{rel.lineItem.description}</span>
               <span className="text-amber-700 font-semibold">{rel.qty} units requested</span>

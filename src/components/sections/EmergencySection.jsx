@@ -118,7 +118,7 @@ export default function EmergencySection({ responses, projectData, allSections, 
       {/* Scope summary */}
       <div className="bg-slate-50 rounded-xl border border-slate-200 p-4">
         <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Areas Requiring Emergency Lighting</div>
-        <div className={`grid gap-3 text-center ${frogeyes > 0 && garageFrogeyes > 0 ? 'grid-cols-5' : frogeyes > 0 || garageFrogeyes > 0 ? 'grid-cols-4' : 'grid-cols-3'}`}>
+        <div className={`grid gap-3 text-center ${frogeyes > 0 && garageFrogeyes > 0 ? 'grid-cols-2 md:grid-cols-5' : frogeyes > 0 || garageFrogeyes > 0 ? 'grid-cols-2 md:grid-cols-4' : 'grid-cols-2 md:grid-cols-3'}`}>
           {[
             { label: 'Corridor SF',         value: corridorSf.toLocaleString() },
             { label: 'Interior Amenity SF', value: intSf.toLocaleString()      },
@@ -224,7 +224,8 @@ export default function EmergencySection({ responses, projectData, allSections, 
         />
       </div>
 
-      <div className="flex gap-3 pt-2">
+      {/* Phones: Back and Next wrap; scope tiles go two across (Mike 10-29) */}
+      <div className="flex flex-wrap gap-3 pt-2">
         <Button variant="secondary" onClick={onPrev}>Back</Button>
         <Button variant="amber" size="lg" loading={saving} onClick={handleNext}>
           Save & Continue to Controls

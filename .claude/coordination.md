@@ -2,7 +2,9 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-10-29 (newest) - Mike's Claude - **DEPLOYED (see git log: No top banner)**, no migration: top meeting notes banner removed (alerts inside Sales Notes, My Desk, menu badge), project menu sections fold like the main menu, brighter Ask AI and Report a bug, RFQ test cleanup.
+### 2026-10-29 (newest) - Mike's Claude - **DEPLOYED (see git log: Project pages on phones)**, no migration: every project screen fits a phone (Sections drawer, More menu, tabs swipe, tables scroll, wizards stack). Calendar Upload, Texas concept feeds and Manufacturers/Sales Reps bulk edit (0145) are built locally, NOT deployed.
+
+### 2026-10-29 - Mike's Claude - **DEPLOYED e29e466**, no migration: top meeting notes banner removed (alerts inside Sales Notes, My Desk, menu badge), project menu sections fold like the main menu, brighter Ask AI and Report a bug, RFQ test cleanup.
 
 ### 2026-10-29 - Mike's Claude - **DEPLOYED 13d51fb**, no migration: project page layout (menu top left, fits one screen; title block in the right column; Proposal icon), RFQ line checkboxes + Select all, picking a rep links them for the job's office, Manufacturers list + detail page like Sales Reps, RFQs above Budgets.
 

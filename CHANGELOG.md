@@ -5,7 +5,21 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [No top banner, project menu sections fold, brighter Ask AI and Report a bug] - October 29, 2026 (NOT DEPLOYED) - no migration
+## [Project pages on phones] - October 29, 2026 (DEPLOYED) - no migration
+
+- Phones: the project menu slides out from a "Sections" button, and the open section's tabs swipe sideways under the header. The header stacks and its small actions (rename, flag, flag note, people, location and type, Copy as JSON) sit behind "More".
+- Phone pass on Budgets, Meetings, Emails, RFIs, Code and Client Portal Access: cards stack, padding shrinks, headers wrap. Emails show the thread list or one open thread with "‹ All threads" back. RFI rows put the subject on top and the detail stacks. The "Open PDF" button on files now shows on touch screens.
+- Every other project screen got the same pass (Mike: "all screens in a project"):
+  - Dashboard, activity, people, project chat: cards stack, edit pencils and delete buttons show on touch.
+  - Proposal, Contracts, Change Orders (list and detail): tab strips scroll, buttons wrap, tables scroll sideways.
+  - Takeoffs, Fixture Schedule, Unit Matrix, Site Data, Bid Leveling, RFQs, Code checks, LPD, Human Error Radar: padding shrinks, headers wrap, wide tables scroll sideways.
+  - Drawings rows put the file name on its own line; CA and Design schedules, Ship Schedule, Submittal tracker (side panel opens full screen), Summary page (print layout unchanged), drawing markup header and toolbar wrap.
+  - Budget wizard and design wizard: steps become a sideways chip row on top, then the form, then the live Budget below; Back and Next wrap; Peer Review tiles go 2 across.
+- Left for a real redesign: drawing markup body (tool column plus takeoff panel is wider than a phone), Ship Schedule expanded row, Peer Review bid matrix and the 960px change order line table (both scroll sideways).
+- Desktop is unchanged: every phone change sits under the md breakpoint.
+- Files: `ProjectSidebar.jsx`, `ProjectHubClient.jsx`, `CorrespondenceTab.jsx`, `RFIModule.jsx`, `BudgetDashboard.jsx`, `FileDropZone.jsx`, `MeetingNotes.jsx`, `NotificationSettingsTab.jsx`, `ContactsTab.jsx`, `ProjectCodeSearch.jsx`, plus the dashboard, contracts, takeoff, drawings, schedule, tracker, summary, wizard and `sections/` components listed by `git diff --stat`.
+
+## [No top banner, project menu sections fold, brighter Ask AI and Report a bug] - October 29, 2026 (DEPLOYED e29e466) - no migration
 
 - The amber "meeting notes to finish" banner across the top of every page is gone (Mike: it made scrolling stutter). The reminder now lives inside its modules: the Sales Notes menu badge, the My Desk row, and a red alert mark on the Sales Notes page ("N need notes", click to show Mine to publish).
 - Project menu sections fold like the main menu. Only the section holding the open tab starts open, moving to a tab opens its section, and the sections you open stay open next time. A folded section that holds the open tab is tinted, and an orange dot shows when it hides a count.

@@ -87,9 +87,10 @@ export default function BidLevelingTab({ projectId }) {
           <h2 className="text-lg font-semibold text-slate-800">Bid Leveling</h2>
           <p className="text-sm text-slate-500 mt-0.5">Every quote on one grid by type, priced on the same quantities, with what we would suggest.</p>
         </div>
-        <div className="flex items-center gap-2">
+        {/* Phones: picker fills the row, small tables scroll sideways (Mike 10-29) */}
+        <div className="flex flex-wrap md:flex-nowrap items-center gap-2 w-full md:w-auto">
           {levelings.length > 1 && (
-            <select className={`${INPUT} w-64`} value={activeId || ''} onChange={(e) => setActiveId(e.target.value)}>
+            <select className={`${INPUT} w-full md:w-64`} value={activeId || ''} onChange={(e) => setActiveId(e.target.value)}>
               {levelings.map((l) => <option key={l.id} value={l.id}>{l.name} ({l._count.bids})</option>)}
             </select>
           )}
@@ -362,6 +363,7 @@ function PackagesCard({ view }) {
   if (!rows.length) return null;
   return (
     <WidgetFrame title="VE and alternate packages" sub="Priced on their own. Savings = what the base bid pays for the same types, less the package." flush>
+      <div className="overflow-x-auto">
       <table className="w-full">
         <thead className="bg-slate-50"><tr>{['Bidder', 'Package', 'Types', 'Package total', 'Base for same types', 'Savings'].map((h) => <th key={h} className={TH}>{h}</th>)}</tr></thead>
         <tbody className="divide-y divide-slate-100">
@@ -377,6 +379,7 @@ function PackagesCard({ view }) {
           ))}
         </tbody>
       </table>
+      </div>
     </WidgetFrame>
   );
 }
@@ -459,6 +462,7 @@ function ClarificationsCard({ view }) {
 function BidsCard({ view, onPatch }) {
   return (
     <WidgetFrame title="Bids" flush>
+      <div className="overflow-x-auto">
       <table className="w-full">
         <thead className="bg-slate-50"><tr>{['Bidder', 'Source', 'Lines', 'Quote date', 'Valid until', ''].map((h) => <th key={h} className={TH}>{h}</th>)}</tr></thead>
         <tbody className="divide-y divide-slate-100">
@@ -476,6 +480,7 @@ function BidsCard({ view, onPatch }) {
           ))}
         </tbody>
       </table>
+      </div>
     </WidgetFrame>
   );
 }

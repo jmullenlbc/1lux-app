@@ -165,7 +165,7 @@ function FileRow({ file, projectId, selected, onToggle, onView }) {
       {isPdf && (
         <button
           onClick={() => onView?.(file)}
-          className="shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold transition-colors opacity-0 group-hover:opacity-100"
+          className="shrink-0 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-orange-500 hover:bg-orange-600 text-white text-xs font-semibold transition-colors md:opacity-0 md:group-hover:opacity-100"
           title="Open PDF"
         >
           <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

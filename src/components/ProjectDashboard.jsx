@@ -55,7 +55,7 @@ function serviceTypeLabel(val) {
 // ── Widget (summary card, unchanged) ────────────────────────────────────────
 function Widget({ label, value, sub, accent, empty, children }) {
   return (
-    <div className="bg-white border border-slate-200 rounded-2xl px-6 py-5 shadow-sm flex flex-col gap-1 min-w-0">
+    <div className="bg-white border border-slate-200 rounded-2xl px-4 md:px-6 py-5 shadow-sm flex flex-col gap-1 min-w-0">
       <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">{label}</p>
       {value != null ? (
         <>
@@ -151,7 +151,7 @@ function EditableStat({ label, displayValue, rawValue, onSave, wide, mono, type 
             {saving ? <span className="text-amber-400">Saving…</span> : (displayValue || '—')}
           </p>
           {/* Edit pencil, visible on hover */}
-          <svg className="w-3 h-3 text-slate-300 opacity-0 group-hover:opacity-100 shrink-0 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <svg className="w-3 h-3 text-slate-300 md:opacity-0 md:group-hover:opacity-100 shrink-0 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
           </svg>
         </div>
@@ -357,13 +357,14 @@ export default function ProjectDashboard({
     { value: 'other', label: 'Other' },
   ];
 
+  // Phones: grids drop to one or two columns, cards pad less (Mike 10-29)
   const projectIdLabel = project.projectNumber
     ? `PRJ-${String(project.projectNumber).padStart(4, '0')}`
     : null;
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <div>
           <h2 className="text-lg font-semibold text-slate-800">Project Overview</h2>
           <p className="text-sm text-slate-400 mt-0.5">Key numbers at a glance · click any field below to edit</p>
@@ -380,7 +381,7 @@ export default function ProjectDashboard({
       <MissingInputsWarning projectData={pd} projectId={project.id} mode="compact" />
 
       {/* ── Budget row ────────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Widget
           label="Initial Budget"
           value={fmt(clientInitialBudget)}
@@ -421,7 +422,7 @@ export default function ProjectDashboard({
       />
 
       {/* ── Contract row ──────────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Widget
           label="Supply Contract Total"
           value={fmt(contractValue ?? project.contractValue)}
@@ -438,14 +439,14 @@ export default function ProjectDashboard({
       </div>
 
       {/* ── Project Details, editable ────────────────────────────────────── */}
-      <div className="bg-white border border-slate-200 rounded-2xl px-6 py-5 shadow-sm">
-        <div className="flex items-center justify-between mb-4">
+      <div className="bg-white border border-slate-200 rounded-2xl px-4 md:px-6 py-5 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 mb-4">
           <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Project Details</p>
           <span className="text-[10px] text-slate-300 italic">Click any field to edit</span>
         </div>
         {Object.keys(figAlerts).length > 0 && <div className="mb-4"><FigureAlertSummary count={Object.keys(figAlerts).length} /></div>}
 
-        <div className="grid grid-cols-4 gap-x-6 gap-y-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 md:gap-x-6 gap-y-4">
 
           {/* ── Project Info ── */}
           <Rule label="Project Info" />
@@ -529,13 +530,13 @@ export default function ProjectDashboard({
       {/* Mike, 2026-09-09: "we have six project team fields and they connect to
           clients." Every seat is optional and none of them is ever required to
           mark a project won. Leaving one blank is a normal answer, not a gap. */}
-      <div className="bg-white border border-slate-200 rounded-2xl px-6 py-5 shadow-sm">
-        <div className="flex items-center justify-between mb-4">
+      <div className="bg-white border border-slate-200 rounded-2xl px-4 md:px-6 py-5 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 mb-4">
           <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Project Team</p>
           <span className="text-[10px] text-slate-300 italic">All optional · click any field to edit</span>
         </div>
 
-        <div className="grid grid-cols-3 gap-x-6 gap-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-x-4 md:gap-x-6 gap-y-4">
           {PROJECT_TEAM_ROLES.map(role => (
             <EditableStat
               key={role.key}
@@ -551,8 +552,8 @@ export default function ProjectDashboard({
       </div>
 
       {/* ── Sales Details, editable, lives on the project (Deal merged in) ───── */}
-      <div className="bg-white border border-slate-200 rounded-2xl px-6 py-5 shadow-sm">
-        <div className="flex items-center justify-between mb-4">
+      <div className="bg-white border border-slate-200 rounded-2xl px-4 md:px-6 py-5 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 mb-4">
           <div className="flex items-center gap-2">
             <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Sales Details</p>
             {outOfSync && (
@@ -564,7 +565,7 @@ export default function ProjectDashboard({
           <span className="text-[10px] text-slate-300 italic">Click any field to edit</span>
         </div>
 
-        <div className="grid grid-cols-4 gap-x-6 gap-y-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 md:gap-x-6 gap-y-4">
           {/* ── Stage & type (top) ── */}
           <Rule label="Pipeline" />
           <EditableStat label="Procurement Stage" displayValue={STAGE_LABEL[project.procurementStage] || 'Qualified'} rawValue={project.procurementStage || 'QUALIFIED'} onSave={p('procurementStage')} select options={PROC_STAGE_OPTIONS} />

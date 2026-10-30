@@ -306,13 +306,13 @@ function ImportModal({ projectId, onImported, onClose }) {
 
           {/* Upload step */}
           {(step === 'upload' || step === 'parsing') && (
-            <div className="p-8 flex flex-col items-center gap-4">
+            <div className="p-4 md:p-8 flex flex-col items-center gap-4">
               <div
                 onDragOver={e => { e.preventDefault(); setDragging(true); }}
                 onDragLeave={() => setDragging(false)}
                 onDrop={onDrop}
                 onClick={() => fileRef.current?.click()}
-                className={`w-full max-w-lg border-2 border-dashed rounded-xl p-12 flex flex-col items-center gap-3 cursor-pointer transition-colors ${
+                className={`w-full max-w-lg border-2 border-dashed rounded-xl p-6 md:p-12 flex flex-col items-center gap-3 cursor-pointer transition-colors ${
                   dragging ? 'border-orange-400 bg-orange-50' : 'border-slate-200 hover:border-slate-400 hover:bg-slate-50'
                 } ${step === 'parsing' ? 'pointer-events-none opacity-60' : ''}`}
               >
@@ -447,7 +447,7 @@ function ImportModal({ projectId, onImported, onClose }) {
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-slate-200 flex items-center justify-between flex-shrink-0 bg-slate-50">
+        <div className="px-4 md:px-6 py-4 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3 flex-shrink-0 bg-slate-50">
           <div className="text-xs text-slate-400">
             {step === 'preview' && fixtures.length > 0 && (
               <span>Review sections · remove unwanted rows · then import</span>
@@ -960,7 +960,7 @@ function EmailBidPopup({ project, onClose }) {
         </div>
 
         {/* Template picker */}
-        <div className="px-6 py-3 border-b border-slate-100 bg-slate-50 flex items-center gap-2 flex-shrink-0">
+        <div className="px-4 md:px-6 py-3 border-b border-slate-100 bg-slate-50 flex flex-wrap md:flex-nowrap items-center gap-2 flex-shrink-0">
           <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wide mr-1">Template:</span>
           {Object.entries(EMAIL_TEMPLATES).map(([key, t]) => (
             <button key={key} onClick={() => applyTemplate(key)}
@@ -971,7 +971,7 @@ function EmailBidPopup({ project, onClose }) {
         </div>
 
         {/* Form */}
-        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-3">
+        <div className="flex-1 overflow-y-auto px-4 md:px-6 py-4 space-y-3">
           <div>
             <label className="block text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-1">To</label>
             <input value={to} onChange={e => setTo(e.target.value)}
@@ -998,7 +998,7 @@ function EmailBidPopup({ project, onClose }) {
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-4 border-t border-slate-200 flex items-center justify-between flex-shrink-0">
+        <div className="px-4 md:px-6 py-4 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3 flex-shrink-0">
           <button onClick={copyBody}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-colors">
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -1625,7 +1625,8 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
       )}
 
       {/* ── Top bar ── */}
-      <div className="print:hidden bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between sticky top-0 z-20">
+      {/* Phones: top bar and buttons wrap, summary tiles go two across (Mike 10-29) */}
+      <div className="print:hidden bg-white border-b border-slate-200 px-4 md:px-6 py-3 flex flex-wrap items-center justify-between gap-3 sticky top-0 z-20">
         <div className="flex items-center gap-3">
           <Link href={`/project/${project.id}`} className="text-slate-400 hover:text-slate-600 transition-colors">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -1711,7 +1712,7 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           {saving && (
             <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
               <svg className="animate-spin h-3 w-3" viewBox="0 0 24 24" fill="none">
@@ -1814,10 +1815,10 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
         allUsers={allUsers ?? []}
       />
 
-      <div className="print:hidden px-6 pt-6 pb-5">
+      <div className="print:hidden px-4 md:px-6 pt-6 pb-5">
 
         {/* ── Summary widgets ── */}
-        <div className="grid grid-cols-7 gap-3 mb-5">
+        <div className="grid grid-cols-2 md:grid-cols-7 gap-3 mb-5">
 
           {/* Gross SF, editable */}
           <div className="bg-white rounded-xl border border-slate-200 px-3 py-3">
@@ -1884,7 +1885,7 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
         {showSettings && (
           <div className="bg-white rounded-xl border border-slate-200 px-5 py-4 mb-4">
             <h3 className="text-xs font-bold text-slate-700 mb-3 uppercase tracking-wide">Budget Settings</h3>
-            <div className="grid grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {[
                 { label: 'Freight %', val: freightPct, set: setFreightPct, field: 'freightPct', def: 6 },
                 { label: 'Warehousing %', val: warehousingPct, set: setWarehousingPct, field: 'warehousingPct', def: 3 },
@@ -1920,7 +1921,7 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
           return (
             <div className="mb-6 space-y-3">
               {/* Version header */}
-              <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-50 border border-slate-200">
+              <div className="flex flex-wrap md:flex-nowrap items-center gap-3 px-4 py-3 rounded-xl bg-slate-50 border border-slate-200">
                 <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-slate-800 text-white">v{matrix.version}</span>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-slate-700">
@@ -2013,7 +2014,7 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
 
               {/* ── Pricing Summary, always uses live budget rates & totals ── */}
               <div className="mt-4 flex justify-end">
-                <div className="w-80 bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+                <div className="w-full md:w-80 bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
                   <div className="px-4 py-2.5 border-b border-slate-100">
                     <p className="text-[11px] font-bold text-slate-500 uppercase tracking-wide">Pricing Summary</p>
                   </div>
@@ -2258,7 +2259,7 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
                                     </svg>
                                   </span>
                                   <button onClick={() => addItemAfter(item)} disabled={saving}
-                                    className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-300 hover:text-orange-600 p-0.5"
+                                    className="md:opacity-0 md:group-hover:opacity-100 transition-opacity text-slate-300 hover:text-orange-600 p-0.5"
                                     title="Add row below">
                                     <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                                       <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
@@ -2369,7 +2370,7 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
                               </td>
                               <td className="px-2 py-2 align-middle">
                                 <button onClick={() => deleteItem(item.id)} disabled={isDeleting}
-                                  className="opacity-0 group-hover:opacity-100 transition-opacity w-6 h-6 flex items-center justify-center rounded text-slate-300 hover:text-red-500 hover:bg-red-50 disabled:opacity-40"
+                                  className="md:opacity-0 md:group-hover:opacity-100 transition-opacity w-6 h-6 flex items-center justify-center rounded text-slate-300 hover:text-red-500 hover:bg-red-50 disabled:opacity-40"
                                   title="Delete row">
                                   {isDeleting
                                     ? <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/></svg>
@@ -2424,7 +2425,7 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
         {/* ── Pricing summary ── */}
         {rawTotal > 0 && (
           <div className="mt-4 flex justify-end">
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden w-96 text-xs">
+            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden w-full md:w-96 text-xs">
               <div className="px-4 py-2 bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wide">
                 Pricing Summary
               </div>

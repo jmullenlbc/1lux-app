@@ -439,8 +439,8 @@ export default function CAScheduleCard({ files, projectId, onFileUpdated }) {
   return (
     <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
 
-      {/* Header */}
-      <div className="px-5 py-3.5 border-b border-slate-100 flex items-center justify-between gap-3">
+      {/* Header. Phones: buttons wrap, row delete always shown (Mike 10-29) */}
+      <div className="px-5 py-3.5 border-b border-slate-100 flex flex-wrap md:flex-nowrap items-center justify-between gap-3">
         <div className="min-w-0">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
             Construction Schedule
@@ -492,7 +492,7 @@ export default function CAScheduleCard({ files, projectId, onFileUpdated }) {
       </div>
 
       {/* Milestone list */}
-      <div className="px-5 py-2">
+      <div className="px-4 md:px-5 py-2">
         {milestones.map(m => {
           const config    = getConfig(m.id);
           const rel       = relativeLabel(m.date);
@@ -501,7 +501,7 @@ export default function CAScheduleCard({ files, projectId, onFileUpdated }) {
 
           return (
             <div key={m.id}
-              className="flex items-center gap-3 py-2 border-b border-slate-50 last:border-0 group/row">
+              className="flex items-center gap-2 md:gap-3 py-2 border-b border-slate-50 last:border-0 group/row">
 
               {/* Color dot */}
               <div className="w-2 h-2 rounded-full shrink-0"
@@ -551,7 +551,7 @@ export default function CAScheduleCard({ files, projectId, onFileUpdated }) {
               {!isEditing && (
                 <button
                   onClick={() => deleteMilestone(m.id)}
-                  className="opacity-0 group-hover/row:opacity-100 text-slate-300 hover:text-red-400 transition-all ml-1 shrink-0"
+                  className="md:opacity-0 md:group-hover/row:opacity-100 text-slate-300 hover:text-red-400 transition-all ml-1 shrink-0"
                   title="Remove milestone"
                 >
                   <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

@@ -172,7 +172,8 @@ export default function SubmittalTrackerClient({ projectId, projectName }) {
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">
       {/* ── Header ─────────────────────────────────────────────────────────── */}
-      <div className="bg-white border-b border-slate-200 px-6 py-4 flex items-center gap-4">
+      {/* Phones: header, banners and stats wrap; panel opens full screen (Mike 10-29) */}
+      <div className="bg-white border-b border-slate-200 px-4 md:px-6 py-4 flex flex-wrap md:flex-nowrap items-center gap-4">
         <button
           onClick={() => router.back()}
           className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 transition-colors"
@@ -193,7 +194,7 @@ export default function SubmittalTrackerClient({ projectId, projectName }) {
         </div>
 
         {tracker && (
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             {/* Role config */}
             <div className="relative">
               <button
@@ -203,7 +204,7 @@ export default function SubmittalTrackerClient({ projectId, projectName }) {
                 Reviewers ▾
               </button>
               {showRoles && (
-                <div className="absolute right-0 top-9 z-50 bg-white border border-slate-200 rounded-xl shadow-lg p-3 w-52 space-y-1">
+                <div className="absolute left-0 md:left-auto md:right-0 top-9 z-50 bg-white border border-slate-200 rounded-xl shadow-lg p-3 w-52 space-y-1">
                   {ALL_ROLES.map(r => (
                     <label key={r.key} className="flex items-center gap-2.5 px-1 py-1 rounded hover:bg-slate-50 cursor-pointer">
                       <input
@@ -282,7 +283,7 @@ export default function SubmittalTrackerClient({ projectId, projectName }) {
 
       {/* ── Extract result banner ─────────────────────────────────────────── */}
       {extractResult && (
-        <div className={`px-6 py-2.5 text-xs flex items-center gap-3 border-b ${
+        <div className={`px-4 md:px-6 py-2.5 text-xs flex flex-wrap md:flex-nowrap items-center gap-3 border-b ${
           extractResult.error
             ? 'bg-red-50 text-red-700 border-red-100'
             : 'bg-green-50 text-green-800 border-green-100'
@@ -303,7 +304,7 @@ export default function SubmittalTrackerClient({ projectId, projectName }) {
 
       {/* ── Open items panel ──────────────────────────────────────────────── */}
       {showOpenItems && openItems.length > 0 && (
-        <div className="bg-white border-b border-slate-200 px-6 py-4">
+        <div className="bg-white border-b border-slate-200 px-4 md:px-6 py-4">
           <div className="flex items-center justify-between mb-3">
             <div>
               <h3 className="text-sm font-semibold text-slate-800">Open Items, Grouped by Responsible Party</h3>
@@ -313,7 +314,7 @@ export default function SubmittalTrackerClient({ projectId, projectName }) {
             </div>
             <button onClick={() => setShowOpenItems(false)} className="text-slate-500 hover:text-slate-700 text-sm">✕</button>
           </div>
-          <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {['ARCH','EE','ID','CONTRACTOR','ILC','OWNERSHIP'].map(party => {
               const items = openItems.filter(i => i.responsibleParty === party);
               if (!items.length) return null;
@@ -347,7 +348,7 @@ export default function SubmittalTrackerClient({ projectId, projectName }) {
 
       {/* ── Stats bar ───────────────────────────────────────────────────────── */}
       {tracker && tracker.items.length > 0 && (
-        <div className="bg-white border-b border-slate-100 px-6 py-2.5 flex items-center gap-6 text-xs text-slate-500">
+        <div className="bg-white border-b border-slate-100 px-4 md:px-6 py-2.5 flex flex-wrap items-center gap-x-6 gap-y-1 text-xs text-slate-500">
           <span><strong className="text-slate-700">{stats.total}</strong> types</span>
           <span className="flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-green-400 inline-block" />

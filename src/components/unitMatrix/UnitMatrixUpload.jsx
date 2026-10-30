@@ -227,9 +227,9 @@ function ReviewModal({ proposal, fileName, onConfirm, onCancel }) {
     <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/40 backdrop-blur-sm p-4 overflow-y-auto">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-5xl my-6">
 
-        {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
-          <div className="flex items-center gap-3">
+        {/* Header. Phones: tighter padding, stacked fields, table scrolls sideways (Mike 10-29) */}
+        <div className="flex items-center justify-between gap-3 px-4 md:px-6 py-4 border-b border-slate-100">
+          <div className="flex flex-wrap items-center gap-3">
             <span className="text-lg font-semibold text-slate-800">Review Unit Matrix</span>
             {rows.length > 0 && (
               <span className="text-[11px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-200">
@@ -241,7 +241,7 @@ function ReviewModal({ proposal, fileName, onConfirm, onCancel }) {
         </div>
 
         {/* Provenance strip */}
-        <div className="px-6 py-2.5 bg-slate-50 border-b border-slate-100 flex items-center justify-between text-xs">
+        <div className="px-4 md:px-6 py-2.5 bg-slate-50 border-b border-slate-100 flex flex-wrap items-center justify-between gap-2 text-xs">
           <div className="flex items-center gap-2 text-slate-500">
             <svg className="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"/>
@@ -255,7 +255,7 @@ function ReviewModal({ proposal, fileName, onConfirm, onCancel }) {
           )}
         </div>
 
-        <div className="px-6 py-5 space-y-7 max-h-[62vh] overflow-y-auto">
+        <div className="px-4 md:px-6 py-5 space-y-7 max-h-[62vh] overflow-y-auto">
 
           <CheckList review={proposal.review} />
 
@@ -270,8 +270,8 @@ function ReviewModal({ proposal, fileName, onConfirm, onCancel }) {
               </button>
             </div>
 
-            <div className="rounded-xl border border-slate-200 overflow-hidden">
-              <table className="w-full text-sm">
+            <div className="rounded-xl border border-slate-200 overflow-x-auto md:overflow-hidden">
+              <table className="w-full min-w-[640px] md:min-w-0 text-sm">
                 <thead className="bg-slate-50 border-b border-slate-200">
                   <tr className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide text-left">
                     <th className="px-4 py-2.5">Type</th>
@@ -339,7 +339,7 @@ function ReviewModal({ proposal, fileName, onConfirm, onCancel }) {
             <div className="text-[11px] font-bold text-amber-600 uppercase tracking-wide mb-1">Apply to Project Info</div>
             <p className="text-xs text-slate-400 mb-4">Checked fields write to the dashboard. Unchecked fields are left untouched.</p>
 
-            <div className="grid grid-cols-2 gap-x-10 gap-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-6">
 
               {/* Square Footage */}
               <div>
@@ -453,7 +453,7 @@ function ReviewModal({ proposal, fileName, onConfirm, onCancel }) {
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100">
+        <div className="flex flex-wrap items-center justify-between gap-3 px-4 md:px-6 py-4 border-t border-slate-100">
           <div className="text-xs text-slate-500">
             <span className="font-semibold text-slate-700">{readyCount}</span> field{readyCount !== 1 ? 's' : ''} selected ·{' '}
             <span className="text-slate-400">{totalFields - readyCount} unchecked (left unchanged)</span>
@@ -694,7 +694,7 @@ export default function UnitMatrixUpload({ projectId, onCommitted }) {
     return (
       <div className="mb-6">
         <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-          <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
+          <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between gap-3">
             <div>
               <h3 className="text-sm font-semibold text-slate-800">Unit Matrix</h3>
               {existingFile && (

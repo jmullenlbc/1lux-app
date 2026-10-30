@@ -42,7 +42,7 @@ function ContractBalanceBar({ balance }) {
   ];
 
   return (
-    <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-5 mb-6">
+    <div className="bg-white border border-slate-200 rounded-xl shadow-sm p-4 md:p-5 mb-6">
       <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-4">Contract Balance</p>
       <div className="flex flex-wrap gap-6">
         {items.map(item => (
@@ -145,7 +145,7 @@ export default function ChangeOrdersTab({ projectId }) {
       )}
 
       {/* CO List Header */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <h2 className="text-lg font-semibold text-slate-800">
           Change Orders
           {changeOrders.length > 0 && (
@@ -189,9 +189,9 @@ export default function ChangeOrdersTab({ projectId }) {
         </div>
       )}
 
-      {/* CO Table */}
+      {/* CO Table. Phones: the list scrolls sideways (Mike 10-29) */}
       {changeOrders.length > 0 && (
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-x-auto md:overflow-hidden">
           <table className="w-full text-sm border-collapse">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200">

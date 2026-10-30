@@ -113,8 +113,8 @@ export default function ProjectPeopleCard({ projectId }) {
   const hasLead     = links.some(l => l.isLead);
 
   return (
-    <div className="bg-white border border-slate-200 rounded-xl px-6 py-5 shadow-sm">
-      <div className="flex items-center justify-between mb-4">
+    <div className="bg-white border border-slate-200 rounded-xl px-4 md:px-6 py-5 shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 mb-4">
         <div className="flex items-center gap-2">
           <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Project People</p>
           {!loading && links.length > 0 && !hasLead && (
@@ -180,7 +180,7 @@ export default function ProjectPeopleCard({ projectId }) {
             const c = link.contact || {};
             const saving = busy === c.id;
             return (
-              <li key={link.id ?? c.id} className="py-2.5 flex items-start gap-3">
+              <li key={link.id ?? c.id} className="py-2.5 flex flex-col md:flex-row md:items-start gap-2 md:gap-3">
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-sm font-semibold text-slate-800">{c.name}</span>

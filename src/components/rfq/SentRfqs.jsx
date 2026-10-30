@@ -61,7 +61,9 @@ function Detail({ projectId, summary, state, onSent, reload }) {
 
   return (
     <div className="px-3 pb-4 space-y-3">
-      <table className="w-full text-sm">
+      {/* Phones: price table scrolls sideways (Mike 10-29) */}
+      <div className="overflow-x-auto">
+      <table className="w-full min-w-[480px] md:min-w-0 text-sm">
         <thead className="text-xs text-slate-500 uppercase tracking-wide">
           <tr>{['Type', 'Manufacturer', 'Part', 'Qty', 'DN price'].map((h) => <th key={h} className="text-left font-semibold py-1 pr-2">{h}</th>)}</tr>
         </thead>
@@ -81,6 +83,7 @@ function Detail({ projectId, summary, state, onSent, reload }) {
           ))}
         </tbody>
       </table>
+      </div>
       {err && <p className="text-sm text-red-600">{err}</p>}
       <div className="flex flex-wrap gap-2">
         {changed.length > 0 && <Button size="sm" disabled={busy} loading={busy} onClick={save}>Save {changed.length} price{changed.length === 1 ? '' : 's'}</Button>}

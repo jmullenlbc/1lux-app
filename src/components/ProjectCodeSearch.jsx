@@ -184,7 +184,7 @@ export default function ProjectCodeSearch({ projectContext = {} }) {
       {/* ── Header / toggle ─────────────────────────────────────────────── */}
       <button
         onClick={() => setOpen(o => !o)}
-        className="w-full flex items-center justify-between px-6 py-4 hover:bg-slate-50 transition-colors text-left"
+        className="w-full flex items-center justify-between px-4 md:px-6 py-4 hover:bg-slate-50 transition-colors text-left"
       >
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-violet-100 flex items-center justify-center text-base shrink-0">⚖️</div>
@@ -223,7 +223,7 @@ export default function ProjectCodeSearch({ projectContext = {} }) {
 
           {/* Context banner */}
           {contextChips.length > 0 && (
-            <div className="px-6 py-2.5 bg-violet-50 border-b border-violet-100 flex items-center gap-2 flex-wrap">
+            <div className="px-4 md:px-6 py-2.5 bg-violet-50 border-b border-violet-100 flex items-center gap-2 flex-wrap">
               <span className="text-[10px] font-bold text-violet-500 uppercase tracking-wider">Project context:</span>
               {contextChips.map((chip, i) => (
                 <span key={i} className="text-[10px] px-2 py-0.5 rounded-full bg-white text-violet-700 border border-violet-200 font-medium">
@@ -235,7 +235,7 @@ export default function ProjectCodeSearch({ projectContext = {} }) {
           )}
 
           {/* Conversation or quick questions */}
-          <div ref={containerRef} className="px-6 py-4 max-h-96 overflow-y-auto space-y-3">
+          <div ref={containerRef} className="px-4 md:px-6 py-4 max-h-96 overflow-y-auto space-y-3">
             {isEmpty && (
               <div>
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-2">Common questions for this project:</p>
@@ -289,7 +289,7 @@ export default function ProjectCodeSearch({ projectContext = {} }) {
           </div>
 
           {/* Input bar */}
-          <div className="px-6 py-3 border-t border-slate-100 bg-slate-50">
+          <div className="px-4 md:px-6 py-3 border-t border-slate-100 bg-slate-50">
             <div className="flex gap-2 items-center">
               <input
                 ref={inputRef}

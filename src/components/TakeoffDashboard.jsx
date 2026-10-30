@@ -131,13 +131,14 @@ export default function TakeoffDashboard({ files }) {
       {/* Top 10 changes bar chart */}
       {topChanges.length > 0 && (
         <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
-          <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between">
+          <div className="px-4 md:px-5 py-3 border-b border-slate-100 flex items-center justify-between">
             <div>
               <h3 className="text-sm font-semibold text-slate-800">Top Changes by Quantity</h3>
               <p className="text-xs text-slate-400 mt-0.5">{firstLabel} → {lastLabel ?? firstLabel} · absolute change in fixture count</p>
             </div>
           </div>
-          <div className="px-5 py-4 space-y-2.5">
+          {/* Phones: tighter side padding so the change bars get room (Mike 10-29) */}
+          <div className="px-4 md:px-5 py-4 space-y-2.5">
             {topChanges.map(c => (
               <div key={c.type} className="flex items-center gap-3">
                 <span className="w-16 text-xs font-mono font-semibold text-slate-700 shrink-0">{c.type}</span>

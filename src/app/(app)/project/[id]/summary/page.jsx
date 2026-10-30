@@ -214,7 +214,7 @@ export default async function SummaryPage({ params }) {
   ].filter(r => r.value);
 
   return (
-    <div className="max-w-4xl mx-auto px-6 py-8 print:p-0 print:max-w-none">
+    <div className="max-w-4xl mx-auto px-4 md:px-6 py-8 print:p-0 print:max-w-none">
 
       {/* ── NO PROJECT DATA WARNING ───────────────────────────────── */}
       {!pd.grossSf && (
@@ -246,9 +246,10 @@ export default async function SummaryPage({ params }) {
       )}
 
       {/* ── SCREEN-ONLY HEADER ─────────────────────────────────────── */}
-      <div className="print:hidden flex items-start justify-between mb-8">
+      {/* Phones: header wraps, answers sit under questions, history wraps. Print keeps the desktop layout (Mike 10-29) */}
+      <div className="print:hidden flex flex-wrap md:flex-nowrap items-start justify-between gap-3 mb-8">
         <div>
-          <div className="flex items-center gap-2 text-sm text-slate-500 mb-2">
+          <div className="flex flex-wrap items-center gap-2 text-sm text-slate-500 mb-2">
             <Link href="/dashboard" className="hover:text-slate-600 transition-colors">Projects</Link>
             <span>/</span>
             <Link href={`/project/${project.id}`} className="hover:text-slate-600 transition-colors">{project.name}</Link>
@@ -258,7 +259,7 @@ export default async function SummaryPage({ params }) {
           <h1 className="text-2xl font-bold text-slate-900">{project.name}</h1>
           {project.location && <p className="text-slate-500 text-sm mt-0.5">{project.location}</p>}
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Link
             href={`/project/${project.id}/wizard`}
             className="px-4 py-2 rounded-lg text-sm font-semibold border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 transition-colors"
@@ -386,8 +387,8 @@ export default async function SummaryPage({ params }) {
                 {group.section}
               </div>
               {group.rows.map(row => (
-                <div key={row.q} className="flex py-1.5 print:py-0.5 border-b border-slate-50 print:border-slate-100">
-                  <span className="text-sm print:text-xs text-slate-500 w-56 print:w-48 shrink-0">{row.q}</span>
+                <div key={row.q} className="flex flex-col md:flex-row print:flex-row py-1.5 print:py-0.5 border-b border-slate-50 print:border-slate-100">
+                  <span className="text-sm print:text-xs text-slate-500 md:w-56 print:w-48 shrink-0">{row.q}</span>
                   <span className="text-sm print:text-xs text-slate-800 font-medium leading-snug">{row.a}</span>
                 </div>
               ))}
@@ -412,14 +413,14 @@ export default async function SummaryPage({ params }) {
 
           <div className="space-y-0 divide-y divide-slate-100">
             {budgetHistory.map(activity => (
-              <div key={activity.id} className="flex gap-4 py-3 first:pt-0 last:pb-0">
+              <div key={activity.id} className="flex flex-wrap md:flex-nowrap gap-x-4 gap-y-1 py-3 first:pt-0 last:pb-0">
                 <div className="w-32 shrink-0 text-xs text-slate-500 tabular-nums">
                   {formatActivityTime(activity.createdAt)}
                 </div>
                 <div className="w-24 shrink-0 text-sm font-medium text-slate-700">
                   {activity.userName || activity.userEmail || 'Unknown'}
                 </div>
-                <div className="flex-1 text-sm text-slate-600">
+                <div className="flex-1 basis-full md:basis-[0%] text-sm text-slate-600">
                   {activity.description}
                 </div>
               </div>

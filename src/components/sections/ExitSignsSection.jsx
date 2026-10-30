@@ -55,7 +55,7 @@ export default function ExitSignsSection({ responses, projectData, allSections, 
       {/* Scope summary */}
       <div className="bg-slate-50 rounded-xl border border-slate-200 p-4">
         <div className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Scope</div>
-        <div className="grid grid-cols-3 gap-4 text-center">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
           {[
             { label: 'Gross SF',          value: grossSf > 0 ? grossSf.toLocaleString() : '—' },
             { label: 'Exit Signs',        value: signCount || '—' },
@@ -101,7 +101,8 @@ export default function ExitSignsSection({ responses, projectData, allSections, 
         onChange={v => setAns(a => ({ ...a, exitSignType: v }))}
       />
 
-      <div className="flex gap-3 pt-2">
+      {/* Phones: Back and Next wrap; scope tiles stack (Mike 10-29) */}
+      <div className="flex flex-wrap gap-3 pt-2">
         <Button variant="secondary" onClick={onPrev}>Back</Button>
         <Button variant="amber" size="lg" loading={saving} onClick={handleNext}>
           Save &amp; Continue

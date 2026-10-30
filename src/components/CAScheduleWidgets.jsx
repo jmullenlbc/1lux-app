@@ -16,7 +16,7 @@ function formatDate(iso) {
 function Widget({ label, children, aside }) {
   return (
     <div className="bg-white border border-slate-200 rounded-xl px-5 py-4">
-      <div className="flex items-center justify-between mb-1.5">
+      <div className="flex flex-wrap items-center justify-between gap-x-2 mb-1.5">
         <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{label}</p>
         {aside}
       </div>
@@ -56,8 +56,8 @@ export default function CAScheduleWidgets({ files }) {
 
   return (
     <div className="space-y-3 mb-6">
-      {/* Row 1: Change Order Total + RFIs */}
-      <div className="grid grid-cols-2 gap-3">
+      {/* Row 1: Change Order Total + RFIs. Phones: stacked (Mike 10-29) */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         <Widget
           label="Change Order Total"
           aside={

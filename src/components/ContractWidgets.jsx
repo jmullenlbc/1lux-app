@@ -69,7 +69,7 @@ function EditableField({ display, onSave, inputType = 'text', placeholder, locke
               Not found, click to enter
             </span>
           )}
-          <span className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-300 text-xs shrink-0">✎</span>
+          <span className="md:opacity-0 md:group-hover:opacity-100 transition-opacity text-slate-300 text-xs shrink-0">✎</span>
         </button>
       )}
       {saved && <span className="text-[11px] text-green-500 font-medium shrink-0">Saved</span>}
@@ -79,7 +79,7 @@ function EditableField({ display, onSave, inputType = 'text', placeholder, locke
 
 function Widget({ label, autoParsed, children }) {
   return (
-    <div className="bg-white border border-slate-200 rounded-xl px-5 py-4 flex-1 min-w-0">
+    <div className="bg-white border border-slate-200 rounded-xl px-4 md:px-5 py-4 flex-1 min-w-0">
       <div className="flex items-center justify-between mb-1.5">
         <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{label}</p>
         {autoParsed && (
@@ -140,7 +140,7 @@ export default function ContractWidgets({
     <div className="space-y-3 mb-6">
       {/* Design contract row, hidden in supplyOnly mode */}
       {!supplyOnly && (
-        <div className="flex gap-3">
+        <div className="flex flex-col md:flex-row gap-3">
           <Widget label="Design Contract Value" autoParsed={designValue != null}>
             <EditableField display={formatCurrencyDisplay(designValue)} onSave={saveDesignValue} placeholder="e.g. 36200" lockedNote={moneyLock} />
           </Widget>
@@ -151,7 +151,7 @@ export default function ContractWidgets({
       )}
       {/* Supply contract row, hidden in designOnly mode */}
       {!designOnly && (
-        <div className="flex gap-3">
+        <div className="flex flex-col md:flex-row gap-3">
           <Widget label="Supply Contract Value" autoParsed={value != null}>
             <EditableField display={formatCurrencyDisplay(value)} onSave={saveSupplyValue} placeholder="e.g. 754000" lockedNote={moneyLock} />
           </Widget>

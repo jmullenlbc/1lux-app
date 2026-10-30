@@ -265,9 +265,10 @@ export default function HumanErrorRadar({ projectId }) {
 
   return (
     <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+      {/* Phones: tighter side padding, header badges wrap (Mike 10-29) */}
       <button
         onClick={() => setOpen(p => !p)}
-        className="w-full flex items-center justify-between px-6 py-4 hover:bg-slate-50/50 transition-colors text-left"
+        className="w-full flex flex-wrap items-center justify-between gap-3 px-4 md:px-6 py-4 hover:bg-slate-50/50 transition-colors text-left"
       >
         <div className="flex items-center gap-3">
           <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
@@ -285,7 +286,7 @@ export default function HumanErrorRadar({ projectId }) {
         </div>
         <div className="flex items-center gap-2">
           {data && (
-            <div className="flex items-center gap-1.5 text-xs">
+            <div className="flex flex-wrap items-center gap-1.5 text-xs">
               {flagCount > 0 && <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-semibold">{flagCount} radar{flagCount !== 1 ? 's' : ''} flagged</span>}
               {warnCount > 0 && <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 font-semibold">{warnCount} warn</span>}
               {!flagCount && !warnCount && overall === 'PASS' && <span className="px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-semibold">All clear</span>}
@@ -301,7 +302,7 @@ export default function HumanErrorRadar({ projectId }) {
       {open && (
         <div className="border-t border-slate-100">
           {loading && (
-            <div className="flex items-center gap-2 px-6 py-8 text-slate-400 text-sm">
+            <div className="flex items-center gap-2 px-4 md:px-6 py-8 text-slate-400 text-sm">
               <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
@@ -310,12 +311,12 @@ export default function HumanErrorRadar({ projectId }) {
             </div>
           )}
 
-          {error && <div className="px-6 py-4 text-sm text-red-600">{error}</div>}
+          {error && <div className="px-4 md:px-6 py-4 text-sm text-red-600">{error}</div>}
 
           {!loading && !error && data && (
             <>
               {/* Data sources status bar */}
-              <div className="flex flex-wrap items-center gap-4 px-6 py-3 bg-slate-50 border-b border-slate-100 text-xs">
+              <div className="flex flex-wrap items-center gap-4 px-4 md:px-6 py-3 bg-slate-50 border-b border-slate-100 text-xs">
                 <span className={`flex items-center gap-1 ${data.meta.hasSchedule ? 'text-green-600' : 'text-amber-500'}`}>
                   <span className={`w-1.5 h-1.5 rounded-full ${data.meta.hasSchedule ? 'bg-green-500' : 'bg-amber-400'}`} />
                   {data.meta.hasSchedule ? `${data.meta.fixtureCount} fixture types` : 'No schedule'}
@@ -336,7 +337,7 @@ export default function HumanErrorRadar({ projectId }) {
                 </button>
               </div>
 
-              <div className="px-6 py-5 space-y-3">
+              <div className="px-4 md:px-6 py-5 space-y-3">
                 {radars.map(radar =>
                   radar.id === 'quantity-radar' ? <QuantityRadarSection key={radar.id} radar={radar} /> :
                   radar.id === 'spec-radar'     ? <SpecRadarSection     key={radar.id} radar={radar} /> :
@@ -344,7 +345,7 @@ export default function HumanErrorRadar({ projectId }) {
                 )}
               </div>
 
-              <div className="px-6 py-3 border-t border-slate-100 bg-slate-50 text-[10px] text-slate-400">
+              <div className="px-4 md:px-6 py-3 border-t border-slate-100 bg-slate-50 text-[10px] text-slate-400">
                 Human Error Radar catches cross-document inconsistencies, not code violations. FLAG = definite discrepancy. WARN = needs attention.
               </div>
             </>

@@ -168,9 +168,10 @@ export default function LPDCalculator({ projectId }) {
   return (
     <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
       {/* Header, always visible */}
+      {/* Phones: tighter side padding, header badges wrap (Mike 10-29) */}
       <button
         onClick={() => setOpen(prev => !prev)}
-        className="w-full flex items-center justify-between px-6 py-4 hover:bg-slate-50/50 transition-colors text-left"
+        className="w-full flex flex-wrap items-center justify-between gap-3 px-4 md:px-6 py-4 hover:bg-slate-50/50 transition-colors text-left"
       >
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-amber-100 flex items-center justify-center shrink-0">
@@ -186,7 +187,7 @@ export default function LPDCalculator({ projectId }) {
         </div>
         <div className="flex items-center gap-3">
           {data && (
-            <div className="flex items-center gap-2 text-xs">
+            <div className="flex flex-wrap items-center gap-2 text-xs">
               {failCount > 0  && <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-semibold">{failCount} fail</span>}
               {passCount > 0  && <span className="px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-semibold">{passCount} pass</span>}
               {pendingCount > 0 && <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 font-semibold">{pendingCount} need data</span>}
@@ -205,7 +206,7 @@ export default function LPDCalculator({ projectId }) {
       {open && (
         <div className="border-t border-slate-100">
           {loading && (
-            <div className="flex items-center gap-2 px-6 py-8 text-slate-400 text-sm">
+            <div className="flex items-center gap-2 px-4 md:px-6 py-8 text-slate-400 text-sm">
               <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
@@ -215,13 +216,13 @@ export default function LPDCalculator({ projectId }) {
           )}
 
           {error && (
-            <div className="px-6 py-4 text-sm text-red-600">{error}</div>
+            <div className="px-4 md:px-6 py-4 text-sm text-red-600">{error}</div>
           )}
 
           {!loading && !error && data && (
             <>
               {/* Status bar */}
-              <div className="flex flex-wrap items-center gap-4 px-6 py-3 bg-slate-50 border-b border-slate-100 text-xs text-slate-500">
+              <div className="flex flex-wrap items-center gap-4 px-4 md:px-6 py-3 bg-slate-50 border-b border-slate-100 text-xs text-slate-500">
                 <span className={`flex items-center gap-1 ${data.hasSchedule ? 'text-green-600' : 'text-amber-500'}`}>
                   <span className={`inline-block w-1.5 h-1.5 rounded-full ${data.hasSchedule ? 'bg-green-500' : 'bg-amber-400'}`} />
                   {data.hasSchedule ? 'Fixture schedule loaded' : 'No fixture schedule, add fixtures first'}
@@ -249,7 +250,7 @@ export default function LPDCalculator({ projectId }) {
               </div>
 
               {mergedAreas.length === 0 ? (
-                <div className="px-6 py-8 text-center text-sm text-slate-400">
+                <div className="px-4 md:px-6 py-8 text-center text-sm text-slate-400">
                   No fixture schedule data yet. Add fixtures with wattage values in the Fixture Schedule tab.
                 </div>
               ) : (
@@ -282,7 +283,7 @@ export default function LPDCalculator({ projectId }) {
                 </div>
               )}
 
-              <div className="px-6 py-3 border-t border-slate-100 text-[10px] text-slate-400 bg-slate-50">
+              <div className="px-4 md:px-6 py-3 border-t border-slate-100 text-[10px] text-slate-400 bg-slate-50">
                 ASHRAE 90.1-2022 §9.5.1 limits shown. Residential units (R-2) are exempt. Click any area value to override. Quantities from latest Countfire takeoff. Fixtures shown in amber have no matching takeoff key.
               </div>
             </>

@@ -293,8 +293,8 @@ export default function TrackerPanel({ item, submissions, roles, projectId, onCl
   }
 
   return (
-    <div className="w-[400px] shrink-0 border-l border-slate-200 bg-white flex flex-col overflow-hidden">
-      {/* Panel header */}
+    <div className="fixed inset-0 z-50 w-full md:static md:inset-auto md:z-auto md:w-[400px] shrink-0 border-l border-slate-200 bg-white flex flex-col overflow-hidden">
+      {/* Panel header. Phones: panel opens full screen (Mike 10-29) */}
       <div className="px-5 pt-5 pb-4 border-b border-slate-100 flex items-start gap-3">
         <div className="flex-1 min-w-0">
           <p className="text-lg font-bold text-slate-800">{item.typeCode}</p>
@@ -402,7 +402,7 @@ export default function TrackerPanel({ item, submissions, roles, projectId, onCl
                               </div>
                               <button
                                 onClick={() => { if (confirm('Delete this review entry?')) onDeleteReview(rev.id); }}
-                                className="opacity-0 group-hover:opacity-100 text-slate-300 hover:text-red-400 transition-all shrink-0 mt-0.5"
+                                className="md:opacity-0 md:group-hover:opacity-100 text-slate-300 hover:text-red-400 transition-all shrink-0 mt-0.5"
                                 title="Delete review"
                               >
                                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

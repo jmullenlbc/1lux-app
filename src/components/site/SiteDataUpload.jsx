@@ -91,9 +91,10 @@ function CheckList({ review }) {
 }
 
 // ── one proposed field ───────────────────────────────────────────────────────
+// Phones: the input drops under its label, evidence goes one column (Mike 10-29)
 function FieldRow({ row, checked, value, onToggle, onChange }) {
   return (
-    <div className={`px-4 py-3 flex items-start gap-3 ${checked ? '' : 'opacity-50'}`}>
+    <div className={`px-4 py-3 flex flex-wrap md:flex-nowrap items-start gap-3 ${checked ? '' : 'opacity-50'}`}>
       <input
         type="checkbox"
         checked={checked}
@@ -120,7 +121,7 @@ function FieldRow({ row, checked, value, onToggle, onChange }) {
           </p>
         )}
       </div>
-      <div className="shrink-0 text-right">
+      <div className="w-full md:w-auto shrink-0 text-right">
         {row.unit === 'style' ? (
           // Small vs long breezeway, read off the drawings; it lands on the
           // Corridors answer, not in Project Info (Mike 10-14 "Prefill").
@@ -185,7 +186,7 @@ function ReadOnlyEvidence({ site }) {
       <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-2">
         Also read, not written to the project
       </div>
-      <dl className="grid grid-cols-2 gap-x-6 gap-y-1.5">
+      <dl className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1.5">
         {bits.map(([label, v]) => (
           <div key={label} className="flex justify-between gap-2 text-xs">
             <dt className="text-slate-500 truncate">{label}</dt>

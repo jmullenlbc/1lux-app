@@ -57,7 +57,8 @@ export default function BudgetLineItemWidget({ files = [] }) {
   return (
     <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
       {/* Header */}
-      <div className="flex items-start justify-between px-5 py-4 border-b border-slate-100">
+      {/* Phones: the total drops under the title when the row is too narrow (Mike 10-29) */}
+      <div className="flex flex-wrap gap-y-3 items-start justify-between px-5 py-4 border-b border-slate-100">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-amber-50 flex items-center justify-center shrink-0">
             <svg className="w-5 h-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>

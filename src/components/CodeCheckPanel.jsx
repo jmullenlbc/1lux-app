@@ -205,9 +205,10 @@ export default function CodeCheckPanel({ projectId }) {
   return (
     <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
       {/* Header */}
+      {/* Phones: tighter side padding, header badges wrap (Mike 10-29) */}
       <button
         onClick={() => setOpen(p => !p)}
-        className="w-full flex items-center justify-between px-6 py-4 hover:bg-slate-50/50 transition-colors text-left"
+        className="w-full flex flex-wrap items-center justify-between gap-3 px-4 md:px-6 py-4 hover:bg-slate-50/50 transition-colors text-left"
       >
         <div className="flex items-center gap-3">
           <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${
@@ -225,7 +226,7 @@ export default function CodeCheckPanel({ projectId }) {
         </div>
         <div className="flex items-center gap-2">
           {data && (
-            <div className="flex items-center gap-1.5 text-xs">
+            <div className="flex flex-wrap items-center gap-1.5 text-xs">
               {flags   > 0 && <span className="px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-semibold">{flags} flag{flags !== 1 ? 's' : ''}</span>}
               {verifies> 0 && <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 font-semibold">{verifies} verify</span>}
               {passes  > 0 && <span className="px-2 py-0.5 rounded-full bg-green-100 text-green-700 font-semibold">{passes} pass</span>}
@@ -240,7 +241,7 @@ export default function CodeCheckPanel({ projectId }) {
       {open && (
         <div className="border-t border-slate-100">
           {loading && (
-            <div className="flex items-center gap-2 px-6 py-8 text-slate-400 text-sm">
+            <div className="flex items-center gap-2 px-4 md:px-6 py-8 text-slate-400 text-sm">
               <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
@@ -249,12 +250,12 @@ export default function CodeCheckPanel({ projectId }) {
             </div>
           )}
 
-          {error && <div className="px-6 py-4 text-sm text-red-600">{error}</div>}
+          {error && <div className="px-4 md:px-6 py-4 text-sm text-red-600">{error}</div>}
 
           {!loading && !error && data && (
             <>
               {/* Status bar */}
-              <div className="flex flex-wrap items-center gap-4 px-6 py-3 bg-slate-50 border-b border-slate-100 text-xs text-slate-500">
+              <div className="flex flex-wrap items-center gap-4 px-4 md:px-6 py-3 bg-slate-50 border-b border-slate-100 text-xs text-slate-500">
                 <span className={`flex items-center gap-1 ${data.hasSchedule ? 'text-green-600' : 'text-amber-500'}`}>
                   <span className={`w-1.5 h-1.5 rounded-full ${data.hasSchedule ? 'bg-green-500' : 'bg-amber-400'}`} />
                   {data.hasSchedule ? `${data.meta.fixtureCount} fixture type${data.meta.fixtureCount !== 1 ? 's' : ''}` : 'No fixture schedule'}
@@ -272,11 +273,11 @@ export default function CodeCheckPanel({ projectId }) {
               </div>
 
               {!data.hasSchedule ? (
-                <div className="px-6 py-8 text-center text-sm text-slate-400">
+                <div className="px-4 md:px-6 py-8 text-center text-sm text-slate-400">
                   No fixture schedule yet. Add fixture types with descriptions, wattage, and locations to run code checks.
                 </div>
               ) : (
-                <div className="px-6 py-5 space-y-3">
+                <div className="px-4 md:px-6 py-5 space-y-3">
                   {/* Deterministic checks */}
                   <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wider">Automatic Checks</p>
                   {data.checks.map(check => (
@@ -352,7 +353,7 @@ export default function CodeCheckPanel({ projectId }) {
                 </div>
               )}
 
-              <div className="px-6 py-3 border-t border-slate-100 text-[10px] text-slate-400 bg-slate-50">
+              <div className="px-4 md:px-6 py-3 border-t border-slate-100 text-[10px] text-slate-400 bg-slate-50">
                 Checks reference ASHRAE 90.1-2022, IFC 2021, NEC 2020, IECC 2021. FLAG = confirmed issue. VERIFY = confirm with EOR or AHJ. WARN = best practice gap.
               </div>
             </>
