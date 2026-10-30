@@ -6,6 +6,8 @@ import { wrapClient } from '@/lib/agent/client';
 import { modelParams, textFrom } from '@/lib/aiModels';
 import { buildUntrustedPrompt, warnOnInjection } from '@/lib/agent/untrusted';
 import { stripDashes } from '@/lib/bot/emailStyle';
+import { statusLabel } from '@/lib/submittalStatus';
+import { canAccessProject, trackerFor, ownedReview } from '@/lib/submittalTracker';
 
 // CATEGORY_CONTEXT, hints to the model about what each category means
 const CATEGORY_CONTEXT = {
@@ -28,6 +30,7 @@ const CATEGORY_CONTEXT = {
 export async function POST(req, { params }) {
   const { user, error } = await requireAuth();
   if (error) return error;
+  if (!await canAccessProject(params.id, user)) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
   // Load full context for the prompt
   const review = await prisma.submittalReview.findUnique({
@@ -72,7 +75,7 @@ Submission: ${submission || 'R1'}
 Fixture Type: ${typeCode}
 ${manufacturer ? `Manufacturer: ${manufacturer}` : ''}${modelNumber ? ` · ${modelNumber}` : ''}
 Reviewer: ${review.reviewerRole}${review.reviewerName ? ` (${review.reviewerName})` : ''}
-Review Status: ${review.status}
+Review Status: ${statusLabel(review.status)}
 Comment Type: ${catContext}
 
 The reviewer's comment itself follows below, inside the marked block.
@@ -140,36 +143,53 @@ Respond with ONLY the response text. No subject line, no signature, no preamble.
       status:      'DRAFT',
       generatedBy: 'AI',
       editedAt:    null,
+      approvedAt:  null,
+      sentAt:      null,
     },
   });
 
   return NextResponse.json({ response });
 }
 
-// PATCH, update response body or status
+// PATCH, update response body or status. With no response yet, a typed body
+// starts one by hand, no AI draft needed (0146). SENT stamps sentAt.
 export async function PATCH(req, { params }) {
   const { user, error } = await requireAuth();
   if (error) return error;
-
-  const existing = await prisma.submittalResponse.findUnique({
-    where: { reviewId: params.reviewId },
-    include: { review: { include: { version: { include: { item: { include: { tracker: true } } } } } } },
-  });
-
-  if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  if (existing.review.version.item.tracker.projectId !== params.id) {
-    return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  }
+  const tracker = await trackerFor(params.id, user);
+  const review = tracker && await ownedReview(tracker.id, params.reviewId);
+  if (!review) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
   const body = await req.json();
   const { responseBody, status } = body;
+  if (status !== undefined && !['DRAFT', 'APPROVED', 'SENT'].includes(status)) {
+    return NextResponse.json({ error: 'A response is Draft, Approved or Sent. Nothing was saved. (TRACKER_RESPONSE_STATUS)' }, { status: 400 });
+  }
+
+  if (!review.response) {
+    if (!responseBody?.trim()) return NextResponse.json({ error: 'Type the response first. Nothing was saved. (TRACKER_RESPONSE_EMPTY)' }, { status: 400 });
+    const now = new Date();
+    const created = await prisma.submittalResponse.create({
+      data: {
+        reviewId:    review.id,
+        body:        responseBody.trim(),
+        status:      status || 'DRAFT',
+        generatedBy: user.id,
+        createdById: user.id,
+        ...(status === 'APPROVED' && { approvedAt: now }),
+        ...(status === 'SENT' && { approvedAt: now, sentAt: now }),
+      },
+    });
+    return NextResponse.json({ response: created }, { status: 201 });
+  }
 
   const updated = await prisma.submittalResponse.update({
-    where: { reviewId: params.reviewId },
+    where: { reviewId: review.id },
     data: {
       ...(responseBody !== undefined && { body: responseBody, editedAt: new Date() }),
-      ...(status === 'APPROVED' && { status: 'APPROVED', approvedAt: new Date() }),
-      ...(status === 'DRAFT'    && { status: 'DRAFT', approvedAt: null }),
+      ...(status === 'APPROVED' && { status: 'APPROVED', approvedAt: new Date(), sentAt: null }),
+      ...(status === 'DRAFT'    && { status: 'DRAFT', approvedAt: null, sentAt: null }),
+      ...(status === 'SENT'     && { status: 'SENT', sentAt: new Date(), approvedAt: review.response.approvedAt || new Date() }),
     },
   });
 

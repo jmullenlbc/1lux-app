@@ -6,12 +6,14 @@ import { BTN_COMPACT, BTN_COMPACT_PRIMARY } from './tokens';
 // Select all + the bar that edits or archives every picked row at once
 // (Mike 10-29, Manufacturers and Sales Reps). The page owns the picks and the
 // save; this only draws the controls.
-//   fields: [{ key, label, kind: 'text' | 'yesno' }]
+//   fields: [{ key, label, kind: 'text' | 'yesno' | 'choice', options? }]
+//   options (choice only): [{ value, label }]
 //   onApply({ [key]: value }) and onArchive(true | false) return a promise.
 //   archived: true when every picked row is archived, so the bar offers Restore.
 // useBulkPicks holds the picks and posts { ids, set } to the page's bulk route.
 
-export function useBulkPicks(shown, url, code) {
+// onDone runs after a save, for pages that fetch their own rows.
+export function useBulkPicks(shown, url, code, onDone) {
   const router = useRouter();
   const [picked, setPicked] = useState(() => new Set());
   const [busy, setBusy] = useState(false);
@@ -33,6 +35,7 @@ export function useBulkPicks(shown, url, code) {
     setMsg(`${done} ${d.updated} of ${pickedIds.length}.${d.updated < pickedIds.length ? ' The rest already had that value.' : ''}`);
     setPicked(new Set());
     router.refresh();
+    onDone?.();
   }
 
   return { picked, pickedIds, allPicked, archived, busy, msg, err, toggle, toggleAll, clear: () => setPicked(new Set()), run };
@@ -54,7 +57,7 @@ export default function BulkEditBar({ count, noun, fields, archived, busy, onApp
   const [confirm, setConfirm] = useState(false);
   if (!count) return null;
   const f = fields.find((x) => x.key === field);
-  const ready = f && (f.kind === 'yesno' ? value !== '' : true);
+  const ready = f && (f.kind === 'text' ? true : value !== '');
 
   async function apply() {
     if (!ready) return;
@@ -76,6 +79,13 @@ export default function BulkEditBar({ count, noun, fields, archived, busy, onApp
           <option value="">Yes or no</option>
           <option value="yes">Yes</option>
           <option value="no">No</option>
+        </select>
+      )}
+      {f?.kind === 'choice' && (
+        <select value={value} onChange={(e) => setValue(e.target.value)} disabled={busy}
+          className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs">
+          <option value="">Pick one</option>
+          {f.options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
         </select>
       )}
       {f?.kind === 'text' && (

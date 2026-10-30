@@ -159,7 +159,7 @@ async function importToc({ fileId }, { projectId, user }) {
 
   // Get existing type codes to avoid duplicates
   const existing = await prisma.submittalItem.findMany({
-    where: { trackerId: tracker.id },
+    where: { trackerId: tracker.id, archivedAt: null },
     select: { typeCode: true },
   });
   const existingCodes = new Set(existing.map(i => i.typeCode.toUpperCase()));

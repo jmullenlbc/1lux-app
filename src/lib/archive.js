@@ -57,6 +57,10 @@ export const NEVER_DELETED = [
   'projectBudgetAmount',
   // "Same person?" questions (0117): answered ones stay as the record of who decided.
   'duplicateReview',
+  // Submittal Tracker (0146): items, submission rounds and reviews are
+  // archived from the tracker. Not auto-hidden; the tracker routes filter
+  // archivedAt by hand (src/lib/submittalTracker.js).
+  'submittalItem', 'submittalSubmission', 'submittalReview',
 ];
 
 export class DeleteRefusedError extends Error {

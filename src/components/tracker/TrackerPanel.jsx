@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { statusMeta } from './SubmittalTrackerClient';
+import { REVIEW_STATUSES } from '@/lib/submittalStatus';
 
 // Category badge colors + labels
 const CATEGORY_META = {
@@ -39,8 +40,6 @@ function ResponseBlock({ review, projectId }) {
 
   // Don't show response block for BOILERPLATE notes
   if (review.noteCategory === 'BOILERPLATE') return null;
-  // Don't show if no notes text (nothing to respond to)
-  if (!review.notes) return null;
 
   async function generate() {
     setGenerating(true);
@@ -66,38 +65,62 @@ function ResponseBlock({ review, projectId }) {
         body: JSON.stringify({ responseBody: editBody }),
       });
       const d = await res.json();
-      if (!res.ok) throw new Error(d.error || 'Save failed');
+      if (!res.ok) throw new Error(d.error || 'The response did not save on our side. Your text is still in the box. Try Save again. (TRACKER_RESPONSE_SAVE)');
       setResp(d.response);
       setEditing(false);
     } catch (e) { setErr(e.message); }
     finally { setSaving(false); }
   }
 
-  async function approve() {
+  // DRAFT, APPROVED or SENT. Sent is marked by hand once it goes out (0146).
+  async function setStatus(status) {
+    setErr('');
     const res = await fetch(`/api/projects/${projectId}/tracker/reviews/${review.id}/respond`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: 'APPROVED' }),
+      body: JSON.stringify({ status }),
     });
-    const d = await res.json();
+    const d = await res.json().catch(() => ({}));
     if (res.ok) setResp(d.response);
+    else setErr(d.error || 'That status did not save on our side. Nothing changed. Try again. (TRACKER_RESPONSE_STATUS)');
   }
+  const approve   = () => setStatus('APPROVED');
+  const unapprove = () => setStatus('DRAFT');
+  const markSent  = () => setStatus('SENT');
 
-  async function unapprove() {
-    const res = await fetch(`/api/projects/${projectId}/tracker/reviews/${review.id}/respond`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: 'DRAFT' }),
-    });
-    const d = await res.json();
-    if (res.ok) setResp(d.response);
+  // No response yet: write one by hand, or let AI draft one from the note.
+  if (!resp && editing) {
+    return (
+      <div className="mt-2">
+        <textarea
+          value={editBody}
+          onChange={e => setEditBody(e.target.value)}
+          rows={3}
+          placeholder="ILC response…"
+          className="w-full text-[11px] text-slate-700 border border-slate-300 rounded px-2 py-1 bg-white outline-none resize-none focus:border-orange-500"
+        />
+        <div className="flex gap-2 mt-1">
+          <button onClick={saveEdit} disabled={saving || !editBody.trim()}
+            className="text-[11px] font-semibold text-orange-600 hover:text-orange-700 disabled:opacity-50">
+            {saving ? 'Saving…' : 'Save'}
+          </button>
+          <button onClick={() => setEditing(false)}
+            className="text-[11px] text-slate-500 hover:text-slate-600">Cancel</button>
+        </div>
+        {err && <p className="text-[11px] text-red-500 mt-1">{err}</p>}
+      </div>
+    );
   }
 
   if (!resp) {
     return (
-      <div className="mt-2">
-        {err && <p className="text-[11px] text-red-500 mb-1">{err}</p>}
-        <button
+      <div className="mt-2 flex items-center gap-3 flex-wrap">
+        {err && <p className="w-full text-[11px] text-red-500">{err}</p>}
+        <button onClick={() => { setEditBody(''); setEditing(true); }}
+          className="text-[11px] font-semibold text-slate-600 hover:text-orange-600 transition-colors">
+          Write response
+        </button>
+        {review.notes && <button
           onClick={generate}
           disabled={generating}
           className="flex items-center gap-1 text-[11px] font-semibold text-orange-600 hover:text-orange-700 transition-colors disabled:opacity-50"
@@ -115,21 +138,22 @@ function ResponseBlock({ review, projectId }) {
               <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
               </svg>
-              Draft ILC Response
+              Draft with AI
             </>
           )}
-        </button>
+        </button>}
       </div>
     );
   }
 
-  const isApproved = resp.status === 'APPROVED';
+  const isSent     = resp.status === 'SENT';
+  const isApproved = resp.status === 'APPROVED' || isSent;
 
   return (
     <div className={`mt-2 rounded-lg border px-2.5 py-2 ${isApproved ? 'bg-green-50 border-green-200' : 'bg-amber-50 border-amber-200'}`}>
       <div className="flex items-center justify-between mb-1">
         <span className={`text-[11px] font-bold uppercase tracking-wide ${isApproved ? 'text-green-700' : 'text-amber-700'}`}>
-          {isApproved ? '✓ ILC Response' : 'Draft ILC Response'}
+          {isSent ? `ILC Response, sent${resp.sentAt ? ` ${new Date(resp.sentAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}` : ''}` : isApproved ? 'ILC Response, approved' : 'Draft ILC Response'}
         </span>
         <div className="flex items-center gap-2">
           {!editing && !isApproved && (
@@ -140,15 +164,21 @@ function ResponseBlock({ review, projectId }) {
                 className="text-[11px] font-semibold text-green-700 hover:text-green-800 transition-colors">Approve</button>
             </>
           )}
+          {isApproved && !isSent && (
+            <button onClick={markSent}
+              className="text-[11px] font-semibold text-green-700 hover:text-green-800 transition-colors">Mark sent</button>
+          )}
           {isApproved && (
             <button onClick={unapprove}
               className="text-[11px] text-slate-500 hover:text-slate-600 transition-colors">Revert to draft</button>
           )}
-          <button onClick={generate} disabled={generating}
-            className="text-[11px] text-slate-500 hover:text-orange-600 transition-colors disabled:opacity-50"
-            title="Regenerate with AI">
-            {generating ? '…' : '↺'}
-          </button>
+          {!isApproved && review.notes && (
+            <button onClick={generate} disabled={generating}
+              className="text-[11px] text-slate-500 hover:text-orange-600 transition-colors disabled:opacity-50"
+              title="Draft again with AI">
+              {generating ? '…' : '↺'}
+            </button>
+          )}
         </div>
       </div>
 
@@ -185,12 +215,8 @@ const ROLE_LABELS = {
   GC: 'General Contractor', EC: 'Electrical Contractor',
 };
 
-const STATUS_OPTIONS = [
-  { value: 'Approved',        label: '✅ Approved' },
-  { value: 'ApprovedAsNoted', label: '✅ Approved as Noted' },
-  { value: 'Resubmit',        label: '🔴 Resubmit' },
-  { value: 'NoAction',        label: '⬜ No Action' },
-];
+// Approved, Approved as noted, Rejected, Not reviewed (Mike 10-29)
+const STATUS_OPTIONS = REVIEW_STATUSES.map(s => ({ value: s.code, label: s.label }));
 
 function StatusPill({ status }) {
   const m = statusMeta(status);
@@ -202,21 +228,24 @@ function StatusPill({ status }) {
   );
 }
 
-// Inline form to add a review
-function AddReviewForm({ versionId, roles, onAdd, onCancel }) {
-  const [role,     setRole]     = useState(roles[0] || 'ILC');
-  const [name,     setName]     = useState('');
-  const [status,   setStatus]   = useState('Approved');
-  const [date,     setDate]     = useState(new Date().toISOString().split('T')[0]);
-  const [notes,    setNotes]    = useState('');
+// Inline form to add a review, or fix one when `review` is passed
+function AddReviewForm({ versionId, roles, onAdd, onCancel, review, onSave }) {
+  const [role,     setRole]     = useState(review?.reviewerRole || roles[0] || 'ILC');
+  const [name,     setName]     = useState(review?.reviewerName || '');
+  const [status,   setStatus]   = useState(review?.status || 'Approved');
+  const [date,     setDate]     = useState(review ? (review.dateNoted || '') : new Date().toISOString().split('T')[0]);
+  const [notes,    setNotes]    = useState(review?.notes || '');
   const [saving,   setSaving]   = useState(false);
+  const roleChoices = review && !roles.includes(review.reviewerRole) ? [review.reviewerRole, ...roles] : roles;
 
   async function submit(e) {
     e.preventDefault();
     setSaving(true);
-    const ok = await onAdd(versionId, { reviewerRole: role, reviewerName: name, status, dateNoted: date, notes });
-    if (ok) { setNotes(''); setName(''); }
+    const data = { reviewerRole: role, reviewerName: name, status, dateNoted: date, notes };
+    const ok = review ? await onSave(review.id, data) : await onAdd(versionId, data);
+    if (ok && !review) { setNotes(''); setName(''); }
     setSaving(false);
+    if (ok && review) onCancel();
   }
 
   return (
@@ -226,7 +255,7 @@ function AddReviewForm({ versionId, roles, onAdd, onCancel }) {
           <label className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide block mb-1">Reviewer</label>
           <select value={role} onChange={e => setRole(e.target.value)}
             className="w-full text-sm border border-slate-200 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-orange-500 bg-white">
-            {roles.map(r => <option key={r} value={r}>{ROLE_LABELS[r] || r}</option>)}
+            {roleChoices.map(r => <option key={r} value={r}>{ROLE_LABELS[r] || r}</option>)}
           </select>
         </div>
         <div>
@@ -259,15 +288,16 @@ function AddReviewForm({ versionId, roles, onAdd, onCancel }) {
         <button type="button" onClick={onCancel} className="text-xs text-slate-500 hover:text-slate-600">Cancel</button>
         <button type="submit" disabled={saving}
           className="px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white transition-colors disabled:opacity-60">
-          {saving ? 'Saving…' : 'Add Review'}
+          {saving ? 'Saving…' : review ? 'Save review' : 'Add Review'}
         </button>
       </div>
     </form>
   );
 }
 
-export default function TrackerPanel({ item, submissions, roles, projectId, onClose, onAddReview, onDeleteReview }) {
+export default function TrackerPanel({ item, submissions, roles, projectId, onClose, onAddReview, onEditReview, onDeleteReview }) {
   const [addingToVersionId, setAddingToVersionId] = useState(null);
+  const [editingReviewId,   setEditingReviewId]   = useState(null);
 
   // Sort versions newest-first
   const allVersions = [...(item.versions || [])].sort(
@@ -362,7 +392,10 @@ export default function TrackerPanel({ item, submissions, roles, projectId, onCl
                     <div className="space-y-2">
                       {[...ver.reviews]
                         .sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
-                        .map(rev => (
+                        .map(rev => editingReviewId === rev.id ? (
+                          <AddReviewForm key={rev.id} review={rev} roles={roles}
+                            onSave={onEditReview} onCancel={() => setEditingReviewId(null)} />
+                        ) : (
                           <div key={rev.id} className="group">
                             <div className="flex items-start gap-2">
                               <div className="flex-1 min-w-0">
@@ -400,15 +433,16 @@ export default function TrackerPanel({ item, submissions, roles, projectId, onCl
                                 {/* ILC Response block */}
                                 <ResponseBlock review={rev} projectId={projectId} />
                               </div>
-                              <button
-                                onClick={() => { if (confirm('Delete this review entry?')) onDeleteReview(rev.id); }}
-                                className="md:opacity-0 md:group-hover:opacity-100 text-slate-300 hover:text-red-400 transition-all shrink-0 mt-0.5"
-                                title="Delete review"
-                              >
-                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                              </button>
+                              <div className="flex items-center gap-2 md:opacity-0 md:group-hover:opacity-100 transition-all shrink-0 mt-0.5">
+                                <button onClick={() => setEditingReviewId(rev.id)}
+                                  className="text-[11px] text-slate-500 hover:text-orange-600">Edit</button>
+                                <button
+                                  onClick={() => { if (confirm('Archive this review? It moves to Archived and can be restored.')) onDeleteReview(rev.id); }}
+                                  className="text-[11px] text-slate-500 hover:text-red-500"
+                                >
+                                  Archive
+                                </button>
+                              </div>
                             </div>
                           </div>
                         ))}

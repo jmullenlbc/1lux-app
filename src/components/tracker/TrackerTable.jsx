@@ -330,12 +330,12 @@ export default function TrackerTable({ tracker, roles, activeItemId, onSelectIte
                   );
                 })}
 
-                {/* Delete */}
+                {/* Archive (0146): moves to Archived, can be restored */}
                 <td className="px-3 py-3.5" onClick={e => e.stopPropagation()}>
                   <button
-                    onClick={() => { if (confirm(`Delete ${item.typeCode}?`)) onDeleteItem(item.id); }}
-                    className="text-slate-200 hover:text-red-400 transition-colors"
-                    title="Delete type"
+                    onClick={() => { if (confirm(`Archive ${item.typeCode}? It moves to Archived and can be restored.`)) onDeleteItem(item.id); }}
+                    className="text-slate-300 hover:text-red-400 transition-colors"
+                    title="Archive type"
                   >
                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />

@@ -35,6 +35,8 @@ export default function SubmittalTrackerClient({ projectId, projectName }) {
   const [extractResult,  setExtractResult]  = useState(null); // { notesExtracted, newTypeCodes }
   const [openItems,      setOpenItems]      = useState([]);
   const [showOpenItems,  setShowOpenItems]  = useState(false);
+  const [showArchived,   setShowArchived]   = useState(false);
+  const [archived,       setArchived]       = useState(null); // { items, submissions, reviews }
   const extractFileRef = useRef(null);
 
   const fetchTracker = useCallback(async () => {
@@ -115,25 +117,49 @@ export default function SubmittalTrackerClient({ projectId, projectName }) {
     setTracker(prev => ({ ...prev, reviewerRoles: JSON.stringify(ordered) }));
   }
 
-  async function deleteItem(itemId) {
-    await fetch(`/api/projects/${projectId}/tracker/items/${itemId}`, { method: 'DELETE' });
-    if (activeItem?.id === itemId) setActiveItem(null);
+  // Archive, edit and restore all answer in plain words; a failed call says so
+  // and nothing on screen changes (0146).
+  async function send(url, method, body) {
+    const res = await fetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json' },
+      ...(body && { body: JSON.stringify(body) }),
+    });
+    if (!res.ok) {
+      const d = await res.json().catch(() => ({}));
+      alert(d.error || `The tracker did not save that on our side. Nothing changed. Reload and try again. (TRACKER_${res.status})`);
+      return false;
+    }
     await fetchTracker();
+    await fetchOpenItems();
+    if (showArchived) await fetchArchived();
+    return true;
+  }
+
+  async function deleteItem(itemId) {
+    const ok = await send(`/api/projects/${projectId}/tracker/items/${itemId}`, 'DELETE');
+    if (ok && activeItem?.id === itemId) setActiveItem(null);
   }
 
   async function addReview(versionId, reviewData) {
-    const res = await fetch(`/api/projects/${projectId}/tracker/reviews`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ versionId, ...reviewData }),
-    });
-    if (res.ok) await fetchTracker();
-    return res.ok;
+    return send(`/api/projects/${projectId}/tracker/reviews`, 'POST', { versionId, ...reviewData });
+  }
+
+  async function editReview(reviewId, data) {
+    return send(`/api/projects/${projectId}/tracker/reviews/${reviewId}`, 'PATCH', data);
   }
 
   async function deleteReview(reviewId) {
-    await fetch(`/api/projects/${projectId}/tracker/reviews/${reviewId}`, { method: 'DELETE' });
-    await fetchTracker();
+    return send(`/api/projects/${projectId}/tracker/reviews/${reviewId}`, 'DELETE');
+  }
+
+  async function fetchArchived() {
+    const res = await fetch(`/api/projects/${projectId}/tracker?archived=1`);
+    if (res.ok) setArchived((await res.json()).archived || null);
+  }
+
+  async function restore(kind, id) {
+    await send(`/api/projects/${projectId}/tracker/${kind}/${id}`, 'PATCH', { archived: false });
   }
 
   async function addItem(itemData) {
@@ -147,15 +173,15 @@ export default function SubmittalTrackerClient({ projectId, projectName }) {
 
   // ── Stats ─────────────────────────────────────────────────────────────────
   function computeStats() {
-    if (!tracker) return { total: 0, approved: 0, resubmit: 0, pending: 0 };
-    let approved = 0, resubmit = 0, pending = 0;
+    if (!tracker) return { total: 0, approved: 0, rejected: 0, pending: 0 };
+    let approved = 0, rejected = 0, pending = 0;
     for (const item of tracker.items) {
       const status = getItemOverallStatus(item);
       if (status === 'Approved' || status === 'ApprovedAsNoted') approved++;
-      else if (status === 'Resubmit') resubmit++;
+      else if (status === 'Rejected') rejected++;
       else pending++;
     }
-    return { total: tracker.items.length, approved, resubmit, pending };
+    return { total: tracker.items.length, approved, rejected, pending };
   }
 
   if (loading) {
@@ -253,6 +279,21 @@ export default function SubmittalTrackerClient({ projectId, projectName }) {
               </button>
             )}
 
+            <a
+              href={`/api/projects/${projectId}/tracker/export`}
+              className="px-3 py-1.5 rounded-lg text-xs font-medium text-slate-500 hover:bg-slate-100 border border-slate-200 transition-colors"
+              title="Download the tracker, every review and the open items as an Excel file"
+            >
+              Export Excel
+            </a>
+
+            <button
+              onClick={() => { const next = !showArchived; setShowArchived(next); if (next) fetchArchived(); }}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${showArchived ? 'text-orange-700 bg-orange-50 border-orange-200' : 'text-slate-500 hover:bg-slate-100 border-slate-200'}`}
+            >
+              Archived
+            </button>
+
             <button
               onClick={() => setShowTocImport(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-500 hover:bg-slate-100 border border-slate-200 transition-colors"
@@ -346,6 +387,32 @@ export default function SubmittalTrackerClient({ projectId, projectName }) {
         </div>
       )}
 
+      {/* ── Archived (0146): nothing is deleted; restore puts it back ───────── */}
+      {showArchived && (
+        <div className="bg-white border-b border-slate-200 px-4 md:px-6 py-4">
+          <h3 className="text-sm font-semibold text-slate-800 mb-2">Archived</h3>
+          {!archived ? (
+            <p className="text-xs text-slate-500">Loading…</p>
+          ) : (archived.items.length + archived.submissions.length + archived.reviews.length) === 0 ? (
+            <p className="text-xs text-slate-500">Nothing archived on this tracker.</p>
+          ) : (
+            <div className="space-y-1">
+              {[
+                ...archived.items.map(i => ({ kind: 'items', id: i.id, what: 'Fixture type', text: i.typeCode })),
+                ...archived.submissions.map(s => ({ kind: 'submissions', id: s.id, what: 'Submission', text: s.name })),
+                ...archived.reviews.map(r => ({ kind: 'reviews', id: r.id, what: 'Review', text: `${r.version?.item?.typeCode || ''} ${r.reviewerRole} ${statusMeta(r.status).label}${r.version?.submission?.name ? ` (${r.version.submission.name})` : ''}` })),
+              ].map(row => (
+                <div key={row.kind + row.id} className="flex items-center gap-3 text-xs text-slate-600">
+                  <span className="w-24 shrink-0 text-slate-500">{row.what}</span>
+                  <span className="flex-1 truncate">{row.text}</span>
+                  <button onClick={() => restore(row.kind, row.id)} className="text-orange-600 hover:text-orange-700 font-semibold">Restore</button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ── Stats bar ───────────────────────────────────────────────────────── */}
       {tracker && tracker.items.length > 0 && (
         <div className="bg-white border-b border-slate-100 px-4 md:px-6 py-2.5 flex flex-wrap items-center gap-x-6 gap-y-1 text-xs text-slate-500">
@@ -356,7 +423,7 @@ export default function SubmittalTrackerClient({ projectId, projectName }) {
           </span>
           <span className="flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-red-400 inline-block" />
-            <strong className="text-slate-700">{stats.resubmit}</strong> resubmit
+            <strong className="text-slate-700">{stats.rejected}</strong> rejected
           </span>
           <span className="flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-full bg-slate-300 inline-block" />
@@ -409,6 +476,7 @@ export default function SubmittalTrackerClient({ projectId, projectName }) {
               projectId={projectId}
               onClose={() => setActiveItem(null)}
               onAddReview={addReview}
+              onEditReview={editReview}
               onDeleteReview={deleteReview}
             />
           )}
@@ -460,7 +528,7 @@ export function getItemOverallStatus(item) {
   }
   const statuses = Object.values(latestPerRole);
   if (statuses.length === 0) return 'Pending';
-  if (statuses.includes('Resubmit')) return 'Resubmit';
+  if (statuses.includes('Rejected')) return 'Rejected';
   if (statuses.every(s => s === 'Approved')) return 'Approved';
   if (statuses.every(s => s === 'Approved' || s === 'ApprovedAsNoted')) return 'ApprovedAsNoted';
   if (statuses.includes('Approved') || statuses.includes('ApprovedAsNoted')) return 'InProgress';
@@ -470,9 +538,9 @@ export function getItemOverallStatus(item) {
 export function statusMeta(status) {
   return {
     Approved:         { label: 'Approved',          color: 'bg-green-100 text-green-700',   dot: 'bg-green-400' },
-    ApprovedAsNoted:  { label: 'Approved as Noted', color: 'bg-amber-50 text-amber-700',   dot: 'bg-amber-400' },
-    Resubmit:         { label: 'Resubmit',           color: 'bg-red-100 text-red-600',       dot: 'bg-red-400'   },
-    NoAction:         { label: 'No Action',          color: 'bg-slate-100 text-slate-500',   dot: 'bg-slate-300' },
+    ApprovedAsNoted:  { label: 'Approved as noted', color: 'bg-amber-50 text-amber-700',   dot: 'bg-amber-400' },
+    Rejected:         { label: 'Rejected',           color: 'bg-red-100 text-red-600',       dot: 'bg-red-400'   },
+    NotReviewed:      { label: 'Not reviewed',       color: 'bg-slate-100 text-slate-500',   dot: 'bg-slate-300' },
     InProgress:       { label: 'In Progress',        color: 'bg-blue-100 text-blue-600',     dot: 'bg-blue-400'  },
     Pending:          { label: 'Pending',            color: 'bg-slate-50 text-slate-400',    dot: 'bg-slate-200' },
   }[status] ?? { label: status, color: 'bg-slate-100 text-slate-500', dot: 'bg-slate-300' };

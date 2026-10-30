@@ -1,5 +1,6 @@
 import '@/lib/pdfPolyfill';
 import { loadPdfjs } from './pdfjsNode.js';
+import { categorizeNote } from './submittalStatus.js';
 /**
  * Submittal Review Extractor, Phases 1 to 4
  *
@@ -83,8 +84,8 @@ const REVIEWER_PREFIXES = [
 const STATUS_MAP = [
   { patterns: [/\bAN\b/, /APPROVED\s+AS\s+NOTED/i, /FURNISH\s+AS\s+(CORRECTED|NOTED)/i],  status: 'ApprovedAsNoted' },
   { patterns: [/\bA\b/,  /NO\s+EXCEPTIONS?\s+TAKEN/i, /\bAPPROVED\b(?!\s+AS)/i],           status: 'Approved' },
-  { patterns: [/\bR\b/,  /REVISE\s+AND\s+RESUBMIT/i, /REJECTED/i, /RESUBMIT/i],            status: 'Resubmit' },
-  { patterns: [/\bNA\b/, /NO\s+ACTION\s+TAKEN/i, /NOT\s+REVIEWED/i],                       status: 'NoAction' },
+  { patterns: [/\bR\b/,  /REVISE\s+AND\s+RESUBMIT/i, /REJECTED/i, /RESUBMIT/i],            status: 'Rejected' },
+  { patterns: [/\bNA\b/, /NO\s+ACTION\s+TAKEN/i, /NOT\s+REVIEWED/i],                       status: 'NotReviewed' },
 ];
 
 function parseStatus(text) {
@@ -96,59 +97,8 @@ function parseStatus(text) {
   return null;
 }
 
-// ── RULE-BASED NOTE CATEGORY FLAGS ───────────────────────────────────────────
-// Phase 4: These run on every extracted note. No Claude call needed.
-
-const CATEGORY_RULES = [
-  { category: 'FINISH',       patterns: [/\bfinish\b/i, /\bcolor\b.*\bconfirm/i, /arch.*verify.*finish/i, /id.*verify.*finish/i, /ownership.*verify.*finish/i, /finish.*needs.*to.*be/i] },
-  { category: 'MODEL',        patterns: [/\bold cutsheet/i, /wrong cutsheet/i, /does not match.*cutsheet/i, /resubmit.*cutsheet/i, /tv shows.*diff/i, /different spec/i, /model number.*cutsheet/i] },
-  { category: 'ACCESSORY',    patterns: [/mounting kit/i, /\bjumpers\b/i, /end pieces/i, /mounting clips/i, /provide.*accessori/i, /accessories.*required/i] },
-  { category: 'VOLTAGE',      patterns: [/\b277v\b/i, /\b120v\b/i, /univ.*voltage/i, /elv.*triac/i, /triac.*elv/i, /no.*0.10.*spec/i, /0-10.*not.*support/i, /dimming.*protocol/i, /cri.*should/i] },
-  { category: 'LUMEN',        patterns: [/design.*lumen/i, /lumen.*mismatch/i, /lumen.*output.*match/i, /lumen.*package/i, /\blumens\b.*proposed/i] },
-  { category: 'WET_LOCATION', patterns: [/wet.*location/i, /shower/i, /damp.*rated/i, /\bc1-w\b/i, /wet.*rated.*option/i] },
-  { category: 'DRAWING_SYNC', patterns: [/not.*shown.*electrical/i, /not.*on.*electrical/i, /electrical.*drawings/i, /update.*drawings.*to.*match/i] },
-  { category: 'DISCONTINUED', patterns: [/discontinued/i, /no longer available/i, /product.*discontinu/i] },
-  { category: 'LED_TAPE',     patterns: [/verify.*lengths/i, /verify.*reel/i, /drivers.*needed/i, /field.*verify.*lengths/i, /reel.*length/i, /tape.*connector/i] },
-  { category: 'CODE',         patterns: [/wet.*location.*code/i, /ul\/etl/i, /iecc/i, /120v\/208v/i, /ul.*listed/i] },
-  { category: 'CRI',          patterns: [/\bcri\b/i, /color.*rendering/i, /90.*cri/i, /80.*cri/i] },
-  { category: 'BOILERPLATE',  patterns: [/quantities not reviewed/i, /general conformance/i, /contractor is responsible/i, /corrections.*do not relieve/i] },
-];
-
-export function categorizeNote(text) {
-  const t = text || '';
-  for (const { category, patterns } of CATEGORY_RULES) {
-    for (const p of patterns) {
-      if (p.test(t)) return category;
-    }
-  }
-  return 'OTHER';
-}
-
-// Responsible party inference from note text
-export function inferResponsibleParty(noteText, noteCategory) {
-  const t = noteText || '';
-  if (/arch.*verify|arch.*confirm|aor/i.test(t))              return 'ARCH';
-  if (/id.*verify|interior.*designer|ownership.*verify/i.test(t)) return 'ID';
-  if (/\bee\b|electrical.*engineer|not.*shown.*electrical/i.test(t)) return 'EE';
-  if (/contractor/i.test(t))                                   return 'CONTRACTOR';
-  if (/ilc|ilcstudios/i.test(t))                              return 'ILC';
-
-  // Category-based defaults
-  const defaults = {
-    FINISH:       'ARCH',
-    WET_LOCATION: 'CONTRACTOR',
-    DRAWING_SYNC: 'EE',
-    ACCESSORY:    'CONTRACTOR',
-    VOLTAGE:      'CONTRACTOR',
-    LUMEN:        'ILC',
-    MODEL:        'CONTRACTOR',
-    DISCONTINUED: 'ILC',
-    LED_TAPE:     'CONTRACTOR',
-    CODE:         'CONTRACTOR',
-    CRI:          'ILC',
-  };
-  return defaults[noteCategory] || 'CONTRACTOR';
-}
+// Note sorting moved to submittalStatus.js (0146) so hand-typed reviews share it.
+export { categorizeNote, inferResponsibleParty } from './submittalStatus.js';
 
 // ── FIXTURE TYPE CODE EXTRACTION FROM TEXT ────────────────────────────────────
 
@@ -205,9 +155,9 @@ export function extractNotesFromTable(pages, knownTypeCodes) {
 
     // Find overall status for this section
     const sectionStatus =
-      /RESUBMIT/i.test(text) ? 'Resubmit' :
+      /RESUBMIT|REJECTED/i.test(text) ? 'Rejected' :
       /APPROVED\s+AS\s+NOTED/i.test(text) ? 'ApprovedAsNoted' :
-      /NO\s+ACTION/i.test(text) ? 'NoAction' :
+      /NO\s+ACTION|NOT\s+REVIEWED/i.test(text) ? 'NotReviewed' :
       /APPROVED/i.test(text) ? 'Approved' : null;
 
     // Extract type+note pairs using regex:
@@ -257,7 +207,7 @@ export function extractNotesFromTable(pages, knownTypeCodes) {
           reviewerFirm: 'ILC',
           reviewerRole: 'ILC',
           noteText:     noteText.slice(0, 500),
-          status:       sectionStatus || 'NoAction',
+          status:       sectionStatus || 'NotReviewed',
           pageNumber,
           noteCategory,
         });
@@ -330,7 +280,7 @@ function extractNotesFromPrefixes(pages, knownTypeCodes) {
             reviewerFirm: prefixDef.firm || 'Unknown',
             reviewerRole: prefixDef.role || 'Reviewer',
             noteText,
-            status: status || 'NoAction',
+            status: status || 'NotReviewed',
             pageNumber,
             noteCategory,
           });

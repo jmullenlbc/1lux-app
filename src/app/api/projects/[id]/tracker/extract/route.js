@@ -8,11 +8,11 @@ import { buildUntrustedPrompt, warnOnInjection } from '@/lib/agent/untrusted';
 import { getProjectFileBuffer } from '@/lib/projectFileStorage';
 import { readUploadedFile } from '@/lib/uploadIntake';
 import { runParkedJob, readJobRequest, jobError, uploadToJobArgs, loadJobUpload } from '@/lib/parkedJob';
+import { roundOf, syncOpenItems } from '@/lib/submittalTracker';
 import {
   extractPdfPages,
   extractNotesFromPages,
   categorizeNote,
-  inferResponsibleParty,
   detectRepeats,
 } from '@/lib/submittalExtractor';
 
@@ -117,7 +117,7 @@ async function extractSubmittal(args, { projectId, user }) {
 
   // Load existing items
   const existingItems = await prisma.submittalItem.findMany({
-    where: { trackerId: tracker.id },
+    where: { trackerId: tracker.id, archivedAt: null },
     select: { id: true, typeCode: true },
   });
   const knownTypeCodes = new Set(existingItems.map(i => i.typeCode.toUpperCase()));
@@ -149,7 +149,7 @@ async function extractSubmittal(args, { projectId, user }) {
 
   // Reload all items after potential new inserts
   const allItems = await prisma.submittalItem.findMany({
-    where:  { trackerId: tracker.id },
+    where:  { trackerId: tracker.id, archivedAt: null },
     select: { id: true, typeCode: true },
   });
   const itemByCode = Object.fromEntries(allItems.map(i => [i.typeCode.toUpperCase(), i]));
@@ -266,64 +266,20 @@ async function extractSubmittal(args, { projectId, user }) {
   }
 
   // ── STEP 7: Open items + repeat detection (Phase 4) ──────────────────────
-  const existingOpenItems = await prisma.submittalOpenItem.findMany({
-    where: { projectId: projectId },
-  });
-
-  // Determine current round number from submission count
-  const roundNumber = await prisma.submittalSubmission.count({ where: { trackerId: tracker.id } });
-
-  // Collect all extracted notes for open item tracking
-  const allExtractedReviews = await prisma.submittalReview.findMany({
-    where: { isExtracted: true, version: { submissionId: submission.id }, status: { in: ['ApprovedAsNoted', 'Resubmit', 'NoAction'] } },
+  // Shared with typed reviews (0146): src/lib/submittalTracker.js.
+  const extracted = await prisma.submittalReview.findMany({
+    where: { isExtracted: true, archivedAt: null, version: { submissionId: submission.id } },
     include: { version: { include: { item: true } } },
   });
-
-  for (const review of allExtractedReviews) {
-    const typeCode = review.version.item.typeCode;
-    const existing = existingOpenItems.find(
-      oi => oi.typeCode === typeCode && oi.noteCategory === review.noteCategory && !oi.closedRound
-    );
-
-    const responsibleParty = inferResponsibleParty(review.notes || '', review.noteCategory || '');
-
-    if (existing) {
-      // Update: mark as repeat, advance to current round
-      await prisma.submittalOpenItem.update({
-        where: { id: existing.id },
-        data: {
-          isRepeat:  true,
-          noteText:  review.notes || existing.noteText,
-          updatedAt: new Date(),
-        },
-      });
-    } else {
-      // Create new open item
-      await prisma.submittalOpenItem.create({
-        data: {
-          projectId:       projectId,
-          typeCode,
-          noteCategory:    review.noteCategory || 'OTHER',
-          responsibleParty,
-          noteText:        review.notes || '',
-          openedRound:     roundNumber,
-          isRepeat:        false,
-        },
-      });
-    }
-  }
-
-  // Close open items for types that got fully APPROVED in this submission
-  const approvedTypes = await prisma.submittalReview.findMany({
-    where: { isExtracted: true, version: { submissionId: submission.id }, status: 'Approved' },
-    include: { version: { include: { item: true } } },
+  await syncOpenItems({
+    projectId,
+    round: await roundOf(tracker.id, submission),
+    // Notes first, approvals last, so a type approved by one reviewer in this
+    // round still ends the round closed.
+    reviews: extracted
+      .map((r) => ({ ...r, typeCode: r.version.item.typeCode }))
+      .sort((x, y) => (x.status === 'Approved') - (y.status === 'Approved')),
   });
-  for (const review of approvedTypes) {
-    await prisma.submittalOpenItem.updateMany({
-      where: { projectId, typeCode: review.version.item.typeCode, closedRound: null },
-      data:  { closedRound: roundNumber },
-    });
-  }
 
   return {
     ok:             true,

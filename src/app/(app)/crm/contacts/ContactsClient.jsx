@@ -4,12 +4,18 @@ import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { companyLink, countMissingCompany } from '@/lib/crmClient';
-import { ALL_CONTACT_DEPARTMENTS, contactDepartmentLabel } from '@/lib/contactDepartments';
+import { ALL_CONTACT_DEPARTMENTS, CONTACT_DEPARTMENTS, contactDepartmentLabel } from '@/lib/contactDepartments';
 import LookAlikeReviews from '@/components/crm/LookAlikeReviews';
 import SectionTabs, { PIPELINE_TABS } from '@/components/ui/SectionTabs';
 import { FilterToolbar, FilterPanel, SearchBox, countFilters } from '@/components/ui/FilterPanel';
 import SortHeader, { sortRows } from '@/components/ui/SortHeader';
 import { useUrlView } from '@/lib/useUrlView';
+import BulkEditBar, { useBulkPicks } from '@/components/ui/BulkEditBar';
+
+const BULK_FIELDS = [
+  { key: 'title',      label: 'Title',      kind: 'text' },
+  { key: 'department', label: 'Department', kind: 'choice', options: CONTACT_DEPARTMENTS.map(d => ({ value: d.key, label: d.label })) },
+];
 import { CARD, BTN_COMPACT, BTN_COMPACT_PRIMARY, H1, TD, TH } from '@/components/ui/tokens';
 
 function checkInStatus(contact) {
@@ -130,17 +136,19 @@ export default function ContactsClient({ contacts, tags = [] }) {
   const filterCount = countFilters(filters, FILTER_FIELDS);
 
   // Row checkboxes + Select all, then one bar to add or take off a tag for
-  // everyone picked (people tags, 0141). Picks hidden by the filter are ignored.
-  const [picked, setPicked] = useState(() => new Set());
+  // everyone picked (people tags, 0141), and one to edit or archive them
+  // (Mike 10-29). Picks hidden by the filter are ignored.
+  const bulk = useBulkPicks(sorted.map(c => ({ id: c.id, active: !c.archivedAt })), '/api/crm/contacts/bulk', 'CONTACT_BULK');
+  const picked = bulk.picked;
   const [bulkTag, setBulkTag] = useState('');
   const [newTag, setNewTag] = useState('');
   const [bulkBusy, setBulkBusy] = useState(false);
   const [bulkMsg, setBulkMsg] = useState('');
   const shownIds = sorted.map(c => c.id);
-  const pickedShown = shownIds.filter(id => picked.has(id));
-  const allShownPicked = shownIds.length > 0 && pickedShown.length === shownIds.length;
-  const togglePick = id => setPicked(p => { const n = new Set(p); if (n.has(id)) n.delete(id); else n.add(id); return n; });
-  const toggleAll = () => setPicked(allShownPicked ? new Set() : new Set(shownIds));
+  const pickedShown = bulk.pickedIds;
+  const allShownPicked = bulk.allPicked;
+  const togglePick = bulk.toggle;
+  const toggleAll = bulk.toggleAll;
 
   async function runBulkTag(remove) {
     if (!pickedShown.length || bulkBusy) return;
@@ -159,7 +167,7 @@ export default function ContactsClient({ contacts, tags = [] }) {
       const d = await res.json().catch(() => ({}));
       if (!res.ok) { setBulkMsg(d.error || `Could not reach the server, so nothing was changed. Try again. (BULK_TAG_${res.status})`); return; }
       setBulkMsg(remove ? `Took "${tagName}" off ${d.removed} people.` : `Tagged ${d.added} people "${tagName}".`);
-      setNewTag(''); setPicked(new Set());
+      setNewTag(''); bulk.clear();
       router.refresh();
     } finally { setBulkBusy(false); }
   }
@@ -225,6 +233,14 @@ export default function ContactsClient({ contacts, tags = [] }) {
             </div>
           )}
           {bulkMsg && <p className="mt-2 text-xs text-slate-700">{bulkMsg}</p>}
+          <div className="mt-2">
+            <BulkEditBar count={pickedShown.length} noun="people" fields={BULK_FIELDS} archived={bulk.archived} busy={bulk.busy}
+              onApply={set => bulk.run(set, 'Changed')}
+              onArchive={archive => bulk.run({ active: !archive }, archive ? 'Archived' : 'Restored')}
+              onClear={bulk.clear} />
+          </div>
+          {bulk.err && <p className="mt-2 text-xs text-red-600">{bulk.err}</p>}
+          {bulk.msg && <p className="mt-2 text-xs text-green-700">{bulk.msg}</p>}
         </div>
 
         {/* Table */}

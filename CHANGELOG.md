@@ -5,6 +5,17 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Submittal tracker fixes + bulk edit on Products, Companies, People] - October 29, 2026 (DEPLOYED) - migration 0146
+
+- Review statuses are now exactly Approved, Approved as noted, Rejected, Not reviewed (Mike). Old "Resubmit" reviews became Rejected and "No Action" became Not reviewed (0146 renames them in place).
+- A review typed in by hand now opens items in the open items list, same as one read from a PDF. Rejected and Approved as noted with notes open items; editing the status or notes later updates them.
+- Reviews can be edited (Edit on each review row) and archived. Fixture types, rounds and reviews are archive only now: the delete buttons say Archive, and the new "Archived" button on the tracker lists them with Restore. Every change writes a history row.
+- ILC responses: "Write response" types one by hand, no AI needed. "Draft with AI" still works when the reviewer left notes. Once approved, "Mark sent" stamps the date it went out (0146 adds `sentAt`).
+- "Export Excel" on the tracker: three sheets (each type with every reviewer's latest status, every review with its ILC response and sent date, open items).
+- Safety: every tracker route now checks that the item, round or review belongs to the project in the address, and open items check project access.
+- Products, Companies and People lists: row checkboxes, Select all and the same bulk bar as Manufacturers. Products edit fixture type, finish, CCT, dimming, voltage, mounting, notes. Companies edit city, state, branch market. People edit title and department (Mike's eight). All three archive and restore in bulk; nothing is deleted. People keep their bulk tag bar too.
+- New: `src/lib/submittalStatus.js`, `src/lib/submittalTracker.js`, `src/lib/bulkEdit.js`, `api/projects/[id]/tracker/export`, `api/products/bulk`, `api/clients/bulk`, `api/crm/contacts/bulk`. Bulk bar gains a pick list field kind.
+
 ## [Project pages on phones] - October 29, 2026 (DEPLOYED b380e78) - no migration
 
 - Phones: the project menu slides out from a "Sections" button, and the open section's tabs swipe sideways under the header. The header stacks and its small actions (rename, flag, flag note, people, location and type, Copy as JSON) sit behind "More".
@@ -19,19 +30,19 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 - Desktop is unchanged: every phone change sits under the md breakpoint.
 - Files: `ProjectSidebar.jsx`, `ProjectHubClient.jsx`, `CorrespondenceTab.jsx`, `RFIModule.jsx`, `BudgetDashboard.jsx`, `FileDropZone.jsx`, `MeetingNotes.jsx`, `NotificationSettingsTab.jsx`, `ContactsTab.jsx`, `ProjectCodeSearch.jsx`, plus the dashboard, contracts, takeoff, drawings, schedule, tracker, summary, wizard and `sections/` components listed by `git diff --stat`.
 
-## [Manufacturers and Sales Reps: pick many, edit or archive at once] - October 29, 2026 (DEPLOYED PENDING) - migration 0145
+## [Manufacturers and Sales Reps: pick many, edit or archive at once] - October 29, 2026 (DEPLOYED 5635510) - migration 0145
 
 - Both lists have a checkbox on every row and Select all at the top. Once anything is picked, a bar edits one field on all of them (Manufacturers: Terms, Setup to sell, Buy direct, State. Reps: City, State) or archives them, with an "are you sure" first. If every pick is already archived, the bar offers Restore.
 - Manufacturers can now be archived like reps (0145 adds `active`, default on). Archived ones hide from the list, the product pickers and the rep link picker; "Show archived" in Filters brings them back. Archive or Restore also sits on each detail page. Nothing is deleted.
 - "Inactive" reps are now called Archived everywhere.
 - New routes `POST /api/manufacturers/bulk` and `POST /api/sales-reps/bulk` (500 at a time, one history row per changed record). Archive and buy direct are open to all staff; other manufacturer fields need product edit rights.
 
-## [Texas concept feeds] - October 29, 2026 (DEPLOYED PENDING) - no migration
+## [Texas concept feeds] - October 29, 2026 (DEPLOYED 5635510) - no migration
 
 - Market Intel adds six concept sources: Houston plats, Irving zoning cases, and Texas tax credit (TDHCA) applications for Dallas, Houston, Austin and San Antonio. Developer names flow into the signal.
 - After deploy: press "Add missing sources", then "Pull permits now" two or three times.
 
-## [Calendar Upload] - October 29, 2026 (DEPLOYED PENDING) - no migration
+## [Calendar Upload] - October 29, 2026 (DEPLOYED 5635510) - no migration
 
 - Software > Calendar Upload (`/admin/calendar-import`) plus a card on Admin. Pick a Google Takeout `.ics`; it is read in the browser and sent in batches of about 150.
 - Preview with row checkboxes and Select all; only accepted meetings count, personal events and travel days are left out. Past meetings become published Sales notes (`calendarRef ics:<uid>:<start>`), so they show on Sales Activity, the dashboard cards, Notes, Last contact, check-ins and My Desk.

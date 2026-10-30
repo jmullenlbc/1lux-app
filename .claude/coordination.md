@@ -2,7 +2,9 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-10-29 (newest) - Mike's Claude - **DEPLOYED (see git log: Project pages on phones)**, no migration: every project screen fits a phone (Sections drawer, More menu, tabs swipe, tables scroll, wizards stack). Calendar Upload, Texas concept feeds and Manufacturers/Sales Reps bulk edit (0145) are built locally, NOT deployed.
+### 2026-10-29 (newest) - Mike's Claude - **DEPLOYED 5635510**, migration 0145 (Manufacturer.active): Manufacturers and Sales Reps row checkboxes, Select all, bulk edit + archive; Texas concept feeds; Admin Calendar Upload. Next: Submittal Tracker fixes + bulk edit on Products, People, Companies.
+
+### 2026-10-29 - Mike's Claude - **DEPLOYED b380e78**, no migration: every project screen fits a phone (Sections drawer, More menu, tabs swipe, tables scroll, wizards stack). Calendar Upload, Texas concept feeds and Manufacturers/Sales Reps bulk edit (0145) are built locally, NOT deployed.
 
 ### 2026-10-29 - Mike's Claude - **DEPLOYED e29e466**, no migration: top meeting notes banner removed (alerts inside Sales Notes, My Desk, menu badge), project menu sections fold like the main menu, brighter Ask AI and Report a bug, RFQ test cleanup.
 

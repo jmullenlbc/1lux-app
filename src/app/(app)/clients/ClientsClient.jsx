@@ -14,6 +14,13 @@ import StatTile from '@/components/ui/StatTile';
 import { FilterToolbar, FilterPanel, SearchBox, countFilters } from '@/components/ui/FilterPanel';
 import { SortSelect, sortRows } from '@/components/ui/SortHeader';
 import { useUrlView } from '@/lib/useUrlView';
+import { useBulkPicks, BulkTools } from '@/components/ui/BulkEditBar';
+
+const BULK_FIELDS = [
+  { key: 'city',         label: 'City',          kind: 'text' },
+  { key: 'state',        label: 'State',         kind: 'text' },
+  { key: 'branchMarket', label: 'Branch market', kind: 'text' },
+];
 import { CARD_PADDED, MODAL, BTN_PRIMARY, BTN_SECONDARY, H1, LABEL, INPUT, HELPER, NUM } from '@/components/ui/tokens';
 
 const FILTER_FIELDS = [
@@ -281,6 +288,8 @@ export default function ClientsClient({ clients: initial, user }) {
       (c.notes        || '').toLowerCase().includes(q);
   });
   const shown = sortRows(filtered, sort, SORT_GETTERS);
+  // Pick many, then edit or archive them at once (Mike 10-29).
+  const bulk = useBulkPicks(shown.map(c => ({ id: c.id, active: !c.archivedAt })), '/api/clients/bulk', 'CLIENT_BULK', refresh);
 
   return (
     <div className="max-w-6xl mx-auto px-6 py-8">
@@ -339,6 +348,7 @@ export default function ClientsClient({ clients: initial, user }) {
           choices={{ tag: tagsInUse.map(t => [t.id, t.name]) }}
           onChange={setFilter}
         />
+        <div className="mt-2"><BulkTools bulk={bulk} shown={shown.length} noun="companies" fields={BULK_FIELDS} /></div>
       </div>
 
       {/* Clients grid / empty state */}
@@ -370,6 +380,8 @@ export default function ClientsClient({ clients: initial, user }) {
           {shown.map(client => (
             <div key={client.id} className={`${CARD_PADDED} hover:border-slate-300 transition-colors group`}>
               <div className="flex items-start justify-between mb-3">
+                <input type="checkbox" checked={bulk.picked.has(client.id)} onChange={() => bulk.toggle(client.id)}
+                  aria-label={`Pick ${client.name}`} className="w-4 h-4 accent-orange-500 mt-1 mr-2 shrink-0" />
                 <div className="flex-1 min-w-0">
                   <Link
                     href={`/clients/${client.id}`}

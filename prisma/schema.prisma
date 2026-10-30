@@ -1189,6 +1189,7 @@ model SubmittalItem {
   location          String?
   sortOrder         Int                    @default(0)
   createdAt         DateTime               @default(now())
+  archivedAt        DateTime? // 0146: archived, never deleted
   versions          SubmittalItemVersion[]
   shipmentLineItems ShipmentLineItem[]
 }
@@ -1201,6 +1202,7 @@ model SubmittalSubmission {
   submittedDate String?
   notes         String?
   createdAt     DateTime               @default(now())
+  archivedAt    DateTime? // 0146: archived, never deleted
   versions      SubmittalItemVersion[]
 }
 
@@ -1224,7 +1226,7 @@ model SubmittalReview {
   version      SubmittalItemVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
   reviewerRole String
   reviewerName String?
-  status       String
+  status       String // Approved | ApprovedAsNoted | Rejected | NotReviewed (0146)
   dateNoted    String?
   notes        String?
   noteCategory String? // FINISH|MODEL|ACCESSORY|VOLTAGE|LUMEN|WET_LOCATION|DRAWING_SYNC|DISCONTINUED|LED_TAPE|REPEAT|CODE|BOILERPLATE|OTHER
@@ -1232,6 +1234,7 @@ model SubmittalReview {
   pageNumber   Int? // page in source PDF where note was found
   createdAt    DateTime             @default(now())
   createdById  String?
+  archivedAt   DateTime? // 0146: archived, never deleted
   response     SubmittalResponse?
 }
 
@@ -1245,6 +1248,7 @@ model SubmittalResponse {
   generatedBy String          @default("AI") // "AI" | userId
   editedAt    DateTime?
   approvedAt  DateTime?
+  sentAt      DateTime? // 0146: marked sent by hand
   createdById String?
   createdBy   User?           @relation("SubmittalResponseCreator", fields: [createdById], references: [id], onDelete: SetNull)
   createdAt   DateTime        @default(now())

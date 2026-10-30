@@ -7,6 +7,17 @@ import { FilterToolbar, FilterPanel, countFilters, SearchBox } from '@/component
 import SortHeader, { Th, sortRows } from '@/components/ui/SortHeader';
 import { WidgetEmpty, WidgetLoading } from '@/components/ui/WidgetFrame';
 import { useUrlView } from '@/lib/useUrlView';
+import { useBulkPicks, BulkTools } from '@/components/ui/BulkEditBar';
+
+const BULK_FIELDS = [
+  { key: 'fixtureType', label: 'Fixture type', kind: 'text' },
+  { key: 'finish',      label: 'Finish',       kind: 'text' },
+  { key: 'cct',         label: 'CCT',          kind: 'text' },
+  { key: 'dimming',     label: 'Dimming',      kind: 'text' },
+  { key: 'voltage',     label: 'Voltage',      kind: 'text' },
+  { key: 'mounting',    label: 'Mounting',     kind: 'text' },
+  { key: 'notes',       label: 'Notes',        kind: 'text' },
+];
 
 const FIXTURE_TYPES = ['FIXTURE', 'CONTROL_DEVICE'];
 
@@ -148,6 +159,8 @@ export default function ProductsClient({ manufacturers, isAdmin }) {
   useEffect(() => { if (ready) fetchProducts(); }, [ready]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const rows = useMemo(() => sortRows(products, sort, GETTERS), [products, sort]);
+  // Pick many, then edit or archive them at once (Mike 10-29).
+  const bulk = useBulkPicks(rows.map(p => ({ id: p.id, active: !p.archivedAt })), '/api/products/bulk', 'PRODUCT_BULK', () => fetchProducts());
 
   function handleSearch(val) {
     setSearch(val);
@@ -243,6 +256,7 @@ export default function ProductsClient({ manufacturers, isAdmin }) {
           right={<SearchBox value={search} onChange={handleSearch} placeholder="Search part #, description, manufacturer..." className="w-72" />}
         />
         <FilterPanel open={panelOpen} fields={PRODUCT_FIELDS} filters={filters} choices={choices} onChange={handleFilter} />
+        <div className="mt-2"><BulkTools bulk={bulk} shown={rows.length} noun="products" fields={BULK_FIELDS} /></div>
       </div>
 
       {/* ── Table ── */}
@@ -252,6 +266,7 @@ export default function ProductsClient({ manufacturers, isAdmin }) {
             <table className="w-full text-xs" style={{ minWidth: '1100px' }}>
               <thead className="sticky top-0 z-10">
                 <tr className="bg-slate-50 border-b-2 border-slate-200">
+                  <th className="w-8 px-3"><input type="checkbox" checked={bulk.allPicked} onChange={bulk.toggleAll} aria-label="Select all" className="w-4 h-4 accent-orange-500" /></th>
                   {COLS.map(col => (
                     col.sortable
                       ? <SortHeader key={col.key} label={col.label} field={col.key} sort={sort} onSort={toggleSort} align={col.align} className={`${col.width} whitespace-nowrap`} />
@@ -264,20 +279,21 @@ export default function ProductsClient({ manufacturers, isAdmin }) {
               <tbody className="divide-y divide-slate-50">
                 {loading && (
                   <tr>
-                    <td colSpan={COLS.length + 1 + (isAdmin ? 1 : 0)} className="px-4 py-6">
+                    <td colSpan={COLS.length + 2 + (isAdmin ? 1 : 0)} className="px-4 py-6">
                       <WidgetLoading />
                     </td>
                   </tr>
                 )}
                 {!loading && products.length === 0 && (
                   <tr>
-                    <td colSpan={COLS.length + 1 + (isAdmin ? 1 : 0)} className="px-4 py-6">
+                    <td colSpan={COLS.length + 2 + (isAdmin ? 1 : 0)} className="px-4 py-6">
                       <WidgetEmpty>No products found{search ? ` matching "${search}"` : ''}.</WidgetEmpty>
                     </td>
                   </tr>
                 )}
                 {!loading && rows.map(p => (
                   <tr key={p.id} className="hover:bg-slate-50/80 transition-colors group">
+                    <td className="px-3 py-1.5"><input type="checkbox" checked={bulk.picked.has(p.id)} onChange={() => bulk.toggle(p.id)} aria-label={`Pick ${p.partNumber}`} className="w-4 h-4 accent-orange-500" /></td>
                     <td className="px-3 py-1.5 text-right font-mono text-[11px] text-slate-500 tabular-nums">{p.numericId}</td>
                     <td className="px-3 py-1.5 font-medium text-slate-700 truncate max-w-[12rem]">
                       <Link href={`/manufacturers/${p.manufacturerId}`}

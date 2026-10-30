@@ -1,13 +1,8 @@
 import { NextResponse } from 'next/server';
-import { requireAuth, canSeeAllData } from '@/lib/auth';
+import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-
-async function getTracker(projectId, user) {
-  const p = await prisma.project.findUnique({ where: { id: projectId } });
-  if (!p) return null;
-  if (!canSeeAllData(user) && p.createdById !== user.id) return null;
-  return prisma.submittalTracker.findUnique({ where: { projectId } });
-}
+import { logHistory } from '@/lib/recordHistory';
+import { trackerFor as getTracker } from '@/lib/submittalTracker';
 
 // POST, add one item (manual) or bulk import (array)
 export async function POST(request, { params }) {
@@ -43,7 +38,7 @@ export async function POST(request, { params }) {
 
   // Single item
   const { typeCode, description, location, sortOrder } = body;
-  const maxOrder = await prisma.submittalItem.count({ where: { trackerId: tracker.id } });
+  const maxOrder = await prisma.submittalItem.count({ where: { trackerId: tracker.id, archivedAt: null } });
   const item = await prisma.submittalItem.create({
     data: {
       trackerId:   tracker.id,
@@ -57,13 +52,18 @@ export async function POST(request, { params }) {
   return NextResponse.json({ item }, { status: 201 });
 }
 
-// DELETE, clear all items (before re-import)
+// DELETE, clear all items (before re-import). Items are archived, never
+// deleted (0146): their rounds, reviews and responses stay in the record.
 export async function DELETE(request, { params }) {
   const { user, error } = await requireAuth();
   if (error) return error;
   const tracker = await getTracker(params.id, user);
   if (!tracker) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  await prisma.submittalItem.deleteMany({ where: { trackerId: tracker.id } });
-  return NextResponse.json({ success: true });
+  const live = await prisma.submittalItem.findMany({ where: { trackerId: tracker.id, archivedAt: null }, select: { id: true } });
+  await prisma.$transaction(async (db) => {
+    await db.submittalItem.updateMany({ where: { id: { in: live.map((i) => i.id) } }, data: { archivedAt: new Date() } });
+    for (const i of live) await logHistory({ entityType: 'SUBMITTAL_ITEM', entityId: i.id, action: 'ARCHIVE', user, note: 'Cleared before a re-import', db });
+  });
+  return NextResponse.json({ success: true, archived: live.length });
 }
