@@ -5,7 +5,28 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [Submittal tracker fixes + bulk edit on Products, Companies, People] - October 29, 2026 (DEPLOYED) - migration 0146
+## [Project menu starts open] - October 30, 2026 (DEPLOYED) - no migration
+
+- The menu inside a project now opens with every section expanded, on desktop and in the phone slide-out (Mike). A section you close stays closed for you, unless you move to a tab inside it. Old saved menu choices are ignored, so everyone starts fully open.
+- File: `src/components/project/ProjectSidebar.jsx`.
+
+## [Email campaigns infrastructure] - October 29, 2026 (DEPLOYED) - migration 0147
+
+- Sales Docs gains two tabs: Campaigns and Email lists. Built with no real sending service (Mike: build the infrastructure, sender and from address wait). On this computer sends run in test mode; in production Send refuses with CAMPAIGN_NO_SENDER until a service is connected.
+- Email lists: a rules list follows the CRM (tag, department, company type, branch market, cadence tier, state, company and its branches; same heading = any, different headings = all). A picked list is people added by search and removed with row checkboxes. Each list shows who it reaches: ready, no email, do not email, same address twice.
+- Campaigns: name, list, subject, preview text, and blocks (heading, text, button, image, document, folder). Preview in a safe frame. Only a sales admin can send. Sending goes 50 at a time while the page is open; "Send the rest" picks up a stopped send. A sent campaign is locked.
+- Results per person: sent, opened, clicks, time in linked documents (documents and folders go out as tracked Sales Docs links per person). Opens marked as the soft signal.
+- Do not email list: one-click unsubscribe (link + email header) lands people there by itself; staff can add an address; only a sales admin can lift one. Footer mailing address set by a sales admin on Campaigns.
+- Archive only throughout: blocks, members, rules and do-not-email rows are archived or lifted, never deleted.
+- Files: migration 0147, `src/lib/campaigns/*`, `api/campaigns/*`, `api/campaign-lists/*`, `api/campaign-suppressions`, public `api/e/{o,c,u}` and `/e/u/[token]`, `sales/docs/campaigns/*`, `sales/docs/lists/*`, `src/components/campaigns/*`, SectionTabs, sales-docs links and gate routes.
+
+## [People bulk edit: company or branch] - October 29, 2026 (DEPLOYED) - no migration
+
+- People bulk edit has a new "Company or branch" choice (Mike). Branches read "Parent, Market" and sort under their company. The typed employer text is left as it was. A company that is missing or archived is refused with CONTACT_BULK_COMPANY and nothing changes.
+- Products bulk edit stays without manufacturer on purpose (Mike: one product at a time).
+- Files: `src/app/api/crm/contacts/bulk/route.js`, `src/app/(app)/crm/contacts/page.jsx`, `src/app/(app)/crm/contacts/ContactsClient.jsx`.
+
+## [Submittal tracker fixes + bulk edit on Products, Companies, People] - October 29, 2026 (DEPLOYED b187c7d) - migration 0146
 
 - Review statuses are now exactly Approved, Approved as noted, Rejected, Not reviewed (Mike). Old "Resubmit" reviews became Rejected and "No Action" became Not reviewed (0146 renames them in place).
 - A review typed in by hand now opens items in the open items list, same as one read from a PDF. Rejected and Approved as noted with notes open items; editing the status or notes later updates them.

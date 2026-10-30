@@ -86,7 +86,18 @@ const STATUS_RANK = { overdue: 0, due_soon: 1, ok: 2 };
 
 const tagNames = c => (c.tagLinks || []).map(l => l.tag?.name).filter(Boolean);
 
-export default function ContactsClient({ contacts, tags = [] }) {
+// A branch reads "Parent, Market" so it sorts under its parent company.
+function companyChoices(companies) {
+  return companies
+    .map(c => ({ value: c.id, label: c.parent ? `${c.parent.name}, ${c.branchMarket || c.name}` : c.name }))
+    .sort((a, b) => a.label.localeCompare(b.label));
+}
+
+export default function ContactsClient({ contacts, tags = [], companies = [] }) {
+  const bulkFields = useMemo(() => [
+    ...BULK_FIELDS,
+    { key: 'clientId', label: 'Company or branch', kind: 'choice', options: companyChoices(companies) },
+  ], [companies]);
   const router = useRouter();
   const { filters, setFilter, clearFilters, sort, toggleSort } = useUrlView({ fields: VIEW_FIELDS, sortDefault: SORT_DEFAULT });
   const [open, setOpen] = useState(false);
@@ -234,7 +245,7 @@ export default function ContactsClient({ contacts, tags = [] }) {
           )}
           {bulkMsg && <p className="mt-2 text-xs text-slate-700">{bulkMsg}</p>}
           <div className="mt-2">
-            <BulkEditBar count={pickedShown.length} noun="people" fields={BULK_FIELDS} archived={bulk.archived} busy={bulk.busy}
+            <BulkEditBar count={pickedShown.length} noun="people" fields={bulkFields} archived={bulk.archived} busy={bulk.busy}
               onApply={set => bulk.run(set, 'Changed')}
               onArchive={archive => bulk.run({ active: !archive }, archive ? 'Archived' : 'Restored')}
               onClear={bulk.clear} />

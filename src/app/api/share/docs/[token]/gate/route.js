@@ -35,7 +35,9 @@ export async function POST(request, { params }) {
   const body = await request.json().catch(() => ({}));
   const ipHash = ipHashOf(request);
 
-  const email = normalizeEmail(body.email);
+  // An email campaign link (0147) belongs to one person, so it skips the email
+  // ask and counts the read as theirs.
+  const email = normalizeEmail(body.email) || (link.campaignSendId ? normalizeEmail(link.recipientEmail) : null);
   const name = String(body.name || '').trim().slice(0, 120) || null;
   if (link.requireEmail && (!email || !EMAIL_RE.test(email))) {
     return NextResponse.json({ error: 'Enter your work email to open this.' }, { status: 400 });

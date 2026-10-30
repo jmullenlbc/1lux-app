@@ -154,6 +154,10 @@ model User {
   brandGradesDecided         BrandGrade[]                 @relation("BrandGradeDecider")
   bidLineMarks               BidLineMark[]                @relation("BidLineMarkUser")
   ruleProposalsDecided       RuleProposal[]               @relation("RuleProposalDecider")
+  campaignListsCreated       CampaignList[]               @relation("CampaignListCreator")
+  campaignsCreated           Campaign[]                   @relation("CampaignCreator")
+  campaignsSent              Campaign[]                   @relation("CampaignSender")
+  campaignSuppressionsAdded  CampaignSuppression[]        @relation("CampaignSuppressionCreator")
 }
 
 model UserAlert {
@@ -574,6 +578,9 @@ model Contact {
   salesDocVisitors    SalesDocVisitor[]   @relation("SalesDocVisitorContact")
   tagLinks            ContactTagLink[]
   otherEmails         ContactEmail[]
+  campaignListMembers CampaignListMember[]
+  campaignSends       CampaignSend[]
+  campaignSuppressions CampaignSuppression[]
 
   @@index([ownerId])
   @@index([clientId])
@@ -4560,6 +4567,7 @@ model SalesDoc {
   links            SalesDocLink[]
   views            SalesDocView[]
   events           SalesDocEvent[]
+  campaignBlocks   CampaignBlock[]
   archivedAt       DateTime?
   createdAt        DateTime            @default(now())
   updatedAt        DateTime            @updatedAt
@@ -4636,6 +4644,7 @@ model SalesDocSpace {
   client      Client?             @relation("SalesDocSpaceClient", fields: [clientId], references: [id], onDelete: SetNull)
   items       SalesDocSpaceItem[]
   links       SalesDocLink[]
+  campaignBlocks CampaignBlock[]
   archivedAt  DateTime?
   createdAt   DateTime            @default(now())
   updatedAt   DateTime            @updatedAt
@@ -4679,6 +4688,9 @@ model SalesDocLink {
   revokedById       String?
   revokedBy         User?           @relation("SalesDocLinkRevoker", fields: [revokedById], references: [id], onDelete: SetNull)
   firstOpenedAt     DateTime?
+  // Made by an email campaign (0147): one link per person per send, no email gate.
+  campaignSendId    String?
+  campaignSend      CampaignSend?   @relation(fields: [campaignSendId], references: [id], onDelete: SetNull)
   views             SalesDocView[]
   events            SalesDocEvent[]
   createdAt         DateTime        @default(now())
@@ -4687,6 +4699,7 @@ model SalesDocLink {
   @@index([spaceId])
   @@index([createdById])
   @@index([clientId])
+  @@index([campaignSendId])
 }
 
 model SalesDocVisitor {
@@ -5097,4 +5110,158 @@ model RecordHistory {
   createdAt  DateTime @default(now())
 
   @@index([entityType, entityId, createdAt])
+}
+
+// Email campaigns (0147, Mike 10-29): lists, the do-not-email list, campaigns
+// built from blocks, and one row per person per send. No sending service is
+// connected yet; src/lib/campaigns/sender.js refuses until one is.
+model CampaignList {
+  id           String               @id @default(cuid())
+  name         String
+  kind         String               @default("FIXED") // FIXED (picked people) | FILTER (saved rules)
+  notes        String?
+  createdById  String?
+  createdBy    User?                @relation("CampaignListCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  rules        CampaignListRule[]
+  members      CampaignListMember[]
+  campaigns    Campaign[]
+  archivedAt   DateTime?
+  archivedById String?
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+}
+
+// Same field ORs, different fields AND.
+model CampaignListRule {
+  id         String       @id @default(cuid())
+  listId     String
+  list       CampaignList @relation(fields: [listId], references: [id], onDelete: Cascade)
+  field      String // TAG | DEPARTMENT | COMPANY_TYPE | BRANCH_MARKET | CADENCE_TIER | STATE | COMPANY
+  value      String
+  archivedAt DateTime?
+  createdAt  DateTime     @default(now())
+
+  @@index([listId])
+}
+
+model CampaignListMember {
+  id         String       @id @default(cuid())
+  listId     String
+  list       CampaignList @relation(fields: [listId], references: [id], onDelete: Cascade)
+  contactId  String
+  contact    Contact      @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  addedById  String?
+  archivedAt DateTime?
+  createdAt  DateTime     @default(now())
+
+  @@unique([listId, contactId])
+  @@index([contactId])
+}
+
+// One do-not-email list for every campaign. Lifting keeps the row.
+model CampaignSuppression {
+  id          String    @id @default(cuid())
+  email       String    @unique // lowercased
+  reason      String // UNSUBSCRIBE | BOUNCE | COMPLAINT | MANUAL
+  contactId   String?
+  contact     Contact?  @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  campaignId  String?
+  campaign    Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  note        String?
+  createdById String?
+  createdBy   User?     @relation("CampaignSuppressionCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  liftedAt    DateTime?
+  liftedById  String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([contactId])
+  @@index([campaignId])
+}
+
+model Campaign {
+  id            String                @id @default(cuid())
+  name          String
+  subject       String?
+  previewText   String?
+  listId        String?
+  list          CampaignList?         @relation(fields: [listId], references: [id], onDelete: SetNull)
+  status        String                @default("DRAFT") // DRAFT | SENDING | SENT
+  createdById   String?
+  createdBy     User?                 @relation("CampaignCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  sentById      String?
+  sentBy        User?                 @relation("CampaignSender", fields: [sentById], references: [id], onDelete: SetNull)
+  sendStartedAt DateTime?
+  sentAt        DateTime?
+  blocks        CampaignBlock[]
+  sends         CampaignSend[]
+  suppressions  CampaignSuppression[]
+  archivedAt    DateTime?
+  archivedById  String?
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+
+  @@index([listId])
+}
+
+model CampaignBlock {
+  id         String          @id @default(cuid())
+  campaignId String
+  campaign   Campaign        @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  sortOrder  Int             @default(0)
+  kind       String // HEADING | TEXT | BUTTON | IMAGE | DOC | FOLDER
+  text       String?
+  url        String?
+  salesDocId String?
+  salesDoc   SalesDoc?       @relation(fields: [salesDocId], references: [id], onDelete: SetNull)
+  spaceId    String?
+  space      SalesDocSpace?  @relation(fields: [spaceId], references: [id], onDelete: SetNull)
+  clicks     CampaignClick[]
+  archivedAt DateTime?
+  createdAt  DateTime        @default(now())
+
+  @@index([campaignId])
+}
+
+// One person on one send. Opens are a soft signal; clicks and doc reads are strong.
+model CampaignSend {
+  id                String          @id @default(cuid())
+  campaignId        String
+  campaign          Campaign        @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  contactId         String?
+  contact           Contact?        @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  email             String // lowercased
+  name              String?
+  token             String          @unique
+  status            String          @default("QUEUED") // QUEUED | SENT | FAILED | SKIPPED | BOUNCED | COMPLAINED
+  skipReason        String?
+  error             String?
+  providerMessageId String?
+  sentAt            DateTime?
+  openedAt          DateTime?
+  openCount         Int             @default(0)
+  firstClickAt      DateTime?
+  clickCount        Int             @default(0)
+  unsubscribedAt    DateTime?
+  clicks            CampaignClick[]
+  docLinks          SalesDocLink[]
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@unique([campaignId, email])
+  @@index([contactId])
+  @@index([campaignId, status])
+}
+
+model CampaignClick {
+  id        String         @id @default(cuid())
+  sendId    String
+  send      CampaignSend   @relation(fields: [sendId], references: [id], onDelete: Cascade)
+  blockId   String?
+  block     CampaignBlock? @relation(fields: [blockId], references: [id], onDelete: SetNull)
+  ipHash    String?
+  createdAt DateTime       @default(now())
+
+  @@index([sendId])
+  @@index([blockId])
 }

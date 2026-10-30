@@ -23,34 +23,28 @@ function NavIcon({ name, size = 15 }) {
 // rows, no pin; the desktop menu hides under md.
 export default function ProjectSidebar({ config, activeTab, onTabChange, userId, badges = {}, drawer = false }) {
   const [collapsed, setCollapsed] = useState(false);
-  // Sections fold like the main menu (Mike 10-29): only the open tab's section
-  // starts open; the ones you open stay open per user.
+  // Every section starts open (Mike 10-30). The ones you close stay closed per
+  // user, except the open tab's section. The saved list is what's closed, so a
+  // section added later still starts open.
   const sectionOf = (tab) => config.find(s => s.items.some(i => i.id === tab))?.section;
-  const [expandedSections, setExpandedSections] = useState(
-    () => [sectionOf(activeTab)].filter(Boolean)
-  );
-  const openKey = userId ? `project_menu_open_${userId}` : null;
+  const [closedSections, setClosedSections] = useState([]);
+  const closedKey = userId ? `project_menu_closed_${userId}` : null;
 
   // SSR-safe: read localStorage after mount only
   useEffect(() => {
     if (!userId) return;
     try {
       if (localStorage.getItem(`sidebar_collapsed_${userId}`) === 'true') setCollapsed(true);
-      const saved = JSON.parse(localStorage.getItem(openKey) || 'null');
-      if (Array.isArray(saved)) setExpandedSections(prev => [...new Set([...saved, ...prev])]);
+      const saved = JSON.parse(localStorage.getItem(closedKey) || 'null');
+      if (Array.isArray(saved)) setClosedSections(saved.filter(s => s !== sectionOf(activeTab)));
     } catch {}
   }, [userId]);
 
   // Moving to a tab opens its section.
   useEffect(() => {
     const s = sectionOf(activeTab);
-    if (s) setExpandedSections(prev => (prev.includes(s) ? prev : [...prev, s]));
+    if (s) setClosedSections(prev => prev.filter(x => x !== s));
   }, [activeTab]);
-
-  useEffect(() => {
-    if (!openKey) return;
-    try { localStorage.setItem(openKey, JSON.stringify(expandedSections)); } catch {}
-  }, [openKey, expandedSections]);
 
   function togglePin() {
     const next = !collapsed;
@@ -59,11 +53,11 @@ export default function ProjectSidebar({ config, activeTab, onTabChange, userId,
   }
 
   function toggleSection(section) {
-    setExpandedSections(prev =>
-      prev.includes(section)
-        ? prev.filter(s => s !== section)
-        : [...prev, section]
-    );
+    const next = closedSections.includes(section)
+      ? closedSections.filter(s => s !== section)
+      : [...closedSections, section];
+    setClosedSections(next);
+    if (closedKey) try { localStorage.setItem(closedKey, JSON.stringify(next)); } catch {}
   }
 
   // All items flat, for rail
@@ -126,7 +120,7 @@ export default function ProjectSidebar({ config, activeTab, onTabChange, userId,
 
       <nav className="pb-2">
         {config.map((section, si) => {
-          const isExpanded = expandedSections.includes(section.section);
+          const isExpanded = !closedSections.includes(section.section);
           const hasActive = section.items.some(i => i.id === activeTab);
           const sectionBadge = section.items.reduce((n, i) => n + (badges[i.id] || 0), 0);
           return (

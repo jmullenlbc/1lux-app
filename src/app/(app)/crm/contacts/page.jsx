@@ -32,5 +32,11 @@ export default async function ContactsPage() {
 
   const tags = await prisma.contactTag.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true } });
 
-  return <ContactsClient contacts={contacts} tags={tags} />;
+  // Companies and their branches for the bulk "Company or branch" pick (Mike 10-29).
+  const companies = await prisma.client.findMany({
+    orderBy: { name: 'asc' },
+    select: { id: true, name: true, branchMarket: true, parent: { select: { name: true } } },
+  });
+
+  return <ContactsClient contacts={contacts} tags={tags} companies={companies} />;
 }

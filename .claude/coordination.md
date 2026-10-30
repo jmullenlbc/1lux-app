@@ -2,7 +2,11 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-10-29 (newest) - Mike's Claude - **DEPLOYED 5635510**, migration 0145 (Manufacturer.active): Manufacturers and Sales Reps row checkboxes, Select all, bulk edit + archive; Texas concept feeds; Admin Calendar Upload. Next: Submittal Tracker fixes + bulk edit on Products, People, Companies.
+### 2026-10-30 (newest) - Mike's Claude - **DEPLOYED**, migration 0147 (additive, campaign tables + SalesDocLink.campaignSendId): Email campaigns infrastructure (Campaigns + Email lists tabs on Sales Docs, no real sender, Send refused in production until a service is connected), People bulk Company or branch, project menu starts open. Next free migration 0148.
+
+### 2026-10-29 - Mike's Claude - **DEPLOYED b187c7d**, migration 0146 (submittal archivedAt, response sentAt, statuses renamed): Submittal Tracker fixes (Approved / Approved as noted / Rejected / Not reviewed, hand typed reviews open items, edit reviews, archive + Restore, write response by hand, Mark sent, Excel export, project ownership checks) + bulk edit on Products, Companies, People. Next free migration 0147.
+
+### 2026-10-29 - Mike's Claude - **DEPLOYED 5635510**, migration 0145 (Manufacturer.active): Manufacturers and Sales Reps row checkboxes, Select all, bulk edit + archive; Texas concept feeds; Admin Calendar Upload. Next: Submittal Tracker fixes + bulk edit on Products, People, Companies.
 
 ### 2026-10-29 - Mike's Claude - **DEPLOYED b380e78**, no migration: every project screen fits a phone (Sections drawer, More menu, tabs swipe, tables scroll, wizards stack). Calendar Upload, Texas concept feeds and Manufacturers/Sales Reps bulk edit (0145) are built locally, NOT deployed.
 

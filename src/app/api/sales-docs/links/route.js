@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { requireSalesDocsUser, badRequest } from '@/lib/salesDocs/access';
 import { newToken } from '@/lib/salesDocs/share';
-import { shareAllowed } from '@/lib/salesDocs/pricingScan';
+import { docShareProblem, spaceShareProblem } from '@/lib/salesDocs/shareCheck';
 import { linkOptions, linkStatus } from '@/lib/salesDocs/linkOptions';
 
 const LINK_INCLUDE = {
@@ -17,7 +17,8 @@ export async function GET(request) {
   const { error } = await requireSalesDocsUser();
   if (error) return error;
   const q = new URL(request.url).searchParams;
-  const where = {};
+  // Links an email campaign made live on the campaign's Results, not here.
+  const where = { campaignSendId: null };
   for (const k of ['docId', 'spaceId', 'createdById', 'clientId']) if (q.get(k)) where[k] = q.get(k);
 
   const found = await prisma.salesDocLink.findMany({ where, include: LINK_INCLUDE, orderBy: { createdAt: 'desc' }, take: 1000 });
@@ -47,28 +48,8 @@ export async function POST(request) {
   const body = await request.json().catch(() => ({}));
   if (!!body.docId === !!body.spaceId) return badRequest('A link shows one document or one Folder.');
 
-  if (body.docId) {
-    const doc = await prisma.salesDoc.findUnique({
-      where: { id: body.docId },
-      select: { archivedAt: true, currentVersion: { select: { processStatus: true, scanStatus: true } } },
-    });
-    if (!doc) return badRequest('Not found', 404);
-    if (doc.archivedAt) return badRequest('This document is archived.');
-    const v = doc.currentVersion;
-    if (!v || v.processStatus !== 'READY') return badRequest('This document is still being checked. Try again in a moment.', 409);
-    if (!shareAllowed(v.scanStatus)) return badRequest('Cost columns were found in this file, so it cannot be shared until an admin clears it.', 409);
-  } else {
-    const space = await prisma.salesDocSpace.findUnique({
-      where: { id: body.spaceId },
-      select: { archivedAt: true, items: { select: { doc: { select: { title: true, archivedAt: true, currentVersion: { select: { scanStatus: true } } } } } } },
-    });
-    if (!space) return badRequest('Not found', 404);
-    if (space.archivedAt) return badRequest('This Folder is archived.');
-    const docs = space.items.map((i) => i.doc).filter((d) => !d.archivedAt);
-    if (!docs.length) return badRequest('Add a document to this Folder first.');
-    const blocked = docs.filter((d) => d.currentVersion?.scanStatus === 'BLOCKED');
-    if (blocked.length) return badRequest(`Cost columns were found in ${blocked.map((d) => d.title).join(', ')}. Clear or remove it before sharing this Folder.`, 409);
-  }
+  const problem = body.docId ? await docShareProblem(body.docId) : await spaceShareProblem(body.spaceId);
+  if (problem) return badRequest(problem.message, problem.status);
 
   const opts = await linkOptions(body, { creating: true });
   if (opts.error) return badRequest(opts.error);
