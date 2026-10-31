@@ -17,7 +17,7 @@ import { sendNotification } from '@/lib/notify';
 // more than the default.
 export const maxDuration = 120;
 
-const VALID_TABS = ['drawings', 'correspondence', 'submittals', 'ca', 'contracts', 'meetings', 'designInfo', 'takeoffs', 'budgets', 'fixture-schedule', 'unit-matrix', 'site-plan'];
+const VALID_TABS = ['drawings', 'correspondence', 'submittals', 'ca', 'contracts', 'meetings', 'designInfo', 'takeoffs', 'budgets', 'fixture-schedule', 'unit-matrix', 'site-plan', 'rfqs'];
 
 async function canAccess(projectId, user) {
   const project = await prisma.project.findUnique({ where: { id: projectId } });

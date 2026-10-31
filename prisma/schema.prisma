@@ -920,6 +920,7 @@ model ProjectFile {
   rfiAttachments   RFIAttachment[]       @relation("RFIDrawing")
   drawingRevisions DrawingRevisionFlag[] @relation("DrawingRevisionFlags")
   budgetAmounts    ProjectBudgetAmount[]
+  rfqQuotes        RfqQuote[]            @relation("RfqQuoteFile")
   // Archived, never deleted (Mike, 2026-09-11: "drawings and budgets and products should be archive only").
   archivedAt       DateTime?
   archivedById     String?
@@ -5065,6 +5066,13 @@ model RfqQuote {
   rfq            Rfq?           @relation(fields: [rfqId], references: [id], onDelete: SetNull)
   fileName       String         @default("")
   quoteNumber    String?
+  fileId         String? // the original quote, kept on the project
+  file           ProjectFile?   @relation("RfqQuoteFile", fields: [fileId], references: [id], onDelete: SetNull)
+  source         String         @default("DROP") // DROP | EMAIL | MICROSOFT, how the quote reached us
+  fromName       String? // the company on the quote
+  fromEmail      String? // who sent it, once quotes arrive by email
+  quoteDate      DateTime?
+  total          Float? // the grand total the quote states
   uploadedById   String?
   uploadedByName String?
   createdAt      DateTime       @default(now())

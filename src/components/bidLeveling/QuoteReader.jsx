@@ -21,7 +21,38 @@ const asNumbers = (l) => ({ ...l, qty: toNumber(l.qty), unitPrice: toNumber(l.un
 const shown = (v) => (v == null ? '' : String(v));
 let nextKey = 0;
 
-export default function QuoteReader({ onAdd, busy, error }) {
+// What the check screen works on, from any reader's result.
+export function quoteToCheck(r, fileName) {
+  return {
+    fileName,
+    sheetName: r.sheetName,
+    otherSheets: r.otherSheets || 0,
+    lines: r.lines.map((l) => ({ ...l, _key: nextKey++, ok: false })),
+    totals: Object.fromEntries(Object.entries(r.totals || {}).map(([k, v]) => [k, shown(v)])),
+    form: {
+      ...EMPTY_FORM,
+      bidderName: r.bidderName || '',
+      quoteNumber: r.info?.quoteNumber || '',
+      quoteDate: r.info?.quoteDate || '',
+      expiresAt: r.info?.expiresAt || '',
+      taxRateStated: shown(r.info?.taxRateStated),
+      notesRaw: r.notesRaw || '',
+    },
+  };
+}
+
+export async function readQuoteFile(file) {
+  const XLSX = await import('xlsx');
+  const wb = XLSX.read(await file.arrayBuffer(), { type: 'array', cellDates: true });
+  const sheets = wb.SheetNames.map((name) => ({
+    name, rows: XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, defval: '', raw: true }),
+  }));
+  return readQuoteSheets(sheets, { fileName: file.name });
+}
+
+// pasteOnly hides the file pick (the RFQ tab has its own drop). repQuote is a rep's
+// quote to us: a part row with no fixture type is fine, and bid-only boxes go away.
+export default function QuoteReader({ onAdd, busy, error, pasteOnly = false, repQuote = false, saveLabel }) {
   const [read, setRead] = useState(null);
   const [problem, setProblem] = useState('');
   const [pasted, setPasted] = useState('');
@@ -29,22 +60,7 @@ export default function QuoteReader({ onAdd, busy, error }) {
   const start = (r, fileName) => {
     if (!r.ok) { setProblem(r.message); return; }
     setProblem('');
-    setRead({
-      fileName,
-      sheetName: r.sheetName,
-      otherSheets: r.otherSheets || 0,
-      lines: r.lines.map((l) => ({ ...l, _key: nextKey++, ok: false })),
-      totals: Object.fromEntries(Object.entries(r.totals || {}).map(([k, v]) => [k, shown(v)])),
-      form: {
-        ...EMPTY_FORM,
-        bidderName: r.bidderName || '',
-        quoteNumber: r.info?.quoteNumber || '',
-        quoteDate: r.info?.quoteDate || '',
-        expiresAt: r.info?.expiresAt || '',
-        taxRateStated: shown(r.info?.taxRateStated),
-        notesRaw: r.notesRaw || '',
-      },
-    });
+    setRead(quoteToCheck(r, fileName));
   };
 
   const onFile = async (e) => {
@@ -56,12 +72,7 @@ export default function QuoteReader({ onAdd, busy, error }) {
       return;
     }
     try {
-      const XLSX = await import('xlsx');
-      const wb = XLSX.read(await file.arrayBuffer(), { type: 'array', cellDates: true });
-      const sheets = wb.SheetNames.map((name) => ({
-        name, rows: XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, defval: '', raw: true }),
-      }));
-      start(readQuoteSheets(sheets, { fileName: file.name }), file.name);
+      start(await readQuoteFile(file), file.name);
     } catch {
       setProblem('We could not open that file, so nothing was read. Save it again as an Excel file (.xlsx) and pick it once more, or copy the table and paste it below.');
     }
@@ -69,35 +80,37 @@ export default function QuoteReader({ onAdd, busy, error }) {
 
   const byHand = () => start({ ok: true, lines: [], totals: {}, info: {}, bidderName: '' }, '');
 
-  if (read) return <CheckScreen read={read} setRead={setRead} onAdd={onAdd} busy={busy} error={error} onStartOver={() => { setRead(null); setPasted(''); }} />;
+  if (read) return <CheckScreen read={read} setRead={setRead} onAdd={onAdd} busy={busy} error={error} saveLabel={saveLabel} repQuote={repQuote} onStartOver={() => { setRead(null); setPasted(''); }} />;
 
   return (
     <div className="mt-4 space-y-4 border-t border-slate-100 pt-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <label className={`${BTN_SECONDARY} cursor-pointer`}>
-          Pick the quote file
-          <input type="file" accept=".xlsx,.xls,.csv,.pdf" className="hidden" onChange={onFile} />
-        </label>
-        <span className={HELPER}>Excel or CSV. We read it here in your browser, then you check what we read before anything is saved.</span>
-      </div>
+      {!pasteOnly && (
+        <div className="flex flex-wrap items-center gap-2">
+          <label className={`${BTN_SECONDARY} cursor-pointer`}>
+            Pick the quote file
+            <input type="file" accept=".xlsx,.xls,.csv,.pdf" className="hidden" onChange={onFile} />
+          </label>
+          <span className={HELPER}>Excel or CSV. We read it here in your browser, then you check what we read before anything is saved.</span>
+        </div>
+      )}
       <label className="block">
         <span className={LABEL}>Or paste the quote table</span>
         <textarea className={`${INPUT} mt-1 font-mono text-xs h-32`} value={pasted} onChange={(e) => setPasted(e.target.value)} placeholder="Copy the table from the quote, heading row included, and paste it here." />
       </label>
       <div className="flex flex-wrap items-center gap-2">
         <Button disabled={!pasted.trim()} onClick={() => start(readPastedQuote(pasted), '')}>Read it</Button>
-        <button type="button" className="text-sm text-slate-500 underline hover:text-slate-700" onClick={byHand}>No line table? Type the totals by hand</button>
+        <button type="button" className="text-sm text-slate-500 underline hover:text-slate-700" onClick={byHand}>{repQuote ? 'No table? Type it by hand' : 'No line table? Type the totals by hand'}</button>
       </div>
       {problem && <p className={`rounded-lg border px-3 py-2 text-sm ${TONE.danger}`}>{problem}</p>}
     </div>
   );
 }
 
-function CheckScreen({ read, setRead, onAdd, busy, error, onStartOver }) {
+export function CheckScreen({ read, setRead, onAdd, busy, error, onStartOver, saveLabel = 'Add this bid', repQuote = false, position = '', startOverLabel = 'Start over' }) {
   const [onlyMarked, setOnlyMarked] = useState(false);
   const { lines, totals, form } = read;
   const numeric = useMemo(() => lines.map(asNumbers), [lines]);
-  const reasons = useMemo(() => lineReasons(numeric), [numeric]);
+  const reasons = useMemo(() => lineReasons(numeric, { repQuote }), [numeric, repQuote]);
   const warnings = useMemo(() => quoteWarnings(numeric, totals, form), [numeric, totals, form]);
   const open = (i) => reasons[i].some((r) => r.blocking) || (reasons[i].length > 0 && !lines[i].ok);
   const openCount = lines.filter((_, i) => open(i)).length;
@@ -126,7 +139,10 @@ function CheckScreen({ read, setRead, onAdd, busy, error, onStartOver }) {
     <div className="mt-4 space-y-5 border-t border-slate-100 pt-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h3 className="text-base font-semibold text-slate-800">Check what we read</h3>
+          <h3 className="text-base font-semibold text-slate-800">
+            Check what we read
+            {position && <span className="ml-2 text-sm font-normal text-slate-500">{position}</span>}
+          </h3>
           <p className="text-sm text-slate-600 mt-0.5">
             {read.fileName ? `${read.fileName}${read.sheetName && read.sheetName !== 'Pasted' ? `, sheet "${read.sheetName}"` : ''}. ` : ''}
             We read {lines.length} line{lines.length === 1 ? '' : 's'}.{' '}
@@ -136,7 +152,7 @@ function CheckScreen({ read, setRead, onAdd, busy, error, onStartOver }) {
             <p className={`${HELPER} mt-0.5`}>This file has {read.otherSheets} other sheet{read.otherSheets === 1 ? '' : 's'} with a table. We used the one with the most lines.</p>
           )}
         </div>
-        <Button variant="secondary" onClick={onStartOver}>Start over</Button>
+        <Button variant="secondary" onClick={onStartOver}>{startOverLabel}</Button>
       </div>
 
       {warnings.length > 0 && (
@@ -146,19 +162,21 @@ function CheckScreen({ read, setRead, onAdd, busy, error, onStartOver }) {
       )}
 
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-        <Field label="Bidder"><input className={INPUT} value={form.bidderName} onChange={setForm('bidderName')} placeholder="Company name" /></Field>
-        <Field label="Price level">
-          <select className={INPUT} value={form.bidderType} onChange={setForm('bidderType')}>
-            <option value="UNKNOWN">Not stated</option>
-            <option value="REP">Rep</option>
-            <option value="DISTRIBUTOR">Distributor net</option>
-            <option value="CONTRACTOR_NET">Contractor net</option>
-          </select>
-        </Field>
+        <Field label={repQuote ? 'From' : 'Bidder'}><input className={INPUT} value={form.bidderName} onChange={setForm('bidderName')} placeholder="Company name" /></Field>
+        {!repQuote && (
+          <Field label="Price level">
+            <select className={INPUT} value={form.bidderType} onChange={setForm('bidderType')}>
+              <option value="UNKNOWN">Not stated</option>
+              <option value="REP">Rep</option>
+              <option value="DISTRIBUTOR">Distributor net</option>
+              <option value="CONTRACTOR_NET">Contractor net</option>
+            </select>
+          </Field>
+        )}
         <Field label="Quote number"><input className={INPUT} value={form.quoteNumber} onChange={setForm('quoteNumber')} /></Field>
         <Field label="Quote date"><input type="date" className={INPUT} value={form.quoteDate} onChange={setForm('quoteDate')} /></Field>
-        <Field label="Valid until"><input type="date" className={INPUT} value={form.expiresAt} onChange={setForm('expiresAt')} /></Field>
-        <Field label="Tax rate stated (%)"><input className={INPUT} value={form.taxRateStated} onChange={setForm('taxRateStated')} placeholder="8.6" /></Field>
+        {!repQuote && <Field label="Valid until"><input type="date" className={INPUT} value={form.expiresAt} onChange={setForm('expiresAt')} /></Field>}
+        {!repQuote && <Field label="Tax rate stated (%)"><input className={INPUT} value={form.taxRateStated} onChange={setForm('taxRateStated')} placeholder="8.6" /></Field>}
       </div>
 
       <div>
@@ -254,16 +272,20 @@ function CheckScreen({ read, setRead, onAdd, busy, error, onStartOver }) {
         </div>
       </div>
 
-      <Field label="Terms and notes" hint="The quote's terms, exclusions and notes, as written.">
-        <textarea className={`${INPUT} h-24`} value={form.notesRaw} onChange={setForm('notesRaw')} />
-      </Field>
+      {!repQuote && (
+        <Field label="Terms and notes" hint="The quote's terms, exclusions and notes, as written.">
+          <textarea className={`${INPUT} h-24`} value={form.notesRaw} onChange={setForm('notesRaw')} />
+        </Field>
+      )}
 
       <div className="flex flex-wrap items-center gap-3">
-        <Button loading={busy} disabled={blocking > 0} onClick={save}>Add this bid</Button>
+        <Button loading={busy} disabled={blocking > 0} onClick={save}>{saveLabel}</Button>
         {blocking > 0 ? (
-          <span className="text-sm text-red-700">{blocking} line{blocking === 1 ? ' has' : 's have'} no fixture type. Type it or remove the line before adding this bid.</span>
+          <span className="text-sm text-red-700">{repQuote
+            ? `${blocking} line${blocking === 1 ? ' has' : 's have'} no part number or type. Add one or remove the line before saving.`
+            : `${blocking} line${blocking === 1 ? ' has' : 's have'} no fixture type. Type it or remove the line before adding this bid.`}</span>
         ) : openCount > 0 ? (
-          <span className={HELPER}>You can add it now. The {openCount} line{openCount === 1 ? '' : 's'} still marked will show as needing a look.</span>
+          <span className={HELPER}>{repQuote ? 'You can save it now.' : `You can add it now. The ${openCount} line${openCount === 1 ? '' : 's'} still marked will show as needing a look.`}</span>
         ) : null}
       </div>
       {error && !busy && <p className={`rounded-lg border px-3 py-2 text-sm ${TONE.danger}`}>{error}</p>}

@@ -5,12 +5,23 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
-## [Project menu starts open] - October 30, 2026 (DEPLOYED) - no migration
+## [RFQ quotes: drag and drop] - October 30, 2026 (DEPLOYED October 31, 2026) - migration 0148
+
+- The RFQ received card now takes dropped rep quotes (Mike): PDF, Excel or CSV, several at once. Each file is stored on the project first (new RFQs file tab), so a failed read loses nothing. PDFs are read by the AI; a clean spreadsheet is read in the browser and falls back to the AI.
+- Every quote is checked by a person before it saves. A row in the list shows Waiting, Reading, Ready to check, Could not read, Saved, Skipped or Already brought in. Could not read offers Try again (no second upload), Type it by hand, Skip. Skip archives the stored copy. Pasting a table still works.
+- Part rows with no type are kept for rep quotes (housing, trim, optic under one type). Bid Leveling is unchanged. The saved quote shows who sent it, its file, quote number, date and total.
+- A job with no RFQ yet can still take quotes: lines stay open with "No RFQ line yet". Lines at 75% or better price their RFQ line as before.
+- One way in for all quotes: `saveQuote` carries a source (DROP today, EMAIL and MICROSOFT later), and `readStoredQuote` reads any stored file, so forwarded email and the Microsoft connection only add the front door.
+- Fixed while checking: the AI read failed on every file because the answer budget is too large for a plain call, so it now streams. The page crashed after Save or Skip on the check screen.
+- Read five real Modera quotes through the signed in route: all lines right, totals tie out.
+- Files: migration 0148, `src/lib/rfq/intakeQuote.js`, `src/lib/rfq/quoteReply.js`, `src/app/api/projects/[id]/rfqs/quotes/read/route.js`, `src/app/api/projects/[id]/rfqs/quotes/route.js`, `src/app/api/projects/[id]/files/route.js`, `src/components/rfq/QuoteDrop.jsx`, `RfqReceived.jsx`, `RfqTab.jsx`, `src/components/bidLeveling/QuoteReader.jsx`, `src/lib/bidLeveling/readQuote.js`, `src/lib/aiModels.js`, `src/lib/activity.js`, `scripts/tests/rfq.test.mjs`.
+
+## [Project menu starts open] - October 30, 2026 (DEPLOYED ee41b4d) - no migration
 
 - The menu inside a project now opens with every section expanded, on desktop and in the phone slide-out (Mike). A section you close stays closed for you, unless you move to a tab inside it. Old saved menu choices are ignored, so everyone starts fully open.
 - File: `src/components/project/ProjectSidebar.jsx`.
 
-## [Email campaigns infrastructure] - October 29, 2026 (DEPLOYED) - migration 0147
+## [Email campaigns infrastructure] - October 29, 2026 (DEPLOYED ee41b4d) - migration 0147
 
 - Sales Docs gains two tabs: Campaigns and Email lists. Built with no real sending service (Mike: build the infrastructure, sender and from address wait). On this computer sends run in test mode; in production Send refuses with CAMPAIGN_NO_SENDER until a service is connected.
 - Email lists: a rules list follows the CRM (tag, department, company type, branch market, cadence tier, state, company and its branches; same heading = any, different headings = all). A picked list is people added by search and removed with row checkboxes. Each list shows who it reaches: ready, no email, do not email, same address twice.
@@ -20,7 +31,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 - Archive only throughout: blocks, members, rules and do-not-email rows are archived or lifted, never deleted.
 - Files: migration 0147, `src/lib/campaigns/*`, `api/campaigns/*`, `api/campaign-lists/*`, `api/campaign-suppressions`, public `api/e/{o,c,u}` and `/e/u/[token]`, `sales/docs/campaigns/*`, `sales/docs/lists/*`, `src/components/campaigns/*`, SectionTabs, sales-docs links and gate routes.
 
-## [People bulk edit: company or branch] - October 29, 2026 (DEPLOYED) - no migration
+## [People bulk edit: company or branch] - October 29, 2026 (DEPLOYED ee41b4d) - no migration
 
 - People bulk edit has a new "Company or branch" choice (Mike). Branches read "Parent, Market" and sort under their company. The typed employer text is left as it was. A company that is missing or archived is refused with CONTACT_BULK_COMPANY and nothing changes.
 - Products bulk edit stays without manufacturer on purpose (Mike: one product at a time).

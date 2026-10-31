@@ -81,6 +81,7 @@ export const TAB_LABELS = {
   takeoffs:       'Takeoffs',
   budgets:        'Budgets',
   'site-plan':    'Site Plan',
+  rfqs:           'RFQs',
 };
 
 export const PHASE_LABELS = {

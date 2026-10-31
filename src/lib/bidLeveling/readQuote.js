@@ -4,9 +4,9 @@
  * sheet rows; nothing here touches the database or the AI service.
  *
  *   readQuoteSheets(sheets, { fileName })  [{ name, rows }] -> the quote it found
- *   lineReasons(lines)                     per line: what needs a look, in plain words
+ *   lineReasons(lines, { repQuote })       per line: what needs a look, in plain words
  *   quoteWarnings(lines, totals, info)     whole quote: sums that do not agree, expired
- *   cleanCheckedLines(lines)               what the server keeps after the check
+ *   cleanCheckedLines(lines, { repQuote }) what the server keeps after the check
  *
  * Messages follow the plain errors rule: what we saw, and what to do about it.
  */
@@ -210,8 +210,12 @@ const lineKey = (l) => `${l.typeTag}|${l.variant || ''}|${l.optionGroup || 'BASE
 /**
  * What each line needs a look for. Returns one array per line of
  * { key, text, blocking }. Blocking reasons stop the bid being added.
+ *
+ * repQuote (Mike 10-30): a rep's quote on the RFQ tab is not a bid set side by
+ * side, so a part row with no type stays, it gets picked to an RFQ line later,
+ * and one type can have several part rows (housing, trim, optic).
  */
-export function lineReasons(lines) {
+export function lineReasons(lines, { repQuote = false } = {}) {
   const priced = lines.filter((l) => l.unitPrice != null || l.extPrice != null).length >= lines.length / 2;
   const share = (f) => lines.filter((l) => l[f]).length >= lines.length / 2;
   const hasMfr = share('mfr');
@@ -223,8 +227,10 @@ export function lineReasons(lines) {
     const out = [];
     const add = (key, text, blocking = false) => out.push({ key, text, blocking });
     const qty = l.qty;
-    if (!String(l.typeTagRaw || '').trim()) add('NO_TYPE', 'No fixture type. Type it so this line lines up with the other bids, or remove the line.', true);
-    else if (!tagLike(l.typeTagRaw)) add('ODD_TYPE', 'This does not look like a fixture type. Check the type column.');
+    if (!String(l.typeTagRaw || '').trim()) {
+      if (repQuote && (l.catalog || l.description)) add('NO_TYPE', 'No fixture type on this line. Type it if you know it, or leave it and pick the RFQ line later.');
+      else add('NO_TYPE', repQuote ? 'This line has no type, part number or description. Fill one in, or remove the line.' : 'No fixture type. Type it so this line lines up with the other bids, or remove the line.', true);
+    } else if (!tagLike(l.typeTagRaw)) add('ODD_TYPE', 'This does not look like a fixture type. Check the type column.');
     if (qty == null) add('NO_QTY', 'No quantity. Type the quantity from the quote.');
     else if (qty === 0) add('ZERO_QTY', 'Quantity is 0, so this type counts as not quoted.');
     else if ((l.uom || 'EA') === 'EA' && !Number.isInteger(qty)) add('FRACTION', 'The quantity is not a whole number.');
@@ -234,7 +240,7 @@ export function lineReasons(lines) {
     }
     if (hasCatalog && !l.catalog) add('NO_PART', 'No part number.');
     if (hasMfr && !l.mfr) add('NO_MAKER', 'No maker.');
-    if (l.typeTag && counts[lineKey(l)] > 1) add('TWICE', 'This type shows up more than once. Check it is not counted twice.');
+    if (!repQuote && l.typeTag && counts[lineKey(l)] > 1) add('TWICE', 'This type shows up more than once. Check it is not counted twice.');
     return out;
   });
 }
@@ -275,18 +281,21 @@ const amount = (v) => {
 /**
  * The lines a person checked, cleaned for saving. Tags are read again on the
  * server so the browser cannot invent a grouping. Returns
- * { lines, missingType } where missingType counts lines with no type.
+ * { lines, missingType } where missingType counts lines with no type. With
+ * repQuote a line with a part number or description keeps a blank type.
  */
-export function cleanCheckedLines(input) {
+export function cleanCheckedLines(input, { repQuote = false } = {}) {
   let missingType = 0;
   const lines = [];
   (Array.isArray(input) ? input : []).forEach((l) => {
     const raw = text(l?.typeTagRaw ?? l?.typeTag, 40);
-    if (!raw) { missingType += 1; return; }
-    const description = text(l.description, 500);
-    const mfr = text(l.mfr, 120);
-    const catalog = text(l.catalog, 200);
-    const t = normalizeTag(raw, { description: description || '', catalog: catalog || '', mfr: mfr || '' });
+    const description = text(l?.description, 500);
+    const mfr = text(l?.mfr, 120);
+    const catalog = text(l?.catalog, 200);
+    if (!raw && !(repQuote && (catalog || description))) { missingType += 1; return; }
+    const t = raw
+      ? normalizeTag(raw, { description: description || '', catalog: catalog || '', mfr: mfr || '' })
+      : { typeTag: '', variant: '', lengthFt: null };
     const qty = amount(l.qty);
     const unitPrice = amount(l.unitPrice);
     lines.push({

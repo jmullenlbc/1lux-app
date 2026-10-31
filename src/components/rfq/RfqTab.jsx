@@ -146,7 +146,8 @@ export default function RfqTab({ projectId }) {
     setSendingAll(false);
   }
 
-  if (loadErr) return <WidgetFrame title="RFQs"><WidgetError>{loadErr}</WidgetError></WidgetFrame>;
+  // A failed reload keeps the page, so a quote drop in progress is not wiped.
+  if (loadErr && !state) return <WidgetFrame title="RFQs"><WidgetError>{loadErr}</WidgetError></WidgetFrame>;
   if (!state) return <WidgetFrame title="RFQs"><WidgetLoading /></WidgetFrame>;
 
   const count = (s) => state.lines.filter((l) => l.status === s).length;

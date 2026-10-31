@@ -101,6 +101,7 @@ export const JOB_TIERS = {
 
   // ── Bounded document reads ───────────────────────────────────────────────
   'contract.analyze':         'READ',
+  'rfq.quoteRead':            'READ',
   'rfi.extract':              'READ',
   'tracker.extract':          'READ',
   'tracker.importToc':        'READ',

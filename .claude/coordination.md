@@ -2,7 +2,9 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-10-30 (newest) - Mike's Claude - **DEPLOYED**, migration 0147 (additive, campaign tables + SalesDocLink.campaignSendId): Email campaigns infrastructure (Campaigns + Email lists tabs on Sales Docs, no real sender, Send refused in production until a service is connected), People bulk Company or branch, project menu starts open. Next free migration 0148.
+### 2026-10-31 (newest) - Mike's Claude - **DEPLOYED 10-31**, migration 0148 (additive, schema-guard PASS): 0148 adds RFQ quote intake fields to RfqQuote for dropped quote files. Additive, no data lost. Drag and drop rep quotes on the RFQ received card; one intake path (`src/lib/rfq/intakeQuote.js`) with source DROP now, EMAIL and MICROSOFT later. Next free migration 0149.
+
+### 2026-10-30 - Mike's Claude - **DEPLOYED ee41b4d**, migration 0147 (additive, campaign tables + SalesDocLink.campaignSendId): Email campaigns infrastructure (Campaigns + Email lists tabs on Sales Docs, no real sender, Send refused in production until a service is connected), People bulk Company or branch, project menu starts open. Next free migration 0148.
 
 ### 2026-10-29 - Mike's Claude - **DEPLOYED b187c7d**, migration 0146 (submittal archivedAt, response sentAt, statuses renamed): Submittal Tracker fixes (Approved / Approved as noted / Rejected / Not reviewed, hand typed reviews open items, edit reviews, archive + Restore, write response by hand, Mark sent, Excel export, project ownership checks) + bulk edit on Products, Companies, People. Next free migration 0147.
 

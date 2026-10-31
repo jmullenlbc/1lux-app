@@ -9,12 +9,16 @@
  *   3. The Trackvia rep load drops Logiq and AMPS, maps offices, sets one
  *      default per manufacturer and office, and lists ties for a person. The
  *      marked review workbook loads only KEEP Yes reps and its DEFAULT picks.
+ *   4. Dropped quotes (0148): the AI read is cleaned into the check screen shape,
+ *      failures say whose side they are on, and a part row with no type stays.
  */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { rfqNumber, needByFrom, emailSubject, NEED_BY_BUSINESS_DAYS, holidaysOf, isHoliday } from '../../src/lib/rfq/format.js';
 import { scorePair, matchQuote, AUTO_AT } from '../../src/lib/rfq/match.js';
 import { kindOf, buildRepLoad, chunks, dropped } from '../../src/lib/salesReps/trackvia.js';
+import { parseQuoteReply, quoteReadFailure } from '../../src/lib/rfq/quoteReply.js';
+import { lineReasons, cleanCheckedLines } from '../../src/lib/bidLeveling/readQuote.js';
 
 test('RFQ numbers and need by', () => {
   assert.equal(rfqNumber(1), 'RFQ0001');
@@ -168,4 +172,53 @@ test('review workbook: only KEEP Yes reps load, DEFAULT picks set the default', 
 test('chunks splits a list into batches', () => {
   assert.deepEqual(chunks([1, 2, 3, 4, 5], 2), [[1, 2], [3, 4], [5]]);
   assert.deepEqual(chunks([], 3), []);
+});
+
+test('an AI read of a quote comes back in the check screen shape', () => {
+  const r = parseQuoteReply('Here it is: {"bidderName":"Porter Lighting Sales","quoteNumber":"PLS24-8490-1","quoteDate":"2024-06-28","expiresAt":"06/28/2025",'
+    + '"lines":[{"typeTag":"D1","mfr":"Nora","catalog":"NHIC-27","qty":"12","uom":"ea","unitPrice":"$125.00","extPrice":"1,500.00"},'
+    + '{"typeTag":"","catalog":"TRIM-4","qty":12,"unitPrice":10},{"typeTag":"","catalog":"","description":""}],'
+    + '"totals":{"FREIGHT":"189.99","GRAND":-5,"OTHER":3},"notes":"6 weeks"} thanks');
+  assert.equal(r.ok, true);
+  assert.equal(r.bidderName, 'Porter Lighting Sales');
+  assert.equal(r.info.quoteNumber, 'PLS24-8490-1');
+  assert.equal(r.info.quoteDate, '2024-06-28');
+  assert.equal(r.info.expiresAt, ''); // not a clean date: left blank, never guessed
+  assert.equal(r.lines.length, 2); // the empty row is dropped
+  assert.equal(r.lines[0].qty, 12);
+  assert.equal(r.lines[0].unitPrice, 125);
+  assert.equal(r.lines[0].uom, 'EA');
+  assert.equal(r.lines[1].typeTag, ''); // a part row with no type stays
+  assert.deepEqual(r.totals, { FREIGHT: 189.99 }); // a negative or unknown total is left out
+});
+
+test('a garbled or empty AI read says so plainly', () => {
+  assert.match(parseQuoteReply('sorry, no').message, /RFQ_READ_GARBLED/);
+  assert.match(parseQuoteReply('{ not json }').message, /RFQ_READ_GARBLED/);
+  assert.match(parseQuoteReply('{"lines":[]}').message, /RFQ_READ_NO_LINES/);
+});
+
+test('a failed AI call says whose side it is on and that the file is safe', () => {
+  const says = (e) => quoteReadFailure(e);
+  assert.match(says({ message: 'Your credit balance is too low' }), /RFQ_READ_CREDIT/);
+  assert.match(says({ status: 401 }), /RFQ_READ_401/);
+  assert.match(says({ status: 429 }), /their side.*RFQ_READ_429/);
+  assert.match(says({ status: 529 }), /RFQ_READ_529/);
+  assert.match(says({ status: 400 }), /RFQ_READ_400/);
+  assert.match(says({}), /RFQ_READ_LOST/);
+  for (const e of [{ status: 401 }, { status: 429 }, { status: 400 }, {}]) assert.match(says(e), /The file is saved on the project/);
+});
+
+test('a rep quote keeps part rows with no type, a bid does not', () => {
+  const part = { typeTag: '', typeTagRaw: '', catalog: 'TRIM-4', description: '', qty: 2, unitPrice: 10 };
+  const empty = { typeTag: '', typeTagRaw: '', catalog: '', description: '', qty: 2, unitPrice: 10 };
+
+  const blocks = (lines, opts) => lineReasons(lines, opts).flat().filter((x) => x.blocking).length;
+  assert.equal(blocks([part], { repQuote: true }), 0);
+  assert.equal(blocks([empty], { repQuote: true }), 1);
+  assert.equal(blocks([part]), 1); // Bid Leveling stays as it was
+
+  assert.equal(cleanCheckedLines([part], { repQuote: true }).lines.length, 1);
+  assert.equal(cleanCheckedLines([empty], { repQuote: true }).lines.length, 0);
+  assert.equal(cleanCheckedLines([part]).lines.length, 0);
 });
