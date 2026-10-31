@@ -71,6 +71,7 @@ model User {
   drawingUploads             DrawingSubmission[]          @relation("DrawingUploader")
   fixtureShares              FixtureScheduleShare[]       @relation("FixtureShareCreator")
   changeOrdersCreated        ChangeOrder[]                @relation("COCreator")
+  coApprovals                ChangeOrderApproval[]        @relation("COApprover")
   changeOrderSends           ChangeOrderSend[]            @relation("COSender")
   changeOrderShares          ChangeOrderShare[]           @relation("COShareCreator")
   parsedEmails               EmailMessage[]               @relation("EmailParser")
@@ -1733,6 +1734,7 @@ model DesignBidMatrix {
   submissionTag    String?
   matrixType       String                @default("DESIGN_BID")
   changeSummary    String?
+  salesTaxPct      Float? // frozen rate, a decimal. Each saved version keeps its own
   items            DesignBidMatrixItem[]
   // Archived, never deleted (Mike, 2026-09-11: "drawings and budgets and products should be archive only").
   archivedAt       DateTime?
@@ -2226,6 +2228,7 @@ model PortalUser {
   updatedAt       DateTime                 @updatedAt
   projectAccess   ProjectExternalContact[]
   releaseRequests WarehouseRelease[]       @relation("PortalReleaseRequests")
+  coApprovals     ChangeOrderApproval[]    @relation("COPortalApprover")
 }
 
 model ProjectExternalContact {
@@ -2244,6 +2247,7 @@ model ProjectExternalContact {
   canViewConstructionSched Boolean     @default(false)
   canViewChangeOrders      Boolean     @default(false)
   canViewBudgets           Boolean     @default(false)
+  canApproveChangeOrders   Boolean     @default(false) // seeing is not signing, staff turn this on per person
   inviteToken              String?     @unique
   inviteTokenExpiresAt     DateTime?
   invitedAt                DateTime?
@@ -2610,6 +2614,7 @@ model ChangeOrder {
   date         DateTime                 @default(now())
   status       String                   @default("DRAFT") // DRAFT | SENT | APPROVED
   notes        String?
+  salesTaxPct  Float? // frozen rate, a decimal. Set on create, locked at send, never follows the job again
   createdById  String
   createdBy    User                     @relation("COCreator", fields: [createdById], references: [id])
   createdAt    DateTime                 @default(now())
@@ -2617,6 +2622,7 @@ model ChangeOrder {
   optionGroups ChangeOrderOptionGroup[]
   sends        ChangeOrderSend[]
   shares       ChangeOrderShare[]
+  approvals    ChangeOrderApproval[]
   rfi          RFI?                     @relation("COFromRFI", fields: [rfiId], references: [id])
   rfiId        String?                  @unique // set when CO is generated from an RFI substitution
 
@@ -2679,6 +2685,25 @@ model ChangeOrderSend {
   sentAt        DateTime    @default(now())
 
   @@index([changeOrderId])
+}
+
+// Every approval and undo, one row each, never edited. Who, when and how.
+model ChangeOrderApproval {
+  id            String      @id @default(cuid())
+  changeOrderId String
+  changeOrder   ChangeOrder @relation(fields: [changeOrderId], references: [id], onDelete: Cascade)
+  action        String // APPROVED | UNDONE
+  via           String // PORTAL | STAFF
+  userId        String? // staff who pressed it
+  user          User?       @relation("COApprover", fields: [userId], references: [id], onDelete: SetNull)
+  portalUserId  String? // client who pressed it
+  portalUser    PortalUser? @relation("COPortalApprover", fields: [portalUserId], references: [id], onDelete: SetNull)
+  note          String? // how: phone, email
+  optionLabel   String? // the option approved
+  amount        Float? // the total at that moment
+  createdAt     DateTime    @default(now())
+
+  @@index([changeOrderId, createdAt])
 }
 
 model ChangeOrderShare {

@@ -10,7 +10,7 @@ export async function PATCH(req, { params }) {
 
   const co = await prisma.changeOrder.findUnique({ where: { id: params.coId } });
   if (!co || co.projectId !== params.id) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  if (co.status === 'APPROVED') return NextResponse.json({ error: 'CO is locked' }, { status: 403 });
+  if (co.status === 'APPROVED') return NextResponse.json({ error: 'This change order is approved and locked. Nothing was changed. An admin can undo the approval.' }, { status: 403 });
 
   const item = await prisma.changeOrderLineItem.findUnique({ where: { id: params.itemId } });
   if (!item || item.optionGroupId !== params.groupId) return NextResponse.json({ error: 'Not found' }, { status: 404 });
@@ -54,7 +54,7 @@ export async function DELETE(req, { params }) {
 
   const co = await prisma.changeOrder.findUnique({ where: { id: params.coId } });
   if (!co || co.projectId !== params.id) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  if (co.status === 'APPROVED') return NextResponse.json({ error: 'CO is locked' }, { status: 403 });
+  if (co.status === 'APPROVED') return NextResponse.json({ error: 'This change order is approved and locked. Nothing was changed. An admin can undo the approval.' }, { status: 403 });
 
   await prisma.changeOrderLineItem.delete({ where: { id: params.itemId } });
   return NextResponse.json({ ok: true });

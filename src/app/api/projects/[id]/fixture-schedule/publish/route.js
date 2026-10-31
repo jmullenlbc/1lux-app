@@ -189,7 +189,8 @@ export async function POST(request, { params }) {
       include: SCHEDULE_INCLUDE,
     });
 
-    // Create DesignBidMatrix
+    // Create DesignBidMatrix. A saved version keeps the sales tax it was priced at.
+    const rate = await tx.projectData.findUnique({ where: { projectId: params.id }, select: { salesTaxPct: true } });
     const matrix = await tx.designBidMatrix.create({
       data: {
         projectId:       params.id,
@@ -199,6 +200,7 @@ export async function POST(request, { params }) {
         submissionTag:   submissionTag || null,
         matrixType,
         changeSummary,
+        salesTaxPct:     rate?.salesTaxPct ?? null,
         items: { create: bidItems },
       },
       include: {

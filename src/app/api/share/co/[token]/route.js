@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
-import { getProjectRates, calcGroupFooter } from '@/lib/changeOrderRates';
+import { getProjectRates, calcGroupFooter, ratesForCO } from '@/lib/changeOrderRates';
 import { redact, AUDIENCE } from '@/lib/redact';
 
 // Public endpoint, no auth required
@@ -31,7 +31,7 @@ export async function GET(req, { params }) {
   }).catch(() => {});
 
   const co    = share.changeOrder;
-  const rates = await getProjectRates(co.projectId);
+  const rates = ratesForCO(co, await getProjectRates(co.projectId));
 
   // Footers and totals are computed from the FULL rows first, redaction is a
   // transport concern, not a math one.

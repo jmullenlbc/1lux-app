@@ -1,6 +1,7 @@
 import { requireAuth } from '@/lib/auth';
+import { requirePortalAuth } from '@/lib/portalAuth';
 import { prisma } from '@/lib/db';
-import { getProjectRates, calcGroupFooter, resolveLineItems } from '@/lib/changeOrderRates';
+import { getProjectRates, calcGroupFooter, resolveLineItems, ratesForCO } from '@/lib/changeOrderRates';
 import { redact, audienceForRole, AUDIENCE } from '@/lib/redact';
 
 function fmt(n, showSign = false) {
@@ -20,7 +21,17 @@ export async function GET(req, { params }) {
   // the catch was dead code and the route served to anyone with the URL. Combined
   // with `?hideInternalDN=false` that published ILC's buy price. Enforce it.
   const { user, error } = await requireAuth();
-  if (error) return error;
+  let portalView = false;
+  if (error) {
+    // A signed in client on this job can print it too. No `user`, so the audience
+    // below stays public and the buy price stays hidden.
+    const { portalUser } = await requirePortalAuth();
+    const contact = portalUser && await prisma.projectExternalContact.findFirst({
+      where: { project_id: params.id, portalUserId: portalUser.portalUserId, acceptedAt: { not: null } },
+    });
+    if (!contact?.canViewChangeOrders) return error;
+    portalView = true;
+  }
 
   const { searchParams } = new URL(req.url);
   // DN stays hidden by default, and un-hiding is available to ILC staff only
@@ -28,7 +39,7 @@ export async function GET(req, { params }) {
   const audience       = audienceForRole(user?.role);
   const hideInternalDN = !(searchParams.get('hideInternalDN') === 'false' && audience === AUDIENCE.ILC);
 
-  const [co, project, rates] = await Promise.all([
+  const [co, project, projectRates] = await Promise.all([
     prisma.changeOrder.findUnique({
       where: { id: params.coId },
       include: {
@@ -48,9 +59,10 @@ export async function GET(req, { params }) {
     getProjectRates(params.id),
   ]);
 
-  if (!co || co.projectId !== params.id) {
+  if (!co || co.projectId !== params.id || (portalView && co.status === 'DRAFT')) {
     return new Response('<h1>Not Found</h1>', { status: 404, headers: { 'Content-Type': 'text/html' } });
   }
+  const rates = ratesForCO(co, projectRates);
 
   const today    = new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
   const fmtDate  = d => new Date(d).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });

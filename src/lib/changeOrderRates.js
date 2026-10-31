@@ -4,7 +4,7 @@
  */
 import { prisma } from '@/lib/db';
 
-export { resolveLineItems, discountFor, calcGroupFooter, calcCOTotal } from './changeOrderTotals';
+export { resolveLineItems, chosenLineItems, ratesForCO, discountFor, calcGroupFooter, calcCOTotal } from './changeOrderTotals';
 
 export async function getProjectRates(projectId) {
   const pd = await prisma.projectData.findUnique({ where: { projectId } });
@@ -14,6 +14,21 @@ export async function getProjectRates(projectId) {
     warehousingPct: pd?.warehousingPct ?? 0.03,
     marginPct:     pd?.marginPct     ?? 0.23,
   };
+}
+
+/**
+ * Sales tax for a new change order: the last one on this job, else the job's
+ * rate. Once one change order takes a new tax rate the next ones follow it,
+ * and the job's budget rate is left alone.
+ */
+export async function defaultCoTaxPct(projectId) {
+  const last = await prisma.changeOrder.findFirst({
+    where:   { projectId, salesTaxPct: { not: null } },
+    orderBy: { coNumber: 'desc' },
+    select:  { salesTaxPct: true },
+  });
+  if (last) return last.salesTaxPct;
+  return (await getProjectRates(projectId)).salesTaxPct;
 }
 
 /**

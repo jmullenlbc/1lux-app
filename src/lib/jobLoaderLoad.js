@@ -185,6 +185,7 @@ export async function loadMatrix(db, user, projectId, rows) {
     await tx.designBidMatrix.create({
       data: {
         projectId, sourceScheduleId: published.id, version: 1, pushedById: user.id, matrixType: 'DESIGN_BID',
+        salesTaxPct: (await tx.projectData.findUnique({ where: { projectId }, select: { salesTaxPct: true } }))?.salesTaxPct ?? null,
         items: { create: rows.map(bidItem) },
       },
     });
@@ -314,6 +315,7 @@ export async function loadRfis(db, user, projectId, rows) {
 
 export async function loadChangeOrders(db, user, projectId, rows) {
   const out = tally();
+  const rate = (await db.projectData.findUnique({ where: { projectId }, select: { salesTaxPct: true } }))?.salesTaxPct ?? null;
   for (const c of rows) {
     if (await db.changeOrder.findFirst({ where: { projectId, coNumber: c.number }, select: { id: true } })) { out.skipped += 1; continue; }
 
@@ -333,11 +335,15 @@ export async function loadChangeOrders(db, user, projectId, rows) {
       discountNote: blank(c.discountNote),
     };
     const takesDiscount = groups.find(o => o.isSelected) || (groups.length === 1 ? groups[0] : null);
+    const status = oneOf(CO_STATUS, c.status, 'DRAFT');
     if (!takesDiscount && (c.discountAmount != null || c.discountPct != null)) out.problems.push(`${c.number}: no option is chosen, so the discount was left off.`);
     await db.changeOrder.create({
       data: {
-        projectId, coNumber: c.number, title: c.title || c.number, date: stamp, status: oneOf(CO_STATUS, c.status, 'DRAFT'),
+        projectId, coNumber: c.number, title: c.title || c.number, date: stamp, status, salesTaxPct: status === 'DRAFT' ? rate : (rate ?? 0),
         notes: blank(c.notes), createdById: user.id, createdAt: stamp, rfiId,
+        ...(status === 'APPROVED' && {
+          approvals: { create: { action: 'APPROVED', via: 'STAFF', userId: user.id, note: 'Loaded with Job Loader', optionLabel: takesDiscount?.label ?? null, createdAt: stamp } },
+        }),
         optionGroups: {
           create: groups.map((o, i) => ({
             label: o.label, sortOrder: i, isSelected: o.isSelected || groups.length === 1,

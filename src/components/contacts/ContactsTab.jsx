@@ -10,7 +10,15 @@ const PERMISSIONS = [
   { key: 'canViewConstructionSched', label: 'Construction Sched' },
   { key: 'canViewChangeOrders',      label: 'Change Orders' },
   { key: 'canViewBudgets',           label: 'Budgets' },
+  { key: 'canApproveChangeOrders',   label: 'Approve Change Orders' },
 ];
+
+// Approving needs seeing, so the two move together
+function withPermRules(perms, key) {
+  if (key === 'canApproveChangeOrders' && perms.canApproveChangeOrders) return { ...perms, canViewChangeOrders: true };
+  if (key === 'canViewChangeOrders' && !perms.canViewChangeOrders) return { ...perms, canApproveChangeOrders: false };
+  return perms;
+}
 
 function PermCheckbox({ label, checked, onChange, disabled }) {
   return (
@@ -75,7 +83,7 @@ function ContactCard({ contact, projectId, onUpdated, onDeleted }) {
   }
 
   function togglePerm(key) {
-    const next = { ...perms, [key]: !perms[key] };
+    const next = withPermRules({ ...perms, [key]: !perms[key] }, key);
     setPerms(next);
     savePerms(next);
   }
@@ -168,7 +176,7 @@ function AddContactForm({ projectId, onAdded, onCancel }) {
   const [err,   setErr]   = useState('');
 
   function togglePerm(key) {
-    setPerms(prev => ({ ...prev, [key]: !prev[key] }));
+    setPerms(prev => withPermRules({ ...prev, [key]: !prev[key] }, key));
   }
 
   async function submit(e) {

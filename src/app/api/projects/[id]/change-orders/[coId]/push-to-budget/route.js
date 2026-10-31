@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { requirePermission } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { INCLUDE_ARCHIVED } from '@/lib/archive';
+import { getProjectRates, chosenLineItems } from '@/lib/changeOrderRates';
 
 // POST /api/projects/[id]/change-orders/[coId]/push-to-budget
 // Creates a new DesignBidMatrix version containing ONLY the CO's line items.
@@ -18,12 +19,7 @@ export async function POST(req, { params }) {
     include: {
       optionGroups: {
         orderBy: { sortOrder: 'asc' },
-        include: {
-          lineItems: {
-            where:   { isOptionRow: false },
-            orderBy: { sortOrder: 'asc' },
-          },
-        },
+        include: { lineItems: { orderBy: { sortOrder: 'asc' } } },
       },
       project: { select: { serviceType: true, name: true } },
     },
@@ -32,8 +28,11 @@ export async function POST(req, { params }) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
 
-  // Collect all main line items from the CO (skip option-row alternates)
-  const allLineItems = co.optionGroups.flatMap(g => g.lineItems);
+  // Only the chosen option, with per line alternates resolved to the one picked
+  if (!co.optionGroups.some(g => g.isSelected)) {
+    return NextResponse.json({ error: 'No option is chosen on this change order, so nothing was pushed. Choose one and try again.' }, { status: 400 });
+  }
+  const allLineItems = chosenLineItems(co);
   if (allLineItems.length === 0) {
     return NextResponse.json({ error: 'CO has no line items' }, { status: 400 });
   }
@@ -85,6 +84,8 @@ export async function POST(req, { params }) {
       submissionTag:    `${co.coNumber}: ${co.title}`,
       matrixType,
       changeSummary:    JSON.stringify({ source: 'change_order', coId: co.id, coNumber: co.coNumber }),
+      // This version is only the CO's lines, so it keeps the CO's sales tax
+      salesTaxPct:      co.salesTaxPct ?? (await getProjectRates(params.id)).salesTaxPct,
       items: { create: bidItems },
     },
     include: {

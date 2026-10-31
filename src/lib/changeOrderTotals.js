@@ -22,6 +22,25 @@ export function resolveLineItems(lineItems) {
 }
 
 /**
+ * The lines a change order actually buys: the chosen option only, with any per
+ * line alternates resolved to the one picked. Empty when no option is chosen.
+ */
+export function chosenLineItems(changeOrder) {
+  const selected = changeOrder.optionGroups?.find(g => g.isSelected);
+  if (!selected) return [];
+  return resolveLineItems(selected.lineItems || []).sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+}
+
+/**
+ * The rates a change order prices at. Sales tax is frozen on the change order,
+ * so a rate change on the job never moves an old one. Blank follows the job
+ * until the change order is sent.
+ */
+export function ratesForCO(changeOrder, rates) {
+  return { ...rates, salesTaxPct: changeOrder?.salesTaxPct ?? rates?.salesTaxPct ?? null };
+}
+
+/**
  * The manual discount in dollars. A percent is worked on the subtotal.
  * discount holds { discountAmount, discountPct }, usually the option group.
  */
@@ -54,6 +73,6 @@ export function calcGroupFooter(lineItems, rates, discountFrom = null) {
 export function calcCOTotal(changeOrder, rates) {
   const selected = changeOrder.optionGroups?.find(g => g.isSelected);
   if (!selected) return 0;
-  const { total } = calcGroupFooter(selected.lineItems || [], rates, selected);
+  const { total } = calcGroupFooter(selected.lineItems || [], ratesForCO(changeOrder, rates), selected);
   return total;
 }

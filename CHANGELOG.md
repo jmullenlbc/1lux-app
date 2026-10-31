@@ -5,6 +5,21 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Client change order approval, frozen sales tax] - October 31, 2026 (DEPLOYED October 31, 2026) - migration 0150
+
+- Added: clients approve a sent change order in the portal with a button and a confirm step. The approval records who, when, which option and the amount. Portal approval is off per person until staff turn on Approve on the job's Contacts tab. The share link stays view only.
+- Added: Mark Approved for staff on phone or email approvals, with a required note, an approval history on the change order, and Undo approval for admins.
+- Added: sales tax freezes on change orders and saved budget versions. A new change order takes the job rate, the box stays open until it is sent or approved, and a later job rate change does not move it. Freight and warehousing still follow the job.
+- Added: Send on a change order now marks it Sent, freezes its tax and hands off a Gmail draft with the PDF, the same as RFQs.
+- Added: Invoiced to Date box and Remaining to Bill on the Change Orders tab.
+- Fixed: Push to Budget and Push to Ship Schedule took every main option. They now take only the chosen option and the chosen per line alternates, at the frozen rate.
+- Fixed: the portal listed draft change orders to clients and counted them as pending.
+- Fixed: portal budget tax, freight and warehousing showed 100 times too small with the wrong label. It now shows the newest real version at its own rate and skips versions made by a push.
+- Fixed: the portal Download PDF link pointed at a staff route and returned a sign in error.
+- Fixed: a saved budget version showed live totals and live rates in its cards and Pricing Summary. Export, Email Bid and Print are off on a saved version because they use the working budget.
+- Fixed: picking an alternate or reordering lines on an approved change order was not locked.
+- Fixed: a change order set to Sent with no option chosen could not be picked without going back to Draft. The option stays pickable until approved, line edits stay locked, and the portal says the rep still needs to confirm the option.
+
 ## [RFQ quote reader: fixes from 20 real quotes] - October 31, 2026 (DEPLOYED October 31, 2026) - no migration
 
 - Fixed: a quote row at $0, such as a Logiq BUDGET ITEM row, could match at 75% and write $0 to the RFQ line and the matrix. A $0 row now reads as no price and asks a person, the same as a blank price.

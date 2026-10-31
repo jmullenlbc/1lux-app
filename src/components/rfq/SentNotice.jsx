@@ -3,7 +3,7 @@ import { useState } from 'react';
 import Button from '@/components/ui/Button';
 import { gmailComposeUrl, rfqNumber, showDate } from '@/lib/rfq/format';
 
-// Shown right after an RFQ is made. The app does not send email itself yet,
+// Shown right after an RFQ is made or a change order is marked Sent. The app does not send email itself yet,
 // so this hands over the To, Subject and Body to copy, a Gmail draft with them
 // filled in, and the PDF to attach.
 
@@ -15,21 +15,20 @@ function Copy({ label, text }) {
   return <Button size="sm" variant="secondary" onClick={copy}>{done ? 'Copied' : `Copy ${label}`}</Button>;
 }
 
-export default function SentNotice({ projectId, rfq, email, onClose }) {
-  const pdf = `/api/projects/${projectId}/rfqs/${rfq.id}/pdf`;
+export function HandOffNotice({ title, detail, pdfUrl, downloadUrl, email, onClose }) {
   return (
     <div className="border border-emerald-200 bg-emerald-50 rounded-xl p-4">
       <div className="flex flex-wrap items-start gap-3">
         <div>
-          <p className="font-semibold text-emerald-900">{rfqNumber(rfq.number)} is ready for {rfq.toName}</p>
-          <p className="text-sm text-emerald-800">Lines are marked Sent. Need by {showDate(rfq.needBy)}. Download the PDF, then send the email with it attached.</p>
+          <p className="font-semibold text-emerald-900">{title}</p>
+          <p className="text-sm text-emerald-800">{detail}</p>
         </div>
         <button type="button" onClick={onClose} className="ml-auto text-sm text-emerald-800 hover:underline">Close</button>
       </div>
       <div className="flex flex-wrap gap-2 mt-3">
-        <a href={`${pdf}?download=1`}><Button size="sm">Download PDF</Button></a>
+        {downloadUrl && <a href={downloadUrl}><Button size="sm">Download PDF</Button></a>}
         <a href={gmailComposeUrl(email)} target="_blank" rel="noreferrer"><Button size="sm" variant="secondary">Open in Gmail</Button></a>
-        <a href={pdf} target="_blank" rel="noreferrer"><Button size="sm" variant="secondary">View PDF</Button></a>
+        <a href={pdfUrl} target="_blank" rel="noreferrer"><Button size="sm" variant="secondary">View PDF</Button></a>
         <Copy label="To" text={email.to} />
         <Copy label="Subject" text={email.subject} />
         <Copy label="Body" text={email.body} />
@@ -43,5 +42,16 @@ export default function SentNotice({ projectId, rfq, email, onClose }) {
         </div>
       </details>
     </div>
+  );
+}
+
+export default function SentNotice({ projectId, rfq, email, onClose }) {
+  const pdf = `/api/projects/${projectId}/rfqs/${rfq.id}/pdf`;
+  return (
+    <HandOffNotice
+      title={`${rfqNumber(rfq.number)} is ready for ${rfq.toName}`}
+      detail={`Lines are marked Sent. Need by ${showDate(rfq.needBy)}. Download the PDF, then send the email with it attached.`}
+      pdfUrl={pdf} downloadUrl={`${pdf}?download=1`} email={email} onClose={onClose}
+    />
   );
 }

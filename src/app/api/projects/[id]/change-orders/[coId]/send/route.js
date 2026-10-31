@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requirePermission } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { getProjectRates, calcCOTotal } from '@/lib/changeOrderRates';
-import { getAnthropicKey } from '@/lib/anthropicKey'; // unused but ensures env is loaded
+import { getProjectRates, calcCOTotal, ratesForCO } from '@/lib/changeOrderRates';
 
 const CO_INCLUDE = {
   optionGroups: {
@@ -12,9 +11,26 @@ const CO_INCLUDE = {
   createdBy: { select: { name: true, email: true } },
 };
 
+function coEmail({ co, projectName, total, notes, shareUrl, portalUrl, senderName }) {
+  const money = total.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
+  return [
+    `Please find attached change order ${co.coNumber}: ${co.title}${projectName ? ` on ${projectName}` : ''}.`,
+    '',
+    `Total: ${money}`,
+    ...(notes ? ['', notes] : []),
+    ...(shareUrl ? ['', `View it online: ${shareUrl}`] : []),
+    ...(portalUrl ? ['', `Approve it in your ILC portal: ${portalUrl}`] : []),
+    '',
+    'Thanks,',
+    senderName,
+    'ILC Studios',
+  ].join('\n');
+}
+
 // POST /api/projects/[id]/change-orders/[coId]/send
 // Body: { recipients: string (comma-sep), notes?: string }
-// Creates ChangeOrderSend record, sends email, transitions DRAFT → SENT
+// Records the send, freezes the sales tax, DRAFT → SENT. The app has no email
+// sender yet, so this returns a ready email for the person to send from Gmail.
 export async function POST(req, { params }) {
   const { user, error } = await requirePermission(req, 'editJobMoney'); // Construction, Operations, Finance, admins
   if (error) return error;
@@ -27,7 +43,7 @@ export async function POST(req, { params }) {
   if (co.status === 'APPROVED') return NextResponse.json({ error: 'CO is already approved' }, { status: 400 });
 
   const selected = co.optionGroups.find(g => g.isSelected);
-  if (!selected) return NextResponse.json({ error: 'No option group selected, select one before sending' }, { status: 400 });
+  if (!selected) return NextResponse.json({ error: 'No option is chosen on this change order, so it was not sent. Nothing was changed. Choose an option and try again.' }, { status: 400 });
 
   const body  = await req.json().catch(() => ({}));
   const { recipients, notes } = body;
@@ -37,9 +53,9 @@ export async function POST(req, { params }) {
     where:  { id: params.id },
     select: { name: true, address: true, city: true, state: true },
   });
-  const rates  = await getProjectRates(params.id);
-  const total  = calcCOTotal(co, rates);
-  const pdfUrl = `${process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL}/api/projects/${params.id}/change-orders/${params.coId}/pdf`;
+  const rates     = await getProjectRates(params.id);
+  const frozenTax = co.salesTaxPct ?? rates.salesTaxPct ?? 0;
+  const total     = calcCOTotal({ ...co, salesTaxPct: frozenTax }, rates);
 
   // Create send record + transition to SENT in transaction
   const [send] = await prisma.$transaction([
@@ -52,31 +68,11 @@ export async function POST(req, { params }) {
       },
       include: { sentBy: { select: { name: true, email: true } } },
     }),
-    ...(co.status === 'DRAFT'
-      ? [prisma.changeOrder.update({ where: { id: params.coId }, data: { status: 'SENT' } })]
-      : []),
+    prisma.changeOrder.update({
+      where: { id: params.coId },
+      data:  { salesTaxPct: frozenTax, ...(co.status === 'DRAFT' && { status: 'SENT' }) },
+    }),
   ]);
-
-  // Send the email (best-effort, don't fail the request). This used to call
-  // sendNotification() with the wrong arguments, so no email ever went out.
-  try {
-    const { sendEmail, escapeHtml } = await import('@/lib/notify');
-    const recipientList = recipients.split(',').map(e => e.trim()).filter(Boolean);
-    for (const to of recipientList) {
-      await sendEmail({
-        to,
-        subject: `Change Order ${co.coNumber}: ${co.title}, ${project?.name || ''}`,
-        html: `
-          <p>Please find attached change order <strong>${escapeHtml(co.coNumber)}</strong>: ${escapeHtml(co.title)}</p>
-          ${notes ? `<p><em>${escapeHtml(notes)}</em></p>` : ''}
-          <p><strong>Total: $${total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong></p>
-          <p><a href="${pdfUrl}" style="background:#0f172a;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;font-weight:600;">View Change Order PDF</a></p>
-          <hr/>
-          <p style="color:#888;font-size:12px;">Sent by ${user.name || user.email} · ILC Studios</p>
-        `,
-      }).catch(() => {});
-    }
-  } catch {}
 
   // Re-fetch updated CO
   const updated = await prisma.changeOrder.findUnique({
@@ -88,5 +84,26 @@ export async function POST(req, { params }) {
     },
   });
 
-  return NextResponse.json({ co: { ...updated, totalValue: calcCOTotal(updated, rates), rates }, send });
+  const baseUrl = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || new URL(req.url).origin;
+  const share   = await prisma.changeOrderShare.findFirst({
+    where: { changeOrderId: params.coId }, orderBy: { createdAt: 'desc' }, select: { token: true },
+  });
+  const signers = await prisma.projectExternalContact.count({
+    where: { project_id: params.id, canViewChangeOrders: true, canApproveChangeOrders: true, acceptedAt: { not: null } },
+  });
+
+  return NextResponse.json({
+    co: { ...updated, totalValue: calcCOTotal(updated, rates), rates: ratesForCO(updated, rates) },
+    send,
+    email: {
+      to:      recipients.trim(),
+      subject: `Change Order ${co.coNumber}: ${co.title}${project?.name ? `, ${project.name}` : ''}`,
+      body:    coEmail({
+        co, projectName: project?.name, total, notes: notes?.trim(),
+        shareUrl:   share ? `${baseUrl}/share/co/${share.token}` : null,
+        portalUrl:  signers ? `${baseUrl}/portal/projects/${params.id}` : null,
+        senderName: user.name || user.email,
+      }),
+    },
+  });
 }

@@ -8,6 +8,10 @@ export async function POST(req, { params }) {
   const { error } = await requirePermission(req, 'editJobMoney'); // Construction, Operations, Finance, admins
   if (error) return error;
 
+  const co = await prisma.changeOrder.findUnique({ where: { id: params.coId } });
+  if (!co || co.projectId !== params.id) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  if (co.status === 'APPROVED') return NextResponse.json({ error: 'This change order is approved and locked. Nothing was changed. An admin can undo the approval.' }, { status: 403 });
+
   const item = await prisma.changeOrderLineItem.findUnique({ where: { id: params.itemId } });
   if (!item || item.optionGroupId !== params.groupId) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 

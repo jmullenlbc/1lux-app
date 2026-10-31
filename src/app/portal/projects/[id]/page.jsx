@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { CARD, MODAL, BTN_PRIMARY, BTN_SECONDARY, BTN_COMPACT, LABEL, HELPER, TH } from '@/components/ui/tokens';
+import { CARD, MODAL, BTN_PRIMARY, BTN_SECONDARY, BTN_COMPACT, BTN_COMPACT_PRIMARY, LABEL, HELPER, TH } from '@/components/ui/tokens';
 import { WidgetLoading, WidgetEmpty } from '@/components/ui/WidgetFrame';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -523,22 +523,42 @@ function BudgetView({ projectId }) {
 
 // ── Change Orders ─────────────────────────────────────────────────────────────
 
-function ChangeOrdersView({ projectId }) {
-  const [data,    setData]    = useState(null);
-  const [loading, setLoading] = useState(true);
+function ChangeOrdersView({ projectId, onChanged }) {
+  const [data,       setData]       = useState(null);
+  const [loading,    setLoading]    = useState(true);
+  const [confirming, setConfirming] = useState(null);
+  const [approving,  setApproving]  = useState(false);
+  const [err,        setErr]        = useState('');
 
-  useEffect(() => {
+  const load = useCallback(() => {
     fetch(`/api/portal/projects/${projectId}/change-orders`)
       .then(r => r.json())
       .then(d => { setData(d); setLoading(false); })
       .catch(() => setLoading(false));
   }, [projectId]);
 
+  useEffect(() => { load(); }, [load]);
+
+  async function approve(co) {
+    setApproving(true);
+    setErr('');
+    const res = await fetch(`/api/portal/projects/${projectId}/change-orders/${co.id}/approve`, { method: 'POST' }).catch(() => null);
+    setApproving(false);
+    if (!res?.ok) {
+      const body = await res?.json().catch(() => ({}));
+      setErr(body?.error || `We could not approve ${co.coNumber}. Nothing was changed. Try again or contact your ILC rep.`);
+      return;
+    }
+    setConfirming(null);
+    load();
+    onChanged?.();
+  }
+
   if (loading) return <Spinner />;
   if (!data?.changeOrders?.length) return <Empty text="No change orders on this project yet." />;
 
-  const { changeOrders, approvedTotal, pendingTotal } = data;
-  const pending  = changeOrders.filter(c => c.status === 'DRAFT' || c.status === 'SENT');
+  const { changeOrders, approvedTotal, pendingTotal, canApprove } = data;
+  const pending  = changeOrders.filter(c => c.status === 'SENT');
   const approved = changeOrders.filter(c => c.status === 'APPROVED');
 
   return (
@@ -575,18 +595,27 @@ function ChangeOrdersView({ projectId }) {
               </div>
               <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${
                 co.status === 'APPROVED' ? 'bg-green-100 text-green-700' :
-                co.status === 'DRAFT'   ? 'bg-amber-100 text-amber-700' :
                 co.status === 'SENT'    ? 'bg-amber-100 text-amber-700' :
                 'bg-slate-100 text-slate-500'
               }`}>
-                {co.status === 'DRAFT' || co.status === 'SENT' ? 'Pending' : co.status.charAt(0) + co.status.slice(1).toLowerCase()}
+                {co.status === 'SENT' ? 'Pending' : co.status.charAt(0) + co.status.slice(1).toLowerCase()}
               </span>
             </div>
-            <p className={`text-sm font-semibold mb-1 tabular-nums ${co.total < 0 ? 'text-red-600' : 'text-slate-700'}`}>
-              {co.total >= 0 ? '+' : ''}{fmtCurrency(co.total)}
-            </p>
+            {co.hasChosenOption ? (
+              <p className={`text-sm font-semibold mb-1 tabular-nums ${co.total < 0 ? 'text-red-600' : 'text-slate-700'}`}>
+                {co.total >= 0 ? '+' : ''}{fmtCurrency(co.total)}
+                {co.chosenOption && <span className="ml-2 text-xs font-normal text-slate-500">{co.chosenOption}</span>}
+              </p>
+            ) : (
+              <p className="text-sm text-slate-600 mb-1">Your ILC rep still needs to confirm the option on this change order. The PDF shows the options.</p>
+            )}
             {co.notes && <p className="text-xs text-slate-500 leading-relaxed">{co.notes}</p>}
-            <div className="flex items-center gap-2 mt-3 pt-3 border-t border-slate-100">
+            {co.status === 'APPROVED' && (co.approvedByName || co.approvedAt) && (
+              <p className="text-xs text-green-700 mt-1">
+                Approved{co.approvedByName ? ` by ${co.approvedByName}` : ''}{co.approvedAt ? ` on ${fmtDate(co.approvedAt)}` : ''}
+              </p>
+            )}
+            <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-slate-100">
               <a
                 href={`/api/projects/${projectId}/change-orders/${co.id}/pdf`}
                 target="_blank" rel="noreferrer"
@@ -597,7 +626,7 @@ function ChangeOrdersView({ projectId }) {
                 </svg>
                 Download PDF
               </a>
-              {(co.status === 'DRAFT' || co.status === 'SENT') && (
+              {co.status === 'SENT' && (
                 <a
                   href="mailto:orders@ilcstudios.com"
                   className={`${BTN_COMPACT} ml-auto gap-1.5`}
@@ -605,7 +634,26 @@ function ChangeOrdersView({ projectId }) {
                   Contact rep
                 </a>
               )}
+              {co.status === 'SENT' && canApprove && co.hasChosenOption && (
+                <button type="button" onClick={() => { setConfirming(co.id); setErr(''); }} className={BTN_COMPACT_PRIMARY}>
+                  Approve
+                </button>
+              )}
             </div>
+            {confirming === co.id && (
+              <div className="mt-3 pt-3 border-t border-slate-100">
+                <p className="text-sm text-slate-700">Approve {co.coNumber}{co.chosenOption ? `, ${co.chosenOption},` : ''} for {fmtCurrency(co.total)}? This is binding per your contract terms.</p>
+                {err && <p className="text-xs text-red-600 mt-1">{err}</p>}
+                <div className="flex gap-2 mt-2">
+                  <button type="button" disabled={approving} onClick={() => approve(co)} className={BTN_COMPACT_PRIMARY}>
+                    {approving ? 'Saving…' : 'Confirm approval'}
+                  </button>
+                  <button type="button" disabled={approving} onClick={() => setConfirming(null)} className={BTN_COMPACT}>
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -892,6 +940,7 @@ export default function PortalProjectPage({ params }) {
   const [loading,       setLoading]       = useState(true);
   const [activeId,      setActiveId]      = useState(null);
   const [pendingCOCount, setPendingCOCount] = useState(0);
+  const [coRefresh,      setCoRefresh]      = useState(0);
 
   useEffect(() => {
     fetch(`/api/portal/projects/${params.id}`)
@@ -917,11 +966,11 @@ export default function PortalProjectPage({ params }) {
     fetch(`/api/portal/projects/${params.id}/change-orders`)
       .then(r => r.json())
       .then(d => {
-        const pending = (d.changeOrders || []).filter(c => c.status === 'DRAFT' || c.status === 'SENT').length;
+        const pending = (d.changeOrders || []).filter(c => c.status === 'SENT').length;
         setPendingCOCount(pending);
       })
       .catch(() => {});
-  }, [params.id, data?.permissions?.canViewChangeOrders]);
+  }, [params.id, data?.permissions?.canViewChangeOrders, coRefresh]);
 
   if (loading) return (
     <div className="flex items-center justify-center min-h-screen">
@@ -1021,7 +1070,7 @@ export default function PortalProjectPage({ params }) {
             <>
               {active.id === 'ship'         && <ShipScheduleView         projectId={params.id} />}
               {active.id === 'budget'       && <BudgetView               projectId={params.id} />}
-              {active.id === 'cos'          && <ChangeOrdersView         projectId={params.id} />}
+              {active.id === 'cos'          && <ChangeOrdersView         projectId={params.id} onChanged={() => setCoRefresh(n => n + 1)} />}
               {active.id === 'meetings'     && <MeetingNotesView         projectId={params.id} />}
               {active.id === 'construction' && <ConstructionScheduleView projectId={params.id} />}
               {active.id === 'subs'         && <FilesView projectId={params.id} tab="submittals" label="Submittals" />}

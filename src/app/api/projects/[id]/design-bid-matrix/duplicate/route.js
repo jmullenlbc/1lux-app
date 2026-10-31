@@ -66,6 +66,7 @@ export async function POST(req, { params }) {
       submissionTag:    name?.trim() || `Copy of v${sourceMatrix.version}`,
       matrixType:       sourceMatrix.matrixType,
       changeSummary:    JSON.stringify({ duplicatedFrom: sourceMatrix.version }),
+      salesTaxPct:      sourceMatrix.salesTaxPct,
       items:            { create: newItems },
     },
     include: {

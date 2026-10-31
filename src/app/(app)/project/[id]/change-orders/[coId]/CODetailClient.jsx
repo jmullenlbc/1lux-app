@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { calcGroupFooter } from '@/lib/changeOrderTotals';
+import { HandOffNotice } from '@/components/rfq/SentNotice';
 
 // ── Manufacturer dropdown (fixed-position to escape overflow:hidden containers) ─
 function MfrDropdown({ value, manufacturers, readOnly, onSave }) {
@@ -175,7 +176,7 @@ function InlineCell({ value, onSave, placeholder = '—', type = 'text', classNa
 }
 
 // ── Line item row ─────────────────────────────────────────────────────────────
-function LineItemRow({ item, groupId, projectId, coId, manufacturers, rates, onUpdate, onDelete, onAddLine, onAddOption, onSelectOption, isLocked }) {
+function LineItemRow({ item, groupId, projectId, coId, manufacturers, rates, onUpdate, onDelete, onAddLine, onAddOption, onSelectOption, isLocked, canPick }) {
   const totalCN = (item.qty || 0) * (item.cnUnitPrice || 0);
   const [localCN, setLocalCN] = useState(item.cnUnitPrice ?? 0);
 
@@ -250,13 +251,13 @@ function LineItemRow({ item, groupId, projectId, coId, manufacturers, rates, onU
           <div className="flex items-center gap-1.5 px-1.5 py-0.5">
             <button
               onClick={() => onSelectOption(item)}
-              disabled={isLocked}
+              disabled={!canPick}
               title="Use this option"
               className={`w-3.5 h-3.5 rounded-full border-2 shrink-0 transition-colors ${
                 item.isGroupSelected
                   ? 'border-orange-500 bg-orange-500'
                   : 'border-slate-300 hover:border-orange-400'
-              } ${isLocked ? 'cursor-default' : 'cursor-pointer'}`}
+              } ${canPick ? 'cursor-pointer' : 'cursor-default'}`}
             />
             <span className={`text-[11px] font-bold ${item.isGroupSelected ? 'text-blue-600' : 'text-slate-400'}`}>
               {item.optionLabel || 'Option'}
@@ -371,7 +372,7 @@ function DiscountRow({ group, discount, isLocked, onSave }) {
 }
 
 // ── Option Group panel ────────────────────────────────────────────────────────
-function OptionGroupPanel({ group, co, projectId, coId, rates, manufacturers, onUpdate, onGroupUpdated, onGroupDeleted, canDelete, isLocked }) {
+function OptionGroupPanel({ group, co, projectId, coId, rates, manufacturers, onUpdate, onGroupUpdated, onGroupDeleted, canDelete, isLocked, canPick }) {
   const [saving, setSaving] = useState(false);
 
   const lineItems = group.lineItems || [];
@@ -469,11 +470,11 @@ function OptionGroupPanel({ group, co, projectId, coId, rates, manufacturers, on
     <div className={`rounded-xl border overflow-hidden shadow-sm ${group.isSelected ? 'border-slate-800' : 'border-slate-200'}`}>
       {/* Group header */}
       <div className={`flex items-center gap-3 px-4 py-3 ${group.isSelected ? 'bg-slate-800 text-white' : 'bg-slate-50 border-b border-slate-200'}`}>
-        {!isLocked && (
+        {canPick && (
           <button onClick={setSelected} title="Mark as selected"
             className={`w-4 h-4 rounded-full border-2 shrink-0 transition-colors ${group.isSelected ? 'border-white bg-white' : 'border-slate-400 hover:border-blue-500'}`} />
         )}
-        {group.isSelected && isLocked && (
+        {group.isSelected && !canPick && (
           <span className="w-2 h-2 rounded-full bg-white shrink-0" />
         )}
         <div className="flex-1">
@@ -542,6 +543,7 @@ function OptionGroupPanel({ group, co, projectId, coId, rates, manufacturers, on
                 onAddOption={addOptionFor}
                 onSelectOption={selectOption}
                 isLocked={isLocked}
+                canPick={canPick}
               />
             ))}
             {lineItems.length === 0 && (
@@ -623,8 +625,8 @@ function SendCOModal({ co, projectId, onSent, onClose }) {
       body: JSON.stringify({ recipients: to.trim(), notes: msg.trim() || null }),
     });
     const data = await res.json();
-    if (!res.ok) { setErr(data.error || 'Send failed'); setSending(false); return; }
-    onSent(data.co);
+    if (!res.ok) { setErr(data.error || 'Could not mark this change order Sent. Nothing was changed. Try again.'); setSending(false); return; }
+    onSent(data);
   }
 
   return (
@@ -655,11 +657,12 @@ function SendCOModal({ co, projectId, onSent, onClose }) {
               className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 resize-none" />
           </div>
           {err && <p className="text-xs text-red-600">{err}</p>}
+          <p className="text-xs text-slate-500">The app does not send email yet. This marks the change order Sent, freezes its sales tax and gives you a Gmail draft with the PDF to attach.</p>
           <div className="flex gap-2 pt-1">
             <button onClick={onClose} className="flex-1 px-4 py-2 rounded-lg border border-slate-200 text-sm text-slate-600 hover:bg-slate-50">Cancel</button>
             <button onClick={send} disabled={sending || !selected}
               className="flex-1 px-4 py-2 rounded-lg bg-orange-500 text-white text-sm font-semibold hover:bg-orange-600 disabled:opacity-50 transition-colors">
-              {sending ? 'Sending…' : `Send CO ${co.coNumber}`}
+              {sending ? 'Saving…' : 'Mark Sent and get the email'}
             </button>
           </div>
         </div>
@@ -832,6 +835,11 @@ export default function CODetailClient({ projectId, coId }) {
   const [showShare,     setShowShare]     = useState(false);
   const [savingHeader,  setSavingHeader]  = useState(false);
   const [manufacturers, setManufacturers] = useState([]);
+  const [sentEmail,     setSentEmail]     = useState(null);
+  const [showApprove,   setShowApprove]   = useState(false);
+  const [approveNote,   setApproveNote]   = useState('');
+  const [approveErr,    setApproveErr]    = useState('');
+  const [approving,     setApproving]     = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -856,10 +864,38 @@ export default function CODetailClient({ projectId, coId }) {
     const res = await fetch(`/api/projects/${projectId}/change-orders/${coId}`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(fields),
     });
-    // PATCH answers with the change order minus canEdit - keep the one we have.
-    if (res.ok) { const updated = await res.json(); setCo(prev => ({ ...updated, canEdit: prev?.canEdit })); }
+    // PATCH answers with the change order minus canEdit and canUndoApproval - keep the ones we have.
+    if (res.ok) { const updated = await res.json(); setCo(prev => ({ ...updated, canEdit: prev?.canEdit, canUndoApproval: prev?.canUndoApproval })); }
     else alert(await refusalText(res, 'Could not save that change.'));
     setSavingHeader(false);
+  }
+
+  // Blank means the job's sales tax. The box shows percent, the record keeps a decimal.
+  function saveTax(typed) {
+    const next = typed.trim() === '' ? null : Math.round(Number(typed) * 1e4) / 1e6;
+    if (next !== (co.salesTaxPct ?? null)) patchCO({ salesTaxPct: next });
+  }
+
+  async function approve() {
+    setApproving(true);
+    setApproveErr('');
+    const res = await fetch(`/api/projects/${projectId}/change-orders/${coId}/approve`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ note: approveNote }),
+    });
+    setApproving(false);
+    if (!res.ok) { setApproveErr(await refusalText(res, 'Could not record the approval. Nothing was changed. Try again.')); return; }
+    setShowApprove(false);
+    setApproveNote('');
+    load();
+  }
+
+  async function undoApproval() {
+    if (!confirm('Undo this approval? The change order goes back to Sent and its sales tax stays frozen.')) return;
+    const res = await fetch(`/api/projects/${projectId}/change-orders/${coId}/approve`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ undo: true }),
+    });
+    if (!res.ok) alert(await refusalText(res, 'Could not undo the approval. Nothing was changed. Try again.'));
+    load();
   }
 
   async function addOptionGroup() {
@@ -907,11 +943,15 @@ export default function CODetailClient({ projectId, coId }) {
   // Anyone else sees the change order but every field is read-only.
   const viewOnly = co.canEdit === false;
   const isLocked = co.status === 'APPROVED' || co.status === 'SENT' || viewOnly;
+  // Sent lines are locked, but the option can still be picked until it is approved
+  const canPick = co.status !== 'APPROVED' && !viewOnly;
   const rates    = co.rates || {};
+  const approval = co.approvals?.find(a => a.action === 'APPROVED');
+  const whoDid   = a => a.portalUser?.name || a.portalUser?.email || a.user?.name || a.user?.email || 'Unknown';
 
   return (
     <div className="min-h-screen bg-slate-50">
-      {showSend  && <SendCOModal  co={co} projectId={projectId} onSent={updated => { setCo(updated); setShowSend(false); }}  onClose={() => setShowSend(false)} />}
+      {showSend  && <SendCOModal  co={co} projectId={projectId} onSent={data => { setSentEmail(data.email); setShowSend(false); load(); }}  onClose={() => setShowSend(false)} />}
       {showShare && <ShareCOModal co={co} projectId={projectId} onClose={() => setShowShare(false)} />}
 
       {viewOnly && (
@@ -949,6 +989,12 @@ export default function CODetailClient({ projectId, coId }) {
                 Send CO
               </button>
             )}
+            {co.status !== 'APPROVED' && !viewOnly && (
+              <button onClick={() => setShowApprove(true)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 text-xs font-semibold hover:bg-slate-50 transition-colors">
+                Mark Approved
+              </button>
+            )}
             <a href={`/api/projects/${projectId}/change-orders/${coId}/pdf`} target="_blank" rel="noopener noreferrer"
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 text-xs font-semibold hover:bg-slate-50 transition-colors">
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -975,9 +1021,18 @@ export default function CODetailClient({ projectId, coId }) {
 
       <div className="max-w-6xl mx-auto px-4 md:px-6 py-4 md:py-6 space-y-6">
 
+        {sentEmail && (
+          <HandOffNotice
+            title={`${co.coNumber} is marked Sent`}
+            detail="The app does not send email yet. Open the PDF and save it, then send the email with it attached."
+            pdfUrl={`/api/projects/${projectId}/change-orders/${coId}/pdf`}
+            email={sentEmail} onClose={() => setSentEmail(null)}
+          />
+        )}
+
         {/* Header card */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 md:p-6">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
             <div>
               <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1">Title</label>
               {isLocked ? (
@@ -1002,17 +1057,45 @@ export default function CODetailClient({ projectId, coId }) {
               />
             </div>
             <div>
+              <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1">Sales Tax</label>
+              {co.status === 'DRAFT' && !viewOnly ? (
+                <>
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="number" step="0.01" min="0" max="100"
+                      key={co.salesTaxPct ?? 'job'}
+                      defaultValue={co.salesTaxPct != null ? Math.round(co.salesTaxPct * 1e6) / 1e4 : ''}
+                      placeholder={rates.salesTaxPct != null ? String(Math.round(rates.salesTaxPct * 1e6) / 1e4) : ''}
+                      onBlur={e => saveTax(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && e.target.blur()}
+                      className="w-20 text-sm border-b border-slate-200 bg-transparent outline-none hover:border-slate-400 focus:border-orange-500 pb-0.5 transition-colors"
+                    />
+                    <span className="text-slate-400 text-sm">%</span>
+                  </div>
+                  <p className="text-[11px] text-slate-400 mt-0.5">Freezes when sent or approved</p>
+                </>
+              ) : (
+                <p className="text-sm text-slate-700">
+                  {pct(rates.salesTaxPct)}
+                  {co.status !== 'DRAFT' && <span className="ml-1.5 text-[11px] text-slate-400">Frozen</span>}
+                </p>
+              )}
+            </div>
+            <div>
               <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1">Status</label>
-              <select
-                value={co.status}
-                onChange={e => patchCO({ status: e.target.value })}
-                disabled={co.status === 'APPROVED'}
-                className="text-sm border-b border-slate-200 bg-transparent outline-none hover:border-slate-400 focus:border-orange-500 pb-0.5 disabled:opacity-60 cursor-pointer transition-colors"
-              >
-                <option value="DRAFT">Draft</option>
-                <option value="SENT">Sent</option>
-                <option value="APPROVED">Approved</option>
-              </select>
+              {co.status === 'APPROVED' ? (
+                <p className="text-sm text-slate-700">Approved</p>
+              ) : (
+                <select
+                  value={co.status}
+                  onChange={e => patchCO({ status: e.target.value })}
+                  disabled={viewOnly}
+                  className="text-sm border-b border-slate-200 bg-transparent outline-none hover:border-slate-400 focus:border-orange-500 pb-0.5 disabled:opacity-60 cursor-pointer transition-colors"
+                >
+                  <option value="DRAFT">Draft</option>
+                  <option value="SENT">Sent</option>
+                </select>
+              )}
             </div>
           </div>
           {/* Notes */}
@@ -1027,6 +1110,48 @@ export default function CODetailClient({ projectId, coId }) {
               className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500 resize-none disabled:opacity-60 bg-white"
             />
           </div>
+
+          {/* Staff record a phone or email approval. Clients approve in the portal. */}
+          {showApprove && co.status !== 'APPROVED' && (
+            <div className="mt-4 border border-slate-200 rounded-lg p-3 bg-slate-50">
+              <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1">How did the client approve?</label>
+              <input
+                value={approveNote}
+                onChange={e => setApproveNote(e.target.value)}
+                placeholder="Phone call, email date, who said yes"
+                className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500 bg-white"
+              />
+              {approveErr && <p className="text-xs text-red-600 mt-1">{approveErr}</p>}
+              <p className="text-[11px] text-slate-500 mt-1">This locks the change order and freezes its sales tax. An admin can undo it.</p>
+              <div className="flex gap-2 mt-2">
+                <button onClick={approve} disabled={approving || !approveNote.trim()}
+                  className="px-3 py-1.5 rounded-lg bg-orange-500 text-white text-xs font-semibold hover:bg-orange-600 disabled:opacity-50 transition-colors">
+                  {approving ? 'Saving…' : 'Record approval'}
+                </button>
+                <button onClick={() => { setShowApprove(false); setApproveErr(''); }}
+                  className="px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 text-xs font-semibold hover:bg-slate-50 transition-colors">
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+
+          {co.status === 'APPROVED' && (
+            <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-green-800 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+              {approval ? (
+                <span>
+                  Approved by {whoDid(approval)} {approval.via === 'PORTAL' ? 'in the portal' : 'and recorded by staff'} on {fmtDate(approval.createdAt)}
+                  {approval.optionLabel ? `, ${approval.optionLabel}` : ''}{approval.amount != null ? `, ${fmt(approval.amount)}` : ''}
+                </span>
+              ) : (
+                <span>Approved before the app kept a record of who approved it.</span>
+              )}
+              {approval?.note && <span className="italic">"{approval.note}"</span>}
+              {co.canUndoApproval && !viewOnly && (
+                <button onClick={undoApproval} className="ml-auto font-semibold hover:underline">Undo approval</button>
+              )}
+            </div>
+          )}
 
           {/* Send history */}
           {co.sends?.length > 0 && (
@@ -1046,6 +1171,25 @@ export default function CODetailClient({ projectId, coId }) {
               </div>
             </details>
           )}
+
+          {/* Approval history */}
+          {co.approvals?.length > 0 && (
+            <details className="mt-4">
+              <summary className="text-[11px] text-slate-500 font-semibold uppercase tracking-wide cursor-pointer hover:text-slate-600 list-none select-none">
+                Approval history ({co.approvals.length})
+              </summary>
+              <div className="mt-2 space-y-1">
+                {co.approvals.map(a => (
+                  <div key={a.id} className="flex flex-wrap md:flex-nowrap items-center gap-x-3 gap-y-0.5 text-xs text-slate-500 bg-slate-50 rounded-lg px-3 py-2">
+                    <span>{fmtDate(a.createdAt)}</span>
+                    <span>{a.action === 'APPROVED' ? 'Approved' : 'Approval undone'}</span>
+                    <span className="text-slate-400">by {whoDid(a)}</span>
+                    {a.note && <span className="text-slate-400 italic">"{a.note}"</span>}
+                  </div>
+                ))}
+              </div>
+            </details>
+          )}
         </div>
 
         {/* Option Groups */}
@@ -1053,7 +1197,7 @@ export default function CODetailClient({ projectId, coId }) {
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-sm font-semibold text-slate-700 uppercase tracking-wide">
               Option Groups:
-              <span className="ml-2 text-slate-400 font-normal normal-case">click the radio to select</span>
+              {canPick && <span className="ml-2 text-slate-400 font-normal normal-case">click the radio to select</span>}
             </h2>
             {!isLocked && (
               <button onClick={addOptionGroup}
@@ -1080,6 +1224,7 @@ export default function CODetailClient({ projectId, coId }) {
               onGroupDeleted={() => deleteOptionGroup(group.id)}
               canDelete={(co.optionGroups?.length || 0) > 1}
               isLocked={isLocked}
+              canPick={canPick}
             />
           ))}
         </div>

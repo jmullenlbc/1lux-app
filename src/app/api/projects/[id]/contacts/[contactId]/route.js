@@ -27,6 +27,7 @@ export async function PATCH(req, { params }) {
     canViewConstructionSched,
     canViewChangeOrders,
     canViewBudgets,
+    canApproveChangeOrders,
   } = body;
 
   const contact = await prisma.projectExternalContact.update({
@@ -41,6 +42,7 @@ export async function PATCH(req, { params }) {
       ...(canViewConstructionSched !== undefined && { canViewConstructionSched: Boolean(canViewConstructionSched) }),
       ...(canViewChangeOrders      !== undefined && { canViewChangeOrders:      Boolean(canViewChangeOrders) }),
       ...(canViewBudgets           !== undefined && { canViewBudgets:           Boolean(canViewBudgets) }),
+      ...(canApproveChangeOrders   !== undefined && { canApproveChangeOrders:   Boolean(canApproveChangeOrders) }),
     },
   });
 

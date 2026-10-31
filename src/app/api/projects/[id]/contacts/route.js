@@ -64,6 +64,7 @@ export async function POST(req, { params }) {
     canViewConstructionSched = false,
     canViewChangeOrders      = false,
     canViewBudgets           = false,
+    canApproveChangeOrders   = false,
   } = body;
 
   if (!name || !email) {
@@ -86,6 +87,7 @@ export async function POST(req, { params }) {
       canViewConstructionSched,
       canViewChangeOrders,
       canViewBudgets,
+      canApproveChangeOrders,
       inviteToken,
       inviteTokenExpiresAt,
       invitedAt:               new Date(),

@@ -3,6 +3,9 @@ import { requirePortalAuth } from '@/lib/portalAuth';
 import { prisma } from '@/lib/db';
 import { getProjectRates, calcCOTotal } from '@/lib/changeOrderRates';
 
+// Rates are stored as decimals, the portal page works in percents
+const asPercent = rate => Math.round((rate ?? 0) * 1e6) / 1e4;
+
 export async function GET(req, { params }) {
   const { portalUser, error } = await requirePortalAuth();
   if (error) return error;
@@ -14,13 +17,18 @@ export async function GET(req, { params }) {
     return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
   }
 
-  // Latest DesignBidMatrix for this project (highest version)
+  // Latest DesignBidMatrix for this project (highest version). A version pushed
+  // from a change order holds only that change order's lines, so it is not the budget.
   const matrix = await prisma.designBidMatrix.findFirst({
-    where:   { projectId: params.id },
+    where: {
+      projectId: params.id,
+      OR: [{ changeSummary: null }, { NOT: { changeSummary: { contains: '"source":"change_order"' } } }],
+    },
     orderBy: { version: 'desc' },
     select: {
       version: true,
       createdAt: true,
+      salesTaxPct: true,
       items: {
         where:   { isArchived: false },
         orderBy: { sortOrder: 'asc' },
@@ -35,9 +43,9 @@ export async function GET(req, { params }) {
 
   // Approved COs and their totals
   const changeOrders = await prisma.changeOrder.findMany({
-    where: { projectId: params.id },
+    where: { projectId: params.id, status: { not: 'DRAFT' } },
     select: {
-      id: true, coNumber: true, title: true, status: true, date: true,
+      id: true, coNumber: true, title: true, status: true, date: true, salesTaxPct: true,
       optionGroups: {
         select: {
           isSelected: true, discountAmount: true, discountPct: true,
@@ -71,9 +79,9 @@ export async function GET(req, { params }) {
           version: matrix.version,
           items: matrix.items,
           createdAt: matrix.createdAt,
-          salesTaxRate:    projectData?.salesTaxPct    ?? 0,
-          freightRate:     projectData?.freightPct     ?? 0,
-          warehousingRate: projectData?.warehousingPct ?? 0,
+          salesTaxRate:    asPercent(matrix.salesTaxPct ?? projectData?.salesTaxPct),
+          freightRate:     asPercent(projectData?.freightPct),
+          warehousingRate: asPercent(projectData?.warehousingPct),
         }
       : null,
     coSummary: {

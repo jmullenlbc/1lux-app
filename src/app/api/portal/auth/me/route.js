@@ -30,6 +30,7 @@ export async function GET() {
         canViewConstructionSched: c.canViewConstructionSched,
         canViewChangeOrders:      c.canViewChangeOrders,
         canViewBudgets:           c.canViewBudgets,
+        canApproveChangeOrders:   c.canApproveChangeOrders,
       },
     })),
   });

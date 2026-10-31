@@ -31,7 +31,7 @@ export async function PATCH(req, { params }) {
 
   const co = await prisma.changeOrder.findUnique({ where: { id: params.coId } });
   if (!co || co.projectId !== params.id) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  if (co.status === 'APPROVED') return NextResponse.json({ error: 'CO is locked' }, { status: 403 });
+  if (co.status === 'APPROVED') return NextResponse.json({ error: 'This change order is approved and locked. Nothing was changed. An admin can undo the approval.' }, { status: 403 });
 
   const body = await req.json().catch(() => ({}));
   const { label, isSelected } = body;
@@ -79,7 +79,7 @@ export async function DELETE(req, { params }) {
     include: { optionGroups: { select: { id: true } } },
   });
   if (!co || co.projectId !== params.id) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  if (co.status === 'APPROVED') return NextResponse.json({ error: 'CO is locked' }, { status: 403 });
+  if (co.status === 'APPROVED') return NextResponse.json({ error: 'This change order is approved and locked. Nothing was changed. An admin can undo the approval.' }, { status: 403 });
   if (co.optionGroups.length <= 1) return NextResponse.json({ error: 'Cannot delete the last option group' }, { status: 400 });
 
   await prisma.changeOrderOptionGroup.delete({ where: { id: params.groupId } });

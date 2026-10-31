@@ -66,6 +66,32 @@ function fmtDec(n) {
 }
 function r2(n) { return Math.round((n ?? 0) * 100) / 100; }
 
+// A saved version totals its own rows at the sales tax it was saved with.
+// Freight and warehousing still follow the job.
+function versionTotals(matrix, { freightPctVal, warehousingPctVal, jobTaxPct }) {
+  const rows = (matrix.items || []).filter(i => !i.isArchived);
+  const rowTotal = i => i.cnTotal ?? (i.cnPerUnit != null && i.qty != null ? i.cnPerUnit * i.qty : 0);
+  const isControls = i => /control/i.test(i.locationTag || '');
+  const lightingRows = rows.filter(i => !isControls(i));
+  const controlRows = rows.filter(isControls);
+  const rawLighting = r2(lightingRows.reduce((s, i) => s + rowTotal(i), 0));
+  const rawControls = r2(controlRows.reduce((s, i) => s + rowTotal(i), 0));
+  const rawTotal = r2(rawLighting + rawControls);
+  const salesTaxPctVal = matrix.salesTaxPct ?? jobTaxPct ?? 0;
+  const freightAmt = r2(rawTotal * freightPctVal);
+  const warehousingAmt = r2(rawTotal * warehousingPctVal);
+  const salesTaxAmt = r2(rawTotal * salesTaxPctVal);
+  const loaded = freightPctVal + warehousingPctVal + salesTaxPctVal;
+  return {
+    rawLighting, rawControls, rawTotal, salesTaxPctVal, freightAmt, warehousingAmt, salesTaxAmt,
+    subtotalLighting: r2(rawLighting + r2(rawLighting * loaded)),
+    subtotalControls: r2(rawControls + r2(rawControls * loaded)),
+    grandTotal: r2(rawTotal + freightAmt + warehousingAmt + salesTaxAmt),
+    lightingCount: lightingRows.length,
+    controlsCount: controlRows.length,
+  };
+}
+
 // ── Inline text cell ──────────────────────────────────────────────────────────
 
 // Navigate to the next peer-cell in DOM order (Tab)
@@ -1525,6 +1551,14 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
   const dollarPerSf   = grossSf  && grandTotal ? grandTotal / grossSf  : null;
   const dollarPerUnit = numUnits && grandTotal ? grandTotal / numUnits  : null;
 
+  // The cards up top follow whichever version is open
+  const openVersion = selectedBidVer ? bidHistory.find(m => m.id === selectedBidVer) : null;
+  const shown = openVersion
+    ? versionTotals(openVersion, { freightPctVal, warehousingPctVal, jobTaxPct: salesTaxPct })
+    : { rawLighting, rawControls, grandTotal, lightingCount: lightingItems.length, controlsCount: controlsItems.length };
+  const shownPerSf   = grossSf  && shown.grandTotal ? shown.grandTotal / grossSf  : null;
+  const shownPerUnit = numUnits && shown.grandTotal ? shown.grandTotal / numUnits : null;
+
   const sectionTotals = Object.fromEntries(LOCATION_TAGS.map(s => [
     s.id,
     r2(items.filter(i => i.section === s.id).reduce((sum, i) => sum + (i.totalSavings || 0), 0)),
@@ -1727,7 +1761,8 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
           {/* Duplicate bid */}
           <DuplicateBidButton projectId={project.id} currentVersion={selectedBidVer ? bidHistory.find(m => m.id === selectedBidVer)?.version : null} onDuplicated={m => setBidHistory(prev => [m, ...prev])} />
           {/* Export Excel */}
-          <button onClick={exportToExcel} disabled={items.length === 0}
+          <button onClick={exportToExcel} disabled={items.length === 0 || !!selectedBidVer}
+            title={selectedBidVer ? 'This uses the working budget. Press Back to current first.' : undefined}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-colors print:hidden disabled:opacity-40 disabled:cursor-not-allowed">
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
@@ -1739,7 +1774,9 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
             const ok = await qcStripRef.current?.checkCanSend();
             if (ok !== false) setShowEmailPopup(true);
           }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-colors print:hidden">
+            disabled={!!selectedBidVer}
+            title={selectedBidVer ? 'This uses the working budget. Press Back to current first.' : undefined}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-colors disabled:opacity-60 print:hidden">
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M21.75 6.75v10.5a2.25 2.25 0 01-2.25 2.25h-15a2.25 2.25 0 01-2.25-2.25V6.75m19.5 0A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25m19.5 0v.243a2.25 2.25 0 01-1.07 1.916l-7.5 4.615a2.25 2.25 0 01-2.36 0L3.32 8.91a2.25 2.25 0 01-1.07-1.916V6.75" />
             </svg>
@@ -1771,7 +1808,8 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
               }
             }
           }}
-            disabled={printLoading}
+            disabled={printLoading || !!selectedBidVer}
+            title={selectedBidVer ? 'This uses the working budget. Press Back to current first.' : undefined}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-colors disabled:opacity-60">
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5zm-3 0h.008v.008H15V10.5z" />
@@ -1839,21 +1877,21 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
           {/* Lighting subtotal */}
           <div className="bg-white rounded-xl border border-slate-200 px-3 py-3">
             <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-1">Subtotal Lighting</div>
-            <div className="text-lg font-bold text-slate-700">{rawLighting > 0 ? fmt(rawLighting) : '—'}</div>
-            <div className="text-[11px] text-slate-400 mt-0.5">{lightingItems.length} types</div>
+            <div className="text-lg font-bold text-slate-700">{shown.rawLighting > 0 ? fmt(shown.rawLighting) : '—'}</div>
+            <div className="text-[11px] text-slate-400 mt-0.5">{shown.lightingCount} types</div>
           </div>
 
           {/* Controls subtotal */}
           <div className="bg-white rounded-xl border border-slate-200 px-3 py-3">
             <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-1">Subtotal Controls</div>
-            <div className="text-lg font-bold text-violet-700">{rawControls > 0 ? fmt(rawControls) : '—'}</div>
-            <div className="text-[11px] text-slate-400 mt-0.5">{controlsItems.length} types</div>
+            <div className="text-lg font-bold text-violet-700">{shown.rawControls > 0 ? fmt(shown.rawControls) : '—'}</div>
+            <div className="text-[11px] text-slate-400 mt-0.5">{shown.controlsCount} types</div>
           </div>
 
           {/* Grand total */}
           <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-xl px-3 py-3 text-white">
             <div className="text-[11px] font-bold uppercase tracking-wide opacity-80 mb-1">Grand Total</div>
-            <div className="text-lg font-bold">{grandTotal > 0 ? fmt(grandTotal) : '—'}</div>
+            <div className="text-lg font-bold">{shown.grandTotal > 0 ? fmt(shown.grandTotal) : '—'}</div>
             <div className="text-[11px] opacity-70 mt-0.5">incl. tax · freight · ware</div>
           </div>
 
@@ -1861,8 +1899,8 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
           <div className="bg-white rounded-xl border border-slate-200 px-3 py-3">
             <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-1">$/SF</div>
             <div className="text-lg font-bold text-slate-700">
-              {dollarPerSf != null
-                ? '$' + dollarPerSf.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+              {shownPerSf != null
+                ? '$' + shownPerSf.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
                 : <span className="text-slate-300 text-sm">—</span>}
             </div>
             {!grossSf && <div className="text-[11px] text-slate-300 mt-0.5">Enter SF above</div>}
@@ -1872,8 +1910,8 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
           <div className="bg-white rounded-xl border border-slate-200 px-3 py-3">
             <div className="text-[11px] font-bold text-slate-500 uppercase tracking-wide mb-1">$/Unit</div>
             <div className="text-lg font-bold text-slate-700">
-              {dollarPerUnit != null
-                ? '$' + dollarPerUnit.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
+              {shownPerUnit != null
+                ? '$' + shownPerUnit.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
                 : <span className="text-slate-300 text-sm">—</span>}
             </div>
             {!numUnits && <div className="text-[11px] text-slate-300 mt-0.5">Enter units above</div>}
@@ -1905,6 +1943,7 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
                 </div>
               ))}
             </div>
+            <p className="text-[11px] text-slate-400 mt-3">Saved versions and change orders keep the sales tax they were made with. This box only moves the working budget.</p>
           </div>
         )}
 
@@ -1917,6 +1956,11 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
           const removedTypes = new Set((change.removed || []).map(i => i.type));
           const fmtDate = d => new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
           const fmt = v => v != null ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 }).format(v) : '—';
+
+          const {
+            rawLighting, rawControls, rawTotal, salesTaxPctVal, freightAmt, warehousingAmt, salesTaxAmt,
+            subtotalLighting, subtotalControls, grandTotal,
+          } = shown;
 
           return (
             <div className="mb-6 space-y-3">
@@ -2012,7 +2056,7 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
                 </table>
               </div>
 
-              {/* ── Pricing Summary, always uses live budget rates & totals ── */}
+              {/* ── Pricing Summary, this version's own rows and sales tax ── */}
               <div className="mt-4 flex justify-end">
                 <div className="w-full md:w-80 bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
                   <div className="px-4 py-2.5 border-b border-slate-100">

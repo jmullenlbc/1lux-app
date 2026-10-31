@@ -39,6 +39,7 @@ export async function GET(req, { params }) {
       canViewConstructionSched: contact.canViewConstructionSched,
       canViewChangeOrders:      contact.canViewChangeOrders,
       canViewBudgets:           contact.canViewBudgets,
+      canApproveChangeOrders:   contact.canApproveChangeOrders,
     },
   });
 }

@@ -14,7 +14,7 @@ export async function POST(req, { params }) {
 
   const co = await prisma.changeOrder.findUnique({ where: { id: params.coId } });
   if (!co || co.projectId !== params.id) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  if (co.status === 'APPROVED') return NextResponse.json({ error: 'CO is locked' }, { status: 403 });
+  if (co.status === 'APPROVED') return NextResponse.json({ error: 'This change order is approved and locked. Nothing was changed. An admin can undo the approval.' }, { status: 403 });
 
   const group = await prisma.changeOrderOptionGroup.findUnique({
     where: { id: params.groupId },

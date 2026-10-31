@@ -9,6 +9,7 @@ export async function PATCH(req, { params }) {
 
   const co = await prisma.changeOrder.findUnique({ where: { id: params.coId } });
   if (!co || co.projectId !== params.id) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  if (co.status === 'APPROVED') return NextResponse.json({ error: 'This change order is approved and locked. Nothing was changed. An admin can undo the approval.' }, { status: 403 });
 
   const { order } = await req.json().catch(() => ({ order: [] }));
   if (!Array.isArray(order)) return NextResponse.json({ error: 'order must be an array' }, { status: 400 });

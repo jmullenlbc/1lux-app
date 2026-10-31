@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { requireAuth, requirePermission, isClientViewer, can } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { getProjectRates, calcCOTotal, nextCoNumber } from '@/lib/changeOrderRates';
+import { getProjectRates, calcCOTotal, nextCoNumber, defaultCoTaxPct } from '@/lib/changeOrderRates';
+import { looseNumberOrNull } from '@/lib/numberInput';
 
 const CO_INCLUDE = {
   optionGroups: {
@@ -57,6 +58,7 @@ export async function GET(req, { params }) {
   const pendingCOTotal  = cos.filter(c => c.status === 'SENT').reduce((s, c) => s + c.totalValue, 0);
   const originalContract  = project?.contractValue ?? 0;
   const newContractTotal  = originalContract + approvedCOTotal + legacyTotal;
+  const totalInvoiced     = project?.totalInvoiced ?? 0;
 
   return NextResponse.json({
     // So the screen can say "view only" up front instead of failing on click.
@@ -68,9 +70,29 @@ export async function GET(req, { params }) {
       pendingCOTotal,
       legacyTotal,
       newContractTotal,
+      totalInvoiced,
+      remainingToBill: newContractTotal - totalInvoiced,
     },
     rates,
   });
+}
+
+// PATCH /api/projects/[id]/change-orders
+// Invoiced to date lives on the project. Body: { totalInvoiced }
+export async function PATCH(req, { params }) {
+  const { error } = await requirePermission(req, 'editJobMoney');
+  if (error) return error;
+
+  const body = await req.json().catch(() => ({}));
+  const totalInvoiced = looseNumberOrNull(body.totalInvoiced);
+  const typed = String(body.totalInvoiced ?? '').trim();
+  if (totalInvoiced === undefined || (totalInvoiced === null && typed)) {
+    return NextResponse.json({ error: 'Invoiced to date has to be a dollar amount. Nothing was changed.' }, { status: 400 });
+  }
+
+  const { count } = await prisma.project.updateMany({ where: { id: params.id }, data: { totalInvoiced } });
+  if (!count) return NextResponse.json({ error: 'That job was not found. Nothing was changed.' }, { status: 404 });
+  return NextResponse.json({ ok: true, totalInvoiced });
 }
 
 // POST /api/projects/[id]/change-orders
@@ -93,6 +115,7 @@ export async function POST(req, { params }) {
       title,
       date:        date ? new Date(date) : new Date(),
       notes:       notes || null,
+      salesTaxPct: await defaultCoTaxPct(params.id),
       createdById: user.id,
       optionGroups: {
         create: [{

@@ -12,7 +12,7 @@ export async function POST(req, { params }) {
     include: { optionGroups: { select: { id: true, sortOrder: true } } },
   });
   if (!co || co.projectId !== params.id) return NextResponse.json({ error: 'Not found' }, { status: 404 });
-  if (co.status === 'APPROVED') return NextResponse.json({ error: 'CO is locked' }, { status: 403 });
+  if (co.status === 'APPROVED') return NextResponse.json({ error: 'This change order is approved and locked. Nothing was changed. An admin can undo the approval.' }, { status: 403 });
 
   const body   = await req.json().catch(() => ({}));
   const nextOrder = co.optionGroups.length;

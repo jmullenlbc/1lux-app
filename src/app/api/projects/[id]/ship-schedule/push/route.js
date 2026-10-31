@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { chosenLineItems } from '@/lib/changeOrderTotals';
 
 // POST /api/projects/[id]/ship-schedule/push
 // Body: { sourceType?: 'DESIGN_BID'|'PEER_REVIEW', coId?: string }
@@ -36,7 +37,7 @@ export async function POST(req, { params }) {
       where: { id: coId },
       include: {
         optionGroups: {
-          include: { lineItems: { where: { isOptionRow: false }, orderBy: { sortOrder: 'asc' } } },
+          include: { lineItems: { orderBy: { sortOrder: 'asc' } } },
           orderBy: { sortOrder: 'asc' },
         },
       },
@@ -44,8 +45,12 @@ export async function POST(req, { params }) {
     if (!co || co.projectId !== params.id) {
       return NextResponse.json({ error: 'CO not found' }, { status: 404 });
     }
+    if (!co.optionGroups.some(g => g.isSelected)) {
+      return NextResponse.json({ error: 'No option is chosen on this change order, so nothing was pushed. Choose one and try again.' }, { status: 400 });
+    }
     batchLabel = `${co.coNumber}: ${co.title}`;
-    const allItems = co.optionGroups.flatMap(g => g.lineItems);
+    // Only the chosen option, with per line alternates resolved to the one picked
+    const allItems = chosenLineItems(co);
     sourceItems = allItems.map((li, idx) => ({
       id:              li.id,
       typeCode:        li.fixtureType,
