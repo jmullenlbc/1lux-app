@@ -55,6 +55,9 @@ export const ChangeOrderOptionGroup = {
     label:         { type: 'string',  sensitivity: 'client_ok', desc: 'e.g. "Option A"' },
     sortOrder:     { type: 'int',     sensitivity: 'client_ok' },
     isSelected:    { type: 'boolean', sensitivity: 'client_ok' },
+    discountAmount: { type: 'money',  sensitivity: 'client_ok', desc: 'Manual discount in dollars, comes off before tax, freight and warehousing' },
+    discountPct:   { type: 'number',  sensitivity: 'client_ok', desc: 'Manual discount as a fraction of the subtotal, 0.5 = half' },
+    discountNote:  { type: 'string',  sensitivity: 'client_ok', desc: 'Why the discount was given, the client sees it' },
   },
 
   links: {

@@ -2630,6 +2630,11 @@ model ChangeOrderOptionGroup {
   label         String                @default("Default")
   sortOrder     Int                   @default(0)
   isSelected    Boolean               @default(false)
+  // Manual discount, comes off the subtotal before tax, freight and warehousing.
+  // One of amount (dollars) or pct (fraction, 0.5 = half) is set. The note shows to the client.
+  discountAmount Float?
+  discountPct    Float?
+  discountNote   String?
   lineItems     ChangeOrderLineItem[]
 
   @@index([changeOrderId])

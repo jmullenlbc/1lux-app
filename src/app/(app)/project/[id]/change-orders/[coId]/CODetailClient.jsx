@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
+import { calcGroupFooter } from '@/lib/changeOrderTotals';
 
 // ── Manufacturer dropdown (fixed-position to escape overflow:hidden containers) ─
 function MfrDropdown({ value, manufacturers, readOnly, onSave }) {
@@ -309,26 +310,72 @@ function LineItemRow({ item, groupId, projectId, coId, manufacturers, rates, onU
   );
 }
 
+// ── Discount row (group footer) ───────────────────────────────────────────────
+function DiscountRow({ group, discount, isLocked, onSave }) {
+  const percent = group.discountPct != null;
+  // Rounded so 7% does not come back as 7.000000000000001
+  const saved = percent ? Math.round(group.discountPct * 1e8) / 1e6 : group.discountAmount;
+  const [mode, setMode] = useState(percent ? 'pct' : 'amount');
+  const [value, setValue] = useState(saved ?? '');
+  const [note, setNote] = useState(group.discountNote ?? '');
+
+  useEffect(() => {
+    setMode(percent ? 'pct' : 'amount');
+    setValue(saved ?? '');
+    setNote(group.discountNote ?? '');
+  }, [percent, saved, group.discountNote]);
+
+  function saveValue(nextMode = mode) {
+    if (String(value) === String(saved ?? '') && nextMode === (percent ? 'pct' : 'amount')) return;
+    onSave(nextMode === 'pct' ? { discountPercent: value } : { discountAmount: value });
+  }
+
+  if (isLocked) {
+    if (!discount) return null;
+    return (
+      <div>
+        <div className="flex justify-between">
+          <span className="text-slate-500">Discount{percent ? ` (${pct(group.discountPct)})` : ''}</span>
+          <span className="font-medium">{fmt(-discount, true)}</span>
+        </div>
+        {group.discountNote && <p className="text-[11px] text-slate-400">{group.discountNote}</p>}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-slate-500">Discount</span>
+        <div className="flex items-center gap-1">
+          <input value={value} onChange={e => setValue(e.target.value)} onBlur={() => saveValue()} inputMode="decimal"
+            aria-label="Discount" placeholder="0"
+            className="w-20 text-right text-xs border border-slate-200 rounded px-1.5 py-0.5 focus:outline-none focus:ring-2 focus:ring-orange-500" />
+          <select value={mode} onChange={e => { setMode(e.target.value); if (value !== '') saveValue(e.target.value); }}
+            aria-label="Discount in dollars or percent"
+            className="text-xs border border-slate-200 rounded px-1 py-0.5 bg-white focus:outline-none focus:ring-2 focus:ring-orange-500">
+            <option value="amount">$</option>
+            <option value="pct">%</option>
+          </select>
+          <span className="font-medium w-20 text-right">{discount ? fmt(-discount, true) : fmt(0)}</span>
+        </div>
+      </div>
+      {(discount !== 0 || note) && (
+        <input value={note} onChange={e => setNote(e.target.value)}
+          onBlur={() => { if (note !== (group.discountNote ?? '')) onSave({ discountNote: note }); }}
+          aria-label="Reason for the discount" placeholder="Reason, the client sees this"
+          className="w-full text-[11px] border border-slate-200 rounded px-1.5 py-0.5 focus:outline-none focus:ring-2 focus:ring-orange-500" />
+      )}
+    </div>
+  );
+}
+
 // ── Option Group panel ────────────────────────────────────────────────────────
 function OptionGroupPanel({ group, co, projectId, coId, rates, manufacturers, onUpdate, onGroupUpdated, onGroupDeleted, canDelete, isLocked }) {
   const [saving, setSaving] = useState(false);
 
   const lineItems = group.lineItems || [];
-  // Resolved: standalone items + selected option from each group
-  const resolvedItems = (() => {
-    const standalone = lineItems.filter(li => !li.isOptionRow);
-    const roots = lineItems.filter(li => li.isOptionRow && !li.parentLineItemId);
-    const selectedOptions = roots.map(root => {
-      const members = [root, ...lineItems.filter(li => li.parentLineItemId === root.id)];
-      return members.find(li => li.isGroupSelected) || root;
-    });
-    return [...standalone, ...selectedOptions];
-  })();
-  const totalCN = resolvedItems.reduce((s, li) => s + ((li.qty || 0) * (li.cnUnitPrice || 0)), 0);
-  const tax        = rates?.salesTaxPct   != null ? totalCN * rates.salesTaxPct   : 0;
-  const freight    = rates?.freightPct    != null ? totalCN * rates.freightPct    : 0;
-  const warehousing = rates?.warehousingPct != null ? totalCN * rates.warehousingPct : 0;
-  const grandTotal = totalCN + tax + freight + warehousing;
+  const { subtotal: totalCN, discount, tax, freight, warehousing, total: grandTotal } = calcGroupFooter(lineItems, rates, group);
 
   async function apiPost(body) {
     const res = await fetch(`/api/projects/${projectId}/change-orders/${coId}/option-groups/${group.id}/line-items`, {
@@ -407,6 +454,15 @@ function OptionGroupPanel({ group, co, projectId, coId, rates, manufacturers, on
     });
     if (!res.ok) { alert(await refusalText(res, 'Could not rename that option.')); return; }
     onGroupUpdated({ ...group, label });
+  }
+
+  async function patchDiscount(body) {
+    const res = await fetch(`/api/projects/${projectId}/change-orders/${coId}/option-groups/${group.id}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+    });
+    if (!res.ok) { alert(await refusalText(res, 'Could not save that discount.')); return; }
+    const saved = await res.json();
+    onGroupUpdated({ ...group, discountAmount: saved.discountAmount, discountPct: saved.discountPct, discountNote: saved.discountNote });
   }
 
   return (
@@ -520,6 +576,7 @@ function OptionGroupPanel({ group, co, projectId, coId, rates, manufacturers, on
             <span className="text-slate-500">Subtotal <span className="text-slate-300">(selected options)</span></span>
             <span className="font-medium">{fmt(totalCN, true)}</span>
           </div>
+          <DiscountRow group={group} discount={discount} isLocked={isLocked} onSave={patchDiscount} />
           {rates?.salesTaxPct != null && (
             <div className="flex justify-between text-slate-400">
               <span>Sales Tax ({pct(rates.salesTaxPct)})</span>

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requirePortalAuth } from '@/lib/portalAuth';
 import { prisma } from '@/lib/db';
+import { getProjectRates, calcCOTotal } from '@/lib/changeOrderRates';
 
 export async function GET(req, { params }) {
   const { portalUser, error } = await requirePortalAuth();
@@ -20,19 +21,18 @@ export async function GET(req, { params }) {
       id: true, coNumber: true, title: true, status: true, date: true, notes: true,
       optionGroups: {
         select: {
+          isSelected: true, discountAmount: true, discountPct: true,
           lineItems: {
-            where: { isGroupSelected: true },
-            select: { qty: true, cnUnitPrice: true, description: true },
+            select: { id: true, qty: true, cnUnitPrice: true, isOptionRow: true, parentLineItemId: true, isGroupSelected: true },
           },
         },
       },
     },
   });
 
+  const rates = await getProjectRates(params.id);
   const cos = changeOrders.map(co => {
-    const total = co.optionGroups
-      .flatMap(g => g.lineItems)
-      .reduce((s, li) => s + (li.qty || 0) * (li.cnUnitPrice || 0), 0);
+    const total = calcCOTotal(co, rates);
     return {
       id:       co.id,
       coNumber: co.coNumber,

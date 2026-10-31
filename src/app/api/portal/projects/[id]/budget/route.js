@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requirePortalAuth } from '@/lib/portalAuth';
 import { prisma } from '@/lib/db';
+import { getProjectRates, calcCOTotal } from '@/lib/changeOrderRates';
 
 export async function GET(req, { params }) {
   const { portalUser, error } = await requirePortalAuth();
@@ -17,7 +18,9 @@ export async function GET(req, { params }) {
   const matrix = await prisma.designBidMatrix.findFirst({
     where:   { projectId: params.id },
     orderBy: { version: 'desc' },
-    include: {
+    select: {
+      version: true,
+      createdAt: true,
       items: {
         where:   { isArchived: false },
         orderBy: { sortOrder: 'asc' },
@@ -28,11 +31,6 @@ export async function GET(req, { params }) {
         },
       },
     },
-    select: {
-      version: true,
-      items: true,
-      createdAt: true,
-    },
   });
 
   // Approved COs and their totals
@@ -42,9 +40,9 @@ export async function GET(req, { params }) {
       id: true, coNumber: true, title: true, status: true, date: true,
       optionGroups: {
         select: {
+          isSelected: true, discountAmount: true, discountPct: true,
           lineItems: {
-            where: { isGroupSelected: true },
-            select: { qty: true, cnUnitPrice: true },
+            select: { id: true, qty: true, cnUnitPrice: true, isOptionRow: true, parentLineItemId: true, isGroupSelected: true },
           },
         },
       },
@@ -53,12 +51,10 @@ export async function GET(req, { params }) {
   });
 
   // Build CO summaries
-  const coSummaries = changeOrders.map(co => {
-    const total = co.optionGroups
-      .flatMap(g => g.lineItems)
-      .reduce((s, li) => s + (li.qty || 0) * (li.cnUnitPrice || 0), 0);
-    return { id: co.id, coNumber: co.coNumber, title: co.title, status: co.status, total };
-  });
+  const rates = await getProjectRates(params.id);
+  const coSummaries = changeOrders.map(co => ({
+    id: co.id, coNumber: co.coNumber, title: co.title, status: co.status, total: calcCOTotal(co, rates),
+  }));
 
   const approvedTotal = coSummaries.filter(c => c.status === 'APPROVED').reduce((s, c) => s + c.total, 0);
   const pendingTotal  = coSummaries.filter(c => c.status !== 'APPROVED' && c.status !== 'REJECTED').reduce((s, c) => s + c.total, 0);

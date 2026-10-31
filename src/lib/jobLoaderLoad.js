@@ -327,6 +327,13 @@ export async function loadChangeOrders(db, user, projectId, rows) {
     }
     const stamp = when(c.date) || new Date();
     const groups = c.options.length ? c.options : [{ label: 'Default', isSelected: true, lines: [] }];
+    const discount = {
+      discountPct: c.discountPct != null ? c.discountPct / 100 : null,
+      discountAmount: c.discountPct != null ? null : (c.discountAmount ?? null),
+      discountNote: blank(c.discountNote),
+    };
+    const takesDiscount = groups.find(o => o.isSelected) || (groups.length === 1 ? groups[0] : null);
+    if (!takesDiscount && (c.discountAmount != null || c.discountPct != null)) out.problems.push(`${c.number}: no option is chosen, so the discount was left off.`);
     await db.changeOrder.create({
       data: {
         projectId, coNumber: c.number, title: c.title || c.number, date: stamp, status: oneOf(CO_STATUS, c.status, 'DRAFT'),
@@ -334,6 +341,7 @@ export async function loadChangeOrders(db, user, projectId, rows) {
         optionGroups: {
           create: groups.map((o, i) => ({
             label: o.label, sortOrder: i, isSelected: o.isSelected || groups.length === 1,
+            ...(o === takesDiscount && discount),
             lineItems: {
               create: o.lines.map(l => ({
                 sortOrder: l.sortOrder, fixtureType: l.fixtureType, qty: l.qty, manufacturer: blank(l.manufacturer),

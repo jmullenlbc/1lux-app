@@ -38,7 +38,7 @@ export async function GET(req, { params }) {
   const groups = co.optionGroups.map(g => ({
     ...g,
     lineItems: g.lineItems.map(li => ({ ...li, totalCN: li.qty * li.cnUnitPrice })),
-    footer: calcGroupFooter(g.lineItems, rates),
+    footer: calcGroupFooter(g.lineItems, rates, g),
   }));
 
   // One redaction pass over the whole response. This covers `rates.marginPct`

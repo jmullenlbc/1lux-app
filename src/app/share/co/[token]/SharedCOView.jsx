@@ -118,12 +118,14 @@ export default function SharedCOView({ token }) {
                     <div className={`ml-auto w-64 space-y-1 text-xs ${NUM}`}>
                       {[
                         { label: 'Subtotal', val: group.footer?.subtotal },
+                        !!group.footer?.discount && { label: `Discount${group.discountPct != null ? ` (${pct(group.discountPct)})` : ''}`, val: -group.footer.discount, note: group.discountNote },
                         rates.salesTaxPct != null && { label: `Sales Tax (${pct(rates.salesTaxPct)})`, val: group.footer?.tax },
                         rates.freightPct != null && { label: `Freight (${pct(rates.freightPct)})`, val: group.footer?.freight },
                         rates.warehousingPct != null && { label: `Warehousing (${pct(rates.warehousingPct)})`, val: group.footer?.warehousing },
                       ].filter(Boolean).map((row, i) => (
-                        <div key={i} className="flex justify-between text-slate-500">
-                          <span>{row.label}</span><span>{fmt(row.val, true)}</span>
+                        <div key={i} className="text-slate-500">
+                          <div className="flex justify-between"><span>{row.label}</span><span>{fmt(row.val, true)}</span></div>
+                          {row.note && <p className="text-[11px] text-slate-400">{row.note}</p>}
                         </div>
                       ))}
                       <div className="flex justify-between border-t border-slate-300 pt-1 font-bold text-sm">

@@ -63,7 +63,7 @@ export async function GET(req, { params }) {
 
   // Build group sections
   const groupSections = safeCo.optionGroups.map(group => {
-    const footer     = calcGroupFooter(group.lineItems, rates);
+    const footer     = calcGroupFooter(group.lineItems, rates, group);
     const isSelected = group.isSelected;
     const mainItems  = group.lineItems.filter(li => !li.isOptionRow);
 
@@ -121,7 +121,8 @@ export async function GET(req, { params }) {
 
   // Calculate totals from selected group
   const selected = safeCo.optionGroups.find(g => g.isSelected) || safeCo.optionGroups[0];
-  const selectedFooter = selected ? calcGroupFooter(selected.lineItems, rates) : { subtotal: 0, tax: 0, freight: 0, warehousing: 0, total: 0 };
+  const selectedFooter = selected ? calcGroupFooter(selected.lineItems, rates, selected) : { subtotal: 0, discount: 0, tax: 0, freight: 0, warehousing: 0, total: 0 };
+  const discountNote = String(selected?.discountNote || '').replace(/&/g, '&amp;').replace(/</g, '&lt;');
 
   const html = `<!DOCTYPE html>
 <html lang="en">
@@ -249,6 +250,7 @@ td { padding:5px 6px; border-bottom:1px solid #f0f0f0; vertical-align:top; font-
   <table class="footer-table">
     <tbody>
       <tr><td class="lbl">Subtotal</td><td class="val">${fmt(selectedFooter.subtotal)}</td></tr>
+      ${selectedFooter.discount ? `<tr><td class="lbl">Discount${selected?.discountPct != null ? ` (${pct(selected.discountPct)})` : ''}${discountNote ? `<div style="font-size:8px;font-weight:400">${discountNote}</div>` : ''}</td><td class="val">${fmt(-selectedFooter.discount, true)}</td></tr>` : ''}
       ${rates.freightPct ? `<tr><td class="lbl">Freight (${pct(rates.freightPct)})</td><td class="val">${fmt(selectedFooter.freight)}</td></tr>` : ''}
       ${rates.warehousingPct ? `<tr><td class="lbl">Warehousing (${pct(rates.warehousingPct)})</td><td class="val">${fmt(selectedFooter.warehousing)}</td></tr>` : ''}
       ${rates.salesTaxPct ? `<tr><td class="lbl">Sales Tax (${pct(rates.salesTaxPct)})</td><td class="val">${fmt(selectedFooter.tax)}</td></tr>` : ''}

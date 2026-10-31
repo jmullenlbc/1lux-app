@@ -1,9 +1,27 @@
 import { NextResponse } from 'next/server';
 import { requirePermission } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { parseLooseNumber } from '@/lib/numberInput';
+
+const refuse = (message, code) => NextResponse.json({ error: `${message} Nothing was saved. Fix the number and try again. (${code})`, code }, { status: 400 });
+
+// Discount from the footer box: dollars or a percent typed as 0 to 100, never both.
+function readDiscount(body) {
+  const out = {};
+  if (body.discountNote !== undefined) out.discountNote = String(body.discountNote || '').trim() || null;
+  if (body.discountAmount === undefined && body.discountPercent === undefined) return { out };
+  const amount = parseLooseNumber(body.discountAmount);
+  const percent = parseLooseNumber(body.discountPercent);
+  if (Number.isNaN(amount) || Number.isNaN(percent)) return { fail: refuse('That discount is not a number.', 'CO_DISCOUNT_NOT_A_NUMBER') };
+  if (amount != null && amount < 0) return { fail: refuse('A discount cannot be below zero. Use a negative line for a credit.', 'CO_DISCOUNT_NEGATIVE') };
+  if (percent != null && (percent < 0 || percent > 100)) return { fail: refuse('A discount percent has to be between 0 and 100.', 'CO_DISCOUNT_PERCENT_RANGE') };
+  out.discountPct = percent != null ? percent / 100 : null;
+  out.discountAmount = percent != null ? null : (amount ?? null);
+  return { out };
+}
 
 // PATCH /api/projects/[id]/change-orders/[coId]/option-groups/[groupId]
-// Update label or set as selected (enforces single-selection in transaction)
+// Update label, discount, or set as selected (enforces single-selection in transaction)
 export async function PATCH(req, { params }) {
   const { error } = await requirePermission(req, 'editJobMoney'); // Construction, Operations, Finance, admins
   if (error) return error;
@@ -17,6 +35,8 @@ export async function PATCH(req, { params }) {
 
   const body = await req.json().catch(() => ({}));
   const { label, isSelected } = body;
+  const { out: discount, fail } = readDiscount(body);
+  if (fail) return fail;
 
   if (isSelected === true) {
     // Transaction: deselect all others, select this one
@@ -27,7 +47,7 @@ export async function PATCH(req, { params }) {
       }),
       prisma.changeOrderOptionGroup.update({
         where: { id: params.groupId },
-        data:  { isSelected: true, ...(label != null && { label }) },
+        data:  { isSelected: true, ...(label != null && { label }), ...discount },
       }),
     ]);
   } else {
@@ -36,6 +56,7 @@ export async function PATCH(req, { params }) {
       data: {
         ...(label      != null && { label }),
         ...(isSelected != null && { isSelected }),
+        ...discount,
       },
     });
   }

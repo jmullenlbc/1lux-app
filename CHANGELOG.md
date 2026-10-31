@@ -5,6 +5,15 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Change order discounts, portal totals] - October 31, 2026 (DEPLOYED October 31, 2026) - migration 0149
+
+- Change orders can take a manual discount, for jobs where a change order is split with the client. Type dollars or a percent in the footer of an option, plus a reason the client sees. It comes off the subtotal before tax, freight and warehousing, each option has its own, and an approved change order is locked.
+- The discount shows on the change order screen, the PDF and the client share page, and counts in every change order total. Bad numbers are refused in plain words and nothing is saved.
+- Job Loader: the Change orders tab takes optional Discount, Discount pct and Discount note columns. A change order with no chosen option reports a problem and skips the discount.
+- Fixed: the client portal change order and budget totals counted only option rows, so standalone lines came through as 0, no fees were added and unchosen options were included. They now match the app.
+- Fixed: the client portal Budget page failed for every project (a query that asked for two things Prisma refuses together).
+- `src/lib/changeOrderTotals.js` is new and holds the money math, so the change order screen shares it with the routes instead of keeping its own copy.
+
 ## [Job Loader, big file viewing, Drawings storage] - October 31, 2026 (DEPLOYED October 31, 2026) - no migration
 
 - New Admin page, Job Loader (Mike): pick a project, upload a load sheet, pick the job folder. The browser sends each listed file a few at a time, then the records load in order: project settings, Budget Matrix, RFQs, rep quotes, RFIs, change orders, ship schedule, submittal items and reviews, Budget ladder, schedules. A stopped run is safe; pressing it again sends only what is missing.
