@@ -192,6 +192,17 @@ test('an AI read of a quote comes back in the check screen shape', () => {
   assert.deepEqual(r.totals, { FREIGHT: 189.99 }); // a negative or unknown total is left out
 });
 
+test('a $0 quote row reads as no price and never prices an RFQ line', () => {
+  const r = parseQuoteReply('{"lines":[{"typeTag":"L9","catalog":"TAPE-1","qty":10,"unitPrice":0,"extPrice":0},{"typeTag":"L8","catalog":"TAPE-2","qty":0,"unitPrice":25}],"totals":{"FREIGHT":0}}');
+  assert.equal(r.lines[0].unitPrice, null);
+  assert.equal(r.lines[0].extPrice, null);
+  assert.equal(r.lines[1].qty, 0); // a 0 quantity is still what the quote says
+  assert.equal(r.totals.FREIGHT, 0);
+  const typed = matchQuote([{ typeTag: 'L9', catalog: 'TAPE-1', manufacturer: 'Acme', qty: 10, unitPrice: 0 }], [{ id: 'a', typeCode: 'L9', partNumber: 'TAPE-1', manufacturer: 'Acme', qty: 10 }]);
+  assert.equal(typed[0].status, 'OPEN'); // a 0 typed on the check screen asks too
+  assert.equal(typed[0].rfqLineId, null);
+});
+
 test('a garbled or empty AI read says so plainly', () => {
   assert.match(parseQuoteReply('sorry, no').message, /RFQ_READ_GARBLED/);
   assert.match(parseQuoteReply('{ not json }').message, /RFQ_READ_GARBLED/);

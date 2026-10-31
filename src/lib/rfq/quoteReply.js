@@ -11,6 +11,8 @@ const amount = (v) => {
   const n = toNumber(v);
   return n == null || n < 0 ? null : n;
 };
+// A $0 row is a budget item or a row the quote left out, not a free fixture.
+const price = (v) => amount(v) || null;
 
 const NOT_READ = 'We read the file, but the answer came back garbled, so nothing was saved. This is on our side, not the file. Press Try again. (RFQ_READ_GARBLED)';
 const NO_LINES = 'We read this file and found no quote lines on it, so nothing was saved. If it is not a quote, skip it. If it is, press Type it by hand. (RFQ_READ_NO_LINES)';
@@ -36,7 +38,7 @@ export function parseQuoteReply(raw) {
     lines.push({
       typeTagRaw, typeTag: t.typeTag, variant: t.variant, lengthFt: t.lengthFt, description, mfr, catalog,
       qty: amount(l?.qty), uom: ['EA', 'LF', 'LOT'].includes(uom) ? uom : 'EA',
-      unitPrice: amount(l?.unitPrice), extPrice: amount(l?.extPrice),
+      unitPrice: price(l?.unitPrice), extPrice: price(l?.extPrice),
       optionGroup: 'BASE', section: '', sourceRow: lines.length + 1,
     });
   });

@@ -5,6 +5,11 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [RFQ quote reader: fixes from 20 real quotes] - October 31, 2026 (DEPLOYED October 31, 2026) - no migration
+
+- Fixed: a quote row at $0, such as a Logiq BUDGET ITEM row, could match at 75% and write $0 to the RFQ line and the matrix. A $0 row now reads as no price and asks a person, the same as a blank price.
+- The reader now keeps dashes on part numbers that wrap, leaves our own RFQ number out of the quote number, keeps budget item rows with a blank price, and puts legal and fee notices in the notes instead of the lines.
+
 ## [Change order discounts, portal totals] - October 31, 2026 (DEPLOYED October 31, 2026) - migration 0149
 
 - Change orders can take a manual discount, for jobs where a change order is split with the client. Type dollars or a percent in the footer of an option, plus a reason the client sees. It comes off the subtotal before tax, freight and warehousing, each option has its own, and an approved change order is locked.

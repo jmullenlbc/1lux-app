@@ -2,7 +2,7 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-10-31 (newest) - Mike's Claude - **DEPLOYED**, migration 0149 (additive, schema-guard PASS): 0149_co_discount: added three nullable columns to ChangeOrderOptionGroup: discountAmount (Float), discountPct (Float, fraction), discountNote (String). This is a manual discount on a change order option, taken off the subtotal before tax, freight and warehousing; the note shows to the client. Additive only. Existing rows stay NULL, no data is changed or lost. Commit the migration folder together with the schema. Also fixes portal change order totals and the portal Budget page 500. Next free migration 0150.
+### 2026-10-31 (newest) - Mike's Claude - **DEPLOYED b9b24c1**, migration 0149 (additive, schema-guard PASS): 0149_co_discount: added three nullable columns to ChangeOrderOptionGroup: discountAmount (Float), discountPct (Float, fraction), discountNote (String). This is a manual discount on a change order option, taken off the subtotal before tax, freight and warehousing; the note shows to the client. Additive only. Existing rows stay NULL, no data is changed or lost. Commit the migration folder together with the schema. Also fixes portal change order totals and the portal Budget page 500. Next free migration 0150.
 
 ### 2026-10-31 - Mike's Claude - **DEPLOYED 299d27b**, no migration: Admin Job Loader, big file viewing, Drawings tab storage, dead file link fixes. Modera load sheet proved locally.
 

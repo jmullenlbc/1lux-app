@@ -36,6 +36,10 @@ Rules:
 - Keep every part row, even several rows under one type, such as a housing, a trim and an optic.
 - Keep a row with a part number and no type. Leave its typeTag empty.
 - catalog is the part or catalog number. uom is EA, LF or LOT.
+- A part number that wraps onto a second line keeps its dashes: STR-48-MS- then BB is STR-48-MS-BB.
+- quoteNumber is the number the bidder gave this quote. Our own RFQ numbers, such as RFQ1888, are not quote numbers. Leave it empty if the bidder gave none.
+- A row marked BUDGET ITEM, not included or with no price keeps its row, with unitPrice and extPrice null, never 0.
+- A sentence, fee notice or legal note is not a line. Put it in notes.
 - Shipping, freight and tax go in totals, not in lines.
 - Use null or leave out anything the quote does not show. Never guess. Numbers carry no currency signs or commas.`;
 

@@ -62,7 +62,7 @@ export function matchQuote(quoteLines, rfqLines) {
   for (const p of pairs) {
     if (p.score < AUTO_AT) break;
     const res = result[p.qi];
-    if (res.status === 'AUTO' || taken.has(p.rfqLineId) || quoteLines[p.qi].unitPrice == null) continue;
+    if (res.status === 'AUTO' || taken.has(p.rfqLineId) || !(quoteLines[p.qi].unitPrice > 0)) continue;
     const opts = scored[p.qi];
     const tie = opts.length > 1 && opts[0].score === opts[1].score;
     if (tie || opts[0].rfqLineId !== p.rfqLineId) continue;

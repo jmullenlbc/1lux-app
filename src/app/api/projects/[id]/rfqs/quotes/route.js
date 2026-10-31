@@ -43,7 +43,7 @@ export async function PATCH(request, { params }) {
   if (!skip) {
     const target = await prisma.rfqLine.findFirst({ where: { id: rfqLineId, rfq: { projectId: params.id } } });
     if (!target) return NextResponse.json({ error: 'Pick an RFQ line on this project. Nothing was changed. (RFQ_QLINE_BAD_TARGET)' }, { status: 400 });
-    if (ql.unitPrice == null) return NextResponse.json({ error: 'This quote line has no unit price to carry over. Nothing was changed. Type the price on the RFQ instead. (RFQ_QLINE_NO_PRICE)' }, { status: 400 });
+    if (!(ql.unitPrice > 0)) return NextResponse.json({ error: 'This quote line has no unit price to carry over. Nothing was changed. Type the price on the RFQ instead. (RFQ_QLINE_NO_PRICE)' }, { status: 400 });
   }
   await prisma.$transaction(async (tx) => {
     // Moving a line off an RFQ line it priced before clears that old price.
