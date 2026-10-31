@@ -2,7 +2,9 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-### 2026-10-31 (newest) - Mike's Claude - **DEPLOYED 10-31**, migration 0148 (additive, schema-guard PASS): 0148 adds RFQ quote intake fields to RfqQuote for dropped quote files. Additive, no data lost. Drag and drop rep quotes on the RFQ received card; one intake path (`src/lib/rfq/intakeQuote.js`) with source DROP now, EMAIL and MICROSOFT later. Next free migration 0149.
+### 2026-10-31 (newest) - Mike's Claude - **DEPLOYED 10-31**, no migration: Admin Job Loader, big file viewing, Drawings tab storage, dead file link fixes. Modera load sheet proved locally. Next free migration 0149.
+
+### 2026-10-31 - Mike's Claude - **DEPLOYED 8725918**, migration 0148 (additive, schema-guard PASS): 0148 adds RFQ quote intake fields to RfqQuote for dropped quote files. Additive, no data lost. Drag and drop rep quotes on the RFQ received card; one intake path (`src/lib/rfq/intakeQuote.js`) with source DROP now, EMAIL and MICROSOFT later. Next free migration 0149.
 
 ### 2026-10-30 - Mike's Claude - **DEPLOYED ee41b4d**, migration 0147 (additive, campaign tables + SalesDocLink.campaignSendId): Email campaigns infrastructure (Campaigns + Email lists tabs on Sales Docs, no real sender, Send refused in production until a service is connected), People bulk Company or branch, project menu starts open. Next free migration 0148.
 

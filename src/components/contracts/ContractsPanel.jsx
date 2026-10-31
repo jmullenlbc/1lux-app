@@ -363,7 +363,7 @@ function ContractFileRow({ file, projectId, onDelete, analysisOverride, onView =
   const isCOI      = tags.includes('COI');
   const coiExpiry  = isCOI ? getCOIExpiry(tags) : null;
   const coiMeta    = coiExpiry ? coiExpiryMeta(coiExpiry) : null;
-  const url        = `/api/uploads/${file.storedPath.replace(/\\/g, '/')}`;
+  const url        = `/api/projects/${projectId}/files/${file.id}`;
   const ext        = file.originalName.split('.').pop()?.toLowerCase();
   const isPdf      = ext === 'pdf';
 
@@ -582,7 +582,7 @@ function isSupplyTagFull(tag) { return !isDesignTag(tag); } // everything else i
 function SimpleFileRow({ file, projectId, onDelete, onView }) {
   const ext   = file.originalName.split('.').pop()?.toLowerCase();
   const isPdf = ext === 'pdf';
-  const url   = `/api/uploads/${file.storedPath.replace(/\\/g, '/')}`;
+  const url   = `/api/projects/${projectId}/files/${file.id}`;
   const tags  = parseTags(file.tags).filter(t => !t.startsWith('COI_EXPIRY:'));
 
   return (

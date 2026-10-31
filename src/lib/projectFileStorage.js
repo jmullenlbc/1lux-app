@@ -15,8 +15,8 @@
 // All readers check storedPath.startsWith('project-files/') to branch.
 
 import path from 'path';
-import { mkdir, writeFile, readFile, unlink } from 'fs/promises';
-import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { mkdir, writeFile, readFile, unlink, open } from 'fs/promises';
+import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, CopyObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 function isProd() {
@@ -52,19 +52,64 @@ export async function putProjectFile(buffer, { projectId, tab, stored, contentTy
   return `${projectId}/${tab}/${stored}`;
 }
 
+// Keep a file that went straight to S3 without pulling it through our server,
+// the Job Loader's way of holding a set too big for one request. S3 only, a
+// browser in dev sends the bytes in the form body and uses putProjectFile.
+export async function keepProjectUpload(uploadKey, { projectId, tab, stored }) {
+  const key = `project-files/${projectId}/${tab}/${stored}`;
+  const head = await s3().send(new HeadObjectCommand({ Bucket: process.env.S3_BUCKET, Key: uploadKey }));
+  await s3().send(new CopyObjectCommand({
+    Bucket:            process.env.S3_BUCKET,
+    Key:               key,
+    CopySource:        `${process.env.S3_BUCKET}/${uploadKey}`,
+    ContentType:       head.ContentType || 'application/octet-stream',
+    MetadataDirective: 'REPLACE',
+  }));
+  return { storedPath: key, size: head.ContentLength ?? 0 };
+}
+
 // Return a 1-hour presigned GET URL for an S3-backed storedPath, or null for
 // local paths. Callers that need a URL redirect use this; callers that need a
-// buffer call getProjectFileBuffer instead.
-export async function getProjectFileUrl(storedPath) {
+// buffer call getProjectFileBuffer instead. Pass name and contentType when the
+// link goes to a browser, so the file opens in place under its own name.
+export async function getProjectFileUrl(storedPath, { name, contentType } = {}) {
   if (!storedPath?.startsWith('project-files/')) return null;
   try {
     return await getSignedUrl(s3(), new GetObjectCommand({
       Bucket: process.env.S3_BUCKET,
       Key:    storedPath,
+      ...(name ? { ResponseContentDisposition: `inline; filename="${encodeURIComponent(name)}"` } : {}),
+      ...(contentType ? { ResponseContentType: contentType } : {}),
     }), { expiresIn: 3600 });
   } catch {
     return null;
   }
+}
+
+// Bytes [start, end] inclusive, for the viewers that read a PDF a slice at a
+// time. Returns null on failure, same as getProjectFileBuffer.
+export async function getProjectFileRange(storedPath, start, end) {
+  if (!storedPath) return null;
+  if (storedPath.startsWith('project-files/')) {
+    try {
+      const res = await s3().send(new GetObjectCommand({
+        Bucket: process.env.S3_BUCKET,
+        Key:    storedPath,
+        Range:  `bytes=${start}-${end}`,
+      }));
+      return Buffer.from(await res.Body.transformToByteArray());
+    } catch { return null; }
+  }
+  try {
+    const handle = await open(path.join(process.cwd(), 'uploads', storedPath), 'r');
+    try {
+      const buf = Buffer.alloc(end - start + 1);
+      const { bytesRead } = await handle.read(buf, 0, buf.length, start);
+      return buf.subarray(0, bytesRead);
+    } finally {
+      await handle.close();
+    }
+  } catch { return null; }
 }
 
 // Fetch the raw bytes for a file, wherever it lives. Returns null on failure

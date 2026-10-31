@@ -502,7 +502,7 @@ export default function Sidebar({ user }) {
                           startsWith('/admin/usage') || startsWith('/admin/agent-runs') ||
                           startsWith('/admin/mcp-keys') || startsWith('/admin/crm-import') ||
                           startsWith('/admin/sales-reps-import') || startsWith('/admin/offices') ||
-                          startsWith('/admin/calendar-import');
+                          startsWith('/admin/calendar-import') || startsWith('/admin/job-loader');
   const adminRelated    = at('/admin') || startsWith('/admin/intake');
 
   // ── Collapsible open states ───────────────────────────────────────────────────
@@ -692,6 +692,7 @@ export default function Sidebar({ user }) {
                 {isIlcAdmin && <SubNavItem href="/admin/crm-import" icon={<IconUsers />} label="CRM Upload" expanded={expanded} active={startsWith('/admin/crm-import')} />}
                 {isIlcAdmin && <SubNavItem href="/admin/sales-reps-import" icon={<IconUsers />} label="Sales Rep Upload" expanded={expanded} active={startsWith('/admin/sales-reps-import')} />}
                 {isIlcAdmin && <SubNavItem href="/admin/calendar-import" icon={<IconCalendarSm />} label="Calendar Upload" expanded={expanded} active={startsWith('/admin/calendar-import')} />}
+                {isIlcAdmin && <SubNavItem href="/admin/job-loader" icon={<IconFolderSm />} label="Job Loader" expanded={expanded} active={startsWith('/admin/job-loader')} />}
                 {isIlcAdmin && <SubNavItem href="/admin/offices" icon={<IconUsers />} label="Our Offices" expanded={expanded} active={startsWith('/admin/offices')} />}
               </div>
             )}

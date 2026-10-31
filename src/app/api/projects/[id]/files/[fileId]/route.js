@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAuth, canSeeAllData } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { getProjectFileBuffer } from '@/lib/projectFileStorage';
+import { serveStoredFile } from '@/lib/projectFileServe';
 import { logActivity, TAB_LABELS } from '@/lib/activity';
 import { archiveData, readArchivedFlag, deleteRefused, ARCHIVED_FLAG_HELP } from '@/lib/archive';
 
@@ -20,14 +20,11 @@ export async function GET(request, { params }) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
 
-  const buffer = await getProjectFileBuffer(record.storedPath);
-  if (!buffer) return NextResponse.json({ error: 'File not found' }, { status: 404 });
-  return new Response(buffer, {
-    headers: {
-      'Content-Type':        record.mimeType || 'application/octet-stream',
-      'Content-Disposition': `inline; filename="${encodeURIComponent(record.originalName)}"`,
-      'Content-Length':      String(buffer.length),
-    },
+  return serveStoredFile(request, {
+    storedPath: record.storedPath,
+    name:       record.originalName,
+    mimeType:   record.mimeType,
+    size:       record.size,
   });
 }
 

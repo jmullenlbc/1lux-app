@@ -3,9 +3,9 @@ import { loadPdfjs } from '@/lib/pdfjsNode';
 import { NextResponse } from 'next/server';
 import { requireAuth, canSeeAllData } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { writeFile, mkdir } from 'fs/promises';
 import path from 'path';
 import { readUploadedFiles } from '@/lib/uploadIntake';
+import { putProjectFile } from '@/lib/projectFileStorage';
 
 async function canAccess(projectId, user) {
   const project = await prisma.project.findUnique({ where: { id: projectId } });
@@ -77,7 +77,28 @@ export async function POST(request, { params }) {
   if (!got.ok) return NextResponse.json({ error: got.message }, { status: got.status });
   const files = got.files;
 
-  // Create submission record first
+  // Store every file before any row exists, so a failed save leaves nothing
+  // half made and the person is told, rather than a row with no file behind it.
+  const storedPaths = [];
+  try {
+    for (const file of files) {
+      const ext    = path.extname(file.name) || '.pdf';
+      const stored = `${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`;
+      storedPaths.push(await putProjectFile(file.buffer, {
+        projectId:   params.id,
+        tab:         'drawings',
+        stored,
+        contentType: file.type || 'application/pdf',
+      }));
+    }
+  } catch (err) {
+    console.error('[drawing-submissions] store failed:', err);
+    await got.cleanup();
+    return NextResponse.json({
+      error: 'Our file storage did not accept these drawings, so nothing was saved. Try again in a minute, and report it if it keeps happening. (drawing_store_failed)',
+    }, { status: 502 });
+  }
+
   const submission = await prisma.drawingSubmission.create({
     data: {
       projectId:    params.id,
@@ -88,18 +109,10 @@ export async function POST(request, { params }) {
     },
   });
 
-  // Store each file, prepend date prefix to displayed name
-  const uploadDir = path.join(process.cwd(), 'uploads', params.id, 'drawings');
-  try { await mkdir(uploadDir, { recursive: true }); } catch {}
-
   const createdFiles = [];
-  for (const file of files) {
+  for (const [i, file] of files.entries()) {
     const buffer   = file.buffer;
-    const ext      = path.extname(file.name) || '.pdf';
-    const stored   = `${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`;
     const fileName = withDatePrefix(file.name); // ← YY.MM.DD prefix
-
-    try { await writeFile(path.join(uploadDir, stored), buffer); } catch {}
 
     // Try to get page count via pdfjs
     let pageCount = null;
@@ -113,7 +126,7 @@ export async function POST(request, { params }) {
       data: {
         submissionId: submission.id,
         fileName,
-        storedPath:   path.join(params.id, 'drawings', stored),
+        storedPath:   storedPaths[i],
         pageCount,
         size:         buffer.length,
         mimeType:     file.type || 'application/pdf',

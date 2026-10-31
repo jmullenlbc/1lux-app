@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { openRangedPdf, rangedSize } from '@/lib/pdfSlices';
 import {
   SYMBOLS, SYMBOL_MAP, TOOLSETS, TOOLSET_SYMBOLS,
   SymbolIcon, CanvasSymbol, CanvasLinearSymbol,
@@ -234,10 +235,10 @@ export default function DrawingMarkupModal({ file, projectId, pdfUrl, onClose })
     let cancelled = false;
     async function loadPdf() {
       try {
-        const pdfjs = await import('pdfjs-dist');
-        pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
+        // In slices through our own route: a whole drawing set will not fit
+        // through the server in one reply.
         const url = pdfUrl || `/api/projects/${projectId}/files/${file.id}`;
-        const doc  = await pdfjs.getDocument(url).promise;
+        const doc = await openRangedPdf(url, file.size || await rangedSize(url));
         if (cancelled) return;
         pdfDocRef.current = doc;
         setTotalPages(doc.numPages);

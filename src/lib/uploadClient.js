@@ -89,8 +89,8 @@ export function holdScreenAwake() {
   };
 }
 
-export async function uploadDirect(file, { onProgress, scope = 'intake' } = {}) {
-  const res = await fetch('/api/uploads/presign', {
+export async function uploadDirect(file, { onProgress, scope = 'intake', presignUrl = '/api/uploads/presign', completeUrl = '/api/uploads/complete' } = {}) {
+  const res = await fetch(presignUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -117,7 +117,7 @@ export async function uploadDirect(file, { onProgress, scope = 'intake' } = {}) 
   const stats = { pct: null, sentBytes: 0, startedAt: Date.now(), part: null, parts: null };
   try {
     const bytes = await materialize(file);
-    if (slip.partUrls?.length) await sendInParts(slip, bytes, onProgress, stats);
+    if (slip.partUrls?.length) await sendInParts(slip, bytes, onProgress, stats, completeUrl);
     else                       await sendWhole(slip, bytes, onProgress, stats);
   } finally {
     await releaseWake();
@@ -147,7 +147,7 @@ async function sendWhole(slip, file, onProgress, stats) {
   }), stats);
 }
 
-async function sendInParts(slip, file, onProgress, stats) {
+async function sendInParts(slip, file, onProgress, stats, completeUrl) {
   const total     = file.size || 1;
   const partBytes = slip.partBytes || PART_BYTES;
   stats.parts = slip.partUrls.length;
@@ -175,20 +175,20 @@ async function sendInParts(slip, file, onProgress, stats) {
     }
   } catch (err) {
     // Don't leave half a drawing set sitting in the bucket.
-    await tellServer({ ...slip, action: 'abort' }).catch(() => {});
+    await tellServer({ ...slip, action: 'abort' }, completeUrl).catch(() => {});
     throw err;
   }
 
   // Storage holds the parts separately until it is told that's all of them.
-  const done = await tellServer({ ...slip, parts: slip.partUrls.length });
+  const done = await tellServer({ ...slip, parts: slip.partUrls.length }, completeUrl);
   if (!done.ok) {
     const msg = done.message || 'The upload could not be finished. Please try again.';
     throw new Error(`${msg} (U5)`);
   }
 }
 
-async function tellServer({ key, uploadId, parts, action }) {
-  const res = await fetch('/api/uploads/complete', {
+async function tellServer({ key, uploadId, parts, action }, completeUrl = '/api/uploads/complete') {
+  const res = await fetch(completeUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ key, uploadId, parts, action }),

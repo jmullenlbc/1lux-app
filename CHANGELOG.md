@@ -5,6 +5,17 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Job Loader, big file viewing, Drawings storage] - October 31, 2026 (DEPLOYED October 31, 2026) - no migration
+
+- New Admin page, Job Loader (Mike): pick a project, upload a load sheet, pick the job folder. The browser sends each listed file a few at a time, then the records load in order: project settings, Budget Matrix, RFQs, rep quotes, RFIs, change orders, ship schedule, submittal items and reviews, Budget ladder, schedules. A stopped run is safe; pressing it again sends only what is missing.
+- The sheet can set the project's tax, freight and warehousing rates, so the matrix and change orders read the same as the source Budget.
+- Project files past the 4 MB response limit now open: PDFs load in ranged slices, other files go to a short lived storage link.
+- Drawings tab uploads now go to permanent storage first. A failed store refuses the upload in plain words instead of saving a row with no file behind it. Before this, files on that tab landed on the server's temporary disk.
+- Fixed dead file links: Project hub, Contracts (two places), RFI attachment chips now link when the attachment has a file.
+- Modera Marmalade sheet proved through the signed in loader on a throwaway project: 495 files planned, 0 problems, matrix 754,172.09 against the PO 754,172.06, all 20 priced change orders on their printed totals, second run created nothing new.
+- Not tested: real upload to Amazon storage, the folder picker in a signed in browser.
+- Files: `src/lib/jobLoader.js`, `src/lib/jobLoaderLoad.js`, `src/lib/pdfSlices.js`, `src/lib/projectFileServe.js`, `src/lib/projectFileStorage.js`, `src/lib/uploadClient.js`, `src/app/(app)/admin/job-loader/`, `src/app/api/admin/job-loader/`, `src/app/api/projects/[id]/drawing-submissions/route.js`, `src/app/api/projects/[id]/drawing-submissions/[submissionId]/files/[fileId]/route.js`, `src/app/api/projects/[id]/files/[fileId]/route.js`, `src/app/(app)/project/[id]/ProjectHubClient.jsx`, `src/components/contracts/ContractsPanel.jsx`, `src/components/drawing/DrawingMarkupModal.jsx`, `src/components/rfi/RFIModule.jsx`, `src/components/salesDocs/DocViewers.jsx`, `src/components/layout/Sidebar.jsx`.
+
 ## [RFQ quotes: drag and drop] - October 30, 2026 (DEPLOYED October 31, 2026) - migration 0148
 
 - The RFQ received card now takes dropped rep quotes (Mike): PDF, Excel or CSV, several at once. Each file is stored on the project first (new RFQs file tab), so a failed read loses nothing. PDFs are read by the AI; a clean spreadsheet is read in the browser and falls back to the AI.

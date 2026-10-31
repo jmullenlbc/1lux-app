@@ -379,7 +379,7 @@ function AutoTaggedFileTab({ title, subtitle, autoTag, files, projectId, tab, on
           <div className="divide-y divide-slate-50">
             {files.map(f => {
               const isPdf = f.originalName?.toLowerCase().endsWith('.pdf');
-              const fileUrl = `/api/uploads/${f.storedPath?.replace(/\\/g, '/')}`;
+              const fileUrl = `/api/projects/${projectId}/files/${f.id}`;
               return (
                 <div key={f.id} className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50/50 transition-colors">
                   {/* PDF icon */}

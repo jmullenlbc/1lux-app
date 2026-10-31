@@ -347,7 +347,11 @@ function RFIDetail({ rfiId, projectId, currentUserName, onClose }) {
               {act.attachments?.length > 0 && (
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {act.attachments.map(att => (
-                    <span key={att.id} className="text-[11px] bg-white border border-slate-200 text-slate-600 px-2 py-0.5 rounded-full">📎 {att.fileName}</span>
+                    att.fileUrl ? (
+                      <a key={att.id} href={att.fileUrl} target="_blank" rel="noopener noreferrer" className="text-[11px] bg-white border border-slate-200 text-slate-600 hover:text-orange-600 hover:border-orange-300 px-2 py-0.5 rounded-full">📎 {att.fileName}</a>
+                    ) : (
+                      <span key={att.id} className="text-[11px] bg-white border border-slate-200 text-slate-600 px-2 py-0.5 rounded-full">📎 {att.fileName}</span>
+                    )
                   ))}
                 </div>
               )}
