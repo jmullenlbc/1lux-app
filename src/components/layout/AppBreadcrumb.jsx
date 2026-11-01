@@ -11,6 +11,8 @@ const SEGMENT_MAP = {
   manufacturers: { label: 'Manufacturers',     href: '/manufacturers' },
   products:      { label: 'Products',          href: '/products'  },
   'pre-con':     { label: 'Pre-Con',           href: '/pre-con'   },
+  'my-jobs':     { label: 'My Jobs',           href: '/my-jobs'   },
+  'ship-schedules': { label: 'Ship Schedules',  href: '/ship-schedules' },
   admin:         { label: 'Admin',             href: '/admin'     },
   pricing:       { label: 'Pricing',           href: null         },
   import:        { label: 'Import',            href: null         },

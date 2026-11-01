@@ -5,6 +5,19 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Phone tabs per department, My Jobs, Ship Schedules across jobs] - October 31, 2026 (DEPLOYED October 31, 2026)
+
+### Added
+- Phone bottom bar now follows the person's department. Sales and marketing: Desk, Notes, Market Intel. Pre-construction: Pre-Con dashboard, Budgets, RFQs. Construction: My Jobs, Projects, Shipping. Design: Projects, Budgets. Finance and Operations: Dashboard, Projects, Sales. Search and Menu stay last on every set, and Menu still opens the full app.
+- Somebody in two departments gets the first in a fixed order: Sales, Pre-Con, Construction, Design, Finance, Operations.
+- No department recorded keeps Desk, Notes, People, Search. Admins with no department get the Finance set. The Sales roles count as Sales with or without a department. Client viewers get Projects and Menu.
+- My Jobs (`/my-jobs`): the jobs where this person is a picked Project Manager.
+- Ship Schedules (`/ship-schedules`): every job on one list, one row per manufacturer on a job, soonest open ship date first. Filters for job, manufacturer, status, my jobs only and show delivered. Delivered rows are hidden until asked for. A row opens that job's Ship Schedule. Staff only, the same as the job tab.
+- The home screen icon opens `/open`, which sends each person to their own first tab. The old public `/start` link is left alone and still forwards to the public budget page.
+
+### Files changed
+- `src/lib/deptScreens.js`, `src/lib/shipBoard.js` (new), `src/components/layout/MobileTabBar.jsx`, `src/components/layout/useDeskCount.js`, `src/components/layout/AppBreadcrumb.jsx`, `src/app/(app)/layout.jsx`, `src/app/(app)/open/page.jsx` (new), `src/app/(app)/my-jobs/page.jsx` (new), `src/app/(app)/ship-schedules/page.jsx` and `ShipBoard.jsx` (new), `public/manifest.webmanifest`, `scripts/tests/deptScreens.test.mjs`, `scripts/tests/shipBoard.test.mjs` (new), `scripts/verify.mjs`. No database change.
+
 ## [Manual freight and warehousing on Budgets and change orders, frozen rates] - October 31, 2026 (DEPLOYED October 31, 2026) - migrations 0153, 0154
 
 ### Added

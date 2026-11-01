@@ -2,7 +2,7 @@
   "name": "ILC Studios",
   "short_name": "ILC",
   "description": "ILC Studios sales and budgets",
-  "start_url": "/sales/desk",
+  "start_url": "/open",
   "scope": "/",
   "display": "standalone",
   "background_color": "#f8fafc",

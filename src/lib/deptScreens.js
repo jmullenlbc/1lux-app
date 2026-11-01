@@ -19,6 +19,7 @@
 // No `@/` imports here so the tests can load this file directly.
 
 import { departmentKeys } from './departments.js';
+import { normalizeRole } from './roles.js';
 
 // Which departments own each collapsible section of the sidebar. An empty list
 // means the section is not owned by anybody in particular.
@@ -44,6 +45,55 @@ export function openSectionsFor(user) {
     precon:   owns('precon'),
     software: false,
   };
+}
+
+// The phone bottom bar (Mike 10-31). Shortcuts like the rest of this file: a tab
+// never opens or closes a screen, and Menu still reaches everything.
+export const PHONE_TABS = {
+  desk:            { key: 'desk',            label: 'Desk',         href: '/sales/desk',        match: p => p.startsWith('/sales/desk') },
+  notes:           { key: 'notes',           label: 'Notes',        href: '/crm/notes',         match: p => p.startsWith('/crm/notes') },
+  people:          { key: 'people',          label: 'People',       href: '/crm/contacts',      match: p => p.startsWith('/clients') || p.startsWith('/crm/contacts') },
+  marketIntel:     { key: 'marketIntel',     label: 'Market Intel', href: '/market-intel',      match: p => p.startsWith('/market-intel') },
+  preconDashboard: { key: 'preconDashboard', label: 'Pre-Con',      href: '/dashboards/budget', match: p => p.startsWith('/dashboards/budget') },
+  budgets:         { key: 'budgets',         label: 'Budgets',      href: '/pre-con',           match: (p, q) => p.startsWith('/pre-con') && q?.get('tab') !== 'rfqs' },
+  rfqs:            { key: 'rfqs',            label: 'RFQs',         href: '/pre-con?tab=rfqs',  match: (p, q) => p.startsWith('/pre-con') && q?.get('tab') === 'rfqs' },
+  myJobs:          { key: 'myJobs',          label: 'My Jobs',      href: '/my-jobs',           match: p => p.startsWith('/my-jobs') },
+  projects:        { key: 'projects',        label: 'Projects',     href: '/dashboard',         match: p => p === '/dashboard' || p.startsWith('/project/') },
+  shipSchedules:   { key: 'shipSchedules',   label: 'Shipping',     href: '/ship-schedules',    match: p => p.startsWith('/ship-schedules') },
+  mainDashboard:   { key: 'mainDashboard',   label: 'Dashboard',    href: '/dashboards/main',   match: p => p.startsWith('/dashboards/main') },
+  salesDashboard:  { key: 'salesDashboard',  label: 'Sales',        href: '/dashboards/sales',  match: p => p.startsWith('/dashboards/sales') },
+  search:          { key: 'search',          label: 'Search',       href: '/search',            match: p => p.startsWith('/search') },
+};
+
+// Somebody in two departments gets the first of these (Mike 10-31).
+export const PHONE_ORDER = ['SALES_MARKETING', 'PRECONSTRUCTION', 'CONSTRUCTION', 'DESIGN', 'FINANCE', 'OPERATIONS'];
+
+const OFFICE_TABS = ['mainDashboard', 'projects', 'salesDashboard'];
+const PHONE_SETS = {
+  SALES_MARKETING: ['desk', 'notes', 'marketIntel'],
+  PRECONSTRUCTION: ['preconDashboard', 'budgets', 'rfqs'],
+  CONSTRUCTION:    ['myJobs', 'projects', 'shipSchedules'],
+  DESIGN:          ['projects', 'budgets'],
+  FINANCE:         OFFICE_TABS,
+  OPERATIONS:      OFFICE_TABS,
+};
+const NO_DEPARTMENT_TABS = ['desk', 'notes', 'people'];
+
+// This person's tabs, left to right. Search is always last, the bar adds Menu.
+export function phoneTabsFor(user) {
+  const role = normalizeRole(user?.role);
+  // Client viewers have no CRM, and Search refuses them.
+  if (role === 'CLIENT_VIEWER') return [PHONE_TABS.projects];
+
+  const mine = new Set(departmentKeys(user));
+  // The Sales roles are sales team with or without a department entry.
+  if (role === 'SALES' || role === 'SALES_ADMIN') mine.add('SALES_MARKETING');
+  const first = PHONE_ORDER.find(d => mine.has(d));
+
+  // Rule 1: nothing recorded, nothing changes. Admins get the office set.
+  const admin = role === 'SUPER_ADMIN' || role === 'COMPANY_ADMIN';
+  const set = first ? PHONE_SETS[first] : admin ? OFFICE_TABS : NO_DEPARTMENT_TABS;
+  return [...set, 'search'].map(k => PHONE_TABS[k]);
 }
 
 // Which departments each people-dropdown is really asking about. The key is the

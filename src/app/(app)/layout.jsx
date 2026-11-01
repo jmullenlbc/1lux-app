@@ -38,7 +38,7 @@ export default async function AppLayout({ children }) {
           <GlobalAIButton />
           <Toaster position="top-center" />
         </div>
-        <MobileTabBar />
+        <MobileTabBar user={session} />
       </main>
     </div>
   );
