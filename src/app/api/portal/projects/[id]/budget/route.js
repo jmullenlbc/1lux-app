@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requirePortalAuth } from '@/lib/portalAuth';
 import { prisma } from '@/lib/db';
-import { getProjectRates, calcCOTotal } from '@/lib/changeOrderRates';
+import { getProjectRates, calcCOTotal, CO_OPTION_MONEY } from '@/lib/changeOrderRates';
 
 // Rates are stored as decimals, the portal page works in percents
 const asPercent = rate => Math.round((rate ?? 0) * 1e6) / 1e4;
@@ -29,6 +29,10 @@ export async function GET(req, { params }) {
       version: true,
       createdAt: true,
       salesTaxPct: true,
+      freightPct: true,
+      warehousingPct: true,
+      freightOverride: true,
+      warehousingOverride: true,
       items: {
         where:   { isArchived: false },
         orderBy: { sortOrder: 'asc' },
@@ -45,10 +49,10 @@ export async function GET(req, { params }) {
   const changeOrders = await prisma.changeOrder.findMany({
     where: { projectId: params.id, status: { not: 'DRAFT' } },
     select: {
-      id: true, coNumber: true, title: true, status: true, date: true, salesTaxPct: true,
+      id: true, coNumber: true, title: true, status: true, date: true, salesTaxPct: true, freightPct: true, warehousingPct: true,
       optionGroups: {
         select: {
-          isSelected: true, discountAmount: true, discountPct: true,
+          isSelected: true, ...CO_OPTION_MONEY,
           lineItems: {
             select: { id: true, qty: true, cnUnitPrice: true, isOptionRow: true, parentLineItemId: true, isGroupSelected: true },
           },
@@ -80,8 +84,10 @@ export async function GET(req, { params }) {
           items: matrix.items,
           createdAt: matrix.createdAt,
           salesTaxRate:    asPercent(matrix.salesTaxPct ?? projectData?.salesTaxPct),
-          freightRate:     asPercent(projectData?.freightPct),
-          warehousingRate: asPercent(projectData?.warehousingPct),
+          freightRate:     asPercent(matrix.freightPct ?? projectData?.freightPct),
+          warehousingRate: asPercent(matrix.warehousingPct ?? projectData?.warehousingPct),
+          freightOverride:     matrix.freightOverride,
+          warehousingOverride: matrix.warehousingOverride,
         }
       : null,
     coSummary: {

@@ -522,6 +522,8 @@ export default function ProjectDashboard({
           <EditableStat label="Initial Client Budget" displayValue={fmt(pd.clientInitialBudget)} rawValue={pd.clientInitialBudget} onSave={d('clientInitialBudget')} />
           <EditableStat label="Freight %"    displayValue={fmtPct(pd.freightPct)}     rawValue={pd.freightPct != null ? (pd.freightPct * 100).toFixed(2) : ''} onSave={val => d('freightPct')(val != null && val !== '' ? parseFloat(val) / 100 : null)} />
           <EditableStat label="Warehousing %" displayValue={fmtPct(pd.warehousingPct)} rawValue={pd.warehousingPct != null ? (pd.warehousingPct * 100).toFixed(2) : ''} onSave={val => d('warehousingPct')(val != null && val !== '' ? parseFloat(val) / 100 : null)} />
+          <EditableStat label="Freight $ override" displayValue={fmt(pd.freightOverride)} rawValue={pd.freightOverride} onSave={d('freightOverride')} />
+          <EditableStat label="Warehousing $ override" displayValue={fmt(pd.warehousingOverride)} rawValue={pd.warehousingOverride} onSave={d('warehousingOverride')} />
 
         </div>
       </div>

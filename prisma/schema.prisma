@@ -1000,6 +1000,9 @@ model ProjectData {
   clientInitialBudget Float?
   freightPct          Float?
   warehousingPct      Float?
+  // Flat dollars for the whole job. Blank uses the percent, 0 is real.
+  freightOverride     Float?
+  warehousingOverride Float?
   salesTaxPct         Float?
   marginPct           Float?
 
@@ -1739,6 +1742,11 @@ model DesignBidMatrix {
   matrixType       String                @default("DESIGN_BID")
   changeSummary    String?
   salesTaxPct      Float? // frozen rate, a decimal. Each saved version keeps its own
+  freightPct       Float? // frozen rate, a decimal, same as sales tax
+  warehousingPct   Float? // frozen rate, a decimal, same as sales tax
+  // Flat dollars saved with the version. Blank follows the job's percent.
+  freightOverride     Float?
+  warehousingOverride Float?
   items            DesignBidMatrixItem[]
   // Archived, never deleted (Mike, 2026-09-11: "drawings and budgets and products should be archive only").
   archivedAt       DateTime?
@@ -2665,6 +2673,8 @@ model ChangeOrder {
   status       String                   @default("DRAFT") // DRAFT | SENT | APPROVED
   notes        String?
   salesTaxPct  Float? // frozen rate, a decimal. Set on create, locked at send, never follows the job again
+  freightPct     Float? // frozen rate, a decimal. Blank on a draft, set when sent or approved
+  warehousingPct Float? // frozen rate, a decimal. Blank on a draft, set when sent or approved
   createdById  String
   createdBy    User                     @relation("COCreator", fields: [createdById], references: [id])
   createdAt    DateTime                 @default(now())
@@ -2691,6 +2701,12 @@ model ChangeOrderOptionGroup {
   discountAmount Float?
   discountPct    Float?
   discountNote   String?
+  // Freight and warehousing for this option. Blank follows the job's rate, 0 waives it.
+  // Dollars or a fraction of net, and the percent wins if both are ever set.
+  freightOverride        Float?
+  freightOverridePct     Float?
+  warehousingOverride    Float?
+  warehousingOverridePct Float?
   lineItems     ChangeOrderLineItem[]
 
   @@index([changeOrderId])

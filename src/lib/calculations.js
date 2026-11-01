@@ -657,15 +657,24 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   const freightRate     = (pd.freightPct     != null && isFinite(pd.freightPct))     ? pd.freightPct     : PRICING.freight;
   const warehousingRate = (pd.warehousingPct != null && isFinite(pd.warehousingPct)) ? pd.warehousingPct : PRICING.warehousing;
 
-  const freightAmount     = cents(lightingProductSubtotal * freightRate);
-  const warehousingAmount = cents(lightingProductSubtotal * warehousingRate);
+  const controlsSubtotal  = sumCents([controlsProduct, energyCreditControls]);
+
+  // Typed dollars replace the percent for the whole job, 0 included. Lighting
+  // gets its share by product dollars and controls take the rest.
+  const freightFlat     = Number.isFinite(pd.freightOverride)     ? pd.freightOverride     : null;
+  const warehousingFlat = Number.isFinite(pd.warehousingOverride) ? pd.warehousingOverride : null;
+  const productTotal = sumCents([lightingProductSubtotal, controlsSubtotal]);
+  const splitFee = (flat, rate) => {
+    if (flat == null) return [cents(lightingProductSubtotal * rate), cents(controlsSubtotal * rate)];
+    const lighting = productTotal > 0 ? cents(flat * lightingProductSubtotal / productTotal) : cents(flat);
+    return [lighting, cents(flat - lighting)];
+  };
+  const [freightAmount, controlsFreight]         = splitFee(freightFlat, freightRate);
+  const [warehousingAmount, controlsWarehousing] = splitFee(warehousingFlat, warehousingRate);
   const lightingTaxAmount = cents(lightingProductSubtotal * salesTaxPct);
 
   const subtotalLightingOnly = sumCents([lightingProductSubtotal, freightAmount, warehousingAmount, lightingTaxAmount]);
 
-  const controlsSubtotal    = sumCents([controlsProduct, energyCreditControls]);
-  const controlsFreight     = cents(controlsSubtotal * freightRate);
-  const controlsWarehousing = cents(controlsSubtotal * warehousingRate);
   const controlsTaxAmount   = cents(controlsSubtotal * salesTaxPct);
   const controlsTotal       = sumCents([controlsSubtotal, controlsFreight, controlsWarehousing, controlsTaxAmount]);
 
@@ -961,6 +970,8 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
     warehousing:            warehousingAmount,
     freightRate,
     warehousingRate,
+    freightOverride:        freightFlat,
+    warehousingOverride:    warehousingFlat,
     lightingProductSubtotal,
     energyCreditPct,
     energyCreditLightingPct,

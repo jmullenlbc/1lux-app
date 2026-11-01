@@ -50,6 +50,7 @@ export async function GET(req, { params }) {
     fixtures, ilcSpecs, masterTypes,
     freightRate, warehousingRate, salesTaxPct,
     tierPrefs,
+    freightOverride: pd.freightOverride, warehousingOverride: pd.warehousingOverride,
   });
 
   const wizardCounts = deriveWizardCounts(fixtures);

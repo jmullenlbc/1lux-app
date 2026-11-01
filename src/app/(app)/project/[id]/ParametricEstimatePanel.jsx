@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { formatCurrency } from '@/lib/calculations';
 import { WidgetLoading, WidgetError } from '@/components/ui/WidgetFrame';
 import { BTN_COMPACT, TH } from '@/components/ui/tokens';
+import { feeLabel } from '@/lib/bidMatrixTotals';
 
 const TIER_ORDER  = ['LOW_COST', 'STANDARD', 'UPGRADE'];
 const TIER_LABELS = { LOW_COST: 'Low Cost', STANDARD: 'Standard', UPGRADE: 'Upgrade' };
@@ -140,7 +141,7 @@ export default function ParametricEstimatePanel({ projectId }) {
     );
   }
 
-  const { lineItems = [], subtotal, freight, warehousing, tax, grandTotal, missingCosts, freightRate, warehousingRate, salesTaxPct } = estimate || {};
+  const { lineItems = [], subtotal, freight, warehousing, tax, grandTotal, missingCosts, freightRate, warehousingRate, freightOverride, warehousingOverride, salesTaxPct } = estimate || {};
 
   // Group line items: unit types first, then exterior
   const unitItems    = lineItems.filter(li => {
@@ -266,8 +267,8 @@ export default function ParametricEstimatePanel({ projectId }) {
           <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-3">Cost Summary</p>
           <div className="divide-y divide-slate-100">
             <SummaryRow label="Fixture product subtotal" value={subtotal} />
-            <SummaryRow label={`Freight (${Math.round((freightRate || 0) * 100)}%)`} value={freight} />
-            <SummaryRow label={`Warehousing (${Math.round((warehousingRate || 0) * 100)}%)`} value={warehousing} />
+            <SummaryRow label={feeLabel('Freight', freightRate, freightOverride)} value={freight} />
+            <SummaryRow label={feeLabel('Warehousing', warehousingRate, warehousingOverride)} value={warehousing} />
             {salesTaxPct > 0 && (
               <SummaryRow label={`Estimated sales tax (${(salesTaxPct * 100).toFixed(2)}%)`} value={tax} />
             )}

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requirePortalAuth } from '@/lib/portalAuth';
 import { prisma } from '@/lib/db';
-import { getProjectRates, calcCOTotal } from '@/lib/changeOrderRates';
+import { getProjectRates, calcCOTotal, CO_OPTION_MONEY } from '@/lib/changeOrderRates';
 
 export async function GET(req, { params }) {
   const { portalUser, error } = await requirePortalAuth();
@@ -19,14 +19,14 @@ export async function GET(req, { params }) {
     where:   { projectId: params.id, status: { not: 'DRAFT' } },
     orderBy: { createdAt: 'desc' },
     select: {
-      id: true, coNumber: true, title: true, status: true, date: true, notes: true, salesTaxPct: true,
+      id: true, coNumber: true, title: true, status: true, date: true, notes: true, salesTaxPct: true, freightPct: true, warehousingPct: true,
       approvals: {
         orderBy: { createdAt: 'desc' }, take: 1,
         select: { action: true, createdAt: true, portalUser: { select: { name: true } } },
       },
       optionGroups: {
         select: {
-          label: true, isSelected: true, discountAmount: true, discountPct: true,
+          label: true, isSelected: true, ...CO_OPTION_MONEY,
           lineItems: {
             select: { id: true, qty: true, cnUnitPrice: true, isOptionRow: true, parentLineItemId: true, isGroupSelected: true },
           },

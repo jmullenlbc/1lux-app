@@ -3,7 +3,7 @@ import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { htmlToPdf } from '@/lib/pdf';
 import { lineTotal, sumCents } from '@/lib/money';
-import { matrixFooter } from '@/lib/bidMatrixTotals';
+import { matrixFooter, feeLabel } from '@/lib/bidMatrixTotals';
 import { PM_SELECT, pmPrint } from '@/lib/projectManagers';
 
 const ORANGE = '#F7941D';
@@ -80,7 +80,7 @@ export async function GET(request, { params }) {
   } = matrixFooter(
     sumCents(lightingItems.map(i => i.totalSavings)),
     sumCents(controlsItems.map(i => i.totalSavings)),
-    { freightPct: freightPctVal, warehousingPct: warehousingPctVal, salesTaxPct: salesTaxPctVal },
+    { freightPct: freightPctVal, warehousingPct: warehousingPctVal, salesTaxPct: salesTaxPctVal, freightOverride: pd.freightOverride, warehousingOverride: pd.warehousingOverride },
   );
 
   const grossSf      = pd.grossSf  || null;
@@ -156,8 +156,8 @@ export async function GET(request, { params }) {
   const totalsRows = [
     rawLighting > 0 ? `<tr><td style="text-align:right;color:${GREY};padding:2px 8px">Subtotal: Lighting</td><td style="text-align:right;font-family:'Courier New',monospace;padding:2px 8px;min-width:100px">${esc(fmtMoney(rawLighting))}</td></tr>` : '',
     rawControls > 0 ? `<tr><td style="text-align:right;color:${GREY};padding:2px 8px">Subtotal: Controls</td><td style="text-align:right;font-family:'Courier New',monospace;padding:2px 8px">${esc(fmtMoney(rawControls))}</td></tr>` : '',
-    freightAmt > 0  ? `<tr><td style="text-align:right;color:${GREY};padding:2px 8px">Freight (${(freightPctVal * 100).toFixed(0)}%)</td><td style="text-align:right;font-family:'Courier New',monospace;padding:2px 8px">${esc(fmtMoney(freightAmt))}</td></tr>` : '',
-    warehousingAmt > 0 ? `<tr><td style="text-align:right;color:${GREY};padding:2px 8px">Warehousing (${(warehousingPctVal * 100).toFixed(0)}%)</td><td style="text-align:right;font-family:'Courier New',monospace;padding:2px 8px">${esc(fmtMoney(warehousingAmt))}</td></tr>` : '',
+    freightAmt > 0  ? `<tr><td style="text-align:right;color:${GREY};padding:2px 8px">${feeLabel('Freight', freightPctVal, pd.freightOverride)}</td><td style="text-align:right;font-family:'Courier New',monospace;padding:2px 8px">${esc(fmtMoney(freightAmt))}</td></tr>` : '',
+    warehousingAmt > 0 ? `<tr><td style="text-align:right;color:${GREY};padding:2px 8px">${feeLabel('Warehousing', warehousingPctVal, pd.warehousingOverride)}</td><td style="text-align:right;font-family:'Courier New',monospace;padding:2px 8px">${esc(fmtMoney(warehousingAmt))}</td></tr>` : '',
     salesTaxAmt > 0 ? `<tr><td style="text-align:right;color:${GREY};padding:2px 8px">Sales Tax (${(salesTaxPctVal * 100).toFixed(2)}%)</td><td style="text-align:right;font-family:'Courier New',monospace;padding:2px 8px">${esc(fmtMoney(salesTaxAmt))}</td></tr>` : '',
     (rawControls > 0 && rawLighting > 0) ? `
       <tr><td style="text-align:right;font-weight:600;padding:2px 8px">Subtotal Lighting (loaded)</td><td style="text-align:right;font-family:'Courier New',monospace;font-weight:600;padding:2px 8px">${esc(fmtMoney(subtotalLighting))}</td></tr>

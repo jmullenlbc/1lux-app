@@ -57,7 +57,7 @@ const QUESTIONNAIRE_SYNC = {
 // Counts panel and (later) the drawing parser, but deliberately NOT wizard
 // questions, so they are not in QUESTIONNAIRE_SYNC and never sync to the
 // questionnaire. Mike: these get "filled out in an automated way".
-const NON_QUESTIONNAIRE_FIELDS = ['numElevatorShafts', 'numFloors', 'numStairwells'];
+const NON_QUESTIONNAIRE_FIELDS = ['numElevatorShafts', 'numFloors', 'numStairwells', 'freightOverride', 'warehousingOverride'];
 
 const FIELD_LABELS = {
   grossSf: 'Total Gross SF', unitsSf: 'Units SF', numUnits: '# Units',
@@ -74,6 +74,7 @@ const FIELD_LABELS = {
   driveLengthFt: 'Private Drive Length (ft)', walkwayLengthFt: 'Walkway Length (ft)',
   clientInitialBudget: 'Initial Budget',
   freightPct: 'Freight %', warehousingPct: 'Warehousing %', salesTaxPct: 'Estimated Sales Tax %',
+  freightOverride: 'Freight dollars', warehousingOverride: 'Warehousing dollars',
   marginPct: 'Margin %',
   bohManualAdder: 'BOH manual adder', garageManualAdder: 'Garage manual adder',
   exitSignsManualAdder: 'Exit Signs manual adder',
@@ -119,6 +120,11 @@ export async function PUT(request, { params }) {
     .map(f => FIELD_LABELS[f] || f);
   if (unreadable.length) {
     return NextResponse.json({ error: `${NUMBER_HELP} (${unreadable.join(', ')})` }, { status: 400 });
+  }
+  // Blank uses the percent and 0 is real, but flat dollars never go below zero
+  const negativeFee = ['freightOverride', 'warehousingOverride'].find(f => parseLooseNumber(body[f]) < 0);
+  if (negativeFee) {
+    return NextResponse.json({ error: `${FIELD_LABELS[negativeFee]} cannot be below zero. Nothing was saved. Fix the number and try again. (PROJECT_FEE_NEGATIVE)` }, { status: 400 });
   }
   const data = {};
   for (const field of numericFields) {

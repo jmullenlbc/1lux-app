@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requirePermission } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { getProjectRates, calcCOTotal, ratesForCO } from '@/lib/changeOrderRates';
+import { getProjectRates, calcCOTotal, ratesForCO, freezeRates } from '@/lib/changeOrderRates';
 
 const CO_INCLUDE = {
   optionGroups: {
@@ -53,9 +53,9 @@ export async function POST(req, { params }) {
     where:  { id: params.id },
     select: { name: true, address: true, city: true, state: true },
   });
-  const rates     = await getProjectRates(params.id);
-  const frozenTax = co.salesTaxPct ?? rates.salesTaxPct ?? 0;
-  const total     = calcCOTotal({ ...co, salesTaxPct: frozenTax }, rates);
+  const rates  = await getProjectRates(params.id);
+  const frozen = freezeRates(co, rates);
+  const total  = calcCOTotal({ ...co, ...frozen }, rates);
 
   // Create send record + transition to SENT in transaction
   const [send] = await prisma.$transaction([
@@ -70,7 +70,7 @@ export async function POST(req, { params }) {
     }),
     prisma.changeOrder.update({
       where: { id: params.coId },
-      data:  { salesTaxPct: frozenTax, ...(co.status === 'DRAFT' && { status: 'SENT' }) },
+      data:  { ...frozen, ...(co.status === 'DRAFT' && { status: 'SENT' }) },
     }),
   ]);
 

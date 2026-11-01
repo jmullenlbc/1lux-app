@@ -67,6 +67,10 @@ export async function POST(req, { params }) {
       matrixType:       sourceMatrix.matrixType,
       changeSummary:    JSON.stringify({ duplicatedFrom: sourceMatrix.version }),
       salesTaxPct:      sourceMatrix.salesTaxPct,
+      freightPct:       sourceMatrix.freightPct,
+      warehousingPct:   sourceMatrix.warehousingPct,
+      freightOverride:     sourceMatrix.freightOverride,
+      warehousingOverride: sourceMatrix.warehousingOverride,
       items:            { create: newItems },
     },
     include: {

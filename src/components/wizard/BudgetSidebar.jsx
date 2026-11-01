@@ -3,6 +3,7 @@ import { formatCurrency } from '@/lib/format';
 import { cn } from '@/lib/utils';
 import { TooltipBudgetRow } from '@/components/ui/Tooltip';
 import { siteFeatureLineLabel } from '@/lib/siteFeatureWords';
+import { feeLabel } from '@/lib/bidMatrixTotals';
 
 function Divider() {
   return <div className="border-t border-slate-100 my-1" />;
@@ -45,7 +46,7 @@ function PlainRow({ label, value, indent, highlight, bold }) {
 export default function BudgetSidebar({ budget, projectData, currentStep, range = null, areaNotes = null, areaSummary = null, projectName = '', homeType = false, needed = null, interiorRate = null, holdTotal = false }) {
   if (!budget) return null;
 
-  const { sections, freight, warehousing, freightRate, warehousingRate, lightingProductSubtotal, subtotalLightingOnly, lightingTaxAmount, controls, controlsGarage, controlsFreight, controlsWarehousing, controlsTaxAmount, controlsTotal, salesTaxPct, totalWithControls, perSf, perUnit, energyCreditPct, energyCreditLightingPct, energyCreditControlsPct, energyCreditLighting, energyCreditControls } = budget;
+  const { sections, freight, warehousing, freightRate, warehousingRate, freightOverride, warehousingOverride, lightingProductSubtotal, subtotalLightingOnly, lightingTaxAmount, controls, controlsGarage, controlsFreight, controlsWarehousing, controlsTaxAmount, controlsTotal, salesTaxPct, totalWithControls, perSf, perUnit, energyCreditPct, energyCreditLightingPct, energyCreditControlsPct, energyCreditLighting, energyCreditControls } = budget;
   // Each side carries its own % (WELL = 10% lighting / 30% controls, 10-15).
   const ecPctLabel  = Math.round((energyCreditLightingPct ?? energyCreditPct ?? 0) * 100);
   const ecCtrlLabel = Math.round((energyCreditControlsPct ?? energyCreditPct ?? 0) * 100);
@@ -54,8 +55,8 @@ export default function BudgetSidebar({ budget, projectData, currentStep, range 
   const step = currentStep === 'interior-amenities' ? 'amenities' : String(currentStep || '').replace(/^design-/, '');
   // `holdTotal`: the design wizard waits for its minimum figures (Mike 10-17).
   const hasData = (projectData?.grossSf || 0) > 0 && !holdTotal;
-  const fPct = Math.round((freightRate ?? 0.06) * 100);
-  const wPct = Math.round((warehousingRate ?? 0.03) * 100);
+  const freightLabel     = feeLabel('Freight', freightRate ?? 0.06, freightOverride);
+  const warehousingLabel = feeLabel('Warehousing', warehousingRate ?? 0.03, warehousingOverride);
   // Mike 10-15: sales tax is its own line on each side, right above the total.
   // It is the Project Info rate times the product subtotal (no freight, no warehousing).
   const tPct = Math.round((salesTaxPct || 0) * 10000) / 100;
@@ -202,8 +203,8 @@ export default function BudgetSidebar({ budget, projectData, currentStep, range 
               <PlainRow label={`Energy Credit (${ecPctLabel}%)`} value={energyCreditLighting} indent />
             )}
             <PlainRow label="Lighting Subtotal"   value={lightingProductSubtotal || 0} highlight />
-            <PlainRow label={`Freight (${fPct}%)`}     value={freight     || 0} indent />
-            <PlainRow label={`Warehousing (${wPct}%)`} value={warehousing || 0} indent />
+            <PlainRow label={freightLabel}     value={freight     || 0} indent />
+            <PlainRow label={warehousingLabel} value={warehousing || 0} indent />
             {lightingTaxAmount > 0 && <PlainRow label={`Estimated Sales Tax (${tPct}%)`} value={lightingTaxAmount} indent />}
             <PlainRow label="Lighting Total"      value={subtotalLightingOnly    || 0} highlight />
 
@@ -221,8 +222,8 @@ export default function BudgetSidebar({ budget, projectData, currentStep, range 
             {energyCreditControls > 0 && (
               <PlainRow label={`Energy Credit (${ecCtrlLabel}%)`} value={energyCreditControls} indent />
             )}
-            <PlainRow label={`Freight (${fPct}%)`}     value={controlsFreight     || 0} indent />
-            <PlainRow label={`Warehousing (${wPct}%)`} value={controlsWarehousing || 0} indent />
+            <PlainRow label={freightLabel}     value={controlsFreight     || 0} indent />
+            <PlainRow label={warehousingLabel} value={controlsWarehousing || 0} indent />
             {controlsTaxAmount > 0 && <PlainRow label={`Estimated Sales Tax (${tPct}%)`} value={controlsTaxAmount} indent />}
             <PlainRow label="Controls Total"      value={controlsTotal || 0} highlight />
 

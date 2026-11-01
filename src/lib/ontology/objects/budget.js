@@ -102,6 +102,8 @@ export const DesignBidMatrix = {
     version:          { type: 'int',      sensitivity: 'client_ok' },
     matrixType:       { type: 'string',   sensitivity: 'client_ok' },
     submissionTag:    { type: 'string',   sensitivity: 'client_ok' },
+    freightPct:       { type: 'percent',  sensitivity: 'client_ok', desc: 'Frozen rate, a decimal. The version keeps it when the job changes.' },
+    warehousingPct:   { type: 'percent',  sensitivity: 'client_ok', desc: 'Frozen rate, a decimal. The version keeps it when the job changes.' },
     createdAt:        { type: 'datetime', sensitivity: 'client_ok' },
     changeSummary:    { type: 'json',     sensitivity: 'ilc_only', desc: 'JSON-as-string diff vs prior version' },
     pushedById:       { type: 'string',   sensitivity: 'ilc_only' },
@@ -254,6 +256,8 @@ export const ProjectData = {
     salesTaxPct:     { type: 'percent', sensitivity: 'client_ok' },
     freightPct:      { type: 'percent', sensitivity: 'client_ok' },
     warehousingPct:  { type: 'percent', sensitivity: 'client_ok' },
+    freightOverride:     { type: 'money', sensitivity: 'client_ok', desc: 'Freight typed in flat dollars for the whole job. Blank uses the percent, 0 is real' },
+    warehousingOverride: { type: 'money', sensitivity: 'client_ok', desc: 'Warehousing typed in flat dollars for the whole job. Blank uses the percent, 0 is real' },
 
     // ── the one that reverses every CN in the system ──
     // dn = cn × (1 - marginPct). Publishing this publishes the buy price on

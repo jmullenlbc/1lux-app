@@ -10,7 +10,7 @@ import { postParked } from '@/lib/parkedFetch';
 import ReadingWait, { READING_TIME_HINT } from '@/components/ReadingWait';
 import RepSelect from '@/components/rfq/RepSelect';
 import { cents as r2, lineTotal, sumCents } from '@/lib/money';
-import { matrixFooter } from '@/lib/bidMatrixTotals';
+import { matrixFooter, feeLabel } from '@/lib/bidMatrixTotals';
 import ConfirmArchiveModal, { setArchived, ArchiveBoxIcon, KEPT_ON_ARCHIVE_PAGE } from '@/components/salesAutomation/ConfirmArchiveModal';
 import { pmPrint } from '@/lib/projectManagers';
 
@@ -68,8 +68,8 @@ function fmtDec(n) {
   return '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
-// A saved version totals its own rows at the sales tax it was saved with.
-// Freight and warehousing still follow the job.
+// A saved version totals its own rows at the sales tax, freight and warehousing
+// it was saved with, and keeps any flat dollars. A blank follows the job's percent.
 function versionTotals(matrix, { freightPctVal, warehousingPctVal, jobTaxPct }) {
   const rows = (matrix.items || []).filter(i => !i.isArchived);
   const rowTotal = i => i.cnTotal ?? (i.cnPerUnit != null && i.qty != null ? lineTotal(i.qty, i.cnPerUnit) : 0);
@@ -77,14 +77,18 @@ function versionTotals(matrix, { freightPctVal, warehousingPctVal, jobTaxPct }) 
   const lightingRows = rows.filter(i => !isControls(i));
   const controlRows = rows.filter(isControls);
   const salesTaxPctVal = matrix.salesTaxPct ?? jobTaxPct ?? 0;
+  const freightPctShown = matrix.freightPct ?? freightPctVal;
+  const warehousingPctShown = matrix.warehousingPct ?? warehousingPctVal;
   const footer = matrixFooter(
     sumCents(lightingRows.map(rowTotal)),
     sumCents(controlRows.map(rowTotal)),
-    { freightPct: freightPctVal, warehousingPct: warehousingPctVal, salesTaxPct: salesTaxPctVal },
+    { freightPct: freightPctShown, warehousingPct: warehousingPctShown, salesTaxPct: salesTaxPctVal, freightOverride: matrix.freightOverride, warehousingOverride: matrix.warehousingOverride },
   );
   return {
     ...footer,
     salesTaxPctVal,
+    freightPctShown,
+    warehousingPctShown,
     lightingCount: lightingRows.length,
     controlsCount: controlRows.length,
   };
@@ -1092,6 +1096,8 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
   const [showSettings,  setShowSettings]  = useState(false);
   const [freightPct,    setFreightPct]    = useState(project.projectData?.freightPct     ?? 0.06);
   const [warehousingPct, setWarehousingPct] = useState(project.projectData?.warehousingPct ?? 0.03);
+  const [freightOverride, setFreightOverride] = useState(project.projectData?.freightOverride ?? null);
+  const [warehousingOverride, setWarehousingOverride] = useState(project.projectData?.warehousingOverride ?? null);
   const [salesTaxPct,   setSalesTaxPct]   = useState(project.projectData?.salesTaxPct   ?? null);
   const [marginPct,     setMarginPct]     = useState(project.projectData?.marginPct      ?? 0.23);
   const [showMfrPopup,  setShowMfrPopup]  = useState(false);
@@ -1393,10 +1399,25 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
 
   async function patchProjectDataPct(field, val) {
     const parsed = val === null || val === '' ? null : parseFloat(String(val).replace(/[^0-9.]/g, '')) / 100;
+    const rate = isNaN(parsed) ? null : parsed;
     await fetch(`/api/projects/${project.id}/data`, {
       method: 'PUT', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ [field]: isNaN(parsed) ? null : parsed }),
+      body: JSON.stringify(rate == null ? { clearFields: [field] } : { [field]: rate }),
     });
+  }
+
+  // Flat dollars for the whole job. An empty box goes back to the percent, 0 is real.
+  async function patchProjectDataDollars(field, val, set) {
+    const res = await fetch(`/api/projects/${project.id}/data`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(val == null ? { clearFields: [field] } : { [field]: val }),
+    });
+    if (!res.ok) {
+      const refused = await res.json().catch(() => ({}));
+      alert(refused.error || 'Could not save that figure on our side. Nothing was saved. Try again.');
+      return;
+    }
+    set(val);
   }
 
   // ── Manufacturer / Product handlers ─────────────────────────────────────────
@@ -1465,8 +1486,8 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
     rows.push({});
     rows.push({ 'Type': 'CN Subtotal, Lighting', 'CN Total': rawLighting });
     rows.push({ 'Type': 'CN Subtotal, Controls', 'CN Total': rawControls });
-    if (freightAmt > 0) rows.push({ 'Type': `Freight (${(freightPctVal*100).toFixed(0)}%)`, 'CN Total': freightAmt });
-    if (warehousingAmt > 0) rows.push({ 'Type': `Warehousing (${(warehousingPctVal*100).toFixed(0)}%)`, 'CN Total': warehousingAmt });
+    if (freightAmt > 0) rows.push({ 'Type': feeLabel('Freight', freightPctVal, freightOverride), 'CN Total': freightAmt });
+    if (warehousingAmt > 0) rows.push({ 'Type': feeLabel('Warehousing', warehousingPctVal, warehousingOverride), 'CN Total': warehousingAmt });
     if (salesTaxAmt > 0) rows.push({ 'Type': `Sales Tax (${(salesTaxPctVal*100).toFixed(2)}%)`, 'CN Total': salesTaxAmt });
     rows.push({ 'Type': 'Subtotal Lighting (loaded)', 'CN Total': subtotalLighting });
     rows.push({ 'Type': 'Subtotal Controls (loaded)', 'CN Total': subtotalControls });
@@ -1534,7 +1555,7 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
   } = matrixFooter(
     sumCents(lightingItems.map(i => i.totalSavings)),
     sumCents(controlsItems.map(i => i.totalSavings)),
-    { freightPct: freightPctVal, warehousingPct: warehousingPctVal, salesTaxPct: salesTaxPctVal },
+    { freightPct: freightPctVal, warehousingPct: warehousingPctVal, salesTaxPct: salesTaxPctVal, freightOverride, warehousingOverride },
   );
 
   const grandDNTotal  = sumCents(items.map(i => lineTotal(i.qty, i.propUnitDN)));
@@ -1926,15 +1947,30 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
                   <div className="flex items-center gap-1">
                     <Cell value={val != null ? Math.round(val * 100 * 100) / 100 : (def ?? '')}
                       placeholder={def != null ? String(def) : '—'} numeric
-                      onSave={v => { patchProjectDataPct(field, v); }}
+                      onSave={v => { set(v != null ? v / 100 : null); patchProjectDataPct(field, v); }}
                       className="w-full text-sm font-semibold text-slate-700" />
                     <span className="text-slate-400 text-sm">%</span>
                   </div>
                   {def != null && <div className="text-[11px] text-slate-400 mt-0.5">Default: {def}%</div>}
                 </div>
               ))}
+              {[
+                { label: 'Freight $', val: freightOverride, set: setFreightOverride, field: 'freightOverride' },
+                { label: 'Warehousing $', val: warehousingOverride, set: setWarehousingOverride, field: 'warehousingOverride' },
+              ].map(({ label, val, set, field }) => (
+                <div key={field}>
+                  <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1">{label}</label>
+                  <div className="flex items-center gap-1">
+                    <span className="text-slate-400 text-sm">$</span>
+                    <Cell value={val} placeholder="Uses the %" numeric
+                      onSave={v => { patchProjectDataDollars(field, v, set); }}
+                      className="w-full text-sm font-semibold text-slate-700" />
+                  </div>
+                  <div className="text-[11px] text-slate-400 mt-0.5">Blank uses the %. 0 means none.</div>
+                </div>
+              ))}
             </div>
-            <p className="text-[11px] text-slate-400 mt-3">Saved versions and change orders keep the sales tax they were made with. This box only moves the working budget.</p>
+            <p className="text-[11px] text-slate-400 mt-3">Saved versions keep the sales tax, freight and warehousing they were saved with, and change orders keep theirs once sent or approved. These boxes only move the working Budget and change orders still in Draft.</p>
           </div>
         )}
 
@@ -1949,7 +1985,7 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
           const fmt = v => v != null ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 }).format(v) : '—';
 
           const {
-            rawLighting, rawControls, rawTotal, salesTaxPctVal, freightAmt, warehousingAmt, salesTaxAmt,
+            rawLighting, rawControls, rawTotal, salesTaxPctVal, freightPctShown, warehousingPctShown, freightAmt, warehousingAmt, salesTaxAmt,
             subtotalLighting, subtotalControls, grandTotal,
           } = shown;
 
@@ -2067,13 +2103,13 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
                       )}
                       {freightAmt > 0 && (
                         <tr className="border-b border-slate-50">
-                          <td className="px-4 py-1.5 text-slate-400 text-xs">Freight ({freightPctVal > 0 ? `${(freightPctVal*100).toFixed(0)}%` : ''})</td>
+                          <td className="px-4 py-1.5 text-slate-400 text-xs">{feeLabel('Freight', freightPctShown, matrix.freightOverride)}</td>
                           <td className="px-4 py-1.5 text-right font-mono text-xs text-slate-400">{fmt(freightAmt)}</td>
                         </tr>
                       )}
                       {warehousingAmt > 0 && (
                         <tr className="border-b border-slate-50">
-                          <td className="px-4 py-1.5 text-slate-400 text-xs">Warehousing ({warehousingPctVal > 0 ? `${(warehousingPctVal*100).toFixed(0)}%` : ''})</td>
+                          <td className="px-4 py-1.5 text-slate-400 text-xs">{feeLabel('Warehousing', warehousingPctShown, matrix.warehousingOverride)}</td>
                           <td className="px-4 py-1.5 text-right font-mono text-xs text-slate-400">{fmt(warehousingAmt)}</td>
                         </tr>
                       )}
@@ -2480,13 +2516,13 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
                   )}
                   {freightAmt > 0 && (
                     <tr className="border-b border-slate-100">
-                      <td className="px-4 py-2 text-slate-400">Freight ({(freightPctVal * 100).toFixed(0)}%)</td>
+                      <td className="px-4 py-2 text-slate-400">{feeLabel('Freight', freightPctVal, freightOverride)}</td>
                       <td className="px-4 py-2 text-right font-mono text-slate-400">{fmt(freightAmt)}</td>
                     </tr>
                   )}
                   {warehousingAmt > 0 && (
                     <tr className="border-b border-slate-100">
-                      <td className="px-4 py-2 text-slate-400">Warehousing ({(warehousingPctVal * 100).toFixed(0)}%)</td>
+                      <td className="px-4 py-2 text-slate-400">{feeLabel('Warehousing', warehousingPctVal, warehousingOverride)}</td>
                       <td className="px-4 py-2 text-right font-mono text-slate-400">{fmt(warehousingAmt)}</td>
                     </tr>
                   )}
@@ -2711,13 +2747,13 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
                     )}
                     {freightAmt > 0 && (
                       <tr>
-                        <td style={{ textAlign: 'right', color: GREY }}>Freight ({(freightPctVal * 100).toFixed(0)}%)</td>
+                        <td style={{ textAlign: 'right', color: GREY }}>{feeLabel('Freight', freightPctVal, freightOverride)}</td>
                         <td style={{ textAlign: 'right', fontFamily: 'Courier New, monospace' }}>{fmt(freightAmt)}</td>
                       </tr>
                     )}
                     {warehousingAmt > 0 && (
                       <tr>
-                        <td style={{ textAlign: 'right', color: GREY }}>Warehousing ({(warehousingPctVal * 100).toFixed(0)}%)</td>
+                        <td style={{ textAlign: 'right', color: GREY }}>{feeLabel('Warehousing', warehousingPctVal, warehousingOverride)}</td>
                         <td style={{ textAlign: 'right', fontFamily: 'Courier New, monospace' }}>{fmt(warehousingAmt)}</td>
                       </tr>
                     )}

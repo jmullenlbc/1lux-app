@@ -183,10 +183,15 @@ export async function loadMatrix(db, user, projectId, rows) {
       ? await tx.fixtureSchedule.update({ where: { id: draft.id }, data: stamp })
       : await tx.fixtureSchedule.create({ data: { projectId, ...stamp } });
     await tx.fixtureSchedule.create({ data: { projectId, state: 'DRAFT', version: 0, items: { create: items } } });
+    const rate = await tx.projectData.findUnique({ where: { projectId }, select: { salesTaxPct: true, freightPct: true, warehousingPct: true, freightOverride: true, warehousingOverride: true } });
     await tx.designBidMatrix.create({
       data: {
         projectId, sourceScheduleId: published.id, version: 1, pushedById: user.id, matrixType: 'DESIGN_BID',
-        salesTaxPct: (await tx.projectData.findUnique({ where: { projectId }, select: { salesTaxPct: true } }))?.salesTaxPct ?? null,
+        salesTaxPct: rate?.salesTaxPct ?? null,
+        freightPct: rate?.freightPct ?? 0.06,
+        warehousingPct: rate?.warehousingPct ?? 0.03,
+        freightOverride: rate?.freightOverride ?? null,
+        warehousingOverride: rate?.warehousingOverride ?? null,
         items: { create: rows.map(bidItem) },
       },
     });
@@ -319,7 +324,9 @@ const fairTax = v => v === 0 || (v >= 1 && v <= 25);
 
 export async function loadChangeOrders(db, user, projectId, rows) {
   const out = tally();
-  const rate = (await db.projectData.findUnique({ where: { projectId }, select: { salesTaxPct: true } }))?.salesTaxPct ?? null;
+  const job = await db.projectData.findUnique({ where: { projectId }, select: { salesTaxPct: true, freightPct: true, warehousingPct: true } });
+  const rate = job?.salesTaxPct ?? null;
+  const fees = { freightPct: job?.freightPct ?? 0.06, warehousingPct: job?.warehousingPct ?? 0.03 };
   for (const c of rows) {
     if (await db.changeOrder.findFirst({ where: { projectId, coNumber: c.number }, select: { id: true } })) { out.skipped += 1; continue; }
 
@@ -345,7 +352,7 @@ export async function loadChangeOrders(db, user, projectId, rows) {
     if (!takesDiscount && (c.discountAmount != null || c.discountPct != null)) out.problems.push(`${c.number}: no option is chosen, so the discount was left off.`);
     await db.changeOrder.create({
       data: {
-        projectId, coNumber: c.number, title: c.title || c.number, date: stamp, status, salesTaxPct: ownTax ?? (status === 'DRAFT' ? rate : (rate ?? 0)),
+        projectId, coNumber: c.number, title: c.title || c.number, date: stamp, status, salesTaxPct: ownTax ?? (status === 'DRAFT' ? rate : (rate ?? 0)), ...(status !== 'DRAFT' && fees),
         notes: blank(c.notes), createdById: user.id, createdAt: stamp, rfiId,
         ...(status === 'APPROVED' && {
           approvals: { create: { action: 'APPROVED', via: 'STAFF', userId: user.id, note: 'Loaded with Job Loader', optionLabel: takesDiscount?.label ?? null, createdAt: stamp } },

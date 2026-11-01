@@ -16,6 +16,8 @@ export function runParametricEstimate({
   warehousingRate = 0.03,
   salesTaxPct     = 0,
   tierPrefs       = {},
+  freightOverride     = null,
+  warehousingOverride = null,
 }) {
   // ── Count confirmed fixtures by master_type_id ────────────────────────────
   const counts = {};
@@ -60,8 +62,8 @@ export function runParametricEstimate({
   // ── Totals ────────────────────────────────────────────────────────────────
   const coveredItems = lineItems.filter(li => li.hasCost);
   const subtotal     = sumCents(coveredItems.map(li => li.total));
-  const freight      = cents(subtotal * freightRate);
-  const warehousing  = cents(subtotal * warehousingRate);
+  const freight      = cents(freightOverride ?? subtotal * freightRate);
+  const warehousing  = cents(warehousingOverride ?? subtotal * warehousingRate);
   const tax          = cents(subtotal * salesTaxPct);
   const grandTotal   = sumCents([subtotal, freight, warehousing, tax]);
 
@@ -80,6 +82,8 @@ export function runParametricEstimate({
     missingCosts,
     freightRate,
     warehousingRate,
+    freightOverride,
+    warehousingOverride,
     salesTaxPct,
   };
 }

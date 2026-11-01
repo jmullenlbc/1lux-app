@@ -186,6 +186,8 @@ export async function POST(request, { params }) {
   if (pd.buildingFootprintSf)  buildingLines.push(`Building Footprint SF: ${Number(pd.buildingFootprintSf).toLocaleString()}`);
   if (pd.freightPct != null)   buildingLines.push(`Freight rate: ${(pd.freightPct * 100).toFixed(1)}%`);
   if (pd.warehousingPct != null) buildingLines.push(`Warehousing rate: ${(pd.warehousingPct * 100).toFixed(1)}%`);
+  if (pd.freightOverride != null) buildingLines.push(`Freight typed in dollars for the whole job: ${fmt(pd.freightOverride)}`);
+  if (pd.warehousingOverride != null) buildingLines.push(`Warehousing typed in dollars for the whole job: ${fmt(pd.warehousingOverride)}`);
   if (pd.clientInitialBudget)  buildingLines.push(`Client initial budget: ${fmt(pd.clientInitialBudget)}`);
 
   // Wizard Q&A choices by section
@@ -235,8 +237,9 @@ export async function POST(request, { params }) {
   budgetLines.push(`  Exit Signs:         ${fmt(s.exitSigns?.product)}`);
   if (s.designAdder?.product) budgetLines.push(`  Design adders:      ${fmt(s.designAdder?.product)}`);
   budgetLines.push('── Totals ────────────────────────────────────────────────');
-  budgetLines.push(`  Freight (${Math.round((budget.freightRate||0)*100)}%):       ${fmt(budget.freight)}`);
-  budgetLines.push(`  Warehousing (${Math.round((budget.warehousingRate||0)*100)}%): ${fmt(budget.warehousing)}`);
+  const feeRate = (rate, flat) => (flat != null ? 'typed dollars' : `${Math.round((rate||0)*100)}%`);
+  budgetLines.push(`  Freight (${feeRate(budget.freightRate, budget.freightOverride)}):       ${fmt(budget.freight)}`);
+  budgetLines.push(`  Warehousing (${feeRate(budget.warehousingRate, budget.warehousingOverride)}): ${fmt(budget.warehousing)}`);
   budgetLines.push(`  Lighting Only Subtotal: ${fmt(budget.subtotalLightingOnly)}`);
   budgetLines.push(`  Controls (w/ F&W):      ${fmt(budget.controlsTotal)}`);
   budgetLines.push(`  TOTAL W/ CONTROLS:      ${fmt(budget.totalWithControls)}`);

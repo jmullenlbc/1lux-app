@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/db';
-import { getProjectRates, calcCOTotal } from '@/lib/changeOrderRates';
+import { getProjectRates, calcCOTotal, freezeRates } from '@/lib/changeOrderRates';
 import { notifyProjectManagers } from '@/lib/alerts';
 import { formatCurrency } from '@/lib/format';
 
@@ -42,16 +42,16 @@ export async function approveChangeOrder({ projectId, coId, via, from, userId = 
     return { status: 400, body: { error: 'No option is chosen on this change order, so it cannot be approved. Nothing was changed. Choose one and try again.' } };
   }
 
-  const rates     = await getProjectRates(projectId);
-  const frozenTax = co.salesTaxPct ?? rates.salesTaxPct ?? 0;
-  const amount    = calcCOTotal({ ...co, salesTaxPct: frozenTax }, rates);
+  const rates  = await getProjectRates(projectId);
+  const frozen = freezeRates(co, rates);
+  const amount = calcCOTotal({ ...co, ...frozen }, rates);
 
   const approved = await prisma.$transaction(async tx => {
     // Only a change order still in the expected status flips, so two people
     // pressing at once log one approval
     const { count } = await tx.changeOrder.updateMany({
       where: { id: coId, status: { in: from } },
-      data:  { status: 'APPROVED', salesTaxPct: frozenTax },
+      data:  { status: 'APPROVED', ...frozen },
     });
     if (count === 0) return false;
     await tx.changeOrderApproval.create({

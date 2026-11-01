@@ -6,6 +6,7 @@ import { OPTION_LABELS } from '@/lib/pricing';
 import { responsesToSections } from '@/lib/utils';
 import { loadPricing, pricingForProject } from '@/lib/pricingLoader';
 import { htmlToPdf } from '@/lib/pdf';
+import { feeLabel } from '@/lib/bidMatrixTotals';
 import { SITE_FEATURE_INCLUDE, engineProjectData } from '@/lib/siteFeatureRows';
 
 function esc(s) {
@@ -38,8 +39,8 @@ export async function GET(request, { params }) {
   const budget   = calculateBudget(pd, sections, pricing);
   const r        = sections;
 
-  const freightPct     = Math.round((budget.freightRate     ?? 0.06) * 100);
-  const warehousingPct = Math.round((budget.warehousingRate ?? 0.03) * 100);
+  const freightLabel     = feeLabel('Freight', budget.freightRate ?? 0.06, budget.freightOverride);
+  const warehousingLabel = feeLabel('Warehousing', budget.warehousingRate ?? 0.03, budget.warehousingOverride);
   const contingencyPct = budget.contingencyRate ? Math.round(budget.contingencyRate * 100) : 0;
   const salesTaxPctLabel = Math.round((budget.salesTaxPct || 0) * 10000) / 100;
   const taxLabel     = `Estimated Sales Tax (${salesTaxPctLabel}%)`;
@@ -326,14 +327,14 @@ ${designDisclaimer}
 ${breakdownRows}
 ${budget.energyCreditLighting > 0 ? row(`Energy Credit (${Math.round((budget.energyCreditLightingPct ?? budget.energyCreditPct ?? 0) * 100)}%)`, budget.energyCreditLighting) : ''}
 ${row('Lighting Subtotal', budget.lightingProductSubtotal, true)}
-${row(`Freight (${freightPct}%)`, budget.freight || 0)}
-${row(`Warehousing (${warehousingPct}%)`, budget.warehousing || 0)}
+${row(freightLabel, budget.freight || 0)}
+${row(warehousingLabel, budget.warehousing || 0)}
 ${budget.lightingTaxAmount > 0 ? row(taxLabel, budget.lightingTaxAmount) : ''}
 ${row('Lighting Total', budget.subtotalLightingOnly, true)}
 ${row('Controls (IECC)', budget.controls || 0)}
 ${budget.energyCreditControls > 0 ? row(`Energy Credit (${Math.round((budget.energyCreditControlsPct ?? budget.energyCreditPct ?? 0) * 100)}%)`, budget.energyCreditControls) : ''}
-${row(`Freight (${freightPct}%)`, budget.controlsFreight || 0)}
-${row(`Warehousing (${warehousingPct}%)`, budget.controlsWarehousing || 0)}
+${row(freightLabel, budget.controlsFreight || 0)}
+${row(warehousingLabel, budget.controlsWarehousing || 0)}
 ${budget.controlsTaxAmount > 0 ? row(taxLabel, budget.controlsTaxAmount) : ''}
 ${row('Controls Total', budget.controlsTotal || 0, true)}
 ${row('Total w/ Controls', budget.totalWithControls, true)}

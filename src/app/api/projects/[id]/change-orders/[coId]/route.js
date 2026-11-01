@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAuth, requirePermission, isClientViewer, isAnyAdmin, can } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { getProjectRates, calcCOTotal, ratesForCO } from '@/lib/changeOrderRates';
+import { getProjectRates, calcCOTotal, ratesForCO, freezeRates } from '@/lib/changeOrderRates';
 import { looseNumberOrNull } from '@/lib/numberInput';
 
 const CO_INCLUDE = {
@@ -85,7 +85,8 @@ export async function PATCH(req, { params }) {
     });
   }
 
-  // Going to Sent freezes the tax, the same as the Send button
+  // Going to Sent freezes the rates, the same as the Send button. Back to Draft
+  // follows the job's freight and warehousing again, there is no box for them.
   const rates   = await getProjectRates(params.id);
   const taxNow  = salesTaxPct !== undefined ? salesTaxPct : co.salesTaxPct;
   const updated = await prisma.changeOrder.update({
@@ -96,7 +97,8 @@ export async function PATCH(req, { params }) {
       ...(status != null && { status }),
       ...(notes  != null && { notes: notes || null }),
       ...(salesTaxPct !== undefined && { salesTaxPct }),
-      ...(status === 'SENT' && co.status === 'DRAFT' && { salesTaxPct: taxNow ?? rates.salesTaxPct ?? 0 }),
+      ...(status === 'SENT' && co.status === 'DRAFT' && freezeRates({ ...co, salesTaxPct: taxNow }, rates)),
+      ...(status === 'DRAFT' && co.status !== 'DRAFT' && { freightPct: null, warehousingPct: null }),
     },
     include: CO_INCLUDE,
   });

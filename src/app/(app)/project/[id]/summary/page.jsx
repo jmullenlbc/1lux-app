@@ -190,8 +190,10 @@ export default async function SummaryPage({ params }) {
   ];
 
 
-  const freightPct     = Math.round((budget.freightRate     ?? 0.06) * 100);
-  const warehousingPct = Math.round((budget.warehousingRate ?? 0.03) * 100);
+  // Typed dollars print plain, never with a percent
+  const shownPct = (rate, flat) => (flat != null ? null : Number((rate * 100).toFixed(2)));
+  const freightPct     = shownPct(budget.freightRate     ?? 0.06, budget.freightOverride);
+  const warehousingPct = shownPct(budget.warehousingRate ?? 0.03, budget.warehousingOverride);
   const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
   const projectDataRows = [

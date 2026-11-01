@@ -372,12 +372,62 @@ function DiscountRow({ group, discount, isLocked, onSave }) {
   );
 }
 
+// ── Freight or warehousing row (group footer) ─────────────────────────────────
+// Blank follows the job's rate, a typed value replaces it, 0 waives it.
+function FeeRow({ label, field, group, amount, shownPct, jobRate, isLocked, onSave }) {
+  const amountKey = `${field}Override`;
+  const pctKey = `${field}OverridePct`;
+  const percent = group[pctKey] != null;
+  // Rounded so 7% does not come back as 7.000000000000001
+  const saved = percent ? Math.round(group[pctKey] * 1e8) / 1e6 : group[amountKey];
+  const [mode, setMode] = useState(percent ? 'pct' : 'amount');
+  const [value, setValue] = useState(saved ?? '');
+
+  useEffect(() => {
+    setMode(percent ? 'pct' : 'amount');
+    setValue(saved ?? '');
+  }, [percent, saved]);
+
+  function saveValue(nextMode = mode) {
+    if (String(value) === String(saved ?? '') && nextMode === (percent ? 'pct' : 'amount')) return;
+    onSave(nextMode === 'pct' ? { [`${field}OverridePercent`]: value } : { [amountKey]: value });
+  }
+
+  if (isLocked) {
+    if (!amount && shownPct == null) return null;
+    return (
+      <div className="flex justify-between text-slate-400">
+        <span>{label}{shownPct != null ? ` (${pct(shownPct)})` : ''}</span>
+        <span>{fmt(amount)}</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <span className="text-slate-400">{label}</span>
+      <div className="flex items-center gap-1">
+        <input value={value} onChange={e => setValue(e.target.value)} onBlur={() => saveValue()} inputMode="decimal"
+          aria-label={label} placeholder={jobRate != null ? pct(jobRate) : '0'}
+          className="w-20 text-right text-xs border border-slate-200 rounded px-1.5 py-0.5 focus:outline-none focus:ring-2 focus:ring-orange-500" />
+        <select value={mode} onChange={e => { setMode(e.target.value); if (value !== '') saveValue(e.target.value); }}
+          aria-label={`${label} in dollars or percent`}
+          className="text-xs border border-slate-200 rounded px-1 py-0.5 bg-white focus:outline-none focus:ring-2 focus:ring-orange-500">
+          <option value="amount">$</option>
+          <option value="pct">%</option>
+        </select>
+        <span className="text-slate-400 w-20 text-right">{fmt(amount)}</span>
+      </div>
+    </div>
+  );
+}
+
 // ── Option Group panel ────────────────────────────────────────────────────────
 function OptionGroupPanel({ group, co, projectId, coId, rates, manufacturers, onUpdate, onGroupUpdated, onGroupDeleted, canDelete, isLocked, canPick }) {
   const [saving, setSaving] = useState(false);
 
   const lineItems = group.lineItems || [];
-  const { subtotal: totalCN, discount, tax, freight, warehousing, total: grandTotal } = calcGroupFooter(lineItems, rates, group);
+  const { subtotal: totalCN, discount, tax, freight, warehousing, total: grandTotal, freightPct, warehousingPct } = calcGroupFooter(lineItems, rates, group);
 
   async function apiPost(body) {
     const res = await fetch(`/api/projects/${projectId}/change-orders/${coId}/option-groups/${group.id}/line-items`, {
@@ -458,13 +508,18 @@ function OptionGroupPanel({ group, co, projectId, coId, rates, manufacturers, on
     onGroupUpdated({ ...group, label });
   }
 
-  async function patchDiscount(body) {
+  async function patchMoney(body) {
     const res = await fetch(`/api/projects/${projectId}/change-orders/${coId}/option-groups/${group.id}`, {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
     });
-    if (!res.ok) { alert(await refusalText(res, 'Could not save that discount.')); return; }
+    if (!res.ok) { alert(await refusalText(res, 'Could not save that figure.')); return; }
     const saved = await res.json();
-    onGroupUpdated({ ...group, discountAmount: saved.discountAmount, discountPct: saved.discountPct, discountNote: saved.discountNote });
+    onGroupUpdated({
+      ...group,
+      discountAmount: saved.discountAmount, discountPct: saved.discountPct, discountNote: saved.discountNote,
+      freightOverride: saved.freightOverride, freightOverridePct: saved.freightOverridePct,
+      warehousingOverride: saved.warehousingOverride, warehousingOverridePct: saved.warehousingOverridePct,
+    });
   }
 
   return (
@@ -574,30 +629,20 @@ function OptionGroupPanel({ group, co, projectId, coId, rates, manufacturers, on
 
       {/* Footer */}
       <div className="px-4 py-3 border-t border-slate-200 bg-slate-50">
-        <div className="ml-auto w-72 space-y-1 text-xs">
+        <div className="ml-auto w-full max-w-80 space-y-1 text-xs">
           <div className="flex justify-between">
             <span className="text-slate-500">Subtotal <span className="text-slate-300">(selected options)</span></span>
             <span className="font-medium">{fmt(totalCN, true)}</span>
           </div>
-          <DiscountRow group={group} discount={discount} isLocked={isLocked} onSave={patchDiscount} />
+          <DiscountRow group={group} discount={discount} isLocked={isLocked} onSave={patchMoney} />
           {rates?.salesTaxPct != null && (
             <div className="flex justify-between text-slate-400">
               <span>Sales Tax ({pct(rates.salesTaxPct)})</span>
               <span>{fmt(tax)}</span>
             </div>
           )}
-          {rates?.freightPct != null && (
-            <div className="flex justify-between text-slate-400">
-              <span>Freight ({pct(rates.freightPct)})</span>
-              <span>{fmt(freight)}</span>
-            </div>
-          )}
-          {rates?.warehousingPct != null && (
-            <div className="flex justify-between text-slate-400">
-              <span>Warehousing ({pct(rates.warehousingPct)})</span>
-              <span>{fmt(warehousing)}</span>
-            </div>
-          )}
+          <FeeRow label="Freight" field="freight" group={group} amount={freight} shownPct={freightPct} jobRate={rates?.freightPct} isLocked={isLocked} onSave={patchMoney} />
+          <FeeRow label="Warehousing" field="warehousing" group={group} amount={warehousing} shownPct={warehousingPct} jobRate={rates?.warehousingPct} isLocked={isLocked} onSave={patchMoney} />
           <div className="flex justify-between border-t border-slate-300 pt-1 font-bold text-sm">
             <span>TOTAL</span>
             <span className={grandTotal < 0 ? 'text-red-600' : 'text-blue-700'}>{fmt(grandTotal, true)}</span>

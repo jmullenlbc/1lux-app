@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { requirePermission } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { INCLUDE_ARCHIVED } from '@/lib/archive';
-import { getProjectRates, chosenLineItems } from '@/lib/changeOrderRates';
+import { getProjectRates, chosenLineItems, ratesForCO, calcGroupFooter } from '@/lib/changeOrderRates';
 
 // POST /api/projects/[id]/change-orders/[coId]/push-to-budget
 // Creates a new DesignBidMatrix version containing ONLY the CO's line items.
@@ -75,6 +75,14 @@ export async function POST(req, { params }) {
     });
   }
 
+  // Freight or warehousing typed on the chosen option stays with this version in
+  // dollars. The job's flat dollars cover the whole job, so they never land here.
+  const rates = await getProjectRates(params.id);
+  const chosen = co.optionGroups.find(g => g.isSelected);
+  const priced = ratesForCO(co, rates);
+  const footer = calcGroupFooter(chosen.lineItems, priced, chosen);
+  const typed = (dollars, percent, amount) => (dollars != null || percent != null ? amount : null);
+
   const matrix = await prisma.designBidMatrix.create({
     data: {
       projectId:        params.id,
@@ -84,8 +92,12 @@ export async function POST(req, { params }) {
       submissionTag:    `${co.coNumber}: ${co.title}`,
       matrixType,
       changeSummary:    JSON.stringify({ source: 'change_order', coId: co.id, coNumber: co.coNumber }),
-      // This version is only the CO's lines, so it keeps the CO's sales tax
-      salesTaxPct:      co.salesTaxPct ?? (await getProjectRates(params.id)).salesTaxPct,
+      // This version is only the CO's lines, so it keeps the CO's rates
+      salesTaxPct:      priced.salesTaxPct,
+      freightPct:       priced.freightPct,
+      warehousingPct:   priced.warehousingPct,
+      freightOverride:     typed(chosen.freightOverride, chosen.freightOverridePct, footer.freight),
+      warehousingOverride: typed(chosen.warehousingOverride, chosen.warehousingOverridePct, footer.warehousing),
       items: { create: bidItems },
     },
     include: {

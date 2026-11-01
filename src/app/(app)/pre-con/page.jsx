@@ -62,7 +62,7 @@ export default async function PreConPage({ searchParams }) {
       prisma.project.findMany({
         where: projectScopeWhere(user),
         include: {
-          projectData: { select: { clientInitialBudget: true, freightPct: true, warehousingPct: true, salesTaxPct: true } },
+          projectData: { select: { clientInitialBudget: true, freightPct: true, warehousingPct: true, salesTaxPct: true, freightOverride: true, warehousingOverride: true } },
           peerReviewItems: { select: { totalSavings: true } },
           shares: { orderBy: { sentAt: 'desc' }, take: 1, select: { sentAt: true } },
         },
@@ -96,7 +96,7 @@ export default async function PreConPage({ searchParams }) {
     const warehousingPct = pd?.warehousingPct ?? 0.03;
     const salesTaxPct   = pd?.salesTaxPct   ?? 0;
     const rawTotal      = sumCents(p.peerReviewItems.map(i => i.totalSavings));
-    const grandTotal    = rawTotal > 0 ? matrixFooter(rawTotal, 0, { freightPct, warehousingPct, salesTaxPct }).grandTotal : null;
+    const grandTotal    = rawTotal > 0 ? matrixFooter(rawTotal, 0, { freightPct, warehousingPct, salesTaxPct, freightOverride: pd?.freightOverride, warehousingOverride: pd?.warehousingOverride }).grandTotal : null;
     return {
       id: p.id,
       name: p.name,

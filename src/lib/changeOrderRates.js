@@ -4,7 +4,7 @@
  */
 import { prisma } from '@/lib/db';
 
-export { resolveLineItems, chosenLineItems, ratesForCO, discountFor, calcGroupFooter, calcCOTotal } from './changeOrderTotals';
+export { resolveLineItems, chosenLineItems, ratesForCO, freezeRates, discountFor, calcGroupFooter, calcCOTotal, CO_OPTION_MONEY } from './changeOrderTotals';
 
 export async function getProjectRates(projectId) {
   const pd = await prisma.projectData.findUnique({ where: { projectId } });

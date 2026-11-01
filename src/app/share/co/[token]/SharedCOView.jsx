@@ -12,6 +12,8 @@ function fmt(n, showSign = false) {
   return str;
 }
 function pct(n) { return n != null ? `${(Number(n) * 100).toFixed(2).replace(/\.?0+$/, '')}%` : '—'; }
+// Typed dollars print plain, never with a percent
+function feeName(name, p) { return p != null ? `${name} (${pct(p)})` : name; }
 
 const STATUS_META = {
   DRAFT:    'bg-amber-50 text-amber-700 border-amber-200',
@@ -120,8 +122,8 @@ export default function SharedCOView({ token }) {
                         { label: 'Subtotal', val: group.footer?.subtotal },
                         !!group.footer?.discount && { label: `Discount${group.discountPct != null ? ` (${pct(group.discountPct)})` : ''}`, val: -group.footer.discount, note: group.discountNote },
                         rates.salesTaxPct != null && { label: `Sales Tax (${pct(rates.salesTaxPct)})`, val: group.footer?.tax },
-                        rates.freightPct != null && { label: `Freight (${pct(rates.freightPct)})`, val: group.footer?.freight },
-                        rates.warehousingPct != null && { label: `Warehousing (${pct(rates.warehousingPct)})`, val: group.footer?.warehousing },
+                        (group.footer?.freightPct != null || !!group.footer?.freight) && { label: feeName('Freight', group.footer?.freightPct), val: group.footer?.freight },
+                        (group.footer?.warehousingPct != null || !!group.footer?.warehousing) && { label: feeName('Warehousing', group.footer?.warehousingPct), val: group.footer?.warehousing },
                       ].filter(Boolean).map((row, i) => (
                         <div key={i} className="text-slate-500">
                           <div className="flex justify-between"><span>{row.label}</span><span>{fmt(row.val, true)}</span></div>

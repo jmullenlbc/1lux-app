@@ -15,6 +15,8 @@ function fmt(n, showSign = false) {
   return str;
 }
 function pct(n) { return n != null ? `${(Number(n) * 100).toFixed(2).replace(/\.?0+$/, '')}%` : '—'; }
+// Typed dollars print plain, never with a percent
+function feeName(name, p) { return p ? `${name} (${pct(p)})` : name; }
 
 // GET /api/projects/[id]/change-orders/[coId]/pdf?hideInternalDN=true
 export async function GET(req, { params }) {
@@ -266,8 +268,8 @@ td { padding:5px 6px; border-bottom:1px solid #f0f0f0; vertical-align:top; font-
     <tbody>
       <tr><td class="lbl">Subtotal</td><td class="val">${fmt(selectedFooter.subtotal)}</td></tr>
       ${selectedFooter.discount ? `<tr><td class="lbl">Discount${selected?.discountPct != null ? ` (${pct(selected.discountPct)})` : ''}${discountNote ? `<div style="font-size:8px;font-weight:400">${discountNote}</div>` : ''}</td><td class="val">${fmt(-selectedFooter.discount, true)}</td></tr>` : ''}
-      ${rates.freightPct ? `<tr><td class="lbl">Freight (${pct(rates.freightPct)})</td><td class="val">${fmt(selectedFooter.freight)}</td></tr>` : ''}
-      ${rates.warehousingPct ? `<tr><td class="lbl">Warehousing (${pct(rates.warehousingPct)})</td><td class="val">${fmt(selectedFooter.warehousing)}</td></tr>` : ''}
+      ${selectedFooter.freightPct || selectedFooter.freight ? `<tr><td class="lbl">${feeName('Freight', selectedFooter.freightPct)}</td><td class="val">${fmt(selectedFooter.freight)}</td></tr>` : ''}
+      ${selectedFooter.warehousingPct || selectedFooter.warehousing ? `<tr><td class="lbl">${feeName('Warehousing', selectedFooter.warehousingPct)}</td><td class="val">${fmt(selectedFooter.warehousing)}</td></tr>` : ''}
       ${rates.salesTaxPct ? `<tr><td class="lbl">Sales Tax (${pct(rates.salesTaxPct)})</td><td class="val">${fmt(selectedFooter.tax)}</td></tr>` : ''}
       <tr class="grand"><td colspan="2" style="text-align:right;padding:8px 8px">Change Order Total &nbsp;&nbsp; ${fmt(selectedFooter.total, true)}</td></tr>
     </tbody>

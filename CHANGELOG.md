@@ -5,6 +5,32 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Manual freight and warehousing on Budgets and change orders, frozen rates] - October 31, 2026 (DEPLOYED October 31, 2026) - migrations 0153, 0154
+
+### Added
+- Change orders: a Freight box and a Warehousing box in each option's footer, next to Discount. Blank follows the job's rate. A typed figure replaces it, in dollars or percent. 0 waives it. Percent works on net after discount, the same base as the job's rate. Dollars below zero are refused, a percent still works on a credit. The boxes lock with the footer once a CO is sent or approved. `ChangeOrderOptionGroup.freightOverride`, `freightOverridePct`, `warehousingOverride`, `warehousingOverridePct`.
+- Budgets: one flat dollar box each for freight and warehousing beside the job percents, on Budget Settings, the project hub and Project Data. Blank uses the percent, 0 means none. `ProjectData.freightOverride`, `ProjectData.warehousingOverride`. Reaches the engine Budget, Summary, Budget PDF, wizard sidebar, working Budget Matrix, matrix PDF, Pre-Con total and the parametric panel.
+- Saved versions keep the dollars they were saved with: `DesignBidMatrix.freightOverride`, `DesignBidMatrix.warehousingOverride`, set on publish, Job Loader load and duplicate. A CO pushed to a budget keeps only the chosen option's typed figure in dollars. The job's flat dollars never land on it.
+- Lighting and controls split: lighting gets its share by raw dollars and controls take the remainder, so the subtotals always add to the Grand Total.
+- Labels: a dollar figure prints plain "Freight", a percent prints "Freight (5%)", and a waived figure does not print on a locked CO. `feeLabel` in `src/lib/bidMatrixTotals.js`.
+- Freight and warehousing rates freeze the same way sales tax does. A saved version keeps the rates it was saved with. A change order follows the job while it is a Draft and freezes when sent or approved, including Job Loader rows that are not drafts. Back to Draft follows the job again. Undo approval keeps the rates. A typed option figure still beats the frozen rate. A CO pushed to a budget gives that version the CO's rates. `ChangeOrder.freightPct`, `warehousingPct`, `DesignBidMatrix.freightPct`, `warehousingPct`, `freezeRates` in `src/lib/changeOrderTotals.js`. The client portal reads the version's rate.
+
+### Fixed
+- Fee labels keep their decimals, 6.5% no longer prints as 7%.
+- Budget Settings percent boxes now move the numbers right away, and a blank box really clears and falls back to the default rate. The data route used to ignore the blank.
+- Client portal Budget page stopped doing its own math and uses `matrixFooter` and `sumCents`. A miss from the rounding sweep.
+- Change order footer is a little wider, so the Warehousing row lines up with the rows above it.
+
+### Files changed
+- `prisma/schema.prisma`, `prisma/migrations/0153_freight_warehousing_override/migration.sql` (8 nullable Float columns, additive only)
+- `prisma/migrations/0154_freeze_freight_warehousing/migration.sql` (4 nullable Float columns, filled at today's job rate for existing versions and sent or approved change orders, so no number moves. Drafts stay blank)
+- `src/lib/changeOrderTotals.js`, `changeOrderRates.js`, `bidMatrixTotals.js`, `calculations.js`, `parametricEstimate.js`, `jobLoaderLoad.js`, ontology objects `changeOrder.js`, `budget.js`
+- CO route, CO send, `changeOrderApproval.js`, CO option group, push to budget, CO PDF, data, estimate, fixture schedule publish, matrix duplicate, peer review PDF, budget PDF, chat and both portal routes
+- `CODetailClient.jsx`, `SharedCOView.jsx`, `PeerReviewClient.jsx`, `pre-con/page.jsx`, portal project page, `summary/page.jsx`, `BudgetSidebar.jsx`, `ParametricEstimatePanel.jsx`, `ProjectDashboard.jsx`, `ProjectDataSection.jsx`
+- `scripts/tests/feeOverride.test.mjs` (new, on the unit test gate in `scripts/verify.mjs`)
+
+---
+
 ## [Same rounding everywhere, Ship Schedule publish, picked PMs on PDFs, client approval bell] - October 31, 2026 (DEPLOYED October 31, 2026) - migrations 0151, 0152
 
 ### Added

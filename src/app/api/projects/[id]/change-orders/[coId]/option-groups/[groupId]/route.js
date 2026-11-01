@@ -20,8 +20,22 @@ function readDiscount(body) {
   return { out };
 }
 
+// Freight or warehousing from the footer box: dollars or a percent typed as 0
+// to 100. An empty box goes back to the job's rate, a typed 0 waives it.
+function readFee(body, key, label) {
+  const amountKey = `${key}Override`;
+  const percentKey = `${key}OverridePercent`;
+  if (body[amountKey] === undefined && body[percentKey] === undefined) return { out: {} };
+  const amount = parseLooseNumber(body[amountKey]);
+  const percent = parseLooseNumber(body[percentKey]);
+  if (Number.isNaN(amount) || Number.isNaN(percent)) return { fail: refuse(`That ${key} figure is not a number.`, 'CO_FEE_NOT_A_NUMBER') };
+  if (amount != null && amount < 0) return { fail: refuse(`${label} dollars cannot be below zero.`, 'CO_FEE_NEGATIVE') };
+  if (percent != null && (percent < 0 || percent > 100)) return { fail: refuse(`A ${key} percent has to be between 0 and 100.`, 'CO_FEE_PERCENT_RANGE') };
+  return { out: { [`${key}OverridePct`]: percent != null ? percent / 100 : null, [amountKey]: percent != null ? null : (amount ?? null) } };
+}
+
 // PATCH /api/projects/[id]/change-orders/[coId]/option-groups/[groupId]
-// Update label, discount, or set as selected (enforces single-selection in transaction)
+// Update label, discount, freight, warehousing, or set as selected (enforces single-selection in transaction)
 export async function PATCH(req, { params }) {
   const { error } = await requirePermission(req, 'editJobMoney'); // Construction, Operations, Finance, admins
   if (error) return error;
@@ -37,6 +51,11 @@ export async function PATCH(req, { params }) {
   const { label, isSelected } = body;
   const { out: discount, fail } = readDiscount(body);
   if (fail) return fail;
+  const freight = readFee(body, 'freight', 'Freight');
+  if (freight.fail) return freight.fail;
+  const warehousing = readFee(body, 'warehousing', 'Warehousing');
+  if (warehousing.fail) return warehousing.fail;
+  const money = { ...discount, ...freight.out, ...warehousing.out };
 
   if (isSelected === true) {
     // Transaction: deselect all others, select this one
@@ -47,7 +66,7 @@ export async function PATCH(req, { params }) {
       }),
       prisma.changeOrderOptionGroup.update({
         where: { id: params.groupId },
-        data:  { isSelected: true, ...(label != null && { label }), ...discount },
+        data:  { isSelected: true, ...(label != null && { label }), ...money },
       }),
     ]);
   } else {
@@ -56,7 +75,7 @@ export async function PATCH(req, { params }) {
       data: {
         ...(label      != null && { label }),
         ...(isSelected != null && { isSelected }),
-        ...discount,
+        ...money,
       },
     });
   }

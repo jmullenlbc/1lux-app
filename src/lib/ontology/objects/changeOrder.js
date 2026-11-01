@@ -28,6 +28,8 @@ export const ChangeOrder = {
     title:       { type: 'string',   sensitivity: 'client_ok' },
     date:        { type: 'datetime', sensitivity: 'client_ok' },
     status:      { type: 'enum',     sensitivity: 'client_ok', values: ['DRAFT', 'SENT', 'APPROVED'] },
+    freightPct:     { type: 'percent', sensitivity: 'client_ok', desc: 'Frozen rate, a decimal. Blank on a draft, set when sent or approved.' },
+    warehousingPct: { type: 'percent', sensitivity: 'client_ok', desc: 'Frozen rate, a decimal. Blank on a draft, set when sent or approved.' },
     notes:       { type: 'string',   sensitivity: 'client_ok', desc: 'client-facing notes; internal notes live elsewhere' },
     createdAt:   { type: 'datetime', sensitivity: 'client_ok' },
     updatedAt:   { type: 'datetime', sensitivity: 'client_ok' },
@@ -58,6 +60,10 @@ export const ChangeOrderOptionGroup = {
     discountAmount: { type: 'money',  sensitivity: 'client_ok', desc: 'Manual discount in dollars, comes off before tax, freight and warehousing' },
     discountPct:   { type: 'number',  sensitivity: 'client_ok', desc: 'Manual discount as a fraction of the subtotal, 0.5 = half' },
     discountNote:  { type: 'string',  sensitivity: 'client_ok', desc: 'Why the discount was given, the client sees it' },
+    freightOverride:        { type: 'money',  sensitivity: 'client_ok', desc: 'Freight typed in dollars for this option. Blank follows the job rate, 0 waives it' },
+    freightOverridePct:     { type: 'number', sensitivity: 'client_ok', desc: 'Freight typed as a fraction of net for this option, wins over dollars' },
+    warehousingOverride:    { type: 'money',  sensitivity: 'client_ok', desc: 'Warehousing typed in dollars for this option. Blank follows the job rate, 0 waives it' },
+    warehousingOverridePct: { type: 'number', sensitivity: 'client_ok', desc: 'Warehousing typed as a fraction of net for this option, wins over dollars' },
   },
 
   links: {

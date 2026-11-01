@@ -82,6 +82,8 @@ const FIELDS = [
     fields: [
       { key: 'freightPct',     label: 'Freight %',     type: 'number', placeholder: '6',    hint: 'Default 6% of lighting product subtotal. Enter as a percentage (e.g. 6 for 6%)', suffix: '%' },
       { key: 'warehousingPct', label: 'Warehousing %', type: 'number', placeholder: '3',    hint: 'Default 3% of lighting product subtotal. Enter as a percentage (e.g. 3 for 3%)', suffix: '%' },
+      { key: 'freightOverride',     label: 'Freight $ override',     type: 'number', placeholder: 'Uses the %', hint: 'Flat dollars for the whole job. Replaces the percent. Blank uses the percent, 0 means none.' },
+      { key: 'warehousingOverride', label: 'Warehousing $ override', type: 'number', placeholder: 'Uses the %', hint: 'Flat dollars for the whole job. Replaces the percent. Blank uses the percent, 0 means none.' },
       { key: 'salesTaxPct',    label: 'Estimated Sales Tax %', type: 'number', placeholder: '9.15', hint: 'Filled in from the state when the project was made; type the real rate for the address. Blank or 0 for tax-exempt projects. Applied to product subtotals only.', suffix: '%' },
     ],
   },

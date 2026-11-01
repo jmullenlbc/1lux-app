@@ -3,6 +3,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { CARD, MODAL, BTN_PRIMARY, BTN_SECONDARY, BTN_COMPACT, BTN_COMPACT_PRIMARY, LABEL, HELPER, TH } from '@/components/ui/tokens';
 import { WidgetLoading, WidgetEmpty } from '@/components/ui/WidgetFrame';
+import { matrixFooter, feeLabel } from '@/lib/bidMatrixTotals';
+import { sumCents } from '@/lib/money';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -360,14 +362,16 @@ function BudgetView({ projectId }) {
   if (!data?.matrix) return <ConceptualBudgetView budget={conceptual.budget} />;
 
   const { matrix, coSummary } = data;
-  const { items, salesTaxRate, freightRate, warehousingRate } = matrix;
+  const { items, salesTaxRate, freightRate, warehousingRate, freightOverride, warehousingOverride } = matrix;
 
-  const subtotal  = items.reduce((s, i) => s + (i.cnTotal || 0), 0);
-  const freight   = subtotal * ((freightRate || 0) / 100);
-  const warehousing = subtotal * ((warehousingRate || 0) / 100);
-  const tax       = subtotal * ((salesTaxRate || 0) / 100);
-  const total     = subtotal + freight + warehousing + tax;
-  const revised   = total + (coSummary.approvedTotal || 0);
+  // Same footer math as the staff Budget Matrix. toFixed so 8.45 / 100 stays exact.
+  const asFraction = rate => Number(((rate || 0) / 100).toFixed(6));
+  const subtotal = sumCents(items.map(i => i.cnTotal || 0));
+  const { freightAmt: freight, warehousingAmt: warehousing, salesTaxAmt: tax, grandTotal: total } = matrixFooter(subtotal, 0, {
+    freightPct: asFraction(freightRate), warehousingPct: asFraction(warehousingRate), salesTaxPct: asFraction(salesTaxRate),
+    freightOverride, warehousingOverride,
+  });
+  const revised = sumCents([total, coSummary.approvedTotal || 0]);
 
   // Group items by locationTag
   const groups = [];
@@ -465,15 +469,15 @@ function BudgetView({ projectId }) {
               <td colSpan={5} className="px-3 py-2 text-right text-slate-500">Subtotal</td>
               <td className="px-3 py-2 text-right font-semibold text-slate-800">{fmtCurrency(subtotal)}</td>
             </tr>
-            {freightRate > 0 && (
+            {freight > 0 && (
               <tr className="text-slate-500">
-                <td colSpan={5} className="px-3 py-1.5 text-right text-[11px]">Freight ({freightRate}%)</td>
+                <td colSpan={5} className="px-3 py-1.5 text-right text-[11px]">{feeLabel('Freight', freightRate / 100, freightOverride)}</td>
                 <td className="px-3 py-1.5 text-right text-[11px] tabular-nums">{fmtCurrency(freight)}</td>
               </tr>
             )}
-            {warehousingRate > 0 && (
+            {warehousing > 0 && (
               <tr className="text-slate-500">
-                <td colSpan={5} className="px-3 py-1.5 text-right text-[11px]">Warehousing ({warehousingRate}%)</td>
+                <td colSpan={5} className="px-3 py-1.5 text-right text-[11px]">{feeLabel('Warehousing', warehousingRate / 100, warehousingOverride)}</td>
                 <td className="px-3 py-1.5 text-right text-[11px] tabular-nums">{fmtCurrency(warehousing)}</td>
               </tr>
             )}
