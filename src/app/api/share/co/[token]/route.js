@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getProjectRates, calcGroupFooter, ratesForCO } from '@/lib/changeOrderRates';
 import { redact, AUDIENCE } from '@/lib/redact';
+import { lineTotal } from '@/lib/money';
 
 // Public endpoint, no auth required
 // GET /api/share/co/[token]
@@ -37,7 +38,7 @@ export async function GET(req, { params }) {
   // transport concern, not a math one.
   const groups = co.optionGroups.map(g => ({
     ...g,
-    lineItems: g.lineItems.map(li => ({ ...li, totalCN: li.qty * li.cnUnitPrice })),
+    lineItems: g.lineItems.map(li => ({ ...li, totalCN: lineTotal(li.qty, li.cnUnitPrice) })),
     footer: calcGroupFooter(g.lineItems, rates, g),
   }));
 

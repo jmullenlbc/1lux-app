@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requirePermission } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { cents } from '@/lib/money';
 
 const OPTION_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
@@ -30,7 +31,7 @@ export async function POST(req, { params }) {
   let cnUnitPrice = body.cnUnitPrice ?? 0;
   if (body.originalDN != null && rates.marginPct != null) {
     const factor = 1 - rates.marginPct;
-    if (factor > 0) cnUnitPrice = Math.round((body.originalDN / factor) * 100) / 100;
+    if (factor > 0) cnUnitPrice = cents(body.originalDN / factor);
   }
 
   const items = group.lineItems;

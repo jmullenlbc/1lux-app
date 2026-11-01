@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { htmlToPdf } from '@/lib/pdf';
+import { lineTotal, sumCents } from '@/lib/money';
+import { matrixFooter } from '@/lib/bidMatrixTotals';
+import { PM_SELECT, pmPrint } from '@/lib/projectManagers';
 
 const ORANGE = '#F7941D';
 const BLACK  = '#231F20';
@@ -21,7 +24,6 @@ const LOCATION_TAGS = [
   { id: 'other',    label: 'Other'         },
 ];
 
-function r2(n) { return Math.round((n ?? 0) * 100) / 100; }
 function fmtMoney(n) {
   if (n == null) return '';
   return '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -53,10 +55,11 @@ export async function GET(request, { params }) {
       projectData:     true,
       peerReviewItems: { where: { typeCode: { not: null } }, orderBy: [{ sortOrder: 'asc' }, { createdAt: 'asc' }] },
       client:          { select: { name: true } },
-      createdBy:       { select: { name: true, email: true } },
+      assignees:       PM_SELECT,
     },
   });
   if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  const pms = pmPrint(project.assignees);
 
   const items        = project.peerReviewItems;
   const pd           = project.projectData || {};
@@ -67,22 +70,18 @@ export async function GET(request, { params }) {
   const lightingItems = items.filter(i => i.section !== 'controls');
   const controlsItems = items.filter(i => i.section === 'controls');
 
-  const rawLighting = r2(lightingItems.reduce((s, i) => s + (i.totalSavings || 0), 0));
-  const rawControls = r2(controlsItems.reduce((s, i) => s + (i.totalSavings || 0), 0));
-  const rawTotal    = r2(rawLighting + rawControls);
-
   const freightPctVal     = pd.freightPct     ?? 0.06;
   const warehousingPctVal = pd.warehousingPct ?? 0.03;
   const salesTaxPctVal    = pd.salesTaxPct    ?? 0;
 
-  const freightAmt     = r2(rawTotal * freightPctVal);
-  const warehousingAmt = r2(rawTotal * warehousingPctVal);
-  const salesTaxAmt    = r2(rawTotal * salesTaxPctVal);
-  const totalAdders    = r2(freightAmt + warehousingAmt + salesTaxAmt);
-  const grandTotal     = r2(rawTotal + totalAdders);
-
-  const subtotalLighting = r2(rawLighting + r2(rawLighting * (freightPctVal + warehousingPctVal + salesTaxPctVal)));
-  const subtotalControls = r2(rawControls + r2(rawControls * (freightPctVal + warehousingPctVal + salesTaxPctVal)));
+  const {
+    rawLighting, rawControls, rawTotal, freightAmt, warehousingAmt, salesTaxAmt,
+    subtotalLighting, subtotalControls, grandTotal,
+  } = matrixFooter(
+    sumCents(lightingItems.map(i => i.totalSavings)),
+    sumCents(controlsItems.map(i => i.totalSavings)),
+    { freightPct: freightPctVal, warehousingPct: warehousingPctVal, salesTaxPct: salesTaxPctVal },
+  );
 
   const grossSf      = pd.grossSf  || null;
   const numUnits     = pd.numUnits || null;
@@ -100,11 +99,11 @@ export async function GET(request, { params }) {
   function buildSectionRows(tag, isControls) {
     const tagItems = [...items.filter(i => i.section === tag.id)].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
     if (tagItems.length === 0) return '';
-    const secCnTotal = r2(tagItems.reduce((s, i) => s + (i.totalSavings || 0), 0));
+    const secCnTotal = sumCents(tagItems.map(i => i.totalSavings));
     const hdrBg = isControls ? '#e8dcf8' : '#ddeeff';
 
     const rows = tagItems.map((item, idx) => {
-      const cnTotal = item.qty != null && item.propUnitPrice != null ? r2(item.qty * item.propUnitPrice) : null;
+      const cnTotal = item.qty != null && item.propUnitPrice != null ? lineTotal(item.qty, item.propUnitPrice) : null;
       const bg = idx % 2 === 0 ? '#ffffff' : '#f5f5f5';
       return `<tr style="background:${bg}">
         <td style="font-weight:800;color:${esc(BLACK)};padding:3px 5px">${esc(item.typeCode)}</td>
@@ -227,8 +226,8 @@ export async function GET(request, { params }) {
           <td style="font-size:7pt;color:#999;font-weight:600;text-transform:uppercase;letter-spacing:0.03em">PM Email</td>
         </tr>
         <tr>
-          <td style="padding:0 24px 6px 0">${esc(project.createdBy?.name || 'ILC Studios')}</td>
-          <td style="padding:0 0 6px 0">${esc(project.createdBy?.email || 'orders@ilcstudios.com')}</td>
+          <td style="padding:0 24px 6px 0">${esc(pms.names || 'ILC Studios')}</td>
+          <td style="padding:0 0 6px 0">${esc(pms.emails || 'orders@ilcstudios.com')}</td>
         </tr>
         ${locationInfo ? `<tr>
           <td style="padding:0 24px 0 0;font-size:7pt;color:#999;font-weight:600;text-transform:uppercase;letter-spacing:0.03em">Location</td>
@@ -328,7 +327,7 @@ ${rawTotal > 0 ? `
   <div style="margin-bottom:24px">
     <div style="font-size:11pt;font-weight:700;color:${BLACK};border-bottom:1.5px solid ${ORANGE};padding-bottom:4px;margin-bottom:10px;-webkit-print-color-adjust:exact;print-color-adjust:exact">Questions</div>
     <ul style="margin:0;padding-left:18px;line-height:1.9;color:${BLACK}">
-      <li>Any questions regarding this quote should be directed to ${esc(project.createdBy?.email || 'orders@ilcstudios.com')}</li>
+      <li>Any questions regarding this quote should be directed to ${esc(pms.emails || 'orders@ilcstudios.com')}</li>
     </ul>
   </div>
 

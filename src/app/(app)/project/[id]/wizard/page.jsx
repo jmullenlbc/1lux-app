@@ -13,6 +13,7 @@ import DesignWizardClient from '../DesignWizardClient';
 import PeerReviewClient from '../PeerReviewClient';
 import { SITE_FEATURE_INCLUDE, engineProjectData } from '@/lib/siteFeatureRows';
 import { fillOldBlanks } from '@/lib/figures/fillOldBlanks';
+import { PM_SELECT } from '@/lib/projectManagers';
 
 export default async function ProjectWizardPage({ params }) {
   const session = await getSession();
@@ -27,6 +28,7 @@ export default async function ProjectWizardPage({ params }) {
       peerReviewItems: { orderBy: [{ section: 'asc' }, { sortOrder: 'asc' }, { createdAt: 'asc' }] },
       client:         true,
       createdBy:      { select: { id: true, name: true, email: true } },
+      assignees:      PM_SELECT,
     },
   });
 

@@ -10,6 +10,7 @@
  * Returns { [projectId]: { total, source } } for jobs with a budget above zero.
  */
 import { prisma } from '@/lib/db';
+import { sumCents } from '@/lib/money';
 import { calculateBudget } from '@/lib/calculations';
 import { responsesToSections } from '@/lib/utils';
 import { loadPricing, pricingForProject } from '@/lib/pricingLoader';
@@ -35,7 +36,7 @@ export async function budgetTotals(projectIds) {
 
   const latestMatrix = {};
   for (const m of matrices) {
-    const total = m.items.reduce((s, i) => s + (i.cnTotal || 0), 0);
+    const total = sumCents(m.items.map(i => i.cnTotal));
     if (!latestMatrix[m.projectId] || m.version >= latestMatrix[m.projectId].version) {
       latestMatrix[m.projectId] = { version: m.version, total };
     }

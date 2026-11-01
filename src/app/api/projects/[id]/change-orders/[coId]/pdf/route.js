@@ -3,6 +3,8 @@ import { requirePortalAuth } from '@/lib/portalAuth';
 import { prisma } from '@/lib/db';
 import { getProjectRates, calcGroupFooter, resolveLineItems, ratesForCO } from '@/lib/changeOrderRates';
 import { redact, audienceForRole, AUDIENCE } from '@/lib/redact';
+import { lineTotal } from '@/lib/money';
+import { PM_SELECT, pmPrint } from '@/lib/projectManagers';
 
 function fmt(n, showSign = false) {
   if (n == null || isNaN(n)) return '—';
@@ -53,11 +55,12 @@ export async function GET(req, { params }) {
     prisma.project.findUnique({
       where:  { id: params.id },
       select: { name: true, address: true, city: true, state: true, phase: true,
-                createdBy: { select: { name: true, email: true } },
+                assignees: PM_SELECT,
                 client:    { select: { name: true } } },
     }),
     getProjectRates(params.id),
   ]);
+  const pms = pmPrint(project?.assignees);
 
   if (!co || co.projectId !== params.id || (portalView && co.status === 'DRAFT')) {
     return new Response('<h1>Not Found</h1>', { status: 404, headers: { 'Content-Type': 'text/html' } });
@@ -80,12 +83,12 @@ export async function GET(req, { params }) {
     const mainItems  = group.lineItems.filter(li => !li.isOptionRow);
 
     const rows = mainItems.map((li, idx) => {
-      const totalCN = (li.qty || 0) * (li.cnUnitPrice || 0);
+      const totalCN = lineTotal(li.qty, li.cnUnitPrice);
       const myOptions = group.lineItems.filter(o => o.isOptionRow && o.parentLineItemId === li.id);
       const bg = idx % 2 === 0 ? '#ffffff' : '#fafafa';
 
       const optRows = myOptions.map(o => {
-        const oCN = (o.qty || 0) * (o.cnUnitPrice || 0);
+        const oCN = lineTotal(o.qty, o.cnUnitPrice);
         return `<tr style="background:#f0f7ff;font-style:italic;color:#64748b">
           <td style="padding-left:20px;font-size:8px">${o.optionLabel || 'Alt'}</td>
           <td colspan="2">${o.description || ''}</td>
@@ -223,8 +226,8 @@ td { padding:5px 6px; border-bottom:1px solid #f0f0f0; vertical-align:top; font-
       <div class="meta-item"><label>Date</label><span>${fmtDate(co.date)}</span></div>
       <div class="meta-item"><label>Project Name</label><span>${project?.name || '—'}</span></div>
       <div class="meta-item"><label>Client</label><span>${project?.client?.name || '—'}</span></div>
-      <div class="meta-item"><label>Project Manager</label><span>${project?.createdBy?.name || '—'}</span></div>
-      <div class="meta-item"><label>PM Email</label><span>${project?.createdBy?.email || '—'}</span></div>
+      <div class="meta-item"><label>Project Manager</label><span>${pms.names || '—'}</span></div>
+      <div class="meta-item"><label>PM Email</label><span>${pms.emails || '—'}</span></div>
       <div class="meta-item"><label>Location</label><span>${location || '—'}</span></div>
       <div class="meta-item"><label>Phase</label><span>${phaseLabel}</span></div>
     </div>
@@ -323,7 +326,7 @@ td { padding:5px 6px; border-bottom:1px solid #f0f0f0; vertical-align:top; font-
 
   <div class="terms-section">
     <h2>Questions</h2>
-    <p>Any questions regarding this change order should be directed to ${project?.createdBy?.email || 'orders@ilcstudios.com'}</p>
+    <p>Any questions regarding this change order should be directed to ${pms.emails || 'orders@ilcstudios.com'}</p>
   </div>
 
   <div class="page-footer">

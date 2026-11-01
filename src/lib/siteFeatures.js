@@ -34,6 +34,8 @@
  */
 import { SITE_FEATURE_TYPES, SITE_FEATURE_LABELS, LINEAR_SITE_FEATURES, normalizeSiteFeatures } from './siteFeatureWords.js';
 
+import { cents, lineTotal } from './money.js';
+
 export * from './siteFeatureWords.js';
 
 /**
@@ -92,7 +94,7 @@ export function siteFeatureFixtures(feature, rates = null) {
       const pkg = pos(R.playground?.packageEach, D.playground.packageEach);
       fixtures = count * per; fixtureKind = 'pedestrianPole'; each = pkg / per;
       how = `${count} dog park / playground${count === 1 ? '' : 's'} × ${usd(pkg)} package (${per} 12 ft pedestrian pole${per === 1 ? '' : 's'} each).`;
-      return { type, label, count, lengthFt, fixtures, fixtureKind, each, packageEach: pkg, product: count * pkg, how };
+      return { type, label, count, lengthFt, fixtures, fixtureKind, each, packageEach: pkg, product: lineTotal(count, pkg), how };
     }
     case 'tennisCourt':
     case 'pickleballCourt': {
@@ -120,7 +122,7 @@ export function siteFeatureFixtures(feature, rates = null) {
     default:
       return null;
   }
-  return { type, label, count, lengthFt, fixtures, fixtureKind, each, product: fixtures * each, how };
+  return { type, label, count, lengthFt, fixtures, fixtureKind, each, product: lineTotal(fixtures, each), how };
 }
 
 /**
@@ -140,7 +142,7 @@ export function priceSiteFeatures(list, rates = null) {
     if (r.fixtureKind === 'areaLight') areaLights += r.fixtures;
     else pedestrianPoles += r.fixtures;
   }
-  return { product, items, areaLights, pedestrianPoles };
+  return { product: cents(product), items, areaLights, pedestrianPoles };
 }
 
 const usd = n => '$' + Math.round(Number(n) || 0).toLocaleString('en-US');

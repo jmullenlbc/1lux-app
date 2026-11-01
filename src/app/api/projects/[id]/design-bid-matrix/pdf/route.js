@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { htmlToPdf } from '@/lib/pdf';
+import { lineTotal, sumCents } from '@/lib/money';
+import { PM_SELECT, pmPrint } from '@/lib/projectManagers';
 
 function fmtCurrency(n) {
   if (n == null || n === 0) return '—';
@@ -36,29 +38,24 @@ export async function GET(request, { params }) {
       items:          { where: { isArchived: false }, orderBy: [{ sortOrder: 'asc' }] },
       pushedBy:       { select: { name: true, email: true } },
       sourceSchedule: { select: { version: true, submissionTag: true } },
-      project:        { select: { name: true, client: { select: { name: true } } } },
+      project:        { select: { name: true, client: { select: { name: true } }, assignees: PM_SELECT } },
     },
   });
 
   if (!matrix) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  const totalCN = matrix.items.reduce((s, i) => {
-    return s + (i.cnTotal ?? ((i.cnPerUnit ?? 0) * (i.qty ?? 1)));
-  }, 0);
-  const totalDN = matrix.items.reduce((s, i) => {
-    return s + ((i.dnPerUnit ?? 0) * (i.qty ?? 1));
-  }, 0);
+  const totalCN = sumCents(matrix.items.map(i => i.cnTotal ?? lineTotal(i.qty ?? 1, i.cnPerUnit)));
+  const totalDN = sumCents(matrix.items.map(i => lineTotal(i.qty ?? 1, i.dnPerUnit)));
 
   const dateStr = fmtDate(matrix.createdAt);
   const projectName = matrix.project?.name ?? '';
   const clientName = matrix.project?.client?.name ?? '';
-  const pmName = matrix.pushedBy?.name ?? '';
-  const pmEmail = matrix.pushedBy?.email ?? '';
+  const { names: pmName, emails: pmEmail } = pmPrint(matrix.project?.assignees);
   const sourceTag = `Schedule v${matrix.sourceSchedule?.version}${matrix.sourceSchedule?.submissionTag ? ' · ' + matrix.sourceSchedule.submissionTag : ''}`;
   const title = `${dateStr} ${projectName} Design Bid Matrix v${matrix.version}`;
 
   const rows = matrix.items.map((item, idx) => {
-    const cnTotal = item.cnTotal ?? ((item.cnPerUnit ?? 0) * (item.qty ?? 1));
+    const cnTotal = item.cnTotal ?? lineTotal(item.qty ?? 1, item.cnPerUnit);
     return `
     <tr class="${idx % 2 === 0 ? 'even' : 'odd'}">
       <td>${item.type || ''}</td>

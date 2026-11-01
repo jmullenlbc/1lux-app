@@ -23,7 +23,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  scopedKey, notifyUser, notifyUsers, notifyProjectOwners,
+  scopedKey, notifyUser, notifyUsers, notifyProjectOwners, notifyProjectManagers,
 } from '../../src/lib/alerts.js';
 
 /**
@@ -32,7 +32,7 @@ import {
  * schema declares it. Anything that relies on per-user uniqueness fails here
  * the same way it would in production.
  */
-function fakeDb({ projects = {}, failWith = null, mutes = [] } = {}) {
+function fakeDb({ projects = {}, team = {}, failWith = null, mutes = [] } = {}) {
   const rows = [];
   const keys = new Set();
   return {
@@ -62,6 +62,9 @@ function fakeDb({ projects = {}, failWith = null, mutes = [] } = {}) {
     },
     project: {
       findUnique: async ({ where }) => projects[where.id] ?? null,
+    },
+    projectAssignee: {
+      findMany: async ({ where }) => team[where.projectId] ?? [],
     },
   };
 }
@@ -209,6 +212,36 @@ test('a project lookup that fails does not throw either', async () => {
     userAlert: { create: async () => { throw new Error('should never be reached'); } },
   };
   assert.deepEqual(await notifyProjectOwners('p1', NOTE, { db }), { sent: 0, skipped: 0 });
+});
+
+// ── Project Managers ────────────────────────────────────────────────────────
+
+const TEAM = { p1: [{ userId: 'u1', isPm: true }, { userId: 'u2', isPm: true }, { userId: 'u3', isPm: false }] };
+const OWNERS = { p1: { salesOwnerId: 'u9', preconManagerId: null } };
+
+test('every PM on the job is told, and the rest of the team is not', async () => {
+  const db = fakeDb({ team: TEAM, projects: OWNERS });
+  const res = await notifyProjectManagers('p1', NOTE, { db });
+  assert.equal(res.sent, 2);
+  assert.deepEqual(db.rows.map(r => r.userId), ['u1', 'u2']);
+});
+
+test('a job with no PM picked tells its team instead', async () => {
+  const db = fakeDb({ team: { p1: [{ userId: 'u3', isPm: false }] }, projects: OWNERS });
+  await notifyProjectManagers('p1', NOTE, { db });
+  assert.deepEqual(db.rows.map(r => r.userId), ['u3']);
+});
+
+test('a job with no team tells its owners, so the alert is never lost', async () => {
+  const db = fakeDb({ projects: OWNERS });
+  await notifyProjectManagers('p1', NOTE, { db });
+  assert.deepEqual(db.rows.map(r => r.userId), ['u9']);
+});
+
+test('a team lookup that fails does not throw', async () => {
+  const db = { projectAssignee: { findMany: async () => { throw new Error('no such table: ProjectAssignee'); } } };
+  assert.deepEqual(await notifyProjectManagers('p1', NOTE, { db }), { sent: 0, skipped: 0 });
+  assert.deepEqual(await notifyProjectManagers(null, NOTE, { db }), { sent: 0, skipped: 0 });
 });
 
 // ── What actually lands in the row ──────────────────────────────────────────

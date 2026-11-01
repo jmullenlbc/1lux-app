@@ -485,6 +485,7 @@ export default function ProjectHubClient({ userId, userRole, canEditMoney = fals
   const [showFlagNote,   setShowFlagNote]   = useState(false);
   const [assignees,      setAssignees]      = useState(project.assignees || []);
   const [showAssignees,  setShowAssignees]  = useState(false);
+  const [pmError,        setPmError]        = useState('');
   // Phone layout (Mike 10-29): project menu slides out, actions sit behind More.
   const [menuOpen,       setMenuOpen]       = useState(false);
   const [moreOpen,       setMoreOpen]       = useState(false);
@@ -602,6 +603,44 @@ export default function ProjectHubClient({ userId, userRole, canEditMoney = fals
       body: JSON.stringify({ userId }),
     });
     setAssignees(prev => prev.filter(a => a.id !== userId));
+  }
+
+  // A Project Manager is a team member with the PM flag, so taking the flag off
+  // leaves them on the team
+  async function setProjectManager(userId, isPm) {
+    setPmError('');
+    const res = await fetch(`/api/projects/${project.id}/assignees`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, isPm }),
+    }).catch(() => null);
+    if (!res?.ok) {
+      setPmError(`That Project Manager change did not save on our side. Nothing was changed. Try again.${res ? ` (Code ${res.status})` : ''}`);
+      return;
+    }
+    const u = allUsers.find(u => u.id === userId);
+    setAssignees(prev => prev.some(a => a.id === userId)
+      ? prev.map(a => a.id === userId ? { ...a, isPm } : a)
+      : (u ? [...prev, { ...u, isPm }] : prev));
+  }
+
+  function pickerRow(u, ticked, onClick) {
+    return (
+      <button key={u.id}
+        onClick={onClick}
+        className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left transition-colors ${ticked ? 'bg-amber-50 text-amber-800' : 'hover:bg-slate-50 text-slate-700'}`}
+      >
+        <div className="w-6 h-6 rounded-full bg-amber-100 text-amber-700 text-[11px] font-bold flex items-center justify-center shrink-0">
+          {initials(u)}
+        </div>
+        <span className="text-xs truncate">{u.name || u.email}</span>
+        {ticked && (
+          <svg className="w-3.5 h-3.5 text-amber-500 ml-auto shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+          </svg>
+        )}
+      </button>
+    );
   }
 
   async function saveClient() {
@@ -855,8 +894,8 @@ export default function ProjectHubClient({ userId, userRole, canEditMoney = fals
                   <div className="flex -space-x-1">
                     {assignees.map(u => (
                       <div key={u.id}
-                        className="w-6 h-6 rounded-full bg-amber-100 text-amber-700 text-[11px] font-bold flex items-center justify-center border-2 border-white"
-                        title={u.name || u.email}>
+                        className={`w-6 h-6 rounded-full text-[11px] font-bold flex items-center justify-center border-2 border-white ${u.isPm ? 'bg-orange-500 text-white' : 'bg-amber-100 text-amber-700'}`}
+                        title={u.isPm ? `${u.name || u.email}, Project Manager` : (u.name || u.email)}>
                         {initials(u)}
                       </div>
                     ))}
@@ -997,26 +1036,20 @@ export default function ProjectHubClient({ userId, userRole, canEditMoney = fals
               {/* Assignee picker */}
               {showAssignees && (
                 <div className="mt-2 bg-white border border-slate-200 rounded-xl shadow-lg p-3 w-full md:w-64">
-                  <div className="text-xs font-semibold text-slate-500 mb-2">Team Members</div>
+                  <div className="text-xs font-semibold text-slate-500">Project Managers</div>
+                  <div className="text-[11px] text-slate-400 mb-2">Printed on this job's PDFs. Told when a client approves a change order or asks for a release. Can publish the Ship Schedule.</div>
+                  <div className="space-y-1 max-h-48 overflow-y-auto">
+                    <PersonTickList users={allUsers} picker="projectManager" renderPerson={u => {
+                      const isPm = assignees.some(a => a.id === u.id && a.isPm);
+                      return pickerRow(u, isPm, () => setProjectManager(u.id, !isPm));
+                    }} />
+                  </div>
+                  {pmError && <p className="mt-1 text-[11px] text-red-600">{pmError}</p>}
+                  <div className="text-xs font-semibold text-slate-500 mt-3 mb-2">Team Members</div>
                   <div className="space-y-1 max-h-48 overflow-y-auto">
                     <PersonTickList users={allUsers} picker="projectAssignee" renderPerson={u => {
                       const assigned = assignees.some(a => a.id === u.id);
-                      return (
-                        <button key={u.id}
-                          onClick={() => assigned ? removeAssignee(u.id) : addAssignee(u.id)}
-                          className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left transition-colors ${assigned ? 'bg-amber-50 text-amber-800' : 'hover:bg-slate-50 text-slate-700'}`}
-                        >
-                          <div className="w-6 h-6 rounded-full bg-amber-100 text-amber-700 text-[11px] font-bold flex items-center justify-center shrink-0">
-                            {initials(u)}
-                          </div>
-                          <span className="text-xs truncate">{u.name || u.email}</span>
-                          {assigned && (
-                            <svg className="w-3.5 h-3.5 text-amber-500 ml-auto shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                            </svg>
-                          )}
-                        </button>
-                      );
+                      return pickerRow(u, assigned, () => assigned ? removeAssignee(u.id) : addAssignee(u.id));
                     }} />
                   </div>
                   <button onClick={() => setShowAssignees(false)} className="mt-2 text-xs text-slate-400 hover:text-slate-600 w-full text-center">

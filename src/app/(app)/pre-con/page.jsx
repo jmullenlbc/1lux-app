@@ -11,6 +11,8 @@ import { conceptualAccuracy } from '@/lib/budgetAmounts';
 import { CARD, H1, H2, HELPER, STAT_VALUE } from '@/components/ui/tokens';
 import SectionTabs from '@/components/ui/SectionTabs';
 import PreConRfqs from './PreConRfqs';
+import { sumCents } from '@/lib/money';
+import { matrixFooter } from '@/lib/bidMatrixTotals';
 
 const TABS = [
   { key: 'budgets', href: '/pre-con', label: 'Budgets' },
@@ -93,9 +95,8 @@ export default async function PreConPage({ searchParams }) {
     const freightPct    = pd?.freightPct    ?? 0.06;
     const warehousingPct = pd?.warehousingPct ?? 0.03;
     const salesTaxPct   = pd?.salesTaxPct   ?? 0;
-    const adderMult     = 1 + freightPct + warehousingPct + salesTaxPct;
-    const rawTotal      = p.peerReviewItems.reduce((s, i) => s + (i.totalSavings || 0), 0);
-    const grandTotal    = rawTotal > 0 ? rawTotal * adderMult : null;
+    const rawTotal      = sumCents(p.peerReviewItems.map(i => i.totalSavings));
+    const grandTotal    = rawTotal > 0 ? matrixFooter(rawTotal, 0, { freightPct, warehousingPct, salesTaxPct }).grandTotal : null;
     return {
       id: p.id,
       name: p.name,

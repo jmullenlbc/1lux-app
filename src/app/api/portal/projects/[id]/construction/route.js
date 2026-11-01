@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requirePortalAuth } from '@/lib/portalAuth';
 import { prisma } from '@/lib/db';
+import { publishedSchedule } from '@/lib/shipSchedulePublish';
 
 /**
  * GET /api/portal/projects/[id]/construction
@@ -47,13 +48,8 @@ export async function GET(req, { params }) {
     }
   } catch {}
 
-  // First upcoming delivery from ship schedule (not yet delivered/released)
-  const DELIVERED = ['RELEASED', 'DELIVERED'];
-  const firstDelivery = await prisma.shipment.findFirst({
-    where:   { project_id: params.id, esdDate: { not: null }, status: { notIn: DELIVERED } },
-    orderBy: { esdDate: 'asc' },
-    select:  { manufacturer: true, esdDate: true },
-  });
+  // First upcoming delivery from the published Ship Schedule
+  const { firstDelivery } = await publishedSchedule(prisma, params.id);
 
   return NextResponse.json({
     projectDates: {

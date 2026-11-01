@@ -1,7 +1,27 @@
 import { prisma } from '@/lib/db';
 import { getProjectRates, calcCOTotal } from '@/lib/changeOrderRates';
+import { notifyProjectManagers } from '@/lib/alerts';
+import { formatCurrency } from '@/lib/format';
 
 const CO_WITH_LINES = { optionGroups: { include: { lineItems: true } } };
+
+// Bell only until Microsoft gives us real email. A missed bell never fails the approval.
+async function tellProjectManagers({ projectId, co, option, amount, portalUserId }) {
+  try {
+    const [project, person] = await Promise.all([
+      prisma.project.findUnique({ where: { id: projectId }, select: { name: true } }),
+      prisma.portalUser.findUnique({ where: { id: portalUserId }, select: { name: true, email: true } }),
+    ]);
+    await notifyProjectManagers(projectId, {
+      type: 'CHANGE_ORDER_APPROVED',
+      title: `Change order approved: ${co.coNumber}`,
+      message: `${person?.name || person?.email || 'The client'} approved ${option} for ${formatCurrency(amount)} on ${project?.name || 'this job'}.`,
+      link: `/project/${projectId}/change-orders/${co.id}`,
+    });
+  } catch (err) {
+    console.error('[changeOrderApproval] could not tell the PMs:', err?.message ?? err);
+  }
+}
 
 /**
  * Approves a change order and logs who, when, how, which option and the total.
@@ -43,6 +63,7 @@ export async function approveChangeOrder({ projectId, coId, via, from, userId = 
   if (!approved) {
     return { status: 409, body: { error: 'This change order changed while you were approving it. Nothing was changed. Reload and try again.' } };
   }
+  if (via === 'PORTAL') await tellProjectManagers({ projectId, co, option: selected.label, amount, portalUserId });
   return { status: 200, body: { ok: true, amount } };
 }
 

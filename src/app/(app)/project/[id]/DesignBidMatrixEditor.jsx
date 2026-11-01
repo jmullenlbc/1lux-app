@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
+import { lineTotal, sumCents } from '@/lib/money';
 
 const RFQ_STATUSES = ['', 'Not Started', 'Sent', 'Received', 'Approved', 'N/A'];
 
@@ -238,9 +239,9 @@ export default function DesignBidMatrixEditor({ projectId }) {
 
   const visibleItems = showArchived ? matrix.items : matrix.items.filter(i => !i.isArchived);
 
-  // Compute totals for latest
-  const totalDN = visibleItems.reduce((s, i) => s + (i.dnPerUnit ?? 0), 0);
-  const totalCN = visibleItems.reduce((s, i) => s + (i.cnPerUnit ?? 0), 0);
+  // Compute totals for latest, the same way the PDF does: quantity times unit
+  const totalDN = sumCents(visibleItems.map(i => lineTotal(i.qty ?? 1, i.dnPerUnit)));
+  const totalCN = sumCents(visibleItems.map(i => i.cnTotal ?? lineTotal(i.qty ?? 1, i.cnPerUnit)));
 
   return (
     <div className="space-y-4">

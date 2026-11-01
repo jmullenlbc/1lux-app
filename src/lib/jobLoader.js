@@ -131,6 +131,7 @@ function changeOrderRows(cos, lines) {
       number: s(c.Number), title: s(c.Title), date: day(c.Date), status: s(c.Status).toUpperCase(),
       notes: s(c.Notes), rfi: s(c.RFI), options: [...options.values()],
       discountAmount: num(c.Discount), discountPct: num(c['Discount pct']), discountNote: s(c['Discount note']),
+      salesTaxPct: num(c['Sales tax pct']), salesTaxText: s(c['Sales tax pct']),
     };
   });
 }

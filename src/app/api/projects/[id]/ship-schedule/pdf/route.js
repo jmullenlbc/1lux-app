@@ -1,5 +1,6 @@
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { PM_SELECT, pmPrint } from '@/lib/projectManagers';
 
 function fmtDate(d) {
   if (!d) return '—';
@@ -27,7 +28,7 @@ export async function GET(req, { params }) {
     prisma.project.findUnique({
       where:  { id: params.id },
       select: { name: true, city: true, state: true, buildingType: true, phase: true,
-                createdBy: { select: { name: true, email: true } },
+                assignees: PM_SELECT,
                 client:    { select: { name: true } } },
     }),
     prisma.shipment.findMany({
@@ -39,6 +40,8 @@ export async function GET(req, { params }) {
       select: { lineItemId: true, qty: true },
     }),
   ]);
+
+  const pms = pmPrint(project?.assignees);
 
   const releaseTotals = {};
   for (const r of releases) releaseTotals[r.lineItemId] = (releaseTotals[r.lineItemId] || 0) + r.qty;
@@ -145,11 +148,11 @@ td { padding:4px 6px; border-bottom:1px solid #f0f0f0; vertical-align:top; }
   <div class="meta-grid">
     <div class="meta-item"><label>Project Name</label><span>${project?.name || '—'}</span></div>
     <div class="meta-item"><label>Client</label><span>${project?.client?.name || '—'}</span></div>
-    <div class="meta-item"><label>Project Manager</label><span>${project?.createdBy?.name || '—'}</span></div>
+    <div class="meta-item"><label>Project Manager</label><span>${pms.names || '—'}</span></div>
     <div class="meta-item"><label>Date</label><span>${today}</span></div>
     <div class="meta-item"><label>Location</label><span>${location || '—'}</span></div>
     <div class="meta-item"><label>Phase</label><span>${phaseLabel}</span></div>
-    <div class="meta-item"><label>PM Email</label><span>${project?.createdBy?.email || '—'}</span></div>
+    <div class="meta-item"><label>PM Email</label><span>${pms.emails || '—'}</span></div>
   </div>
 
   <!-- Summary stats -->

@@ -29,6 +29,7 @@ export const NOTIFICATION_TYPES = {
   MEETING_NOTE: { label: 'New meeting note', pattern: 'EVENT', external: true },
   // Change Orders
   CHANGE_ORDER_NEW: { label: 'New change order', pattern: 'EVENT', external: true },
+  CHANGE_ORDER_APPROVED: { label: 'Client approved a change order', pattern: 'EVENT', external: false },
   // Contracts
   COI_EXPIRING: { label: 'COI expiring in 1 month', pattern: 'THRESHOLD', external: true },
   // Construction Schedule
@@ -63,7 +64,7 @@ export const NOTIFICATION_MODULES = [
   { module: 'Budgets',           keys: ['BUDGET_SENT','BUDGET_UPDATED','BUDGET_20PCT'] },
   { module: 'Drawings',          keys: ['DRAWINGS_UPLOADED'] },
   { module: 'Contracts',         keys: ['CONTRACT_UPLOADED','CONTRACT_SIGNED','COI_EXPIRING'] },
-  { module: 'Change Orders',     keys: ['CHANGE_ORDER_NEW'] },
+  { module: 'Change Orders',     keys: ['CHANGE_ORDER_NEW','CHANGE_ORDER_APPROVED'] },
   { module: 'Meetings',          keys: ['MEETING_NOTE'] },
   { module: 'Construction Sched',keys: ['CONSCHED_3M','CONSCHED_2M','CONSCHED_1M','CONSCHED_2W'] },
   { module: 'Design Info',       keys: ['DESIGN_SCHEDULE_UPLOADED','DESIGN_DEADLINE_1M','DESIGN_DEADLINE_2W','DESIGN_DEADLINE_1W'] },

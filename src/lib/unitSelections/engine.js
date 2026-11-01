@@ -47,6 +47,7 @@
  * never travels with an option to a screen anyone outside ILC can open.
  */
 import { PRICING } from '../pricing.js';
+import { cents as round2 } from '../money.js';
 
 /** The five categories, in the order a survey walks them. */
 export const CATEGORIES = Object.freeze([
@@ -149,10 +150,6 @@ function num(v) {
   // A comma is always a thousands separator in this app.
   const n = Number(String(v).replace(/,/g, '').trim());
   return Number.isFinite(n) ? n : null;
-}
-
-function round2(n) {
-  return Math.round(n * 100) / 100;
 }
 
 /**

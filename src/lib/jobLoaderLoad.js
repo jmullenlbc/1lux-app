@@ -10,6 +10,7 @@ import { putProjectFile, keepProjectUpload } from '@/lib/projectFileStorage';
 import { deleteUploadedObject, typesForScope } from '@/lib/uploadStorage';
 import { saveQuote } from '@/lib/rfq/intakeQuote';
 import { LINE_STATUS } from '@/lib/rfq/format';
+import { lineTotal as moneyLine } from '@/lib/money';
 
 const VALID_TABS = ['drawings', 'correspondence', 'submittals', 'ca', 'contracts', 'meetings', 'designInfo', 'takeoffs', 'budgets', 'fixture-schedule', 'unit-matrix', 'site-plan', 'rfqs'];
 const DRAWING_TAGS = ['SD', 'DD', 'CD', 'IFC', 'ASI', 'RFI', 'PERMIT', 'OTHER'];
@@ -127,7 +128,7 @@ export async function loadProject(db, user, projectId, rows) {
   return out;
 }
 
-const lineTotal = r => (r.qty != null && r.propUnitPrice != null ? Math.round(r.qty * r.propUnitPrice * 100) / 100 : null);
+const lineTotal = r => (r.qty != null && r.propUnitPrice != null ? moneyLine(r.qty, r.propUnitPrice) : null);
 
 // The hub's Budget reads totalSavings on a Design Bid row, which the matrix keeps
 // at qty x CN. One row per sheet row: a type with several parts keeps each part.
@@ -313,6 +314,9 @@ export async function loadRfis(db, user, projectId, rows) {
   return out;
 }
 
+// A whole percent, 8.45 for 8.45%. 0 is real, a tax only change order has no tax of its own.
+const fairTax = v => v === 0 || (v >= 1 && v <= 25);
+
 export async function loadChangeOrders(db, user, projectId, rows) {
   const out = tally();
   const rate = (await db.projectData.findUnique({ where: { projectId }, select: { salesTaxPct: true } }))?.salesTaxPct ?? null;
@@ -336,10 +340,12 @@ export async function loadChangeOrders(db, user, projectId, rows) {
     };
     const takesDiscount = groups.find(o => o.isSelected) || (groups.length === 1 ? groups[0] : null);
     const status = oneOf(CO_STATUS, c.status, 'DRAFT');
+    const ownTax = c.salesTaxPct != null && fairTax(c.salesTaxPct) ? Math.round(c.salesTaxPct * 1e4) / 1e6 : null;
+    if (c.salesTaxText && ownTax == null) out.problems.push(`${c.number}: sales tax "${c.salesTaxText}" is not a percent like 8.45, so it took the job rate.`);
     if (!takesDiscount && (c.discountAmount != null || c.discountPct != null)) out.problems.push(`${c.number}: no option is chosen, so the discount was left off.`);
     await db.changeOrder.create({
       data: {
-        projectId, coNumber: c.number, title: c.title || c.number, date: stamp, status, salesTaxPct: status === 'DRAFT' ? rate : (rate ?? 0),
+        projectId, coNumber: c.number, title: c.title || c.number, date: stamp, status, salesTaxPct: ownTax ?? (status === 'DRAFT' ? rate : (rate ?? 0)),
         notes: blank(c.notes), createdById: user.id, createdAt: stamp, rfiId,
         ...(status === 'APPROVED' && {
           approvals: { create: { action: 'APPROVED', via: 'STAFF', userId: user.id, note: 'Loaded with Job Loader', optionLabel: takesDiscount?.label ?? null, createdAt: stamp } },

@@ -2,6 +2,7 @@
  * Change order money, the one place it is worked out. No database here, so
  * browser pages can import this too (changeOrderRates.js re-exports it).
  */
+import { cents, lineTotal, sumCents } from './money.js';
 
 /**
  * Get the effective line items for a group, resolves option groups so only
@@ -45,25 +46,26 @@ export function ratesForCO(changeOrder, rates) {
  * discount holds { discountAmount, discountPct }, usually the option group.
  */
 export function discountFor(discount, subtotal) {
-  if (discount?.discountPct != null) return subtotal * discount.discountPct;
-  return discount?.discountAmount ?? 0;
+  if (discount?.discountPct != null) return cents(subtotal * discount.discountPct);
+  return cents(discount?.discountAmount ?? 0);
 }
 
 /**
  * Calculate the footer for one option group's line items. The discount comes
  * off before tax, freight and warehousing, so those are worked on the
- * discounted figure. subtotal stays the undiscounted sum of the lines.
+ * discounted figure. subtotal stays the undiscounted sum of the lines. Every
+ * part is to the cent before the next step, so the footer adds up by hand.
  * Returns { subtotal, discount, tax, freight, warehousing, total }
  */
 export function calcGroupFooter(lineItems, rates, discountFrom = null) {
   const effective = resolveLineItems(lineItems);
-  const subtotal = effective.reduce((s, li) => s + ((li.qty || 0) * (li.cnUnitPrice || 0)), 0);
+  const subtotal = sumCents(effective.map(li => lineTotal(li.qty, li.cnUnitPrice)));
   const discount = discountFor(discountFrom, subtotal);
-  const net = subtotal - discount;
-  const tax        = rates?.salesTaxPct   != null ? net * rates.salesTaxPct   : 0;
-  const freight    = rates?.freightPct    != null ? net * rates.freightPct    : 0;
-  const warehousing = rates?.warehousingPct != null ? net * rates.warehousingPct : 0;
-  const total      = net + tax + freight + warehousing;
+  const net = cents(subtotal - discount);
+  const tax        = rates?.salesTaxPct   != null ? cents(net * rates.salesTaxPct)   : 0;
+  const freight    = rates?.freightPct    != null ? cents(net * rates.freightPct)    : 0;
+  const warehousing = rates?.warehousingPct != null ? cents(net * rates.warehousingPct) : 0;
+  const total      = sumCents([net, tax, freight, warehousing]);
   return { subtotal, discount, tax, freight, warehousing, total };
 }
 

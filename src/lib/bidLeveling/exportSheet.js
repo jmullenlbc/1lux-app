@@ -8,6 +8,7 @@
  */
 import { BID_FLAG_KEYS, FLAG_GROUPS, FLAG_STATE_LABELS } from './bidFlags.js';
 import { sageColumn } from './sageAlternates.js';
+import { cents } from '../money.js';
 
 const TOTAL_ROWS = [
   ['fixtures', 'Fixtures'], ['controls', 'Controls'], ['adders', 'Adders'], ['spares', 'Spares'],
@@ -17,7 +18,7 @@ const CONF_TEXT = { HIGH: 'High', MEDIUM: 'Medium', LOW: 'Low' };
 const MODE_TEXT = { RATIO: 'Scale to fixtures', AS_QUOTED: 'As quoted', FLAT: 'Same flat amount' };
 const GROUP_TEXT = { VE: 'Value engineering', ALT: 'Alternate' };
 
-const r2 = (n) => (n == null || !Number.isFinite(Number(n)) ? null : Math.round(Number(n) * 100) / 100);
+const r2 = (n) => (n == null || !Number.isFinite(Number(n)) ? null : cents(n));
 const rowLabel = (r) => r.typeTag + (r.variant === 'P' ? ' pole' : r.variant ? ` ${r.variant}` : '');
 // Stored quote dates are midnight UTC; today is the reader's own day.
 const day = (d) => (d ? new Date(d).toISOString().slice(0, 10) : '');

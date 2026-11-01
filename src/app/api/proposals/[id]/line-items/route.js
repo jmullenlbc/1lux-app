@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { cents } from '@/lib/money';
 
 // POST /api/proposals/[id]/line-items
 // Body: { items: [{id?, area, task, sortOrder, srHours, designerHours, salesHours, outsourceHours}] }
@@ -29,7 +30,7 @@ export async function POST(req, { params }) {
       + (li.salesHours     || 0) * SA
       + (li.outsourceHours || 0) * OU;
   }, 0);
-  const calculatedFee = rawLabor * (1 + (proposal.adderPct || 10) / 100);
+  const calculatedFee = cents(rawLabor * (1 + (proposal.adderPct || 10) / 100));
 
   const [, updated] = await prisma.$transaction([
     // Replace all line items

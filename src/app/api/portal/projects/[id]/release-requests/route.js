@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { notifyProjectManagers } from '@/lib/alerts';
 import { requirePortalAuth } from '@/lib/portalAuth';
 import { prisma } from '@/lib/db';
 import { enrichLineItem, LINE_ITEM_INCLUDE } from '@/lib/shipScheduleHelpers';
@@ -32,12 +33,14 @@ export async function POST(req, { params }) {
   const errors = [];
   for (const req_item of items) {
     const li = enriched.find(l => l.id === req_item.lineItemId);
-    if (!li) { errors.push(`Line item ${req_item.lineItemId} not found`); continue; }
+    if (!li) { errors.push('A line on this request is no longer on the Ship Schedule.'); continue; }
     if (li.qtyAtWarehouse < req_item.qtyRequested) {
-      errors.push(`${li.fixtureType}: requested ${req_item.qtyRequested} but only ${li.qtyAtWarehouse} at warehouse`);
+      errors.push(`${li.fixtureType}: you asked for ${req_item.qtyRequested}, but ${li.qtyAtWarehouse} are at the warehouse right now.`);
     }
   }
-  if (errors.length) return NextResponse.json({ error: errors.join('; ') }, { status: 400 });
+  if (errors.length) {
+    return NextResponse.json({ error: `${errors.join(' ')} This screen shows the last published schedule, so the warehouse may have changed. Nothing was requested. Lower the quantity or call your rep.` }, { status: 400 });
+  }
 
   // Create WarehouseRelease records with PENDING status
   const releases = await Promise.all(
@@ -55,23 +58,19 @@ export async function POST(req, { params }) {
     )
   );
 
-  // Alert the project owner (TODO: update to constructionPmId when roles are wired)
   const project = await prisma.project.findUnique({
     where:  { id: params.id },
-    select: { name: true, createdById: true },
+    select: { name: true },
   });
 
   const totalQty = items.reduce((s, i) => s + i.qtyRequested, 0);
-  await prisma.userAlert.create({
-    data: {
-      userId:    project.createdById,
+  await notifyProjectManagers(params.id, {
       type:      'WAREHOUSE_RELEASE_REQUEST',
       title:     `Release request: ${project.name}`,
       message:   `${portalUser.name || portalUser.email} requested ${totalQty} units across ${items.length} fixture type${items.length !== 1 ? 's' : ''}`,
       link:      `/project/${params.id}?tab=ship-schedule`,
       dedupeKey: `release-request-${params.id}-${Date.now()}`,
-    },
-  }).catch(() => {}); // non-blocking
+  });
 
   // TODO: send confirmation email to contractor (Step 5)
 

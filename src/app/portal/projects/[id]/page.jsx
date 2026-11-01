@@ -11,6 +11,12 @@ function fmtDate(d) {
   return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
+// A date with no time, stored at midnight UTC. Without this a US screen shows the day before.
+function fmtDay(d) {
+  if (!d) return '—';
+  return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
+}
+
 function fmtCurrency(n) {
   if (n == null) return '—';
   const abs = Math.abs(n);
@@ -83,6 +89,7 @@ function ShipScheduleView({ projectId }) {
   const [showRelModal,  setShowRelModal]  = useState(false);
   const [submitting,    setSubmitting]    = useState(false);
   const [submitted,     setSubmitted]     = useState(false);
+  const [relError,      setRelError]      = useState('');
 
   const load = () => {
     fetch(`/api/portal/projects/${projectId}/shipments`)
@@ -93,7 +100,7 @@ function ShipScheduleView({ projectId }) {
   useEffect(() => { load(); }, [projectId]);
 
   if (loading) return <Spinner />;
-  if (!data?.shipments?.length) return <Empty text="No shipments yet." />;
+  if (!data?.shipments?.length) return <Empty text="The Ship Schedule has not been published yet." />;
 
   const { shipments, stats } = data;
 
@@ -121,6 +128,7 @@ function ShipScheduleView({ projectId }) {
 
   async function submitRequest() {
     setSubmitting(true);
+    setRelError('');
     const items = Object.entries(selected)
       .filter(([, qty]) => qty > 0)
       .map(([lineItemId, qtyRequested]) => ({ lineItemId, qtyRequested: parseInt(qtyRequested) }));
@@ -134,12 +142,19 @@ function ShipScheduleView({ projectId }) {
         setSelected({});
         setShowRelModal(false);
         load();
+      } else {
+        const d = await res.json().catch(() => ({}));
+        setRelError(d.error || `The request did not go through on our side. Nothing was requested. Try again or call your rep. (Code ${res.status})`);
       }
+    } catch {
+      setRelError('We could not reach ILC Studios. Nothing was requested. Check your connection and try again.');
     } finally { setSubmitting(false); }
   }
 
   return (
     <>
+      {data.publishedAt && <p className={`${HELPER} mb-3`}>Published {fmtDate(data.publishedAt)}</p>}
+
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-5">
         {[
@@ -207,7 +222,7 @@ function ShipScheduleView({ projectId }) {
                   <td className="px-3 py-2.5 font-mono font-bold text-slate-800">{li.fixtureType}</td>
                   <td className="px-3 py-2.5 text-slate-600 max-w-[160px] truncate">{li.description}</td>
                   <td className="px-3 py-2.5 text-slate-500">{li.manufacturer || '—'}</td>
-                  <td className="px-3 py-2.5 text-slate-600 whitespace-nowrap">{li.esdDate ? fmtDate(li.esdDate) : '—'}</td>
+                  <td className="px-3 py-2.5 text-slate-600 whitespace-nowrap">{fmtDay(li.esdDate)}</td>
                   <td className="px-3 py-2.5"><StatusPill status={li.fixtureStatus || 'NOT_ORDERED'} /></td>
                   <td className="px-3 py-2.5 text-right font-semibold text-slate-700">{li.qty ?? '—'}</td>
                   <td className="px-3 py-2.5 text-right font-semibold text-slate-800 tabular-nums">{li.qtyAtWarehouse ?? 0}</td>
@@ -262,6 +277,7 @@ function ShipScheduleView({ projectId }) {
                   })}
                 </tbody>
               </table>
+              {relError && <p className="text-xs text-red-600 mb-3">{relError}</p>}
               <div className="flex gap-3">
                 <button onClick={() => setShowRelModal(false)} className={`${BTN_SECONDARY} flex-1`}>Cancel</button>
                 <button onClick={submitRequest} disabled={submitting}
@@ -788,7 +804,7 @@ function ConstructionScheduleView({ projectId }) {
           <div>
             <p className="text-[11px] font-semibold uppercase tracking-wide text-orange-700 mb-0.5">First delivery</p>
             <p className="text-sm font-bold text-slate-800">{firstDelivery.manufacturer}</p>
-            <p className="text-sm font-semibold text-orange-600">{fmtDate(firstDelivery.esdDate)}</p>
+            <p className="text-sm font-semibold text-orange-600">{fmtDay(firstDelivery.esdDate)}</p>
           </div>
         </div>
       )}

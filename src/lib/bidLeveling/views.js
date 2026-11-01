@@ -3,23 +3,22 @@
  * loader share them.
  */
 import { normalizeTag } from './normalizeTag.js';
+import { cents as r2, sumCents } from '../money.js';
 
-const r2 = (n) => Math.round(n * 100) / 100;
-
-const lineExt = (l) => (l.extPrice != null ? l.extPrice : l.unitPrice != null && l.qty != null ? l.unitPrice * l.qty : 0);
+const lineExt = (l) => (l.extPrice != null ? l.extPrice : l.unitPrice != null && l.qty != null ? r2(l.unitPrice * l.qty) : 0);
 
 /** VE and alternate packages per bid, with what the base bid pays for the same types. */
 export function packagesFor(bid) {
   const keyOf = (l) => normalizeTag(l.typeTag || l.typeTagRaw).matchKey;
   const base = new Map();
-  for (const l of bid.lines.filter((x) => x.optionGroup === 'BASE')) base.set(keyOf(l), (base.get(keyOf(l)) || 0) + lineExt(l));
+  for (const l of bid.lines.filter((x) => x.optionGroup === 'BASE')) base.set(keyOf(l), r2((base.get(keyOf(l)) || 0) + lineExt(l)));
   const groups = new Map();
   for (const l of bid.lines.filter((x) => x.optionGroup !== 'BASE')) {
     if (!groups.has(l.optionGroup)) groups.set(l.optionGroup, []);
     groups.get(l.optionGroup).push(l);
   }
   return [...groups.entries()].map(([group, lines]) => {
-    const total = lines.reduce((s, l) => s + lineExt(l), 0);
+    const total = sumCents(lines.map(lineExt));
     const tags = [...new Set(lines.map(keyOf))];
     const baseSame = tags.reduce((s, k) => s + (base.get(k) || 0), 0);
     return { group, lines: lines.length, types: [...new Set(lines.map((l) => l.typeTag))], total: r2(total), baseSameTypes: r2(baseSame), savings: r2(baseSame - total) };

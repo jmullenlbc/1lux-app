@@ -1,6 +1,7 @@
 // Controls math shared by the engine (calculations.js) and the internal
 // Controls screen, so the preview on the screen cannot drift from the budget.
 // Client-safe: only reads master pricing.
+import { cents } from './money.js';
 
 const num = (v, d = 0) => {
   const x = parseFloat(v);
@@ -67,6 +68,6 @@ export function controlsGaragePiece(P, { grossSf = 0, garageSf = 0, unitsSf = 0,
   const removed = Math.min(garage, Math.max(0, gross - floor));
   const grossIncludedGarage = removed >= garage;
   const buildingSf = gross - removed;
-  const dollars = Math.round(Math.min(maxD, Math.max(minD, garage * perSf)) * 100) / 100;
+  const dollars = cents(Math.min(maxD, Math.max(minD, garage * perSf)));
   return { buildingSf, garageSf: garage, garageRemovedSf: removed, dollars, grossIncludedGarage, perSf, minDollars: minD, maxDollars: maxD };
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requirePermission } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { cents } from '@/lib/money';
 import { looseNumberOrNull, looseInteger } from '@/lib/numberInput';
 
 // PATCH, update line item
@@ -23,7 +24,7 @@ export async function PATCH(req, { params }) {
   if (body.originalDN != null && body.cnUnitPrice == null && rates.marginPct != null) {
     const dn = looseNumberOrNull(body.originalDN);
     const factor = 1 - rates.marginPct;
-    if (dn != null && factor > 0) cnUnitPrice = Math.round((dn / factor) * 100) / 100;
+    if (dn != null && factor > 0) cnUnitPrice = cents(dn / factor);
   }
 
   const updated = await prisma.changeOrderLineItem.update({

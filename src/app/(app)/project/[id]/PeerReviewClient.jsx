@@ -9,7 +9,10 @@ import { appendUpload } from '@/lib/uploadClient';
 import { postParked } from '@/lib/parkedFetch';
 import ReadingWait, { READING_TIME_HINT } from '@/components/ReadingWait';
 import RepSelect from '@/components/rfq/RepSelect';
+import { cents as r2, lineTotal, sumCents } from '@/lib/money';
+import { matrixFooter } from '@/lib/bidMatrixTotals';
 import ConfirmArchiveModal, { setArchived, ArchiveBoxIcon, KEPT_ON_ARCHIVE_PAGE } from '@/components/salesAutomation/ConfirmArchiveModal';
+import { pmPrint } from '@/lib/projectManagers';
 
 // ── Location Tags ─────────────────────────────────────────────────────────────
 
@@ -64,29 +67,24 @@ function fmtDec(n) {
   if (n == null || n === '') return null;
   return '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
-function r2(n) { return Math.round((n ?? 0) * 100) / 100; }
 
 // A saved version totals its own rows at the sales tax it was saved with.
 // Freight and warehousing still follow the job.
 function versionTotals(matrix, { freightPctVal, warehousingPctVal, jobTaxPct }) {
   const rows = (matrix.items || []).filter(i => !i.isArchived);
-  const rowTotal = i => i.cnTotal ?? (i.cnPerUnit != null && i.qty != null ? i.cnPerUnit * i.qty : 0);
+  const rowTotal = i => i.cnTotal ?? (i.cnPerUnit != null && i.qty != null ? lineTotal(i.qty, i.cnPerUnit) : 0);
   const isControls = i => /control/i.test(i.locationTag || '');
   const lightingRows = rows.filter(i => !isControls(i));
   const controlRows = rows.filter(isControls);
-  const rawLighting = r2(lightingRows.reduce((s, i) => s + rowTotal(i), 0));
-  const rawControls = r2(controlRows.reduce((s, i) => s + rowTotal(i), 0));
-  const rawTotal = r2(rawLighting + rawControls);
   const salesTaxPctVal = matrix.salesTaxPct ?? jobTaxPct ?? 0;
-  const freightAmt = r2(rawTotal * freightPctVal);
-  const warehousingAmt = r2(rawTotal * warehousingPctVal);
-  const salesTaxAmt = r2(rawTotal * salesTaxPctVal);
-  const loaded = freightPctVal + warehousingPctVal + salesTaxPctVal;
+  const footer = matrixFooter(
+    sumCents(lightingRows.map(rowTotal)),
+    sumCents(controlRows.map(rowTotal)),
+    { freightPct: freightPctVal, warehousingPct: warehousingPctVal, salesTaxPct: salesTaxPctVal },
+  );
   return {
-    rawLighting, rawControls, rawTotal, salesTaxPctVal, freightAmt, warehousingAmt, salesTaxAmt,
-    subtotalLighting: r2(rawLighting + r2(rawLighting * loaded)),
-    subtotalControls: r2(rawControls + r2(rawControls * loaded)),
-    grandTotal: r2(rawTotal + freightAmt + warehousingAmt + salesTaxAmt),
+    ...footer,
+    salesTaxPctVal,
     lightingCount: lightingRows.length,
     controlsCount: controlRows.length,
   };
@@ -1364,7 +1362,7 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
     const p = { [field]: val };
     const qty = field === 'qty'           ? val : item.qty;
     const cn  = field === 'propUnitPrice' ? val : item.propUnitPrice;
-    if (qty != null && cn != null) p.totalSavings = r2(qty * cn);
+    if (qty != null && cn != null) p.totalSavings = lineTotal(qty, cn);
     patch(item.id, p);
   }
 
@@ -1375,7 +1373,7 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
       if (factor > 0) {
         const cn = r2(val / factor);
         p.propUnitPrice = cn;
-        if (item.qty != null) p.totalSavings = r2(item.qty * cn);
+        if (item.qty != null) p.totalSavings = lineTotal(item.qty, cn);
       }
     }
     patch(item.id, p);
@@ -1525,28 +1523,21 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
   const lightingItems  = items.filter(i => i.section !== 'controls');
   const controlsItems  = items.filter(i => i.section === 'controls');
 
-  // Raw CN sums, round the sum of already-rounded per-row totals
-  const rawLighting = r2(lightingItems.reduce((s, i) => s + (i.totalSavings || 0), 0));
-  const rawControls = r2(controlsItems.reduce((s, i) => s + (i.totalSavings || 0), 0));
-  const rawTotal    = r2(rawLighting + rawControls);
-
   // Adder rates
   const freightPctVal     = freightPct     ?? 0.06;
   const warehousingPctVal = warehousingPct ?? 0.03;
   const salesTaxPctVal    = salesTaxPct    ?? 0;
 
-  // Adder amounts, each rounded independently before summing
-  const freightAmt     = r2(rawTotal * freightPctVal);
-  const warehousingAmt = r2(rawTotal * warehousingPctVal);
-  const salesTaxAmt    = r2(rawTotal * salesTaxPctVal);
-  const totalAdders    = r2(freightAmt + warehousingAmt + salesTaxAmt);
+  const {
+    rawLighting, rawControls, rawTotal, freightAmt, warehousingAmt, salesTaxAmt,
+    totalAdders, subtotalLighting, subtotalControls, grandTotal,
+  } = matrixFooter(
+    sumCents(lightingItems.map(i => i.totalSavings)),
+    sumCents(controlsItems.map(i => i.totalSavings)),
+    { freightPct: freightPctVal, warehousingPct: warehousingPctVal, salesTaxPct: salesTaxPctVal },
+  );
 
-  // Loaded subtotals, apply adders proportionally, each rounded
-  const subtotalLighting = r2(rawLighting + r2(rawLighting * (freightPctVal + warehousingPctVal + salesTaxPctVal)));
-  const subtotalControls = r2(rawControls + r2(rawControls * (freightPctVal + warehousingPctVal + salesTaxPctVal)));
-  const grandTotal       = r2(rawTotal + totalAdders);
-
-  const grandDNTotal  = r2(items.reduce((s, i) => s + ((i.qty || 0) * (i.propUnitDN || 0)), 0));
+  const grandDNTotal  = sumCents(items.map(i => lineTotal(i.qty, i.propUnitDN)));
 
   const dollarPerSf   = grossSf  && grandTotal ? grandTotal / grossSf  : null;
   const dollarPerUnit = numUnits && grandTotal ? grandTotal / numUnits  : null;
@@ -1561,11 +1552,11 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
 
   const sectionTotals = Object.fromEntries(LOCATION_TAGS.map(s => [
     s.id,
-    r2(items.filter(i => i.section === s.id).reduce((sum, i) => sum + (i.totalSavings || 0), 0)),
+    sumCents(items.filter(i => i.section === s.id).map(i => i.totalSavings)),
   ]));
 
-  const secTotal   = r2(sectionItems.reduce((s, i) => s + (i.totalSavings || 0), 0));
-  const secDNTotal = r2(sectionItems.reduce((s, i) => s + ((i.qty || 0) * (i.propUnitDN || 0)), 0));
+  const secTotal   = sumCents(sectionItems.map(i => i.totalSavings));
+  const secDNTotal = sumCents(sectionItems.map(i => lineTotal(i.qty, i.propUnitDN)));
 
   // ── Render ───────────────────────────────────────────────────────────────────
 
@@ -2240,8 +2231,8 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
 
                   return groups.map(({ items: groupItems, isControls }, gi) => {
 
-                    const groupDNTotal = r2(groupItems.reduce((s, i) => s + ((i.qty || 0) * (i.propUnitDN || 0)), 0));
-                    const groupTotal   = r2(groupItems.reduce((s, i) => s + (i.totalSavings || 0), 0));
+                    const groupDNTotal = sumCents(groupItems.map(i => lineTotal(i.qty, i.propUnitDN)));
+                    const groupTotal   = sumCents(groupItems.map(i => i.totalSavings));
 
                     return (
                       <>
@@ -2277,7 +2268,7 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
 
 
                         {groupItems.map(item => {
-                          const cnTotal    = item.qty != null && item.propUnitPrice != null ? r2(item.qty * item.propUnitPrice) : null;
+                          const cnTotal    = item.qty != null && item.propUnitPrice != null ? lineTotal(item.qty, item.propUnitPrice) : null;
                           const isDeleting = deletingId === item.id;
                           return (
                             <tr key={item.id}
@@ -2562,7 +2553,7 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
         function pushSection(tag, isControls) {
           const tagItems = printSort(items.filter(i => i.section === tag.id));
           if (tagItems.length === 0) return;
-          const secCnTotal = r2(tagItems.reduce((s, i) => s + (i.totalSavings || 0), 0));
+          const secCnTotal = sumCents(tagItems.map(i => i.totalSavings));
 
           allRows.push(
             <tr key={`hdr-${tag.id}`} className={isControls ? 'pm-ctrl-hdr' : 'pm-sec-hdr'}>
@@ -2571,7 +2562,7 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
           );
 
           tagItems.forEach((item, idx) => {
-            const cnTotal = item.qty != null && item.propUnitPrice != null ? r2(item.qty * item.propUnitPrice) : null;
+            const cnTotal = item.qty != null && item.propUnitPrice != null ? lineTotal(item.qty, item.propUnitPrice) : null;
             allRows.push(
               <tr key={item.id || `${tag.id}-row-${idx}`} className={parity++ % 2 === 0 ? 'pm-odd' : 'pm-even'}>
                 <td style={{ fontWeight: 800, color: BLACK }}>{item.typeCode || ''}</td>
@@ -2647,8 +2638,8 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
                     </tr>
                     <tr><td className="lbl" style={{ paddingTop: '6px' }}>Project Manager</td><td className="lbl" style={{ paddingTop: '6px' }}>PM Email</td></tr>
                     <tr>
-                      <td style={{ paddingRight: '24px', fontWeight: 400 }}>{project.createdBy?.name || 'ILC Studios'}</td>
-                      <td style={{ fontWeight: 400 }}>{project.createdBy?.email || 'orders@ilcstudios.com'}</td>
+                      <td style={{ paddingRight: '24px', fontWeight: 400 }}>{pmPrint(project.assignees).names || 'ILC Studios'}</td>
+                      <td style={{ fontWeight: 400 }}>{pmPrint(project.assignees).emails || 'orders@ilcstudios.com'}</td>
                     </tr>
                     {(project.city || project.state) && (
                       <>
@@ -2830,7 +2821,7 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
                 Questions
               </div>
               <ul style={{ margin: 0, paddingLeft: '18px', lineHeight: 1.9, color: BLACK }}>
-                <li>Any questions regarding this quote should be directed to {project.createdBy?.email || 'orders@ilcstudios.com'}</li>
+                <li>Any questions regarding this quote should be directed to {pmPrint(project.assignees).emails || 'orders@ilcstudios.com'}</li>
               </ul>
             </div>
 

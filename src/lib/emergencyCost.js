@@ -14,6 +14,8 @@
 // pricing snapshots. A snapshot with no garageAisle block keeps the old rule
 // (garage at the corridor $/SF) so old budgets do not move.
 
+import { cents, lineTotal, sumCents } from './money.js';
+
 const num = (v, d = 0) => {
   const x = parseFloat(v);
   return Number.isFinite(x) ? x : d;
@@ -37,7 +39,7 @@ export function emergencyStrategyCost(P, strategyKey, { corridorSf = 0, intAmeni
   const fixtureEvery   = num(b.fixtureEvery, 2) || 2;
   const costPerFixture = num(b.costPerFixture, 120);
   const batteryCount = garageBattery ? Math.floor((gSf / sfPerFixture) / fixtureEvery) : 0;
-  const batteryCost  = batteryCount * costPerFixture;
+  const batteryCost  = lineTotal(batteryCount, costPerFixture);
 
   // Garage frogeyes by drive-aisle length (Option 2). Only when the price
   // sheet carries the garageAisle block; older snapshots fall back below.
@@ -53,15 +55,15 @@ export function emergencyStrategyCost(P, strategyKey, { corridorSf = 0, intAmeni
   // corridor $/SF unless the strategy carries its own garage $/SF.
   const garageRate = strategyKey === 'generator' ? 0 : (num(strat.garagePerSf) > 0 && flat == null ? num(strat.garagePerSf) : cRate);
 
-  const corridor = Math.max(0, num(corridorSf)) * cRate;
-  const amenity  = Math.max(0, num(intAmenitySf)) * aRate;
-  const garage   = garageBattery ? 0 : (garageAisle ? garageFrogeyeCount * costEach : gSf * garageRate);
+  const corridor = cents(Math.max(0, num(corridorSf)) * cRate);
+  const amenity  = cents(Math.max(0, num(intAmenitySf)) * aRate);
+  const garage   = garageBattery ? 0 : (garageAisle ? lineTotal(garageFrogeyeCount, costEach) : cents(gSf * garageRate));
 
   return {
     corridor, amenity, garage,
     garageBattery, batteryCount, batteryCost,
     sfPerFixture, fixtureEvery, costPerFixture,
     garageAisle, garageFt, garageFrogeyeCount, garageFrogeyeEach: costEach, aisleWidthFt, spacingFt,
-    total: corridor + amenity + garage + batteryCost,
+    total: sumCents([corridor, amenity, garage, batteryCost]),
   };
 }

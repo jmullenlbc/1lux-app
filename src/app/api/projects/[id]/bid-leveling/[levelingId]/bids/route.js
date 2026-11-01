@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db';
 import { guardLeveling } from '@/lib/bidLeveling/guard';
 import { bidLinesFromMatrix, bidLinesFromPeerReview, parsePastedLines } from '@/lib/bidLeveling/fromSources';
 import { cleanCheckedLines } from '@/lib/bidLeveling/readQuote';
+import { cents } from '@/lib/money';
 
 const MAX_LINES = 3000;
 const tooMany = (n) => `That quote has ${n.toLocaleString('en-US')} lines, more than the ${MAX_LINES.toLocaleString('en-US')} we can take, so nothing was saved. Split it into two quotes.`;
@@ -84,7 +85,7 @@ export async function POST(request, { params }) {
     if (amount != null) totals.push({ bucket, amount, sortOrder: i });
   });
   if (!totals.some((t) => t.bucket === 'FIXTURES') && hasUnitPricing) {
-    totals.unshift({ bucket: 'FIXTURES', amount: Math.round(baseFixtures(lines) * 100) / 100, sortOrder: 0 });
+    totals.unshift({ bucket: 'FIXTURES', amount: cents(baseFixtures(lines)), sortOrder: 0 });
   }
   if (!lines.length && !totals.length) return NextResponse.json({ error: 'This quote has no lines and no totals, so nothing was saved. Add its lines or type its totals.' }, { status: 400 });
 

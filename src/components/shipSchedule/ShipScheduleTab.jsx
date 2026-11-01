@@ -1,10 +1,17 @@
 'use client';
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { BTN_COMPACT_PRIMARY } from '@/components/ui/tokens';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function fmtDate(d) {
   if (!d) return '—';
   return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+// A date with no time, stored at midnight UTC. Without this a US screen shows the day before.
+function fmtDay(d) {
+  if (!d) return '—';
+  return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
 }
 
 const FIXTURE_STATUS_OPTIONS = [
@@ -350,6 +357,83 @@ function EmailShipModal({ projectId, onClose }) {
 }
 
 // ── Main Component ────────────────────────────────────────────────────────────
+// What clients see is the last published copy, not this table.
+function PublishBar({ projectId }) {
+  const [info,       setInfo]       = useState(null);
+  const [publishing, setPublishing] = useState(false);
+  const [err,        setErr]        = useState('');
+  const url = `/api/projects/${projectId}/ship-schedule/publish`;
+
+  const load = useCallback(() => {
+    fetch(url).then(r => (r.ok ? r.json() : null)).then(setInfo).catch(() => {});
+  }, [url]);
+  useEffect(() => { load(); }, [load]);
+
+  async function send(init) {
+    setErr('');
+    const res = await fetch(url, init).catch(() => null);
+    if (res?.ok) { load(); return; }
+    const d = await res?.json().catch(() => ({}));
+    setErr(d?.error || `This did not save on our side, and clients still see the last published copy. Try again. (Code ${res?.status ?? 'network'})`);
+  }
+
+  async function publish() {
+    setPublishing(true);
+    await send({ method: 'POST' });
+    setPublishing(false);
+  }
+
+  function saveDate(value) {
+    if (value === (info.autoPublishDate || '')) return;
+    send({
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ autoPublishDate: value || null }),
+    });
+  }
+
+  if (!info) return null;
+  const { last } = info;
+  const who = last?.how === 'AUTOMATIC' ? ' automatically' : last?.by ? ` by ${last.by}` : '';
+
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 border border-slate-200 rounded-xl px-4 py-2.5">
+      <p className="text-xs text-slate-600">
+        <span className="font-semibold text-slate-700">Client portal: </span>
+        {last
+          ? `${last.lines} line${last.lines === 1 ? '' : 's'} published ${fmtDate(last.publishedAt)}${who}. Clients do not see changes here until the next publish.`
+          : 'Not published yet. Clients see no Ship Schedule until you publish.'}
+      </p>
+      {info.canPublish ? (
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="flex items-center gap-2 text-xs text-slate-500">
+            Automatic publish date
+            <input
+              key={info.autoPublishDate || 'none'}
+              type="date"
+              defaultValue={info.autoPublishDate || ''}
+              min={new Date().toISOString().slice(0, 10)}
+              onBlur={e => saveDate(e.target.value)}
+              className="text-xs border border-slate-200 rounded-lg px-2 py-1 focus:outline-none focus:border-orange-500"
+            />
+          </label>
+          <button onClick={publish} disabled={publishing} className={BTN_COMPACT_PRIMARY}>
+            {publishing ? 'Publishing...' : 'Publish to portal'}
+          </button>
+        </div>
+      ) : (
+        <p className="text-xs text-slate-400">A Project Manager on this job or an admin publishes this.</p>
+      )}
+      {info.autoPublishDate && (
+        <p className="w-full text-xs text-slate-400">
+          Publishes once, the first time the portal or this tab opens on or after that date.
+        </p>
+      )}
+      {err && <p className="w-full text-xs text-red-600">{err}</p>}
+    </div>
+  );
+}
+
 export default function ShipScheduleTab({ projectId }) {
   const [items,         setItems]         = useState([]);
   const [loading,       setLoading]       = useState(true);
@@ -406,7 +490,7 @@ export default function ShipScheduleTab({ projectId }) {
           item.sourceBatchLabel,
           item.catalogNo,
           item.leadTimeWeeks,
-          item.esdDate ? fmtDate(item.esdDate) : '',
+          item.esdDate ? fmtDay(item.esdDate) : '',
           item.trackingNumber,
           item.notes,
         ].map(escape).join(',');
@@ -811,6 +895,8 @@ export default function ShipScheduleTab({ projectId }) {
 
       {/* Push banner */}
       {showPush && <PushBanner projectId={projectId} onPushed={load} />}
+
+      {items.length > 0 && <PublishBar projectId={projectId} />}
 
       {/* Pending warehouse release approvals banner */}
       {pendingReleases.length > 0 && (

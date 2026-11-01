@@ -1,6 +1,7 @@
 'use client';
 import QuestionCard from './QuestionCard';
 import { PRICING } from '@/lib/pricing';
+import { cents } from '@/lib/money';
 import { STAIR_TYPES, BREEZEWAY_STYLES, stairTypeFor, breezewayMultiplier } from '@/lib/stairLandings';
 
 /**
@@ -15,7 +16,7 @@ export default function StairTypeQuestions({ ans, set, projectData, pricing, has
   const P = pricing || PRICING;
   const STAIR_EACH = P.corridors?.stairwellPerLanding?.product ?? PRICING.corridors.stairwellPerLanding.product;
   const type = stairTypeFor(ans.stairType, projectData?.buildingTypeKey);
-  const rate = s => Math.round(STAIR_EACH * breezewayMultiplier(s, P) * 100) / 100;
+  const rate = s => cents(STAIR_EACH * breezewayMultiplier(s, P));
   const money = v => `$${Number(v).toLocaleString()}`;
   const landings = stairwells > 0 ? ` (${stairwells} landings)` : '';
 

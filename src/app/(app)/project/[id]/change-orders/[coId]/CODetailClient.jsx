@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { calcGroupFooter } from '@/lib/changeOrderTotals';
+import { cents, lineTotal } from '@/lib/money';
 import { HandOffNotice } from '@/components/rfq/SentNotice';
 
 // ── Manufacturer dropdown (fixed-position to escape overflow:hidden containers) ─
@@ -177,7 +178,7 @@ function InlineCell({ value, onSave, placeholder = '—', type = 'text', classNa
 
 // ── Line item row ─────────────────────────────────────────────────────────────
 function LineItemRow({ item, groupId, projectId, coId, manufacturers, rates, onUpdate, onDelete, onAddLine, onAddOption, onSelectOption, isLocked, canPick }) {
-  const totalCN = (item.qty || 0) * (item.cnUnitPrice || 0);
+  const totalCN = lineTotal(item.qty, item.cnUnitPrice);
   const [localCN, setLocalCN] = useState(item.cnUnitPrice ?? 0);
 
   useEffect(() => setLocalCN(item.cnUnitPrice ?? 0), [item.cnUnitPrice]);
@@ -196,7 +197,7 @@ function LineItemRow({ item, groupId, projectId, coId, manufacturers, rates, onU
     let cnVal = localCN;
     if (!isNaN(dnVal) && rates?.marginPct != null) {
       const factor = 1 - rates.marginPct;
-      if (factor > 0) cnVal = Math.round((dnVal / factor) * 100) / 100;
+      if (factor > 0) cnVal = cents(dnVal / factor);
     }
     setLocalCN(cnVal);
     await patch({ originalDN: isNaN(dnVal) ? null : dnVal });

@@ -128,3 +128,25 @@ export async function notifyProjectOwners(projectId, alert, { db } = {}) {
     return { sent: 0, skipped: 0 };
   }
 }
+
+/**
+ * Tell a job's Project Managers. Falls back to its Team Members, then its
+ * owners, so an alert is never lost on a job with no PM picked yet.
+ */
+export async function notifyProjectManagers(projectId, alert, { db } = {}) {
+  if (!projectId) return { sent: 0, skipped: 0 };
+  try {
+    const client = db || await defaultDb();
+    const team = await client.projectAssignee.findMany({
+      where:  { projectId },
+      select: { userId: true, isPm: true },
+    });
+    const pms = team.filter(t => t.isPm);
+    const to  = pms.length ? pms : team;
+    if (!to.length) return notifyProjectOwners(projectId, alert, { db: client });
+    return notifyUsers(to.map(t => t.userId), alert, { db: client });
+  } catch (err) {
+    console.error('[alerts] notifyProjectManagers failed:', err?.message ?? err);
+    return { sent: 0, skipped: 0 };
+  }
+}

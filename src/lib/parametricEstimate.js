@@ -6,6 +6,8 @@
  *
  * tierPrefs: { [masterTypeCode]: 'LOW_COST' | 'STANDARD' | 'UPGRADE' }
  */
+import { cents, lineTotal, sumCents } from './money.js';
+
 export function runParametricEstimate({
   fixtures     = [],
   ilcSpecs     = [],
@@ -40,7 +42,7 @@ export function runParametricEstimate({
       null;
 
     const unitCost = (spec?.budget_cost != null && spec.budget_cost >= 0) ? spec.budget_cost : null;
-    const total    = unitCost != null ? qty * unitCost : null;
+    const total    = unitCost != null ? lineTotal(qty, unitCost) : null;
 
     lineItems.push({
       code,
@@ -57,11 +59,11 @@ export function runParametricEstimate({
 
   // ── Totals ────────────────────────────────────────────────────────────────
   const coveredItems = lineItems.filter(li => li.hasCost);
-  const subtotal     = coveredItems.reduce((s, li) => s + li.total, 0);
-  const freight      = subtotal * freightRate;
-  const warehousing  = subtotal * warehousingRate;
-  const tax          = subtotal * salesTaxPct;
-  const grandTotal   = subtotal + freight + warehousing + tax;
+  const subtotal     = sumCents(coveredItems.map(li => li.total));
+  const freight      = cents(subtotal * freightRate);
+  const warehousing  = cents(subtotal * warehousingRate);
+  const tax          = cents(subtotal * salesTaxPct);
+  const grandTotal   = sumCents([subtotal, freight, warehousing, tax]);
 
   const missingCosts  = lineItems.some(li => !li.hasCost);
   const totalFixtures = Object.values(counts).reduce((s, c) => s + c, 0);

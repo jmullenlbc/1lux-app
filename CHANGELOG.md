@@ -5,6 +5,30 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Same rounding everywhere, Ship Schedule publish, picked PMs on PDFs, client approval bell] - October 31, 2026 (DEPLOYED October 31, 2026) - migrations 0151, 0152
+
+### Added
+- Project Managers: the people picker on a job has a new multi-select section above Team Members. A PM stays on the team, shown with an orange avatar. `ProjectAssignee.isPm`, migration 0151, additive only.
+- Client approval bell: when a client approves a change order in the portal, the job's Project Managers get a sidebar alert with who, which option and the amount. No PM picked falls to Team Members, then the job owners. Staff Mark Approved does not ring. Email waits on Microsoft.
+- Job Loader reads a new `Sales tax pct` column on the Change orders sheet, so each change order keeps the rate it printed. 0 is real. A value that is not a percent like 8.45 takes the job rate and is listed as a problem.
+- Ship Schedule publish: the client portal now shows the last published copy, never the live rows. A PM on the job or an admin presses Publish, or sets one automatic date that publishes once and clears. No scheduler exists, so the date fires the first time the portal or staff Ship Schedule opens on or after it. The Construction tab's first delivery reads the same copy. Before a first publish the portal says it has not been published yet. Stored as rows: `ShipSchedulePublish`, `ShipSchedulePublishLine`, `Project.shipAutoPublishAt`, migration 0152, additive only.
+- `src/lib/money.js` and `src/lib/bidMatrixTotals.js`: one rounding rule. Every money amount is rounded to the cent first and every later step uses the rounded number. A guard test fails if money is rounded by hand anywhere else.
+
+### Changed
+- Assignees route: POST takes `isPm`. A plain add leaves a PM a PM.
+- Change Order, Ship Schedule, Design Bid Matrix and Peer Review PDFs print the job's picked PMs, not the person who created the job.
+- Rounding moved to the one rule across change orders, budgets, controls, stair landings, unit selections, bid leveling, emergency, site features, proposals and the Pre-Con grand total. A quote's sub cent printed price stays as printed. A rate per SF is not rounded before it is multiplied. Whole dollar cards are unchanged.
+
+### Fixed
+- Design Bid Matrix screen footer added unit prices and ignored quantity, while its PDF multiplied by quantity. Both now multiply.
+- Bid Matrix: Lighting + Controls subtotals could be a penny off the Grand Total. Controls now take the remainder.
+- Ship dates showed one day early on client screens and the Ship Schedule CSV in a US browser.
+
+### Files
+- `prisma/schema.prisma`, `prisma/migrations/0151_project_pm/migration.sql`, `src/lib/alerts.js`, `src/lib/changeOrderApproval.js`, `src/lib/notificationTypes.js`, `src/lib/jobLoader.js`, `src/lib/jobLoaderLoad.js`, `src/app/api/projects/[id]/assignees/route.js`, `src/app/(app)/project/[id]/page.jsx`, `src/app/(app)/project/[id]/ProjectHubClient.jsx`, `scripts/tests/alerts.test.mjs`
+
+---
+
 ## [Client change order approval, frozen sales tax] - October 31, 2026 (DEPLOYED October 31, 2026) - migration 0150
 
 - Added: clients approve a sent change order in the portal with a button and a confirm step. The approval records who, when, which option and the amount. Portal approval is off per person until staff turn on Approve on the job's Contacts tab. The share link stays view only.

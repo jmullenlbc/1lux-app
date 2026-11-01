@@ -41,6 +41,7 @@
  * @see scripts/tests/stairLandings.test.mjs
  */
 import { PRICING } from './pricing.js';
+import { cents, lineTotal } from './money.js';
 
 function pos(v) {
   if (v === null || v === undefined || v === '') return null;
@@ -181,8 +182,8 @@ export function breezewayStairPackage(input, pricing = null) {
   const perLanding = num(pricing?.corridors?.stairwellPerLanding?.product, PRICING.corridors.stairwellPerLanding.product);
   const style = breezewayStyle(input?.style);
   const multiplier = breezewayMultiplier(style, pricing);
-  const ratePerLanding = Math.round(perLanding * multiplier * 100) / 100;
-  const product = Math.round(landings * ratePerLanding * 100) / 100;
+  const ratePerLanding = cents(perLanding * multiplier);
+  const product = lineTotal(landings, ratePerLanding);
 
   const def  = PRICING.breezewayStair;
   const live = pricing?.breezewayStair || {};

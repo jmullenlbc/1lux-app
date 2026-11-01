@@ -13,6 +13,7 @@
  */
 import { normalizeTag, rollUpLengths, FOLD_VARIANTS } from './normalizeTag.js';
 import { BID_FLAG_KEYS } from './bidFlags.js';
+import { cents as r2, sumCents } from '../money.js';
 
 const NOT_PRICED = new Set(['NO_QUOTE', 'NOT_USED']);
 /** specBasis of a pole cell whose price sits inside its head's price. */
@@ -22,12 +23,11 @@ const VARIANCE_UNITS = 25;
 const VARIANCE_DOLLARS = 2500;
 const TAX_TOLERANCE = 0.02;
 
-const r2 = (n) => Math.round(n * 100) / 100;
 const rowKey = (matchKey, variant) => (variant ? `${matchKey}/${variant}` : matchKey);
 const num = (v) => (v == null || v === '' ? null : Number(v));
 
 export function bucketSum(bid, bucket) {
-  return (bid.totals || []).filter((t) => t.bucket === bucket).reduce((s, t) => s + Number(t.amount || 0), 0);
+  return sumCents((bid.totals || []).filter((t) => t.bucket === bucket).map((t) => t.amount));
 }
 
 function lineUnitPrice(l) {
@@ -112,8 +112,8 @@ function cellsForBid(lines, uomHint) {
     const parent = cells.get(c.matchKey);
     cells.delete(k);
     if (!parent) { put(c.matchKey, '', { ...c, variant: '' }); continue; }
-    const addExt = c.extPrice ?? (c.unitPrice != null && c.qty != null ? c.unitPrice * c.qty : 0);
-    if (parent.extPrice != null) parent.extPrice += addExt;
+    const addExt = c.extPrice ?? (c.unitPrice != null && c.qty != null ? r2(c.unitPrice * c.qty) : 0);
+    if (parent.extPrice != null) parent.extPrice = sumCents([parent.extPrice, addExt]);
     if (parent.qty > 0 && parent.extPrice != null) parent.unitPrice = parent.extPrice / parent.qty;
     parent.folded = [...(parent.folded || []), c.variant];
   }
@@ -288,35 +288,35 @@ export function normalize(bids, baselineBidId, settings = {}, matrix = buildMatr
         // Pole already paid for in this bid's head price.
       } else if (base?.specBasis === IN_HEAD && hasQty(c) && c.unitPrice != null) {
         // The baseline prices poles inside the head: this bid's own pole line is added at its own qty.
-        fixturesOwnQty += c.qty * c.unitPrice;
-        poleOwnQty += c.qty * c.unitPrice;
+        fixturesOwnQty += r2(c.qty * c.unitPrice);
+        poleOwnQty += r2(c.qty * c.unitPrice);
         ownQtyLines.push({ typeTag: row.typeTag, variant: row.variant, qty: c.qty, uom: c.uom, amount: r2(c.qty * c.unitPrice), why: 'POLE_IN_HEAD' });
       } else if (hasQty(base)) {
         const sameUnit = !c?.uomMismatch;
         if (bid.id === baseId || (hasQty(c) && c.unitPrice != null && sameUnit)) {
-          fixturesMatched += base.qty * (bid.id === baseId ? (c.unitPrice || 0) : c.unitPrice);
+          fixturesMatched += r2(base.qty * (bid.id === baseId ? (c.unitPrice || 0) : c.unitPrice));
         } else {
           const p = placeholderFor(row, bid.id, bids, baseId, settings.placeholders);
-          const amount = base.qty * p.unit;
+          const amount = r2(base.qty * p.unit);
           fixturesPlaceholder += amount;
           placeholderLines.push({ typeTag: row.typeTag, variant: row.variant, qty: base.qty, uom: base.uom, unitPlaceholder: p.unit, basis: p.basis, amount: r2(amount), uomMismatch: !!c?.uomMismatch });
         }
       } else if (base && base.qty == null && !NOT_PRICED.has(base.specBasis) && hasQty(c) && c.unitPrice != null) {
         // The baseline lists the type with a blank qty (0 or marked not used stays out): use the bidder's own qty, flagged.
-        fixturesOwnQty += c.qty * c.unitPrice;
+        fixturesOwnQty += r2(c.qty * c.unitPrice);
         ownQtyLines.push({ typeTag: row.typeTag, variant: row.variant, qty: c.qty, uom: c.uom, amount: r2(c.qty * c.unitPrice) });
       } else if (hasQty(c)) {
         extras.push({ typeTag: row.typeTag, variant: row.variant, qty: c.qty, uom: c.uom, extPrice: c.extPrice != null ? r2(c.extPrice) : null });
       }
     }
 
-    const fixtures = fixturesMatched + fixturesPlaceholder + fixturesOwnQty;
-    const freight = ratioOrFlat(settings.freightMode || 'RATIO', settings.freightFlat, bucketSum(bid, 'FREIGHT'), ownFixtures, fixtures);
-    const warehousing = ratioOrFlat(settings.whMode || 'RATIO', settings.whFlat, bucketSum(bid, 'WAREHOUSING'), ownFixtures, fixtures);
+    const fixtures = sumCents([fixturesMatched, fixturesPlaceholder, fixturesOwnQty]);
+    const freight = r2(ratioOrFlat(settings.freightMode || 'RATIO', settings.freightFlat, bucketSum(bid, 'FREIGHT'), ownFixtures, fixtures));
+    const warehousing = r2(ratioOrFlat(settings.whMode || 'RATIO', settings.whFlat, bucketSum(bid, 'WAREHOUSING'), ownFixtures, fixtures));
     const taxRate = settings.taxRate ?? bid.taxRateStated ?? 0;
-    const taxBase = settings.taxBase === 'FIXTURES' ? fixtures : fixtures + controls;
-    const tax = taxRate * taxBase;
-    const grand = fixtures + controls + adders + spares + freight + warehousing + tax;
+    const taxBase = settings.taxBase === 'FIXTURES' ? fixtures : sumCents([fixtures, controls]);
+    const tax = r2(taxRate * taxBase);
+    const grand = sumCents([fixtures, controls, adders, spares, freight, warehousing, tax]);
 
     // A pole line is the bid's own real price, so it does not lower confidence.
     const placeholderShare = fixtures > 0 ? (fixturesPlaceholder + fixturesOwnQty - poleOwnQty) / fixtures : 0;

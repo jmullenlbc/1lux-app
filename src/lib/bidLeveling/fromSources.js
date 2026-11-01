@@ -12,6 +12,7 @@
 import { normalizeTag } from './normalizeTag.js';
 import { swapOutcome } from '../specSwap/family.js';
 import { toNumber } from '../matrixImport/readMatrix.js';
+import { cents } from '../money.js';
 
 const firstLine = (s) => String(s ?? '').split(/\r?\n/)[0].trim();
 const blank = (s) => (s == null || String(s).trim() === '' ? null : String(s).trim());
@@ -87,7 +88,7 @@ export function bidLinesFromPeerReview(items) {
         qty,
         uom: uomOf(it.qtyType),
         unitPrice: unit,
-        extPrice: unit != null && qty != null ? Math.round(unit * qty * 100) / 100 : null,
+        extPrice: unit != null && qty != null ? cents(unit * qty) : null,
         requestedMfr: blank(it.specManufacturer),
         requestedCatalog: blank(firstLine(it.specModel)),
         specBasis: specBasisOf(swapOutcome(l), !blank(it.propManufacturer) && !blank(it.propModel) && qty == null),
@@ -131,7 +132,7 @@ export function columnsOf(head) {
 export function lineFromCells(get, sortOrder) {
   const qty = toNumber(get('qty'));
   const unitPrice = toNumber(get('unitPrice'));
-  const extPrice = toNumber(get('extPrice')) ?? (unitPrice != null && qty != null ? Math.round(unitPrice * qty * 100) / 100 : null);
+  const extPrice = toNumber(get('extPrice')) ?? (unitPrice != null && qty != null ? cents(unitPrice * qty) : null);
   const mfr = blank(get('mfr'));
   const catalog = blank(get('catalog'));
   const requestedMfr = blank(get('requestedMfr'));

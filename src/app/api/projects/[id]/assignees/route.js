@@ -18,7 +18,7 @@ export async function GET(request, { params }) {
     include: { user: { select: { id: true, name: true, email: true } } },
   });
 
-  return NextResponse.json({ assignees: assignees.map(a => a.user) });
+  return NextResponse.json({ assignees: assignees.map(a => ({ ...a.user, isPm: a.isPm })) });
 }
 
 export async function POST(request, { params }) {
@@ -26,13 +26,15 @@ export async function POST(request, { params }) {
   if (error) return error;
   if (!await canAccess(params.id, user)) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
-  const { userId } = await request.json();
+  const { userId, isPm } = await request.json();
   if (!userId) return NextResponse.json({ error: 'userId required' }, { status: 400 });
 
+  // Left alone unless it was sent, so adding a team member keeps a PM a PM
+  const pm = typeof isPm === 'boolean' ? { isPm } : {};
   await prisma.projectAssignee.upsert({
     where: { projectId_userId: { projectId: params.id, userId } },
-    create: { projectId: params.id, userId },
-    update: {},
+    create: { projectId: params.id, userId, ...pm },
+    update: pm,
   });
 
   return NextResponse.json({ ok: true });

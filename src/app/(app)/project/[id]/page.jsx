@@ -117,7 +117,7 @@ export default async function ProjectHubPage({ params }) {
         ...project,
         responses:      undefined,
         completedSteps: JSON.parse(project.completedSteps || '[]'),
-        assignees:      project.assignees.map(a => a.user),
+        assignees:      project.assignees.map(a => ({ ...a.user, isPm: a.isPm })),
       }}
       budget={budget}
       peerReviewTotal={peerReviewTotal}

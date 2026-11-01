@@ -34,6 +34,7 @@ model User {
   updatedAt                  DateTime                     @updatedAt
   invitedById                String?
   projects                   Project[]
+  shipPublishes              ShipSchedulePublish[]        @relation("ShipPublisher")
   clients                    Client[]
   assignedProjects           ProjectAssignee[]
   uploadedFiles              ProjectFile[]
@@ -705,6 +706,7 @@ model Project {
   expectedContractExecutionDate DateTime?
   // Maram 9-17 / Mike 9-19: the sub-type under Project Type — a BUILDING_TYPES key from utils.js (garden, wrap, podium …).
   projectSubtype                String?
+  shipAutoPublishAt             DateTime? // Ship Schedule publishes once on this date, then it clears
   salesOwnerId                  String? // the ONE project owner across the platform
   salesOwner                    User?          @relation("ProjectSalesOwner", fields: [salesOwnerId], references: [id])
   preconManagerId               String?
@@ -801,6 +803,7 @@ model Project {
   priceHistory         ProductPriceHistory[]       @relation("PriceHistory")
   emails               EmailMessage[]
   shipSchedulePushes   ShipSchedulePush[]
+  shipSchedulePublishes ShipSchedulePublish[]
   rfis                 RFI[]
   rfiRoutingMode       String?                     @default("DIRECT")
   submittalOpenItems   SubmittalOpenItem[]         @relation("SubmittalOpenItems") // DIRECT|THROUGH_ARCHITECT|REVIEW_ONLY
@@ -932,6 +935,7 @@ model ProjectAssignee {
   id        String   @id @default(cuid())
   projectId String
   userId    String
+  isPm      Boolean  @default(false) // a Project Manager on this job: printed on PDFs, told when a client approves a change order
   project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
@@ -2120,6 +2124,7 @@ model ShipmentLineItem {
   isRemoved        Boolean                     @default(false)
   releases         WarehouseRelease[]
   deliveryEvents   ManufacturerDeliveryEvent[]
+  publishedLines   ShipSchedulePublishLine[]
   createdAt        DateTime                    @default(now())
   updatedAt        DateTime                    @updatedAt
 }
@@ -2175,6 +2180,51 @@ model ShipSchedulePush {
   summary       String? // JSON { added, updated, removed }
 
   @@index([projectId])
+}
+
+// A published copy of the Ship Schedule. The client portal reads the newest one,
+// never the live rows (Mike 2026-10-31).
+model ShipSchedulePublish {
+  id            String                    @id @default(cuid())
+  projectId     String
+  project       Project                   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  how           String // "MANUAL" | "AUTOMATIC"
+  publishedById String? // blank when the job's automatic date published it
+  publishedBy   User?                     @relation("ShipPublisher", fields: [publishedById], references: [id], onDelete: SetNull)
+  publishedAt   DateTime                  @default(now())
+  lines         ShipSchedulePublishLine[]
+
+  @@index([projectId, publishedAt])
+}
+
+model ShipSchedulePublishLine {
+  id               String              @id @default(cuid())
+  publishId        String
+  publish          ShipSchedulePublish @relation(fields: [publishId], references: [id], onDelete: Cascade)
+  lineItemId       String? // the live line, so a release request lands on it
+  lineItem         ShipmentLineItem?   @relation(fields: [lineItemId], references: [id], onDelete: SetNull)
+  shipmentId       String
+  manufacturer     String
+  shipmentStatus   String
+  shipmentEsdDate  DateTime?
+  destinationType  String
+  fixtureType      String
+  description      String
+  catalogNo        String?
+  qty              Int
+  qtyType          String?
+  fixtureStatus    String?
+  sourceBatchLabel String?
+  esdDate          DateTime?
+  leadTimeWeeks    String?
+  trackingNumber   String?
+  sortOrder        Int                 @default(0)
+  qtyAtWarehouse   Int
+  qtyOnSite        Int
+  qtyBackordered   Int
+
+  @@index([publishId])
+  @@index([lineItemId])
 }
 
 model ProjectNotificationConfig {

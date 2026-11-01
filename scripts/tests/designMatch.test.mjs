@@ -55,7 +55,7 @@ test('garage frogeyes by drive-aisle length: 156,000 SF = 2,600 ft = 104 frogeye
   assert.equal(c.garage, 2600);
   // Frozen snapshot without the garageAisle block keeps the old corridor-rate rule.
   const old = { ...PRICING, emergency: { ...PRICING.emergency, garageAisle: undefined } };
-  assert.equal(emergencyStrategyCost(old, 'frogeyes', { garageSf: 156000 }).garage, 156000 * 0.17);
+  assert.equal(emergencyStrategyCost(old, 'frogeyes', { garageSf: 156000 }).garage, 26520);
   // The engine exposes the count on the emergency line.
   const e = budget({ emergency: { strategy: 'frogeyes' } }, { ...PD, garageSf: 156000 }).sections.emergency;
   assert.deepEqual(e.garageFrogeyes, { count: 104, aisleFt: 2600, each: 25, cost: 2600 });

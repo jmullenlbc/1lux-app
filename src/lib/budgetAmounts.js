@@ -9,6 +9,7 @@
  * Pure: safe in the browser. The writer takes the database client as an
  * argument so it can be tested without one.
  */
+import { cents } from './money.js';
 
 export const BUDGET_TIERS = ['conceptual', 'budget', 'po'];
 export const BUDGET_TIER_LABELS = { conceptual: 'Conceptual', budget: 'Budget', po: 'Signed PO' };
@@ -50,7 +51,7 @@ export function currentBudgetAmount(rows) {
 /** Reads a typed or parsed amount. Null when it is not a positive dollar figure. */
 export function cleanAmount(v) {
   const n = typeof v === 'number' ? v : Number(String(v ?? '').replace(/[$,\s]/g, ''));
-  return Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : null;
+  return Number.isFinite(n) && n > 0 ? cents(n) : null;
 }
 
 /**

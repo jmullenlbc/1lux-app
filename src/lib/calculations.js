@@ -9,6 +9,7 @@ import { amenityRate } from './amenityLevel.js';
 import { priceSiteFeatures } from './siteFeatures.js';
 import { surfaceStalls } from './surfaceParkingDefault.js';
 import { energyCreditPcts, controlsGaragePiece } from './controlsMath.js';
+import { cents, lineTotal, sumCents } from './money.js';
 
 // Safely convert any value to a finite number
 function n(val, fallback = 0) {
@@ -146,11 +147,11 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   // Base rate applies to gross SF in design mode.
   // The $0.38/SF encompasses the typical design package: 7" flat edge-lit disks,
   // decorative unit entry, 4 dimmers/unit. Deviations from defaults are adders/credits.
-  const baseProduct = (unitsSf || grossSf) * PRICING.base.perSf;
+  const baseProduct = cents((unitsSf || grossSf) * PRICING.base.perSf);
 
   // Undercabinet
   const ucPricing           = PRICING.undercabinet[units.undercabinet || 'none'] || PRICING.undercabinet.none;
-  const undercabinetProduct = n(ucPricing.product) * numUnits;
+  const undercabinetProduct = lineTotal(numUnits, n(ucPricing.product));
 
   // Kitchen pendants
   // An override only applies to a selected upgrade. If the answer is "None" the
@@ -161,7 +162,7 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   const pendantsUnit    = pendantsChosen
     ? (priceOverride(units.kitchenPendantsPrice) ?? n(pendantPricing.product))
     : 0;
-  const pendantsProduct = pendantsUnit * numUnits;
+  const pendantsProduct = lineTotal(numUnits, pendantsUnit);
 
   // Ceiling fans: use explicit pd.numFans when set (from project data field),
   // otherwise fall back to ROUND(numUnits × room multiplier)
@@ -192,7 +193,7 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   // it. Typing $200 means $200 per fan.
   const fanOverride = (units.fans || 'none') !== 'none' ? priceOverride(units.fansPrice) : null;
   if (fanOverride !== null) fanPricePerFan = fanOverride;
-  const fansProduct = fanCount * fanPricePerFan;
+  const fansProduct = lineTotal(fanCount, fanPricePerFan);
 
   // Vanity lighting: master holds GROSS; subtract the bath-bar credit per vanity
   // (the base $0.38/SF already includes a bath bar). bathBarLow (gross 0) stays 0.
@@ -206,7 +207,7 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   const vanityNet      = vanityOverride !== null
     ? vanityOverride
     : (vanityGross > 0 ? Math.max(0, vanityGross - vanityCredit) : 0);
-  const vanityProduct  = vanityNet * numVanities;
+  const vanityProduct  = lineTotal(numVanities, vanityNet);
 
   // Balcony fixtures
   const balconyPricing = PRICING.balcony[units.balcony || 'none'] || PRICING.balcony.none;
@@ -214,12 +215,12 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   const balconyUnit    = balconyChosen
     ? (priceOverride(units.balconyPrice) ?? n(balconyPricing.product))
     : 0;
-  const balconyProduct = balconyUnit * numBalconies;
+  const balconyProduct = lineTotal(numBalconies, balconyUnit);
 
   // Manual adder
-  const unitsManualAdder = n(units.manualAdder);
+  const unitsManualAdder = cents(units.manualAdder);
 
-  const unitsProductTotal = baseProduct + undercabinetProduct + pendantsProduct + fansProduct + vanityProduct + balconyProduct + unitsManualAdder;
+  const unitsProductTotal = sumCents([baseProduct, undercabinetProduct, pendantsProduct, fansProduct, vanityProduct, balconyProduct, unitsManualAdder]);
 
   // ─── CORRIDORS / STAIRWELLS ───────────────────────────────────────────────
   // Disk rate: conceptual budget uses 0.27/SF (10ft average). Design questionnaire
@@ -233,7 +234,7 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
       diskRate = (PRICING.designCorridors?.diskSpacingRates || {})[spacing] ?? diskRate;
     }
   }
-  const diskProduct = corridorSf * diskRate;
+  const diskProduct = cents(corridorSf * diskRate);
 
   // Unit-entry sconces
   const sconcePricing    = PRICING.corridorSconce[corridors.unitSconce || 'none'] || PRICING.corridorSconce.none;
@@ -241,7 +242,7 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   const sconceUnit       = sconceChosen
     ? (priceOverride(corridors.unitSconcePrice) ?? n(sconcePricing.product))
     : 0;
-  const sconceProduct    = sconceUnit * numUnits;
+  const sconceProduct    = lineTotal(numUnits, sconceUnit);
 
   // Stairwells. Enclosed corridor-building stairs: LED strip + battery per
   // landing. Breezeway stairs (the Corridors "stair type" answer, else garden /
@@ -254,22 +255,22 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   );
   const stairwellProduct = breezewayStairs
     ? breezewayStairs.product
-    : stairwells * PRICING.corridors.stairwellPerLanding.product;
+    : lineTotal(stairwells, PRICING.corridors.stairwellPerLanding.product);
 
   // Recessed accent downlights (fire-rated adjustable)
   const accentProduct = numAccents > 0
-    ? numAccents * n(PRICING.designCorridors?.accentDownlightEach, 120)
+    ? lineTotal(numAccents, n(PRICING.designCorridors?.accentDownlightEach, 120))
     : 0;
 
   // Manual adder
-  const corridorsManualAdder = n(corridors.manualAdder);
+  const corridorsManualAdder = cents(corridors.manualAdder);
 
-  const corridorProductTotal = diskProduct + sconceProduct + stairwellProduct + accentProduct + corridorsManualAdder;
+  const corridorProductTotal = sumCents([diskProduct, sconceProduct, stairwellProduct, accentProduct, corridorsManualAdder]);
 
   // ─── BOH / CORE + SHELL ───────────────────────────────────────────────────
-  const bohBaseProduct = bohSf * PRICING.boh.perSf;
-  const bohManualAdder = n(projectData.bohManualAdder);
-  const bohProduct = bohBaseProduct + bohManualAdder;
+  const bohBaseProduct = cents(bohSf * PRICING.boh.perSf);
+  const bohManualAdder = cents(projectData.bohManualAdder);
+  const bohProduct = sumCents([bohBaseProduct, bohManualAdder]);
 
   // ─── INTERIOR AMENITIES ───────────────────────────────────────────────────
   const intLevelRaw = amenities.interiorLevel || 'medium';
@@ -281,14 +282,14 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
     const parsed = parseFloat(intLevelRaw);
     intAmenityRate = (isFinite(parsed) && parsed > 0) ? parsed : PRICING.interiorAmenities.medium;
   }
-  const intAmenityBaseProduct = intAmenitySf * intAmenityRate;
-  const interiorManualAdder = n(amenities.manualAdder);
-  const intAmenityProduct = intAmenityBaseProduct + interiorManualAdder;
+  const intAmenityBaseProduct = cents(intAmenitySf * intAmenityRate);
+  const interiorManualAdder = cents(amenities.manualAdder);
+  const intAmenityProduct = sumCents([intAmenityBaseProduct, interiorManualAdder]);
 
   // ─── GARAGE ───────────────────────────────────────────────────────────────
-  const garageBaseProduct = garageSf * PRICING.garage.perSf;
-  const garageManualAdder = n(projectData.garageManualAdder);
-  const garageProduct = garageBaseProduct + garageManualAdder;
+  const garageBaseProduct = cents(garageSf * PRICING.garage.perSf);
+  const garageManualAdder = cents(projectData.garageManualAdder);
+  const garageProduct = sumCents([garageBaseProduct, garageManualAdder]);
 
   // ─── EXTERIOR ─────────────────────────────────────────────────────────────
   // The public questionnaire stores this answer as a bare dollar figure
@@ -304,7 +305,7 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   // Only '24hrs or after dark' doubles the exterior amenity line (Mike,
   // 2026-09-01: "dusk to dawn does not get the 2x multiplier. it is as is cost").
   const nightMultiplier = amenityHours === 'afterSunset' ? PRICING.exteriorAmenities.nighttimeMultiplier : 1;
-  const extAmenityProduct = extAmenitySf * extAmenityRate * nightMultiplier;
+  const extAmenityProduct = cents(extAmenitySf * extAmenityRate * nightMultiplier);
 
   const stallsPerFixture = PRICING.exterior.surfaceParking.stallsPerFixture ?? 9;
   // Drive-lane area lights: the same area light + pole, along a private drive
@@ -345,9 +346,9 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   // exterior.upgradedMultiplier on the master pricing sheet.
   const upgradedSite       = exterior.siteDesignLevel === 'upgraded';
   const upgradedMultiplier = upgradedSite ? n(PRICING.exterior.upgradedMultiplier, 1.25) : 1;
-  const parkingProduct   = parkingFixtures * (PRICING.exterior.surfaceParking.perFixture ?? PRICING.exterior.surfaceParking.perStall ?? 1325) * solarMultiplier;
-  const carportProduct   = Math.floor(numCarports / 2) * PRICING.exterior.carport.diskEveryOther;
-  const garageExtProduct = numGarages * n(PRICING.exterior.detachedGarage.stripPerGarage, 65); // 1 strip per garage (Mike 10-2)
+  const parkingProduct   = cents(parkingFixtures * (PRICING.exterior.surfaceParking.perFixture ?? PRICING.exterior.surfaceParking.perStall ?? 1325) * solarMultiplier);
+  const carportProduct   = lineTotal(Math.floor(numCarports / 2), PRICING.exterior.carport.diskEveryOther);
+  const garageExtProduct = lineTotal(numGarages, n(PRICING.exterior.detachedGarage.stripPerGarage, 65)); // 1 strip per garage (Mike 10-2)
 
   // Building wallpacks, per-BUILDING model, wired per Mike 2026-08-12: "Wire it
   // but give us a manual override of quantity and unit price."
@@ -384,7 +385,7 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
     : 0;
   const wpQty          = priceOverride(exterior.wallpacksQty)   ?? wpAutoQty;
   const wpEach         = priceOverride(exterior.wallpacksPrice) ?? (wp.perFixture ?? 350);
-  const wallpackProduct = wpQty * wpEach;
+  const wallpackProduct = lineTotal(wpQty, wpEach);
 
   // Landscape: 2% of NET lot SF, lot minus the building footprint (the ground
   // the fixtures can actually sit on). Mike 2026-09-04: "net lot". Before that
@@ -406,13 +407,13 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   const landscapeCap  = PRICING.exterior.landscape?.maxTotal ?? 3000;
   const netLotSf      = footprintSf > 0 ? Math.max(lotSf - footprintSf, 0) : lotSf;
   const landscapeRaw  = netLotSf > 0 ? netLotSf * landscapePct : 0;
-  const landscapeFlat = Math.min(landscapeRaw, landscapeCap) * upgradedMultiplier;
+  const landscapeFlat = cents(Math.min(landscapeRaw, landscapeCap) * upgradedMultiplier);
 
   // Manual override: site/exterior is frequently hand-calculated outside the
   // formula (manually built in the spreadsheet). A positive exteriorOverride
   // replaces the formula total entirely. Mirrors controlsOverride. The formula
   // breakdown is still returned for transparency (see sections.exterior.formulaTotal).
-  const exteriorOverrideVal  = n(exterior.exteriorOverride);
+  const exteriorOverrideVal  = cents(exterior.exteriorOverride);
   const exteriorOverrideUsed = exteriorOverrideVal > 0;
 
   // Manual adder section: the 3 items the formula does NOT compute, pathway
@@ -426,10 +427,11 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
     try { exteriorManualItems = JSON.parse(exteriorManualItems); } catch { exteriorManualItems = null; }
   }
   exteriorManualItems = exteriorManualItems || {};
-  const exteriorManualTotal =
-      n(exteriorManualItems.pathwayLighting)
-    + n(exteriorManualItems.parkingEntrances)
-    + n(exteriorManualItems.manualExteriorAdder);
+  const exteriorManualTotal = sumCents([
+    exteriorManualItems.pathwayLighting,
+    exteriorManualItems.parkingEntrances,
+    exteriorManualItems.manualExteriorAdder,
+  ]);
 
   // Pathway lighting: $/unit by building type, from master pricing
   // (exterior.pathway.dollarsPerUnit), floored at pathway.minTotal for any
@@ -446,7 +448,7 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   const pwRates        = PRICING.exterior.pathway?.dollarsPerUnit || {};
   const pathwayRate    = pwRates[wpBuildingType] ?? 0;
   const pathwayFloor   = n(PRICING.exterior.pathway?.minTotal);
-  const pathwayManual  = n(exteriorManualItems.pathwayLighting);
+  const pathwayManual  = cents(exteriorManualItems.pathwayLighting);
   const pathwaySolarMultiplier = solarSite ? n(PRICING.exterior.pathway?.solarMultiplier, 1.6) : 1;
   // Townhomes and single-family are asked "Light the walking paths with
   // bollards / pedestrian poles?" (Mike, 2026-09-12). No, the default, is $0.
@@ -462,26 +464,26 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
     : walkwayFt > 0 ? Math.ceil(walkwayFt / pedPoleFt)
     : Math.ceil(numUnits * n(pedPole.perHome, 0.125));
   const pathwayBase    = pathwayAsksBollards
-    ? pedPoles * pedPoleEach
+    ? lineTotal(pedPoles, pedPoleEach)
     : numUnits > 0 && pathwayRate > 0
-      ? Math.max(numUnits * pathwayRate, pathwayFloor)
+      ? cents(Math.max(numUnits * pathwayRate, pathwayFloor))
       : 0;
   const pathwayBollardsDeclined = pathwayAsksBollards && exterior.pathwayBollards !== 'yes';
-  const pathwayAuto    = pathwayBollardsDeclined ? 0 : pathwayBase * pathwaySolarMultiplier * upgradedMultiplier;
+  const pathwayAuto    = pathwayBollardsDeclined ? 0 : cents(pathwayBase * pathwaySolarMultiplier * upgradedMultiplier);
   const pathwayProduct = pathwayManual > 0 ? 0 : pathwayAuto;
 
   // Misc buffer = 5% of formula-line subtotal + manual adder. Both contribute.
-  const extSubBeforeMisc     = extAmenityProduct + parkingProduct + carportProduct + garageExtProduct + wallpackProduct + landscapeFlat + pathwayProduct + siteFeatures.product;
-  const extBufferBase        = extSubBeforeMisc + exteriorManualTotal;
-  const extMiscBuffer        = extBufferBase * PRICING.exterior.miscBufferPct;
-  const exteriorFormulaTotal = extSubBeforeMisc + extMiscBuffer;
+  const extSubBeforeMisc     = sumCents([extAmenityProduct, parkingProduct, carportProduct, garageExtProduct, wallpackProduct, landscapeFlat, pathwayProduct, siteFeatures.product]);
+  const extBufferBase        = sumCents([extSubBeforeMisc, exteriorManualTotal]);
+  const extMiscBuffer        = cents(extBufferBase * PRICING.exterior.miscBufferPct);
+  const exteriorFormulaTotal = sumCents([extSubBeforeMisc, extMiscBuffer]);
 
   // Override replaces everything; otherwise formula breakdown + manual adder.
   // (The buffer's contribution from the manual portion is already in
   // exteriorFormulaTotal via extMiscBuffer.)
   const exteriorProductTotal = exteriorOverrideUsed
     ? exteriorOverrideVal
-    : exteriorFormulaTotal + exteriorManualTotal;
+    : sumCents([exteriorFormulaTotal, exteriorManualTotal]);
 
   // ─── EMERGENCY LIGHTING ───────────────────────────────────────────────────
   // One shared helper (src/lib/emergencyCost.js) so both Emergency screens show
@@ -492,15 +494,15 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   // answer as the public form (Mike 2026-10-15; was Frogeyes from 2026-09-12).
   const strategyKey = emergency.strategy || 'generator';
   const emergencyCost = emergencyStrategyCost(PRICING, strategyKey, { corridorSf, intAmenitySf, garageSf });
-  const emergencyManualAdder = n(emergency.manualAdder);
-  const emergencyProduct = emergencyCost.total + emergencyManualAdder;
+  const emergencyManualAdder = cents(emergency.manualAdder);
+  const emergencyProduct = sumCents([emergencyCost.total, emergencyManualAdder]);
 
   // ─── EXIT SIGNS ───────────────────────────────────────────────────────────
   // Flat $/SF on gross SF (Mike 10-15). The old rule halved the figure over
   // 300,000 SF and landed at a third of the Excel budgets on large jobs.
-  const exitSignsBaseProduct = grossSf * PRICING.exitSigns.perSf;
-  const exitSignsManualAdder = n(projectData.exitSignsManualAdder);
-  const exitSignsProduct = exitSignsBaseProduct + exitSignsManualAdder;
+  const exitSignsBaseProduct = cents(grossSf * PRICING.exitSigns.perSf);
+  const exitSignsManualAdder = cents(projectData.exitSignsManualAdder);
+  const exitSignsProduct = sumCents([exitSignsBaseProduct, exitSignsManualAdder]);
 
   // ─── DESIGN BUDGET ADDERS ────────────────────────────────────────────────
   // NOTE: The base rate (grossSf × $0.38) already includes the standard design
@@ -510,17 +512,17 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
 
   // Backlit rounded disk: credit vs default flat edge-lit (-$0.04/SF of units SF)
   if (units.diskType === 'backlit') {
-    designAdderTotal += unitsSf * n(PRICING.designUpgrades?.diskBacklitRoundedPerSf, -0.04);
+    designAdderTotal += cents(unitsSf * n(PRICING.designUpgrades?.diskBacklitRoundedPerSf, -0.04));
   }
 
   // Boiler/HVAC room disk ($15/unit extra light)
   if (units.boilerRoom === 'yes') {
-    designAdderTotal += numUnits * n(PRICING.designUpgrades?.boilerRoomDisk, 15);
+    designAdderTotal += cents(numUnits * n(PRICING.designUpgrades?.boilerRoomDisk, 15));
   }
 
   // Living room: (4) small disks vs (1) 12" disk, $34/unit adder
   if (units.livingRoomDisks === '4small') {
-    designAdderTotal += numUnits * n(PRICING.designUpgrades?.livingRoom4Disks, 34);
+    designAdderTotal += cents(numUnits * n(PRICING.designUpgrades?.livingRoom4Disks, 34));
   }
 
   // Entry disk upgrade, 12" oversized or decorative surface mount.
@@ -530,20 +532,20 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   // never found them, and the upgrade the screen showed was never charged.
   // 'upgraded12' is the older spelling of the 12" answer.
   if (units.entryDisk === '12inch' || units.entryDisk === 'upgraded12') {
-    designAdderTotal += numUnits * n(PRICING.designUpgrades?.entryway12inch, 25);
+    designAdderTotal += cents(numUnits * n(PRICING.designUpgrades?.entryway12inch, 25));
   } else if (units.entryDisk === 'decorative') {
-    designAdderTotal += numUnits * n(PRICING.designUpgrades?.entryDecorative, 30);
+    designAdderTotal += cents(numUnits * n(PRICING.designUpgrades?.entryDecorative, 30));
   }
 
   // 52" fan upgrade over the 48" default (only counts when fans are present).
   // Master pricing sets this to $0 today, no upcharge, per Mike.
   if (units.fanSize52 === 'yes' && fanCount > 0) {
-    designAdderTotal += fanCount * n(PRICING.designUpgrades?.fanSize52Adder, 0);
+    designAdderTotal += cents(fanCount * n(PRICING.designUpgrades?.fanSize52Adder, 0));
   }
 
   // Stairwell elevated design adder
   if (corridors.stairwellDesign === 'elevated') {
-    designAdderTotal += stairwells * n(PRICING.designCorridors?.stairwellElevatedAdder, 50);
+    designAdderTotal += cents(stairwells * n(PRICING.designCorridors?.stairwellElevatedAdder, 50));
   }
 
   // Garage design level, replaces the flat garage $/SF. Rates come from master
@@ -567,8 +569,8 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
     else if (corridors.garageControls === 'battery')          garageCtrlRate = batteriesOnEmergency ? 0 : n(DG.batteryAdderPerSf, 0.05);
     else if (corridors.garageControls === 'occSensor')        garageCtrlRate = n(DG.occSensorAdderPerSf, 0.02);
 
-    const garageDesignTotal = garageSf * (baseGarageRate + garageCtrlRate);
-    designAdderTotal += garageDesignTotal - garageBaseProduct;
+    const garageDesignTotal = cents(garageSf * (baseGarageRate + garageCtrlRate));
+    designAdderTotal += cents(garageDesignTotal - garageBaseProduct);
   }
 
   // Exit sign type, count-based for all three types. Replaces only the base
@@ -581,11 +583,12 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   else if (corridors.exitSignType === 'mixed')    signCost = n(DX.mixedPerSign,          75);
   else if (corridors.exitSignType)                signCost = n(DX.thermoplasticPerSign,  22);
   if (corridors.exitSignType && grossSf > 0) {
-    designAdderTotal += signCount * signCost - exitSignsBaseProduct;
+    designAdderTotal += cents(signCount * signCost - exitSignsBaseProduct);
   }
 
   // ─── SUBTOTALS ────────────────────────────────────────────────────────────
-  let lightingProductSubtotal =
+  designAdderTotal = cents(designAdderTotal);
+  let lightingProductSubtotal = cents(
     unitsProductTotal    +
     corridorProductTotal +
     bohProduct           +
@@ -594,7 +597,8 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
     exteriorProductTotal +
     emergencyProduct     +
     exitSignsProduct     +
-    designAdderTotal;
+    designAdderTotal
+  );
 
   // ─── ENERGY CREDIT ───────────────────────────────────────────────────────
   // Per Mike (2026-09-01): pursuing any energy credit program ADDS this % to
@@ -609,8 +613,8 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   const energyCreditLightingPct = ec.lighting;
   const energyCreditControlsPct = ec.controls;
   const energyCreditPct = energyCreditLightingPct; // legacy name = the lighting side
-  const energyCreditLighting = lightingProductSubtotal * energyCreditLightingPct;
-  lightingProductSubtotal += energyCreditLighting;
+  const energyCreditLighting = cents(lightingProductSubtotal * energyCreditLightingPct);
+  lightingProductSubtotal = sumCents([lightingProductSubtotal, energyCreditLighting]);
 
   // ─── CONTROLS ─────────────────────────────────────────────────────────────
   // Controls apply to total gross SF (IECC 2021, Excel-verified)
@@ -637,35 +641,35 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   // Homes types ($0/SF: town houses, single family) carry no common-area
   // controls, so they get no garage piece either; only the clubhouse is priced.
   const controlsGarage   = (controlsBasis === 'clubhouse' || n(ctrlRate.perSf) === 0) ? 0 : garagePiece.dollars;
-  const controlsFormula = controlsBasisSf * controlsRateUsed + controlsGarage;
-  let controlsProduct = Math.min(controlsFormula, controlsCap);
+  const controlsFormula = sumCents([controlsBasisSf * controlsRateUsed, controlsGarage]);
+  let controlsProduct = cents(Math.min(controlsFormula, controlsCap));
   const controlsCapped = controlsFormula > controlsCap;
 
   // Manual override, an explicit override replaces the formula result.
-  const controlsOverrideVal = n(controls.controlsOverride);
+  const controlsOverrideVal = cents(controls.controlsOverride);
   if (controlsOverrideVal > 0) controlsProduct = controlsOverrideVal;
 
   // Energy credit adds the same % to the controls side as its own line item.
   // It sits on top of an override the way freight and tax do.
-  const energyCreditControls = controlsProduct * energyCreditControlsPct;
+  const energyCreditControls = cents(controlsProduct * energyCreditControlsPct);
 
   // Freight & warehousing rates
   const freightRate     = (pd.freightPct     != null && isFinite(pd.freightPct))     ? pd.freightPct     : PRICING.freight;
   const warehousingRate = (pd.warehousingPct != null && isFinite(pd.warehousingPct)) ? pd.warehousingPct : PRICING.warehousing;
 
-  const freightAmount     = lightingProductSubtotal * freightRate;
-  const warehousingAmount = lightingProductSubtotal * warehousingRate;
-  const lightingTaxAmount = lightingProductSubtotal * salesTaxPct;
+  const freightAmount     = cents(lightingProductSubtotal * freightRate);
+  const warehousingAmount = cents(lightingProductSubtotal * warehousingRate);
+  const lightingTaxAmount = cents(lightingProductSubtotal * salesTaxPct);
 
-  const subtotalLightingOnly = lightingProductSubtotal + freightAmount + warehousingAmount + lightingTaxAmount;
+  const subtotalLightingOnly = sumCents([lightingProductSubtotal, freightAmount, warehousingAmount, lightingTaxAmount]);
 
-  const controlsSubtotal    = controlsProduct + energyCreditControls;
-  const controlsFreight     = controlsSubtotal * freightRate;
-  const controlsWarehousing = controlsSubtotal * warehousingRate;
-  const controlsTaxAmount   = controlsSubtotal * salesTaxPct;
-  const controlsTotal       = controlsSubtotal + controlsFreight + controlsWarehousing + controlsTaxAmount;
+  const controlsSubtotal    = sumCents([controlsProduct, energyCreditControls]);
+  const controlsFreight     = cents(controlsSubtotal * freightRate);
+  const controlsWarehousing = cents(controlsSubtotal * warehousingRate);
+  const controlsTaxAmount   = cents(controlsSubtotal * salesTaxPct);
+  const controlsTotal       = sumCents([controlsSubtotal, controlsFreight, controlsWarehousing, controlsTaxAmount]);
 
-  const totalWithControls = subtotalLightingOnly + controlsTotal;
+  const totalWithControls = sumCents([subtotalLightingOnly, controlsTotal]);
 
   // Contingency, held against the lighting product subtotal as a separate
   // line item beneath the totals. UI lives on the Project Data step (design
@@ -683,8 +687,8 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
       : projectDataR.contingency === '5pct'  ? 0.05
       : projectDataR.contingency === '10pct' ? 0.10
       : 0;
-  const contingencyAmount    = lightingProductSubtotal * contingencyRate;
-  const totalWithContingency = totalWithControls + contingencyAmount;
+  const contingencyAmount    = cents(lightingProductSubtotal * contingencyRate);
+  const totalWithContingency = sumCents([totalWithControls, contingencyAmount]);
 
   const perSf   = grossSf  > 0 ? totalWithContingency / grossSf  : 0;
   const perUnit = numUnits > 0 ? totalWithContingency / numUnits : 0;
@@ -698,15 +702,15 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   const lab = k => n(L[k]);
   const questionCosts = {};
   const line = (label, count, countLabel, each, laborEach) => ({
-    label, count, countLabel, each, product: count * each,
-    laborEach, labor: count * laborEach,
+    label, count, countLabel, each, product: cents(count * each),
+    laborEach, labor: cents(count * laborEach),
   });
   const addQ = (key, lines) => {
     const ls = lines.filter(Boolean);
     questionCosts[key] = {
       lines:   ls,
-      product: ls.reduce((s, l) => s + l.product, 0),
-      labor:   ls.reduce((s, l) => s + l.labor, 0),
+      product: sumCents(ls.map(l => l.product)),
+      labor:   sumCents(ls.map(l => l.labor)),
     };
   };
 
@@ -816,7 +820,7 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
   // own line with their own count; the corridor/amenity dollars stay above.
   const garageFrogeyes = n(emergencyCost.garageFrogeyeCount);
   const garageFrogeyeProduct = garageFrogeyes > 0 ? n(emergencyCost.garage) : 0;
-  const emergencyFixtureProduct = emergencyCost.total - n(emergencyCost.batteryCost) - garageFrogeyeProduct;
+  const emergencyFixtureProduct = cents(emergencyCost.total - n(emergencyCost.batteryCost) - garageFrogeyeProduct);
   addQ('emergency.strategy', [
     frogeyeCount > 0
       ? { label: 'Frogeyes', count: frogeyeCount, countLabel: 'frogeyes', each: emergencyFixtureProduct / frogeyeCount, product: emergencyFixtureProduct, laborEach: lab('sconce'), labor: frogeyeCount * lab('sconce') }
@@ -989,7 +993,7 @@ export function calculateBudget(projectData, responses = {}, pricingOverride = n
     totalWithContingency,
     fanCount,
     questionCosts,
-    perSf:   Math.round(perSf   * 100) / 100,
+    perSf:   cents(perSf),
     perUnit: Math.round(perUnit),
   };
 }

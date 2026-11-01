@@ -13,6 +13,7 @@
 import { columnsOf, lineFromCells } from './fromSources.js';
 import { normalizeTag } from './normalizeTag.js';
 import { toNumber } from '../matrixImport/readMatrix.js';
+import { cents } from '../money.js';
 
 const CORE = ['qty', 'catalog', 'mfr', 'unitPrice', 'extPrice', 'description'];
 const isoDay = (d) => (d instanceof Date && !Number.isNaN(d.getTime()) ? d.toISOString().slice(0, 10) : null);
@@ -310,7 +311,7 @@ export function cleanCheckedLines(input, { repQuote = false } = {}) {
       qty,
       uom: ['EA', 'LF', 'LOT'].includes(l.uom) ? l.uom : 'EA',
       unitPrice,
-      extPrice: amount(l.extPrice) ?? (unitPrice != null && qty != null ? Math.round(unitPrice * qty * 100) / 100 : null),
+      extPrice: amount(l.extPrice) ?? (unitPrice != null && qty != null ? cents(unitPrice * qty) : null),
       requestedMfr: text(l.requestedMfr, 120),
       requestedCatalog: text(l.requestedCatalog, 200),
       specBasis: qty === 0 ? 'NO_QUOTE' : SPEC_BASIS.has(l.specBasis) ? l.specBasis : null,
