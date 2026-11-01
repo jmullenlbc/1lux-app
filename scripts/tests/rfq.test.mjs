@@ -277,3 +277,24 @@ test('a rep quote keeps part rows with no type, a bid does not', () => {
   assert.equal(cleanCheckedLines([empty], { repQuote: true }).lines.length, 0);
   assert.equal(cleanCheckedLines([part]).lines.length, 0);
 });
+
+test('quote reply keeps lead, stock, freight and terms, and never warehousing or tax', () => {
+  const r = parseQuoteReply(JSON.stringify({
+    paymentTerms: 'Net 30', fob: 'Origin', revisionNote: 'REV 1', leadTime: '6 weeks',
+    lines: [{ typeTag: 'A1', catalog: 'X-1', qty: 2, unitPrice: 10, leadTime: '4 weeks', stock: '37 in stock', discontinued: true }, { typeTag: 'B1', catalog: 'Y-1', qty: 1, unitPrice: 5, discontinued: 'no' }],
+    totals: { FREIGHT: 25, WAREHOUSING: 9, TAX: 3 },
+    freight: [{ brand: 'Ligman', status: 'not_included', wording: 'LIGMAN FREIGHT NOT INCLUDED' }, { brand: '', status: 'STATED', amount: 0 }],
+    terms: [{ kind: 'tariff', text: 'Tariffs extra' }, { kind: 'MADE_UP', text: 'x' }, { kind: 'DEPOSIT', text: '' }],
+  }));
+  assert.equal(r.ok, true);
+  assert.deepEqual(r.totals, { FREIGHT: 25 });
+  assert.equal(r.info.paymentTerms, 'Net 30');
+  assert.equal(r.info.leadTime, '6 weeks');
+  assert.equal(r.lines[0].leadTime, '4 weeks');
+  assert.equal(r.lines[0].stock, '37 in stock');
+  assert.equal(r.lines[0].discontinued, true);
+  assert.equal(r.lines[1].discontinued, false);
+  assert.deepEqual(r.freight[0], { brand: 'Ligman', status: 'NOT_INCLUDED', amount: null, wording: 'LIGMAN FREIGHT NOT INCLUDED' });
+  assert.equal(r.freight[1].amount, 0);
+  assert.deepEqual(r.terms, [{ kind: 'TARIFF', text: 'Tariffs extra' }]);
+});

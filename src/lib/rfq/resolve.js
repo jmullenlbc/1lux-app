@@ -9,9 +9,10 @@
 //   otherwise the line asks "Pick a rep".
 // Line status: Draft (has a manufacturer, never sent), Sent, Received (priced).
 import { prisma } from '@/lib/db';
-import { LINE_STATUS } from './format';
+import { LINE_STATUS, normName, rfqLabel, roundLabel } from './format';
+import { familyBefore, familyOf, revisionChanges, roundsFor } from './compare';
 
-export const normName = (s) => String(s || '').toUpperCase().replace(/&/g, ' AND ').replace(/[^A-Z0-9]+/g, ' ').replace(/\b(INC|LLC|CO|CORP|CORPORATION|LIGHTING|LTG)\b/g, ' ').replace(/\s+/g, ' ').trim();
+export { normName };
 
 /** Office for a project: its own, else a guess from the state (CA Long Beach, FL Florida, else Denver). */
 export function guessOffice(project, offices) {
@@ -34,7 +35,7 @@ export async function rfqState(projectId) {
     select: { id: true, name: true, state: true, location: true, ourOfficeId: true, preconManager: { select: { name: true } } },
   });
   if (!project) return null;
-  const [offices, items, manufacturers, picks, rfqs] = await Promise.all([
+  const [offices, items, manufacturers, picks, rfqs, rounds] = await Promise.all([
     prisma.ourOffice.findMany({ where: { active: true }, orderBy: { sortOrder: 'asc' } }),
     prisma.peerReviewItem.findMany({ where: { projectId }, orderBy: [{ section: 'asc' }, { sortOrder: 'asc' }, { createdAt: 'asc' }] }),
     prisma.manufacturer.findMany({
@@ -50,6 +51,7 @@ export async function rfqState(projectId) {
       orderBy: { number: 'desc' },
       include: { lines: { orderBy: { sortOrder: 'asc' } }, salesRep: { select: { id: true, name: true } }, manufacturer: { select: { id: true, name: true } } },
     }),
+    prisma.rfqRound.findMany({ where: { projectId }, orderBy: { number: 'asc' } }),
   ]);
   const { office, guessed } = guessOffice(project, offices);
 
@@ -94,7 +96,7 @@ export async function rfqState(projectId) {
     const row = {
       id: it.id, typeCode: it.typeCode || '', description: it.description || '', manufacturer: m?.name || mfrName,
       manufacturerId: m?.id || null, partNumber: linePart(it), qty: it.qty, notes: it.notes || '',
-      repName, how: who.how, status, rfqNumber: last?.rfq.number || null, dnPrice: last?.line.dnPrice ?? null,
+      repName, how: who.how, status, rfqNumber: last?.rfq.number || null, rfqLabel: last ? rfqLabel(last.rfq) : '', dnPrice: last?.line.dnPrice ?? null,
     };
     lines.push(row);
     if (!mfrName) continue;
@@ -113,23 +115,52 @@ export async function rfqState(projectId) {
     g.lines.push(row);
   }
 
-  const out = [...groups.values()].map((g) => ({
-    ...g,
-    draftCount: g.lines.filter((l) => l.status === LINE_STATUS.DRAFT).length,
-    problems: sendProblems(g),
-  }));
+  const roundById = new Map(rounds.map((r) => [r.id, r]));
+  const sends = rfqs.map((r) => ({ ...r, roundNumber: roundById.get(r.roundId)?.number ?? null }));
+  const newest = new Map(); // rfqs are newest first
+  for (const r of sends) if (!newest.has(familyOf(r))) newest.set(familyOf(r), r);
+  const sameRep = (g, r) => g.kind !== 'NONE' && (g.salesRepId ? r.salesRepId === g.salesRepId : !r.salesRepId && r.manufacturerId === g.manufacturerId);
+
+  const out = [...groups.values()].map((g) => {
+    const last = sends.find((r) => sameRep(g, r));
+    return {
+      ...g,
+      draftCount: g.lines.filter((l) => l.status === LINE_STATUS.DRAFT).length,
+      problems: sendProblems(g),
+      lastSent: last ? { id: last.id, label: rfqLabel(last), round: roundLabel(roundById.get(last.roundId)) } : null,
+    };
+  });
   out.sort((a, b) => (a.kind === 'NONE') - (b.kind === 'NONE') || a.toName.localeCompare(b.toName));
 
   return {
     project: { id: project.id, name: project.name, pm: project.preconManager?.name || '' },
-    office, officeGuessed: guessed, offices, lines, groups: out,
-    rfqs: rfqs.map((r) => ({
-      id: r.id, number: r.number, status: r.status, toName: r.toName, sentTo: r.sentTo, needBy: r.needBy, createdAt: r.createdAt,
-      receivedAt: r.receivedAt, sentByName: r.sentByName, notes: r.notes, revisesId: r.revisesId,
-      lineCount: r.lines.length, pricedCount: r.lines.filter((l) => l.dnPrice != null).length,
-      overdue: r.status === 'SENT' && new Date(r.needBy) < new Date(),
-    })),
+    office, officeGuessed: guessed, offices, lines, groups: out, rounds: roundsFor(rounds, sends),
+    rfqs: sends.map((r) => {
+      const isLatest = newest.get(familyOf(r)).id === r.id;
+      const ids = new Set(r.lines.map((l) => l.peerReviewItemId).filter(Boolean));
+      const group = isLatest ? out.find((g) => sameRep(g, r)) || out.find((g) => g.lines.some((l) => ids.has(l.id))) : null;
+      return {
+        id: r.id, number: r.number, status: r.status, toName: r.toName, sentTo: r.sentTo, needBy: r.needBy, createdAt: r.createdAt,
+        receivedAt: r.receivedAt, sentByName: r.sentByName, notes: r.notes, revisesId: r.revisesId,
+        familyNumber: familyOf(r), version: r.version, addOn: r.addOn, roundId: r.roundId, round: roundLabel(roundById.get(r.roundId)),
+        label: rfqLabel(r), isLatest, groupKey: group?.key || null,
+        // What a revision would tell the rep if it went out now.
+        pending: group ? revisionChanges(familyBefore(sends, { ...r, number: Infinity }), group.lines.map((l) => ({ ...l, peerReviewItemId: l.id }))) : [],
+        lineCount: r.lines.length, pricedCount: r.lines.filter((l) => l.dnPrice != null).length,
+        overdue: r.status === 'SENT' && new Date(r.needBy) < new Date(),
+      };
+    }),
   };
+}
+
+/** What changed since the rep's last version, for the email and the PDF. No prices. */
+export async function changesFor(rfq) {
+  if ((rfq.version || 1) < 2) return [];
+  const rows = await prisma.rfq.findMany({
+    where: { projectId: rfq.projectId, number: { lt: rfq.number }, OR: [{ familyNumber: familyOf(rfq) }, { number: familyOf(rfq) }] },
+    include: { lines: { orderBy: { sortOrder: 'asc' } } },
+  });
+  return revisionChanges(familyBefore(rows, rfq), rfq.lines, { addOn: rfq.addOn });
 }
 
 /** Plain reasons a group cannot be sent yet. */

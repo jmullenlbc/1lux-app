@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Badge from '@/components/ui/Badge';
 import PublicAccessCard from '@/components/admin/PublicAccessCard';
+import RfqFreightCard from '@/components/admin/RfqFreightCard';
 import AiKeyCard from '@/components/admin/AiKeyCard';
 import CalendarUploadCard from '@/components/admin/CalendarUploadCard';
 import { DEPARTMENTS, DEPARTMENT_LABEL } from '@/lib/departments';
@@ -736,6 +737,7 @@ export default function AdminClient({ users: initialUsers, projects, currentUser
 
       {/* Password on the public budget tool (moved here 10-7 so admins can find it) */}
       <PublicAccessCard />
+      <RfqFreightCard />
 
       {/* AI key, changed here instead of AWS (10-28) */}
       <AiKeyCard />

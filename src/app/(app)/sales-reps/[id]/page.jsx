@@ -16,7 +16,7 @@ export default async function SalesRepPage({ params }) {
       include: {
         emails: { orderBy: { sortOrder: 'asc' } },
         links: { where: { active: true }, include: { manufacturer: { select: { id: true, name: true } } } },
-        rfqs: { orderBy: { number: 'desc' }, take: 50, select: { id: true, number: true, status: true, needBy: true, createdAt: true, project: { select: { id: true, name: true } } } },
+        rfqs: { orderBy: { number: 'desc' }, take: 50, select: { id: true, number: true, familyNumber: true, version: true, status: true, needBy: true, createdAt: true, project: { select: { id: true, name: true } } } },
       },
     }),
     prisma.ourOffice.findMany({ where: { active: true }, orderBy: { sortOrder: 'asc' }, select: { id: true, name: true } }),

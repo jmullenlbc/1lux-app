@@ -2,7 +2,7 @@ import Link from 'next/link';
 import StatTile from '@/components/ui/StatTile';
 import WidgetFrame, { WidgetEmpty } from '@/components/ui/WidgetFrame';
 import AlertMark from '@/components/ui/AlertMark';
-import { rfqNumber, showDate, showDateTime } from '@/lib/rfq/format';
+import { rfqLabel, showDate, showDateTime } from '@/lib/rfq/format';
 
 // Pre-Con RFQs tab (Mike 10-29): every RFQ across the jobs this person can
 // see. Open ones first, overdue at the top, then the recently received.
@@ -19,7 +19,7 @@ function Table({ rows, now, showReceived }) {
             const overdue = r.status === 'SENT' && r.needBy < now;
             return (
               <tr key={r.id}>
-                <td className="px-3 py-1.5 font-mono whitespace-nowrap">{rfqNumber(r.number)}</td>
+                <td className="px-3 py-1.5 font-mono whitespace-nowrap">{rfqLabel(r)}</td>
                 <td className="px-3 py-1.5">
                   <Link href={`/project/${r.project.id}?tab=rfqs`} className="text-orange-600 hover:underline">{r.project.name}</Link>
                 </td>

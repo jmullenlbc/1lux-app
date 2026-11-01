@@ -4,12 +4,12 @@ import Button from '@/components/ui/Button';
 import AlertMark from '@/components/ui/AlertMark';
 import WidgetFrame, { WidgetEmpty } from '@/components/ui/WidgetFrame';
 import RecordHistory from '@/components/RecordHistory';
-import { rfqNumber, showDate } from '@/lib/rfq/format';
+import { showDate } from '@/lib/rfq/format';
 import { rfqApi } from './rfqApi';
 import SentNotice from './SentNotice';
 
-// Sent RFQs on this project. Open one to type DN prices by hand, get the
-// email again, or send a revision (a new number that points back to this one).
+// Sent RFQs on this project, one row per rep. Open a version to type DN prices
+// by hand, get the email again, or send the next version (RFQ0041 V3).
 
 function Detail({ projectId, summary, state, onSent, reload }) {
   const [d, setD] = useState(null);
@@ -40,16 +40,15 @@ function Detail({ projectId, summary, state, onSent, reload }) {
     reload();
   }
 
-  // A revision goes to whoever quotes these lines today, so find the group
-  // that holds them now.
-  const itemIds = d ? d.rfq.lines.map((l) => l.peerReviewItemId).filter(Boolean) : [];
-  const group = state.groups.find((g) => g.lines.some((l) => itemIds.includes(l.id)));
+  // A revision takes every line the rep quotes today, so a fixture added to
+  // the Budget since the last send is not left out.
+  const group = state.groups.find((g) => g.key === summary.groupKey);
   async function revise() {
     if (!group) return;
     setBusy(true); setErr('');
     const r = await rfqApi(`/api/projects/${projectId}/rfqs`, {
       method: 'POST', what: 'The revision',
-      body: { action: 'send', groupKey: group.key, lineIds: group.lines.filter((l) => itemIds.includes(l.id)).map((l) => l.id), revisesId: summary.id },
+      body: { action: 'send', groupKey: group.key, revisesId: summary.id },
     });
     setBusy(false);
     if (r.error) { setErr(r.error); return; }
@@ -84,12 +83,28 @@ function Detail({ projectId, summary, state, onSent, reload }) {
         </tbody>
       </table>
       </div>
+      {d?.changes?.length > 0 && (
+        <div>
+          <p className="text-xs font-semibold text-slate-500">Changes from V{summary.version - 1}</p>
+          <ul className="mt-1 text-sm text-slate-700 list-disc pl-5">{d.changes.map((c, i) => <li key={i}>{c.typeCode ? `${c.typeCode}: ` : ''}{c.text}</li>)}</ul>
+        </div>
+      )}
+      {summary.isLatest && group && (
+        <div>
+          <p className="text-xs font-semibold text-slate-500">What changes in the next version</p>
+          {summary.pending.length
+            ? <ul className="mt-1 text-sm text-slate-700 list-disc pl-5">{summary.pending.map((c, i) => <li key={i}>{c.typeCode ? `${c.typeCode}: ` : ''}{c.text}</li>)}</ul>
+            : <p className="mt-1 text-sm text-slate-500">Nothing has changed since this version.</p>}
+        </div>
+      )}
       {err && <p className="text-sm text-red-600">{err}</p>}
       <div className="flex flex-wrap gap-2">
         {changed.length > 0 && <Button size="sm" disabled={busy} loading={busy} onClick={save}>Save {changed.length} price{changed.length === 1 ? '' : 's'}</Button>}
         <Button size="sm" variant="secondary" onClick={() => setShowEmail((s) => !s)}>{showEmail ? 'Hide the email' : 'Email and PDF again'}</Button>
-        <Button size="sm" variant="secondary" disabled={busy || !group || !!group.problems.length} onClick={revise}
-          title={!group ? 'These lines are no longer on the bid matrix.' : group.problems.join(' ')}>Send revision</Button>
+        {summary.isLatest && (
+          <Button size="sm" variant="secondary" disabled={busy || !group || !!group.problems.length} onClick={revise}
+            title={!group ? 'These lines are no longer on the bid matrix.' : group.problems.join(' ')}>Send revision</Button>
+        )}
       </div>
       {showEmail && <SentNotice projectId={projectId} rfq={d.rfq} email={d.email} onClose={() => setShowEmail(false)} />}
       <RecordHistory type="RFQ" id={summary.id} version={version} />
@@ -100,27 +115,42 @@ function Detail({ projectId, summary, state, onSent, reload }) {
 export default function SentRfqs({ projectId, state, onSent, reload }) {
   const [open, setOpen] = useState(null);
   const rfqs = state.rfqs;
-  const byId = Object.fromEntries(rfqs.map((r) => [r.id, r]));
+  const families = rfqs.filter((r) => r.isLatest);
+  const versionsOf = (r) => rfqs.filter((x) => x.familyNumber === r.familyNumber).sort((a, b) => a.version - b.version);
   return (
-    <WidgetFrame title="Sent RFQs" sub={`${rfqs.length} on this project`} flush>
+    <WidgetFrame title="Sent RFQs" sub={`${families.length} rep${families.length === 1 ? '' : 's'} on this project, ${rfqs.length} sent in all`} flush>
       {!rfqs.length && <div className="p-4"><WidgetEmpty>None sent yet.</WidgetEmpty></div>}
       <ul className="divide-y divide-slate-100">
-        {rfqs.map((r) => (
+        {families.map((r) => {
+          const versions = versionsOf(r);
+          const shown = versions.find((v) => v.id === open);
+          return (
           <li key={r.id}>
-            <button type="button" onClick={() => setOpen(open === r.id ? null : r.id)} className="w-full text-left px-3 py-2 hover:bg-slate-50 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
-              <span className="font-mono font-semibold text-slate-800">{rfqNumber(r.number)}</span>
+            <button type="button" onClick={() => setOpen(shown ? null : r.id)} className="w-full text-left px-3 py-2 hover:bg-slate-50 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+              <span className="font-mono font-semibold text-slate-800">{r.label}</span>
               <span className="text-slate-800">{r.toName}</span>
+              {r.round && <span className="text-slate-500">{r.round}</span>}
               <span className="text-slate-500">Sent {showDate(r.createdAt)}{r.sentByName ? ` by ${r.sentByName}` : ''}</span>
               {r.status === 'RECEIVED'
                 ? <span className="text-emerald-700">Received {showDate(r.receivedAt)}</span>
                 : <span className={r.overdue ? 'text-red-600 flex items-center gap-1' : 'text-slate-500'}>{r.overdue && <AlertMark label="Overdue" size={14} />}Need by {showDate(r.needBy)}</span>}
               <span className="text-slate-500 tabular-nums">{r.pricedCount} of {r.lineCount} priced</span>
-              {r.revisesId && <span className="text-slate-400">Revises {byId[r.revisesId] ? rfqNumber(byId[r.revisesId].number) : 'an older RFQ'}</span>}
-              <span className="ml-auto text-slate-400">{open === r.id ? 'Close' : 'Open'}</span>
+              <span className="ml-auto text-slate-400">{shown ? 'Close' : 'Open'}</span>
             </button>
-            {open === r.id && <Detail projectId={projectId} summary={r} state={state} onSent={onSent} reload={reload} />}
+            {versions.length > 1 && (
+              <div className="px-3 pb-2 flex flex-wrap gap-1.5">
+                {versions.map((v) => (
+                  <button key={v.id} type="button" onClick={() => setOpen(open === v.id ? null : v.id)}
+                    className={`px-2 py-0.5 rounded-md border text-xs ${open === v.id ? 'border-orange-500 text-orange-600' : 'border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
+                    V{v.version}{v.round ? ` ${v.round}` : ''}
+                  </button>
+                ))}
+              </div>
+            )}
+            {shown && <Detail key={shown.id} projectId={projectId} summary={shown} state={state} onSent={onSent} reload={reload} />}
           </li>
-        ))}
+          );
+        })}
       </ul>
     </WidgetFrame>
   );

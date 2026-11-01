@@ -822,6 +822,7 @@ model Project {
   rfqs                 Rfq[]
   repPicks             ProjectRepPick[]
   rfqQuotes            RfqQuote[]
+  rfqRounds            RfqRound[]
 
   // A company's Related Projects reads all six of these at once.
   @@index([developerId])
@@ -1355,6 +1356,7 @@ model Manufacturer {
   emails             RepEmail[]
   repPicks           ProjectRepPick[]
   rfqs               Rfq[]
+  rfqQuoteFreight    RfqQuoteFreight[]
 }
 
 model ManufacturerProduct {
@@ -5101,7 +5103,24 @@ model ProjectRepPick {
   @@unique([projectId, manufacturerId])
 }
 
+// One drawing submission on a job (Bid Set, VE, GMP). Sends group under it so the
+// whole job can be compared; a rep left out of a round carries their last prices.
+model RfqRound {
+  id            String   @id @default(cuid())
+  projectId     String
+  project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  number        Int
+  name          String   @default("")
+  createdById   String?
+  createdByName String?
+  createdAt     DateTime @default(now())
+  rfqs          Rfq[]
+
+  @@unique([projectId, number])
+}
+
 // One request for quote, made when it is sent. number 1 prints as RFQ0001.
+// A revision is its own row with its own number, shown as familyNumber plus V.
 model Rfq {
   id             String        @id @default(cuid())
   number         Int           @unique
@@ -5121,6 +5140,11 @@ model Rfq {
   sentById       String?
   sentByName     String?
   revisesId      String? // the RFQ this one replaces (Send revision)
+  familyNumber   Int? // the first send's number; every version of a rep's RFQ shares it
+  version        Int           @default(1) // RFQ0041 V3
+  addOn          Boolean       @default(false) // true adds lines to what the rep has, false replaces the list
+  roundId        String?
+  round          RfqRound?     @relation(fields: [roundId], references: [id], onDelete: SetNull)
   receivedAt     DateTime?
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
@@ -5129,6 +5153,8 @@ model Rfq {
 
   @@index([projectId])
   @@index([salesRepId])
+  @@index([familyNumber])
+  @@index([roundId])
 }
 
 // A matrix line as it went out on the RFQ, and the DN price that came back.
@@ -5171,10 +5197,23 @@ model RfqQuote {
   fromEmail      String? // who sent it, once quotes arrive by email
   quoteDate      DateTime?
   total          Float? // the grand total the quote states
+  expiresAt      DateTime?
+  paymentTerms   String?
+  fobPoint       String?
+  revisionNote   String? // the rep's own words, such as REV 1 : UPDATED QTY
+  leadTime       String? // whole quote lead time as written; fills blank rows
+  productTotal   Float?
+  controlsTotal  Float?
+  sparesTotal    Float?
+  freightTotal   Float?
+  notesText      String? // terms and notes as written
+  fullText       String? // the whole quote, kept for search
   uploadedById   String?
   uploadedByName String?
   createdAt      DateTime       @default(now())
   lines          RfqQuoteLine[]
+  freight        RfqQuoteFreight[]
+  terms          RfqQuoteTerm[]
 
   @@index([projectId])
 }
@@ -5190,6 +5229,13 @@ model RfqQuoteLine {
   description  String   @default("")
   qty          Float?
   unitPrice    Float?
+  extPrice     Float?
+  uom          String?
+  leadTime     String? // as written, such as 6-8 Weeks
+  leadWeeksMin Float? // 0 means in stock
+  leadWeeksMax Float?
+  stockNote    String? // as written, such as 25 on 3/9
+  discontinued Boolean  @default(false)
   rfqLineId    String? // retired by 0156, see RfqQuoteLink
   confidence   Float? // the best match score, 0 to 1
   status       String   @default("OPEN") // AUTO (75% or better) | PICKED | SKIPPED | REPLACED (by another quote or a typed price) | OPEN
@@ -5212,6 +5258,38 @@ model RfqQuoteLink {
 
   @@unique([quoteLineId, rfqLineId])
   @@index([rfqLineId])
+}
+
+// What a quote says about freight, per brand. A blank manufacturer is the whole quote.
+model RfqQuoteFreight {
+  id             String        @id @default(cuid())
+  quoteId        String
+  quote          RfqQuote      @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  manufacturer   String        @default("")
+  manufacturerId String?
+  brand          Manufacturer? @relation(fields: [manufacturerId], references: [id], onDelete: SetNull)
+  status         String        @default("SILENT") // STATED | ALLOWED | NOT_INCLUDED | SILENT | CONFLICT
+  amount         Float? // dollars the quote states
+  typedAmount    Float? // a person's figure; always wins
+  wording        String? // what the quote said, as written
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([quoteId])
+  @@index([manufacturerId])
+}
+
+// A clause worth searching, one row per clause, in the quote's own words.
+model RfqQuoteTerm {
+  id        String   @id @default(cuid())
+  quoteId   String
+  quote     RfqQuote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+  kind      String // TARIFF | NO_PARTIALS | DEPOSIT | OVERSIZE_FREIGHT | SINGLE_RELEASE | ACCESSORIAL
+  text      String
+  createdAt DateTime @default(now())
+
+  @@index([quoteId])
+  @@index([kind])
 }
 
 // Who did what to a record, and when (Mike 10-29: "like everything we need a

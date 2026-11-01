@@ -319,6 +319,7 @@ export function cleanCheckedLines(input, { repQuote = false } = {}) {
       lineNote: text(l.lineNote, 1000),
       needsReview: !!l.needsReview,
       sortOrder: lines.length,
+      ...(repQuote ? { leadTime: text(l.leadTime, 120), stock: text(l.stock, 120), discontinued: !!l.discontinued } : {}),
     });
   });
   return { lines, missingType };

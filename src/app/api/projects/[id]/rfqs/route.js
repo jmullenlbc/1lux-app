@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { requireStaff } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { rfqState } from '@/lib/rfq/resolve';
-import { sendRfq } from '@/lib/rfq/actions';
+import { changesFor, rfqState } from '@/lib/rfq/resolve';
+import { renameRound, sendRfq, startRound } from '@/lib/rfq/actions';
 import { emailBody, emailSubject } from '@/lib/rfq/format';
 import { linkHistory } from '@/lib/salesReps/links';
 
@@ -20,6 +20,8 @@ export async function GET(request, { params }) {
 // POST { action: 'office', officeId }                       which ILC office works the job
 //      { action: 'pick', manufacturerId | manufacturerIds, salesRepId | null } this job's rep for a manufacturer (null = buy direct); clear:true goes back to the default
 //      { action: 'send', groupKey, lineIds?, notes?, revisesId? }
+//      { action: 'round', name }                             start the next round (a new drawing submission)
+//      { action: 'roundName', roundId, name }                rename a round
 export async function POST(request, { params }) {
   const { user, error } = await requireStaff(request);
   if (error) return error;
@@ -64,6 +66,19 @@ export async function POST(request, { params }) {
     return NextResponse.json(await rfqState(projectId));
   }
 
+  if (body.action === 'round') {
+    if (!(await prisma.project.findUnique({ where: { id: projectId }, select: { id: true } }))) return NO_PROJECT();
+    await startRound({ projectId, name: body.name, user });
+    return NextResponse.json(await rfqState(projectId));
+  }
+
+  if (body.action === 'roundName') {
+    if (!(await renameRound({ projectId, roundId: body.roundId, name: body.name, user }))) {
+      return NextResponse.json({ error: 'That round is not on this job any more. Nothing was changed. Reload the page. (RFQ_NO_ROUND)' }, { status: 400 });
+    }
+    return NextResponse.json(await rfqState(projectId));
+  }
+
   if (body.action === 'send') {
     const state = await rfqState(projectId);
     if (!state) return NO_PROJECT();
@@ -72,7 +87,10 @@ export async function POST(request, { params }) {
     if (group.problems.length) return NextResponse.json({ error: `${group.problems.join(' ')} Nothing was sent. (RFQ_NOT_READY)` }, { status: 400 });
     const res = await sendRfq({ projectId, group, lineIds: body.lineIds, notes: body.notes, officeId: state.office?.id, user, revisesId: body.revisesId || null });
     if (res.error) return NextResponse.json({ error: res.error }, { status: 400 });
-    const info = { number: res.rfq.number, projectName: state.project.name, needBy: res.rfq.needBy, notes: res.rfq.notes, office: state.office };
+    const info = {
+      number: res.rfq.number, familyNumber: res.rfq.familyNumber, version: res.rfq.version, projectName: state.project.name,
+      needBy: res.rfq.needBy, notes: res.rfq.notes, office: state.office, changes: await changesFor(res.rfq),
+    };
     return NextResponse.json({
       rfq: res.rfq,
       email: { to: res.rfq.sentTo, subject: emailSubject(info), body: emailBody(info) },

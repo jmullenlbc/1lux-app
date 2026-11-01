@@ -44,6 +44,18 @@ export function rfqNumber(n) {
   return `RFQ${String(n ?? 0).padStart(4, '0')}`;
 }
 
+/** A rep's RFQ and its version: RFQ0041 V3. The first send is plain RFQ0041. */
+export function rfqLabel({ number, familyNumber, version } = {}) {
+  const base = rfqNumber(familyNumber ?? number);
+  return version > 1 ? `${base} V${version}` : base;
+}
+
+/** A drawing submission on the job: Round 3 GMP. */
+export const roundLabel = (r) => (r ? [`Round ${r.number}`, String(r.name || '').trim()].filter(Boolean).join(' ') : '');
+
+/** Brand names compared loosely: Lithonia Lighting, Inc. and LITHONIA are one. */
+export const normName = (s) => String(s || '').toUpperCase().replace(/&/g, ' AND ').replace(/[^A-Z0-9]+/g, ' ').replace(/\b(INC|LLC|CO|CORP|CORPORATION|LIGHTING|LTG)\b/g, ' ').replace(/\s+/g, ' ').trim();
+
 // Same time of day, 3 business days later (Denver calendar). Weekends and
 // office holidays don't count; sent on one, the count starts the next workday.
 export function needByFrom(sentAt = new Date()) {
@@ -77,23 +89,23 @@ export function officeAddress(office) {
   return [office.street, cityLine].filter(Boolean).join(', ');
 }
 
-export function emailSubject({ number, projectName }) {
-  return `ILC RFQ ${rfqNumber(number)} | ${projectName || 'Project'}`;
+export function emailSubject({ number, familyNumber, version, projectName }) {
+  return `ILC RFQ ${rfqLabel({ number, familyNumber, version })} | ${projectName || 'Project'}`;
 }
 
-export function pdfFileName({ number, projectName }) {
+export function pdfFileName({ number, familyNumber, version, projectName }) {
   const safe = String(projectName || 'Project').replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim();
-  return `ILC Studios RFQ ${rfqNumber(number)} ${safe}.pdf`;
+  return `ILC Studios RFQ ${rfqLabel({ number, familyNumber, version })} ${safe}.pdf`;
 }
 
 /** Plain text email body, same words as Trackvia's template. */
-export function emailBody({ number, projectName, needBy, notes, office }) {
+export function emailBody({ number, familyNumber, version, projectName, needBy, notes, office, changes = [] }) {
   const phone = office?.phone || '720-248-8208';
   const mail = office?.ordersEmail || office?.pricingEmail || 'orders@ilcstudios.com';
   const lines = [
     'Hello,',
     '',
-    `Attached is an RFQ request (${rfqNumber(number)}) for ${projectName || 'this project'}. Please respond within 1 business day to confirm you received it. We need pricing within ${NEED_BY_BUSINESS_DAYS} business days${needBy ? `, by ${showDateTime(needBy)}` : ''}.`,
+    `Attached is an RFQ request (${rfqLabel({ number, familyNumber, version })}) for ${projectName || 'this project'}. Please respond within 1 business day to confirm you received it. We need pricing within ${NEED_BY_BUSINESS_DAYS} business days${needBy ? `, by ${showDateTime(needBy)}` : ''}.`,
     '',
     'Register this project with ILC as the Designer and Distributor.',
     '',
@@ -101,6 +113,7 @@ export function emailBody({ number, projectName, needBy, notes, office }) {
     '',
     'Call or email us if any questions arise.',
   ];
+  if (changes.length) lines.push('', 'Changes since the last version:', ...changes.map((c) => `* ${c.text}`));
   if (String(notes || '').trim()) lines.push('', 'Project Manager Comments:', String(notes).trim());
   lines.push('', 'Thank you!', 'ILC Studios', `${mail} | ${phone}`);
   return lines.join('\n');

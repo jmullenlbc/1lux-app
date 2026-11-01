@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db';
 import { htmlToPdf } from '@/lib/pdf';
 import { rfqFooter, rfqPdfHtml } from '@/lib/rfq/pdfHtml';
 import { pdfFileName } from '@/lib/rfq/format';
+import { changesFor } from '@/lib/rfq/resolve';
 
 // GET the RFQ as a PDF, Trackvia layout (0144). Registered in next.config.mjs
 // outputFileTracingIncludes so Chromium ships with this route.
@@ -16,9 +17,9 @@ export async function GET(request, { params }) {
   });
   if (!rfq) return NextResponse.json({ error: 'That RFQ is not in the app any more. Nothing was made. Reload the page. (RFQ_NOT_FOUND)' }, { status: 404 });
   try {
-    const html = rfqPdfHtml({ rfq, project: rfq.project, office: rfq.office, pmName: rfq.project.preconManager?.name });
-    const pdf = await htmlToPdf(html, { margin: { top: '0.5in', right: '0.5in', bottom: '0.6in', left: '0.5in' }, footer: rfqFooter(rfq.number) });
-    const name = pdfFileName({ number: rfq.number, projectName: rfq.project.name });
+    const html = rfqPdfHtml({ rfq, project: rfq.project, office: rfq.office, pmName: rfq.project.preconManager?.name, changes: await changesFor(rfq) });
+    const pdf = await htmlToPdf(html, { margin: { top: '0.5in', right: '0.5in', bottom: '0.6in', left: '0.5in' }, footer: rfqFooter(rfq) });
+    const name = pdfFileName({ number: rfq.number, familyNumber: rfq.familyNumber, version: rfq.version, projectName: rfq.project.name });
     return new NextResponse(pdf, {
       headers: {
         'Content-Type': 'application/pdf',

@@ -30,7 +30,7 @@ export default async function PreConPage({ searchParams }) {
       const rows = await prisma.rfq.findMany({
         where: { project: projectScopeWhere(user) },
         select: {
-          id: true, number: true, status: true, toName: true, needBy: true, sentByName: true,
+          id: true, number: true, familyNumber: true, version: true, status: true, toName: true, needBy: true, sentByName: true,
           receivedAt: true, createdAt: true, updatedAt: true,
           project: { select: { id: true, name: true } },
           lines: { select: { dnPrice: true } },

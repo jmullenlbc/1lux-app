@@ -3,8 +3,9 @@
 // spreadsheet reader gives the check screen, so a person checks both the same way.
 import { normalizeTag } from '../bidLeveling/normalizeTag.js';
 import { toNumber } from '../matrixImport/readMatrix.js';
+import { TERM_KINDS } from './quoteTerms.js';
 
-const TOTAL_KEYS = ['FIXTURES', 'CONTROLS', 'FREIGHT', 'WAREHOUSING', 'SPARES', 'TAX', 'GRAND'];
+const TOTAL_KEYS = ['FIXTURES', 'CONTROLS', 'FREIGHT', 'SPARES', 'GRAND'];
 const text = (v, max) => String(v ?? '').trim().slice(0, max);
 const day = (v) => (/^\d{4}-\d{2}-\d{2}$/.test(String(v ?? '').trim()) ? String(v).trim() : '');
 const amount = (v) => {
@@ -17,7 +18,7 @@ const price = (v) => amount(v) || null;
 const NOT_READ = 'We read the file, but the answer came back garbled, so nothing was saved. This is on our side, not the file. Press Try again. (RFQ_READ_GARBLED)';
 const NO_LINES = 'We read this file and found no quote lines on it, so nothing was saved. If it is not a quote, skip it. If it is, press Type it by hand. (RFQ_READ_NO_LINES)';
 
-/** The AI's reply text to { ok, lines, totals, info, bidderName, notesRaw }, or { ok: false, message }. */
+/** The AI's reply text to { ok, lines, totals, info, bidderName, notesRaw, freight, terms }, or { ok: false, message }. */
 export function parseQuoteReply(raw) {
   const reply = String(raw ?? '');
   const from = reply.indexOf('{');
@@ -39,6 +40,7 @@ export function parseQuoteReply(raw) {
       typeTagRaw, typeTag: t.typeTag, variant: t.variant, lengthFt: t.lengthFt, description, mfr, catalog,
       qty: amount(l?.qty), uom: ['EA', 'LF', 'LOT'].includes(uom) ? uom : 'EA',
       unitPrice: price(l?.unitPrice), extPrice: price(l?.extPrice),
+      leadTime: text(l?.leadTime, 120), stock: text(l?.stock, 120), discontinued: l?.discontinued === true,
       optionGroup: 'BASE', section: '', sourceRow: lines.length + 1,
     });
   });
@@ -53,9 +55,18 @@ export function parseQuoteReply(raw) {
     ok: true,
     lines,
     totals,
-    info: { quoteNumber: text(got.quoteNumber, 80), quoteDate: day(got.quoteDate), expiresAt: day(got.expiresAt) },
+    info: {
+      quoteNumber: text(got.quoteNumber, 80), quoteDate: day(got.quoteDate), expiresAt: day(got.expiresAt),
+      paymentTerms: text(got.paymentTerms, 120), fob: text(got.fob, 120), revisionNote: text(got.revisionNote, 300), leadTime: text(got.leadTime, 200),
+    },
     bidderName: text(got.bidderName, 200),
     notesRaw: text(got.notes, 4000),
+    freight: (Array.isArray(got.freight) ? got.freight : []).map((f) => ({
+      brand: text(f?.brand, 120), status: text(f?.status, 20).toUpperCase(), amount: amount(f?.amount), wording: text(f?.wording, 400),
+    })),
+    terms: (Array.isArray(got.terms) ? got.terms : [])
+      .map((t) => ({ kind: text(t?.kind, 30).toUpperCase(), text: text(t?.text, 400) }))
+      .filter((t) => TERM_KINDS[t.kind] && t.text),
   };
 }
 

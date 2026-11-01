@@ -3,6 +3,7 @@ import { requireStaff } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { typePrice } from '@/lib/rfq/actions';
 import { emailBody, emailSubject } from '@/lib/rfq/format';
+import { changesFor } from '@/lib/rfq/resolve';
 import { looseNumberOrNull } from '@/lib/numberInput';
 import { historyFor } from '@/lib/recordHistory';
 
@@ -21,9 +22,13 @@ export async function GET(request, { params }) {
   if (error) return error;
   const rfq = await load(params.id, params.rfqId);
   if (!rfq) return NOT_FOUND();
-  const info = { number: rfq.number, projectName: rfq.project.name, needBy: rfq.needBy, notes: rfq.notes, office: rfq.office };
+  const info = {
+    number: rfq.number, familyNumber: rfq.familyNumber, version: rfq.version, projectName: rfq.project.name,
+    needBy: rfq.needBy, notes: rfq.notes, office: rfq.office, changes: await changesFor(rfq),
+  };
   return NextResponse.json({
     rfq,
+    changes: info.changes,
     email: { to: rfq.sentTo, subject: emailSubject(info), body: emailBody(info) },
     history: await historyFor('RFQ', rfq.id),
   });

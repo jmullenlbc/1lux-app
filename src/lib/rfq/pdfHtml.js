@@ -1,16 +1,16 @@
 // RFQ PDF page, laid out like the Trackvia RFQ (Mike 10-29). Server side;
 // turned into a PDF by htmlToPdf in /api/projects/[id]/rfqs/[rfqId]/pdf.
-import { DEFAULT_COMPANY, officeAddress, rfqNotesFor, rfqNumber, showDate, showDateTime } from './format';
+import { DEFAULT_COMPANY, officeAddress, rfqLabel, rfqNotesFor, showDate, showDateTime } from './format';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const qtyText = (q) => (q == null ? '' : Number.isInteger(q) ? String(q) : String(Math.round(q * 100) / 100));
 
-export function rfqFooter(number) {
+export function rfqFooter(rfq) {
   return `<div style="width:100%;font-size:8px;color:#666;font-family:Arial,sans-serif;padding:0 0.5in;display:flex;justify-content:space-between">
-    <span>Request for Quote ${rfqNumber(number)}</span><span>Page <span class="pageNumber"></span> of <span class="totalPages"></span></span></div>`;
+    <span>Request for Quote ${rfqLabel(rfq)}</span><span>Page <span class="pageNumber"></span> of <span class="totalPages"></span></span></div>`;
 }
 
-export function rfqPdfHtml({ rfq, project, office, pmName }) {
+export function rfqPdfHtml({ rfq, project, office, pmName, changes = [] }) {
   const phone = office?.phone || '720-248-8208';
   const mail = office?.ordersEmail || 'orders@ilcstudios.com';
   const field = (label, value) => `<tr><th>${esc(label)}</th><td>${esc(value)}</td></tr>`;
@@ -41,10 +41,10 @@ export function rfqPdfHtml({ rfq, project, office, pmName }) {
     <div><div class="co">${esc(office?.companyName || DEFAULT_COMPANY)}</div>
       <div class="muted">${esc(officeAddress(office))}</div>
       <div class="muted">${esc(phone)} | ${esc(mail)}</div></div>
-    <div style="text-align:right"><h1>REQUEST FOR QUOTE</h1><div style="font-size:14px;font-weight:bold">${rfqNumber(rfq.number)}</div></div>
+    <div style="text-align:right"><h1>REQUEST FOR QUOTE</h1><div style="font-size:14px;font-weight:bold">${rfqLabel(rfq)}</div></div>
   </div>
   <table class="meta">
-    ${field('RFQ Number', rfqNumber(rfq.number))}
+    ${field('RFQ Number', rfqLabel(rfq))}
     ${field('Need Pricing By', showDateTime(rfq.needBy))}
     ${field('Sales Rep', rfq.toName)}
     ${field('Request Date', showDate(rfq.createdAt))}
@@ -53,6 +53,7 @@ export function rfqPdfHtml({ rfq, project, office, pmName }) {
     ${field('Send pricing to', office?.pricingEmail || mail)}
   </table>
   <ul>${rfqNotesFor(office).map((n) => `<li>${esc(n)}</li>`).join('')}</ul>
+  ${changes.length ? `<div style="font-weight:bold">Changes since the last version</div><ul>${changes.map((c) => `<li>${esc(c.text)}</li>`).join('')}</ul>` : ''}
   <table class="lines"><thead><tr><th style="width:10%">Type</th><th style="width:18%">Manufacturer</th><th style="width:32%">Part Number</th><th>Notes</th><th class="num" style="width:9%">Qty to Quote</th></tr></thead>
     <tbody>${rows}</tbody></table>
   <div style="margin-top:16px;font-weight:bold">Additional Notes</div>

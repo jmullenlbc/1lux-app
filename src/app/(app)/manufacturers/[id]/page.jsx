@@ -33,7 +33,7 @@ export default async function ManufacturerDetailPage({ params }) {
       where: { OR: [{ manufacturerId: manufacturer.id }, { lines: { some: { manufacturer: manufacturer.name } } }] },
       orderBy: { number: 'desc' },
       take: 50,
-      select: { id: true, number: true, status: true, toName: true, createdAt: true, needBy: true, project: { select: { id: true, name: true } } },
+      select: { id: true, number: true, familyNumber: true, version: true, status: true, toName: true, createdAt: true, needBy: true, project: { select: { id: true, name: true } } },
     }),
   ]);
 

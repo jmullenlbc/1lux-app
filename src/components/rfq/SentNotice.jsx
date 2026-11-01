@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import Button from '@/components/ui/Button';
-import { gmailComposeUrl, rfqNumber, showDate } from '@/lib/rfq/format';
+import { gmailComposeUrl, rfqLabel, showDate } from '@/lib/rfq/format';
 
 // Shown right after an RFQ is made or a change order is marked Sent. The app does not send email itself yet,
 // so this hands over the To, Subject and Body to copy, a Gmail draft with them
@@ -49,7 +49,7 @@ export default function SentNotice({ projectId, rfq, email, onClose }) {
   const pdf = `/api/projects/${projectId}/rfqs/${rfq.id}/pdf`;
   return (
     <HandOffNotice
-      title={`${rfqNumber(rfq.number)} is ready for ${rfq.toName}`}
+      title={`${rfqLabel(rfq)} is ready for ${rfq.toName}`}
       detail={`Lines are marked Sent. Need by ${showDate(rfq.needBy)}. Download the PDF, then send the email with it attached.`}
       pdfUrl={pdf} downloadUrl={`${pdf}?download=1`} email={email} onClose={onClose}
     />

@@ -5,11 +5,12 @@ import Button from '@/components/ui/Button';
 import StatTile from '@/components/ui/StatTile';
 import AlertMark from '@/components/ui/AlertMark';
 import WidgetFrame, { WidgetLoading, WidgetError, WidgetEmpty } from '@/components/ui/WidgetFrame';
-import { LINE_STATUS, needByFrom, rfqNumber, showDate } from '@/lib/rfq/format';
+import { LINE_STATUS, needByFrom, roundLabel, showDate } from '@/lib/rfq/format';
 import { rfqApi } from './rfqApi';
 import SentRfqs from './SentRfqs';
 import RfqReceived from './RfqReceived';
 import SentNotice from './SentNotice';
+import RfqCompare from './RfqCompare';
 import RepSelect, { SELECT } from './RepSelect';
 import { BOX, usePicks } from './picks';
 
@@ -69,6 +70,11 @@ function GroupCard({ projectId, group, onState, onSent, setErr }) {
           <p className="text-xs text-slate-500 mt-0.5">
             {group.quoteEmails.length ? `To ${group.quoteEmails.join(', ')}` : 'No email yet'} · {group.lines.length} line{group.lines.length === 1 ? '' : 's'}, {group.draftCount} not sent
           </p>
+          {group.lastSent && (
+            <p className="text-xs text-slate-500 mt-0.5">
+              Last sent {group.lastSent.label}{group.lastSent.round ? ` in ${group.lastSent.round}` : ''}. For a new version, use Send revision under Sent RFQs.
+            </p>
+          )}
         </div>
         <div className="ml-auto">
           <Button size="sm" disabled={!ready || busy} loading={busy} onClick={send}>
@@ -108,6 +114,57 @@ function GroupCard({ projectId, group, onState, onSent, setErr }) {
         <textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Notes for this rep (optional, prints on the RFQ)"
           className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm mt-3 min-h-[2.5rem]" />
       )}
+    </div>
+  );
+}
+
+// The newest round on the job: one drawing submission, such as Bid Set, VE or GMP.
+// Reps left out of a round carry their last prices forward.
+function RoundStrip({ projectId, state, onState, setErr }) {
+  const rounds = state.rounds || [];
+  const newest = rounds.reduce((best, r) => (!best || r.number > best.number ? r : best), null);
+  const [name, setName] = useState('');
+  const [rename, setRename] = useState(null);
+  const [busy, setBusy] = useState(false);
+
+  async function post(body, what) {
+    setBusy(true); setErr('');
+    const d = await rfqApi(`/api/projects/${projectId}/rfqs`, { method: 'POST', what, body });
+    setBusy(false);
+    if (d.error) { setErr(d.error); return false; }
+    onState(d);
+    return true;
+  }
+  async function start() {
+    if (await post({ action: 'round', name }, 'The new round')) setName('');
+  }
+  async function saveName() {
+    if (await post({ action: 'roundName', roundId: newest.id, name: rename }, 'The round name')) setRename(null);
+  }
+
+  return (
+    <div className="border border-slate-200 rounded-lg bg-white px-3 py-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+      {newest
+        ? rename == null
+          ? (
+            <>
+              <span className="font-semibold text-slate-800">{roundLabel(newest)}</span>
+              <span className="text-slate-500">{newest.sentReps.length} rep{newest.sentReps.length === 1 ? '' : 's'} sent, {newest.carriedReps.length} carried forward</span>
+              <Button size="sm" variant="ghost" onClick={() => setRename(newest.name || '')}>Rename</Button>
+            </>
+          )
+          : (
+            <>
+              <input className={`${SELECT} w-40`} value={rename} onChange={(e) => setRename(e.target.value)} placeholder="Bid Set, VE, GMP" aria-label="Round name" />
+              <Button size="sm" variant="secondary" disabled={busy} onClick={saveName}>Save</Button>
+              <Button size="sm" variant="ghost" onClick={() => setRename(null)}>Cancel</Button>
+            </>
+          )
+        : <span className="text-slate-500">Nothing sent yet. The first send starts Round 1.</span>}
+      <div className="ml-auto flex flex-wrap items-center gap-2">
+        <input className={`${SELECT} w-40`} value={name} onChange={(e) => setName(e.target.value)} placeholder="Name, such as GMP" aria-label="New round name" />
+        <Button size="sm" variant="secondary" disabled={busy} loading={busy} onClick={start}>Start a new round</Button>
+      </div>
     </div>
   );
 }
@@ -179,6 +236,7 @@ export default function RfqTab({ projectId }) {
       </WidgetFrame>
 
       {sent.map((s) => <SentNotice key={s.rfq.id} projectId={projectId} rfq={s.rfq} email={s.email} onClose={() => setSent((x) => x.filter((y) => y.rfq.id !== s.rfq.id))} />)}
+      <RoundStrip projectId={projectId} state={state} onState={setState} setErr={setErr} />
 
       <WidgetFrame title="By rep" sub={`${readyGroups.length} ready to send${blocked.length ? `, ${blocked.length} need a look` : ''}`} actions={
         readyGroups.length > 1 && <Button size="sm" disabled={sendingAll} loading={sendingAll} onClick={sendAll}>Send all {readyGroups.length}</Button>
@@ -191,6 +249,7 @@ export default function RfqTab({ projectId }) {
       </WidgetFrame>
 
       <SentRfqs projectId={projectId} state={state} onState={setState} onSent={onSent} reload={load} />
+      <RfqCompare state={state} />
 
       <RfqReceived projectId={projectId} rfqs={state.rfqs} onChanged={load} lines={state.lines} onState={setState} />
 
@@ -233,7 +292,7 @@ export default function RfqTab({ projectId }) {
                     </div>
                   </td>
                   <td className="px-3 py-1.5"><StatusChip status={l.status} /></td>
-                  <td className="px-3 py-1.5 font-mono text-slate-600">{l.rfqNumber ? rfqNumber(l.rfqNumber) : ''}</td>
+                  <td className="px-3 py-1.5 font-mono text-slate-600">{l.rfqLabel || ''}</td>
                   <td className="px-3 py-1.5 tabular-nums">{l.dnPrice != null ? `$${Number(l.dnPrice).toFixed(2)}` : ''}</td>
                 </tr>
               ))}

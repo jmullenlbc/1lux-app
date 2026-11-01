@@ -4,24 +4,77 @@
 import { prisma } from '@/lib/db';
 import { logHistory } from '@/lib/recordHistory';
 import { sumCents } from '@/lib/money';
-import { needByFrom, rfqNumber, LINE_STATUS } from './format';
+import { needByFrom, rfqLabel, roundLabel, LINE_STATUS } from './format';
+import { familyOf } from './compare';
+
+/** The rep's newest send on this job. A loaded RFQ has no rep on it, so the one being revised starts the family. */
+async function lastInFamily(tx, { projectId, group, revisesId }) {
+  const rep = group.salesRepId ? { salesRepId: group.salesRepId } : { salesRepId: null, manufacturerId: group.manufacturerId };
+  const own = await tx.rfq.findFirst({ where: { projectId, ...rep }, orderBy: { number: 'desc' } });
+  if (own || !revisesId) return own;
+  return tx.rfq.findFirst({ where: { id: revisesId, projectId, salesRepId: null, manufacturerId: null } });
+}
+
+/** Sends go into the job's newest round; the first send starts round 1. */
+async function currentRound(tx, projectId) {
+  const last = await tx.rfqRound.findFirst({ where: { projectId }, orderBy: { number: 'desc' } });
+  return last || tx.rfqRound.upsert({ where: { projectId_number: { projectId, number: 1 } }, create: { projectId, number: 1 }, update: {} });
+}
+
+const roundName = (name) => String(name || '').trim().slice(0, 80);
+
+/** Start the job's next round: a new drawing submission such as VE or GMP. */
+export async function startRound({ projectId, name, user }) {
+  for (let tries = 0; ; tries++) {
+    try {
+      return await prisma.$transaction(async (tx) => {
+        const top = await tx.rfqRound.aggregate({ where: { projectId }, _max: { number: true } });
+        const round = await tx.rfqRound.create({
+          data: { projectId, number: (top._max.number || 0) + 1, name: roundName(name), createdById: user?.id || null, createdByName: user?.name || user?.email || null },
+        });
+        await logHistory({ entityType: 'RFQ_ROUND', entityId: round.id, action: 'CREATE', user, db: tx, note: `${roundLabel(round)} started` });
+        return round;
+      });
+    } catch (e) {
+      if (e?.code === 'P2002' && tries < 3) continue; // two people started one at once
+      throw e;
+    }
+  }
+}
+
+/** Rename a round. A blank name shows as Round 2. Returns false when the round is not on this job. */
+export async function renameRound({ projectId, roundId, name, user }) {
+  const round = await prisma.rfqRound.findFirst({ where: { id: roundId, projectId } });
+  if (!round) return false;
+  const next = roundName(name);
+  if (next !== round.name) {
+    await prisma.rfqRound.update({ where: { id: roundId }, data: { name: next } });
+    await logHistory({ entityType: 'RFQ_ROUND', entityId: roundId, action: 'UPDATE', user, changes: { Name: [round.name, next] } });
+  }
+  return true;
+}
 
 /**
  * Send one group's lines. group comes from rfqState(); lineIds narrows it
- * (default: the Draft lines). Returns the new Rfq with lines.
+ * (default: the Draft lines). A revision goes out with the rep's whole list and
+ * replaces what they had; a later plain send adds lines to it. Returns the new
+ * Rfq with lines.
  */
 export async function sendRfq({ projectId, group, lineIds, notes, officeId, user, revisesId = null }) {
-  const pick = lineIds?.length ? group.lines.filter((l) => lineIds.includes(l.id)) : group.lines.filter((l) => l.status === LINE_STATUS.DRAFT);
-  if (!pick.length) return { error: 'Every line for this rep was already sent. Use Send again on the sent RFQ to send a revision. (RFQ_NOTHING_TO_SEND)' };
+  const pick = revisesId ? group.lines : lineIds?.length ? group.lines.filter((l) => lineIds.includes(l.id)) : group.lines.filter((l) => l.status === LINE_STATUS.DRAFT);
+  if (!pick.length) return { error: 'Every line for this rep was already sent, so nothing was sent. Open the rep under Sent RFQs and press Send revision. (RFQ_NOTHING_TO_SEND)' };
   const sentAt = new Date();
   for (let tries = 0; ; tries++) {
     try {
       return await prisma.$transaction(async (tx) => {
         const top = await tx.rfq.aggregate({ _max: { number: true } });
         const number = (top._max.number || 0) + 1;
+        const prior = await lastInFamily(tx, { projectId, group, revisesId });
+        const round = await currentRound(tx, projectId);
         const rfq = await tx.rfq.create({
           data: {
             number, projectId, salesRepId: group.salesRepId, manufacturerId: group.manufacturerId, officeId: officeId || null,
+            familyNumber: prior ? familyOf(prior) : number, version: prior ? (prior.version || 1) + 1 : 1, addOn: !!prior && !revisesId, roundId: round.id,
             toName: group.toName, sentTo: group.quoteEmails.join(', '), needBy: needByFrom(sentAt), notes: String(notes || '').trim() || null,
             sentById: user?.id || null, sentByName: user?.name || user?.email || null, revisesId,
             lines: {
@@ -39,7 +92,7 @@ export async function sendRfq({ projectId, group, lineIds, notes, officeId, user
         });
         await logHistory({
           entityType: 'RFQ', entityId: rfq.id, action: 'SEND', user, db: tx,
-          note: `${rfqNumber(number)} sent to ${group.toName} (${rfq.sentTo || 'no email'}), ${pick.length} line${pick.length === 1 ? '' : 's'}${revisesId ? ', revision' : ''}`,
+          note: `${rfqLabel(rfq)} sent to ${group.toName} (${rfq.sentTo || 'no email'}), ${pick.length} line${pick.length === 1 ? '' : 's'}${revisesId ? ', revision' : rfq.addOn ? ', added to what they had' : ''}, ${roundLabel(round)}`,
         });
         return { rfq };
       });

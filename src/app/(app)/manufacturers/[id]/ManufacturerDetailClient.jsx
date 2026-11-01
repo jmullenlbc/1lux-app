@@ -7,7 +7,7 @@ import Card, { CardHeader, CardBody } from '@/components/ui/Card';
 import RecordHistory from '@/components/RecordHistory';
 import EmailLists from '@/components/salesReps/EmailLists';
 import RepLinksCard from '@/components/salesReps/RepLinksCard';
-import { rfqNumber, showDate } from '@/lib/rfq/format';
+import { rfqLabel, showDate } from '@/lib/rfq/format';
 
 // One manufacturer, built the same as one rep (Mike 10-29): details, buying,
 // reps by office, RFQs, products, and the history of every change.
@@ -161,7 +161,7 @@ export default function ManufacturerDetailClient({ manufacturer: mfr, offices = 
                 <tbody className="divide-y divide-slate-100">
                   {rfqs.map((r) => (
                     <tr key={r.id}>
-                      <td className="py-1.5 font-mono text-slate-700">{rfqNumber(r.number)}</td>
+                      <td className="py-1.5 font-mono text-slate-700">{rfqLabel(r)}</td>
                       <td className="py-1.5"><Link href={`/project/${r.project.id}?tab=rfqs`} className="text-slate-800 hover:text-orange-600">{r.project.name}</Link></td>
                       <td className="py-1.5 text-slate-500">To {r.toName}</td>
                       <td className="py-1.5 text-slate-500">Sent {showDate(r.createdAt)}</td>

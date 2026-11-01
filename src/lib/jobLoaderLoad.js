@@ -229,9 +229,11 @@ export async function loadRfqs(db, user, projectId, rows) {
       try {
         await db.$transaction(async (tx) => {
           const top = await tx.rfq.aggregate({ _max: { number: true } });
+          const number = (top._max.number || 0) + 1;
+          const round = await tx.rfqRound.upsert({ where: { projectId_number: { projectId, number: 1 } }, create: { projectId, number: 1 }, update: {} });
           const rfq = await tx.rfq.create({
             data: {
-              number: (top._max.number || 0) + 1, projectId, toName: r.toName || 'Unknown', sentTo: r.sentTo,
+              number, familyNumber: number, roundId: round.id, projectId, toName: r.toName || 'Unknown', sentTo: r.sentTo,
               needBy: when(r.needBy) || sent, notes, sentById: user.id, sentByName: user.name || user.email,
               status: r.status === 'RECEIVED' ? 'RECEIVED' : 'SENT', receivedAt: when(r.receivedDate), createdAt: sent,
               lines: { create: lines },

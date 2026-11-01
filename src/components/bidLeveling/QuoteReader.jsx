@@ -15,7 +15,7 @@ const BUCKETS = [
   ['FIXTURES', 'Fixtures'], ['CONTROLS', 'Controls'], ['FREIGHT', 'Freight'], ['WAREHOUSING', 'Warehousing'],
   ['SPARES', 'Spares'], ['TAX', 'Tax'], ['GRAND', 'Grand total'],
 ];
-const EMPTY_FORM = { bidderName: '', bidderType: 'UNKNOWN', quoteNumber: '', quoteDate: '', expiresAt: '', taxRateStated: '', notesRaw: '' };
+const EMPTY_FORM = { bidderName: '', bidderType: 'UNKNOWN', quoteNumber: '', quoteDate: '', expiresAt: '', taxRateStated: '', notesRaw: '', paymentTerms: '', fob: '', revisionNote: '', leadTime: '' };
 const CELL = 'w-full rounded border border-slate-200 bg-white px-1.5 py-1 text-xs text-slate-900 focus:outline-none focus:ring-1 focus:ring-orange-500';
 const asNumbers = (l) => ({ ...l, qty: toNumber(l.qty), unitPrice: toNumber(l.unitPrice), extPrice: toNumber(l.extPrice) });
 const shown = (v) => (v == null ? '' : String(v));
@@ -27,6 +27,8 @@ export function quoteToCheck(r, fileName) {
     fileName,
     sheetName: r.sheetName,
     otherSheets: r.otherSheets || 0,
+    freight: r.freight || [],
+    terms: r.terms || [],
     lines: r.lines.map((l) => ({ ...l, _key: nextKey++, ok: false })),
     totals: Object.fromEntries(Object.entries(r.totals || {}).map(([k, v]) => [k, shown(v)])),
     form: {
@@ -37,6 +39,10 @@ export function quoteToCheck(r, fileName) {
       expiresAt: r.info?.expiresAt || '',
       taxRateStated: shown(r.info?.taxRateStated),
       notesRaw: r.notesRaw || '',
+      paymentTerms: r.info?.paymentTerms || '',
+      fob: r.info?.fob || '',
+      revisionNote: r.info?.revisionNote || '',
+      leadTime: r.info?.leadTime || '',
     },
   };
 }
@@ -132,6 +138,7 @@ export function CheckScreen({ read, setRead, onAdd, busy, error, onStartOver, sa
     ...form,
     fileName: read.fileName,
     totals,
+    ...(repQuote ? { freight: read.freight, terms: read.terms } : {}),
     lines: lines.map(({ _key, ok, sourceRow, ...l }, i) => ({ ...l, needsReview: reasons[i].length > 0 && !ok })),
   });
 
@@ -175,8 +182,12 @@ export function CheckScreen({ read, setRead, onAdd, busy, error, onStartOver, sa
         )}
         <Field label="Quote number"><input className={INPUT} value={form.quoteNumber} onChange={setForm('quoteNumber')} /></Field>
         <Field label="Quote date"><input type="date" className={INPUT} value={form.quoteDate} onChange={setForm('quoteDate')} /></Field>
-        {!repQuote && <Field label="Valid until"><input type="date" className={INPUT} value={form.expiresAt} onChange={setForm('expiresAt')} /></Field>}
+        <Field label="Valid until"><input type="date" className={INPUT} value={form.expiresAt} onChange={setForm('expiresAt')} /></Field>
         {!repQuote && <Field label="Tax rate stated (%)"><input className={INPUT} value={form.taxRateStated} onChange={setForm('taxRateStated')} placeholder="8.6" /></Field>}
+        {repQuote && <Field label="Payment terms"><input className={INPUT} value={form.paymentTerms} onChange={setForm('paymentTerms')} placeholder="Net 30" /></Field>}
+        {repQuote && <Field label="FOB point"><input className={INPUT} value={form.fob} onChange={setForm('fob')} /></Field>}
+        {repQuote && <Field label="Lead time"><input className={INPUT} value={form.leadTime} onChange={setForm('leadTime')} placeholder="6 to 8 weeks" /></Field>}
+        {repQuote && <Field label="Revision note"><input className={INPUT} value={form.revisionNote} onChange={setForm('revisionNote')} /></Field>}
       </div>
 
       <div>
@@ -199,6 +210,7 @@ export function CheckScreen({ read, setRead, onAdd, busy, error, onStartOver, sa
                 <th className={TH}>Unit</th>
                 <th className={`${TH} text-right`}>Unit price</th>
                 <th className={`${TH} text-right`}>Extended</th>
+                {repQuote && <th className={TH}>Lead</th>}
               </tr>
             </thead>
             <tbody>
@@ -233,10 +245,11 @@ export function CheckScreen({ read, setRead, onAdd, busy, error, onStartOver, sa
                       </td>
                       <td className={`${TD} min-w-[6rem]`}><input className={`${CELL} text-right ${NUM}`} value={shown(l.unitPrice)} onChange={(e) => setLine(i, { unitPrice: e.target.value })} aria-label="Unit price" /></td>
                       <td className={`${TD} min-w-[6.5rem]`}><input className={`${CELL} text-right ${NUM}`} value={shown(l.extPrice)} onChange={(e) => setLine(i, { extPrice: e.target.value })} aria-label="Extended" /></td>
+                      {repQuote && <td className={`${TD} min-w-[7rem]`}><input className={CELL} value={l.leadTime || ''} onChange={(e) => setLine(i, { leadTime: e.target.value })} aria-label="Lead time" /></td>}
                     </tr>
                     {rs.length > 0 && (
                       <tr className={tint}>
-                        <td colSpan={8} className="px-3 pb-2.5">
+                        <td colSpan={repQuote ? 9 : 8} className="px-3 pb-2.5">
                           {showReasons.length === 0 ? (
                             <span className="text-xs text-green-700">You marked this right.</span>
                           ) : (
@@ -265,18 +278,24 @@ export function CheckScreen({ read, setRead, onAdd, busy, error, onStartOver, sa
       <div>
         <span className={LABEL}>Quote totals</span>
         <p className={`${HELPER} mt-0.5`}>As the quote states them. Leave a box empty when the quote does not show it.</p>
-        <div className="mt-2 grid grid-cols-2 md:grid-cols-7 gap-3">
-          {BUCKETS.map(([k, label]) => (
+        <div className={`mt-2 grid grid-cols-2 gap-3 ${repQuote ? 'md:grid-cols-5' : 'md:grid-cols-7'}`}>
+          {BUCKETS.filter(([k]) => !repQuote || !['WAREHOUSING', 'TAX'].includes(k)).map(([k, label]) => (
             <Field key={k} label={label}><input className={`${INPUT} ${NUM}`} value={totals[k] || ''} onChange={setTotal(k)} placeholder="$" /></Field>
           ))}
         </div>
       </div>
 
-      {!repQuote && (
-        <Field label="Terms and notes" hint="The quote's terms, exclusions and notes, as written.">
-          <textarea className={`${INPUT} h-24`} value={form.notesRaw} onChange={setForm('notesRaw')} />
-        </Field>
+      {repQuote && read.freight?.length > 0 && (
+        <div>
+          <span className={LABEL}>Freight as read</span>
+          <ul className={`${HELPER} mt-1 space-y-0.5`}>
+            {read.freight.map((f, i) => <li key={i}>{f.brand || 'Whole quote'}: {f.wording || f.status}{f.amount != null ? `, $${f.amount}` : ''}</li>)}
+          </ul>
+        </div>
       )}
+      <Field label="Terms and notes" hint="The quote's terms, exclusions and notes, as written.">
+        <textarea className={`${INPUT} h-24`} value={form.notesRaw} onChange={setForm('notesRaw')} />
+      </Field>
 
       <div className="flex flex-wrap items-center gap-3">
         <Button loading={busy} disabled={blocking > 0} onClick={save}>{saveLabel}</Button>

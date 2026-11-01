@@ -5,6 +5,29 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [RFQ versions, job rounds, full quote data, freight estimate] - November 1, 2026
+
+### Added
+- RFQ versions per rep: RFQ0041 V3. A rep keeps one RFQ number across the job, and a plain second send is the next version (migration 0157, `Rfq.familyNumber`, `version`, `addOn`).
+- Job rounds (`RfqRound`): each drawing submission is a named round, such as Bid Set, VE or GMP. A rep left out of a round carries their last prices forward, so every round is the whole job at that point. Start and rename on the RFQs tab.
+- Compare rounds on the RFQs tab: pick any two rounds, one sentence on what moved, and a row per type with price, quantity and part changes and the dollar difference (`src/lib/rfq/compare.js`, `RfqCompare.jsx`).
+- Sent RFQs: one row per rep with version chips, Changes from the last version, and What changes in the next version before sending. Send revision takes every line the rep quotes today, including ones added since.
+- Everything a quote says is kept (migration 0157): expiry, payment terms, FOB point, revision note, lead time, product, controls, spares and freight totals, notes text, full text, freight per brand (`RfqQuoteFreight`), terms such as tariff clauses (`RfqQuoteTerm`), and per row lead time, unit of measure, extended price, stock note and discontinued.
+- Quote summary under each received quote: lines priced and missing, what the quote really costs, longest lead, freight table, typed freight, Allowed and Not included, older quote notice.
+- Freight we expect to pay: a real dollar figure on the quote wins, then that brand's history, then the Starting freight percent on Admin (2%). Job tiles show Budget Freight, Freight we expect to pay, Freight profit and the share based on real figures. History uses stated dollar figures only, never typed or estimated ones.
+- Starting freight card on Admin (`/api/admin/rfq-freight`, `RfqFreightCard.jsx`). Brand and rep pages show their quote history.
+
+### Changed
+- Pre-Con RFQs, the RFQ PDF, the email and the rep and manufacturer pages show the version label.
+- The quote reader pulls the new fields from PDFs, Excel and pasted email.
+
+### Known limits
+- Quotes saved before this change have no new fields until they are dropped in again. The screen says so.
+- No actual freight paid field. It is on bills that do not come into the system yet.
+- Visible RFQ numbers can have gaps. Harmless.
+
+---
+
 ## [Current Contract, RFQ rows that add up, Invoiced removed, desktop My Jobs and Ship Schedules] - October 31, 2026 (DEPLOYED November 1, 2026)
 
 ### Added

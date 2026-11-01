@@ -3,7 +3,10 @@ import { useCallback, useEffect, useState } from 'react';
 import Button from '@/components/ui/Button';
 import AlertMark from '@/components/ui/AlertMark';
 import WidgetFrame from '@/components/ui/WidgetFrame';
-import { rfqNumber, showDate, showDateTime } from '@/lib/rfq/format';
+import { rfqLabel, showDate, showDateTime } from '@/lib/rfq/format';
+import { TERM_KINDS } from '@/lib/rfq/quoteTerms';
+import { cents } from '@/lib/money';
+import StatTile from '@/components/ui/StatTile';
 import { rfqApi, money } from './rfqApi';
 import RepSelect from './RepSelect';
 import QuoteDrop from './QuoteDrop';
@@ -24,7 +27,7 @@ const STATUS = {
   OPEN: { text: 'Which line?', tone: 'text-amber-700' },
 };
 
-const lineLabel = (r) => `${rfqNumber(r.rfq.number)} · ${r.typeCode} ${r.manufacturer || ''} ${r.partNumber || ''}${r.qty != null ? ` · qty ${r.qty}` : ''}${r.dnPrice != null ? ` · ${money(r.dnPrice)}` : ''}`.replace(/\s+/g, ' ');
+const lineLabel = (r) => `${rfqLabel(r.rfq)} · ${r.typeCode} ${r.manufacturer || ''} ${r.partNumber || ''}${r.qty != null ? ` · qty ${r.qty}` : ''}${r.dnPrice != null ? ` · ${money(r.dnPrice)}` : ''}`.replace(/\s+/g, ' ');
 
 const nameKey = (s) => String(s || '').trim().toLowerCase();
 
@@ -69,10 +72,11 @@ function QuoteLines({ projectId, quote, options, rfqLines, onChanged, mfrIdByNam
         {quote.quoteNumber && <span className="text-slate-500">Quote {quote.quoteNumber}</span>}
         {quote.quoteDate && <span className="text-slate-500">{showDate(quote.quoteDate)}</span>}
         {quote.total != null && <span className="text-slate-500">Total {money(quote.total)}</span>}
-        {quote.rfq && <span className="text-slate-500">for {rfqNumber(quote.rfq.number)} {quote.rfq.toName}</span>}
+        {quote.rfq && <span className="text-slate-500">for {rfqLabel(quote.rfq)} {quote.rfq.toName}</span>}
         <span className="text-slate-400">{showDateTime(quote.createdAt)}{quote.uploadedByName ? ` by ${quote.uploadedByName}` : ''}</span>
         <span className={`ml-auto ${open ? 'text-amber-700' : 'text-emerald-700'}`}>{open ? (rfqLines.length ? `${open} need a line picked` : 'No RFQ line yet') : 'All lines settled'}</span>
       </div>
+      <QuoteFacts projectId={projectId} quote={quote} onChanged={onChanged} />
       {chosen.length > 0 && (
         <div className="mx-3 mt-2 rounded-lg border border-orange-200 bg-orange-50 px-3 py-2 text-sm text-slate-700 flex flex-wrap items-center gap-3">
           <span className="font-semibold tabular-nums">{chosen.length} picked</span>
@@ -100,13 +104,19 @@ function QuoteLines({ projectId, quote, options, rfqLines, onChanged, mfrIdByNam
               const linked = ql.links.map((k) => byId[k.rfqLineId]).filter(Boolean);
               const free = (id) => !ql.links.some((k) => k.rfqLineId === id);
               const suggested = (options?.[ql.id] || []).map((o) => ({ ...o, line: byId[o.rfqLineId] })).filter((o) => o.line && free(o.rfqLineId));
-              const rest = rfqLines.filter((r) => free(r.id) && !suggested.some((o) => o.rfqLineId === r.id));
+              const rest = rfqLines.filter((r) => r.current && free(r.id) && !suggested.some((o) => o.rfqLineId === r.id));
               return (
                 <tr key={ql.id} className={`${ql.status === 'SKIPPED' ? 'opacity-60' : ''} ${picks.has(ql.id) ? 'bg-orange-50' : ''}`}>
                   <td className="px-3 py-1.5"><input type="checkbox" className={BOX} checked={picks.has(ql.id)} onChange={() => picks.toggle(ql.id)} aria-label={`Pick quote line ${ql.typeTag || ql.catalog || ''}`} /></td>
                   <td className="px-3 py-1.5">
                     <span className="font-mono">{ql.typeTag}</span> <span className="text-slate-600">{ql.manufacturer} {ql.catalog}</span>
                     {ql.description && <div className="text-xs text-slate-400 truncate max-w-xs">{ql.description}</div>}
+                    {(ql.leadTime || ql.stockNote || ql.discontinued) && (
+                      <div className="text-xs text-slate-500">
+                        {[ql.leadTime && `Lead ${ql.leadTime}`, ql.stockNote].filter(Boolean).join(' · ')}
+                        {ql.discontinued && <span className="ml-1 text-amber-700">Discontinued</span>}
+                      </div>
+                    )}
                   </td>
                   <td className="px-3 py-1.5 tabular-nums">{ql.qty ?? ''}</td>
                   <td className="px-3 py-1.5 tabular-nums">{money(ql.unitPrice)}</td>
@@ -152,9 +162,85 @@ function QuoteLines({ projectId, quote, options, rfqLines, onChanged, mfrIdByNam
   );
 }
 
+// What one quote really costs, what it says about freight, and its terms.
+// Freight is per brand, first match wins: Typed, Stated, Allowed, Allowed by FFA, Estimated.
+function QuoteFacts({ projectId, quote, onChanged }) {
+  const [err, setErr] = useState('');
+  const s = quote.summary;
+  if (!s) return null;
+  const older = quote.notesText == null && quote.expiresAt == null && !quote.freight?.length && !quote.terms?.length;
+  const kinds = [...new Map((quote.terms || []).map((t) => [t.kind, t])).values()];
+
+  async function setFreight(body) {
+    setErr('');
+    const d = await rfqApi(`/api/projects/${projectId}/rfqs/quotes`, { method: 'PATCH', what: 'The freight figure', body: { quoteId: quote.id, ...body } });
+    if (d.error) { setErr(d.error); return; }
+    onChanged(d);
+  }
+
+  const facts = [
+    ['Product', money(s.product)], ['Controls', money(s.controls)], ['Spares', money(s.spares)],
+    ['Freight', money(s.freight)], ['Quote really costs', money(s.cost)],
+    ['Longest lead', s.longestLead?.text], ['Valid until', quote.expiresAt ? showDate(quote.expiresAt) : ''],
+    ['Payment terms', quote.paymentTerms], ['FOB point', quote.fobPoint], ['Revision note', quote.revisionNote],
+  ].filter(([, v]) => v);
+
+  return (
+    <div className="px-3 py-2 border-t border-slate-100 space-y-2 text-sm">
+      <p className="text-slate-700">{s.priced} of {s.asked} line{s.asked === 1 ? '' : 's'} priced, {s.missing} missing</p>
+      <dl className="flex flex-wrap gap-x-5 gap-y-1">
+        {facts.map(([k, v]) => <div key={k}><dt className="text-xs text-slate-500">{k}</dt><dd className="text-slate-800 tabular-nums">{v}</dd></div>)}
+      </dl>
+      {s.gap ? <p className="text-amber-700">The rows add to {money(s.rowsTotal)}, the quote says {money(quote.total)}. Check the difference of {money(s.gap)}.</p> : null}
+      {kinds.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {kinds.map((t) => <span key={t.kind} title={t.text} className="px-2 py-0.5 rounded-md border border-slate-200 text-xs text-slate-600">{TERM_KINDS[t.kind] || t.kind}</span>)}
+        </div>
+      )}
+      {s.freightRows.length > 0 && (
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[480px] md:min-w-0 text-sm">
+            <thead className="text-xs text-slate-500">
+              <tr>{['Brand', 'Product', 'Freight', 'How we know', 'Quote says', 'Type a figure'].map((h) => <th key={h} className="text-left font-semibold pr-3 py-1">{h}</th>)}</tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {s.freightRows.map((f) => (
+                <tr key={f.brand || 'whole'} className="align-top">
+                  <td className="pr-3 py-1 text-slate-800">{f.brand || 'Whole quote'}</td>
+                  <td className="pr-3 py-1 tabular-nums">{money(f.dollars)}</td>
+                  <td className="pr-3 py-1 tabular-nums">{money(f.amount)}</td>
+                  <td className="pr-3 py-1 text-slate-600">
+                    {f.asks
+                      ? (
+                        <select className="border border-slate-300 rounded-lg px-2 py-1 text-sm bg-white" defaultValue="" onChange={(e) => e.target.value && setFreight({ brand: f.brand, status: e.target.value })} aria-label="What the quote means">
+                          <option value="">The quote says both, pick one</option>
+                          <option value="ALLOWED">Allowed</option>
+                          <option value="NOT_INCLUDED">Not included</option>
+                        </select>
+                      )
+                      : f.label}
+                  </td>
+                  <td className="pr-3 py-1 text-xs text-slate-500 max-w-[14rem] truncate" title={f.wording || ''}>{f.wording}</td>
+                  <td className="pr-3 py-1">
+                    <input key={`${f.brand}-${f.typedAmount ?? ''}`} defaultValue={f.typedAmount ?? ''} inputMode="decimal" aria-label={`Freight for ${f.brand || 'the whole quote'}`}
+                      className="border border-slate-300 rounded-lg px-2 py-1 text-sm w-24"
+                      onBlur={(e) => { if (e.target.value !== String(f.typedAmount ?? '')) setFreight({ brand: f.brand, typedAmount: e.target.value }); }} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {older && <p className="text-xs text-slate-500">Saved before lead times and terms were kept. Drop it in again to read them.</p>}
+      {err && <p className="text-sm text-red-600">{err}</p>}
+    </div>
+  );
+}
+
 export default function RfqReceived({ projectId, rfqs, onChanged, lines = [], onState }) {
   const mfrIdByName = Object.fromEntries(lines.filter((l) => l.manufacturerId).map((l) => [nameKey(l.manufacturer), l.manufacturerId]));
-  const [data, setData] = useState(null); // { quotes, rfqLines }
+  const [data, setData] = useState(null); // { quotes, rfqLines, rollup }
   const [options, setOptions] = useState({}); // quoteLineId -> best matches, from this visit's reads
   const [rfqId, setRfqId] = useState('');
   const [busy, setBusy] = useState(false);
@@ -175,23 +261,25 @@ export default function RfqReceived({ projectId, rfqs, onChanged, lines = [], on
       body: {
         rfqId: rfqId || null, fileId: read.fileId || null, fileName: read.fileName || 'Pasted quote', quoteNumber: read.quoteNumber || null,
         fromName: read.bidderName || null, quoteDate: read.quoteDate || null, total: read.totals?.GRAND || null, lines: read.lines,
+        expiresAt: read.expiresAt || null, paymentTerms: read.paymentTerms || null, fob: read.fob || null, revisionNote: read.revisionNote || null,
+        leadTime: read.leadTime || null, notes: read.notesRaw || null, totals: read.totals, freight: read.freight, terms: read.terms,
       },
     });
     setBusy(false);
     if (d.error) { setErr(d.error); return false; }
     setOptions((o) => ({ ...o, ...d.options }));
-    setData((x) => ({ quotes: [d.quote, ...(x?.quotes || [])], rfqLines: d.rfqLines }));
+    setData((x) => ({ quotes: [d.quote, ...(x?.quotes || [])], rfqLines: d.rfqLines, rollup: d.rollup }));
     setReaderKey((k) => k + 1);
     onChanged();
     return true;
   }
 
   function changed(d) {
-    setData((x) => ({ quotes: x.quotes.map((q) => (q.id === d.quote.id ? d.quote : q)), rfqLines: d.rfqLines }));
+    setData((x) => ({ quotes: x.quotes.map((q) => (q.id === d.quote.id ? d.quote : q)), rfqLines: d.rfqLines, rollup: d.rollup }));
     onChanged();
   }
 
-  const sent = rfqs.filter((r) => r.status === 'SENT' || r.status === 'RECEIVED');
+  const sent = rfqs.filter((r) => r.isLatest && (r.status === 'SENT' || r.status === 'RECEIVED'));
   return (
     <WidgetFrame title="RFQ received" sub="Drop a rep's quote here. Lines matched at 75% or better are priced for you. Rows on one RFQ line add up, and a newer quote replaces an older one.">
       {sent.length > 0 && (
@@ -199,12 +287,20 @@ export default function RfqReceived({ projectId, rfqs, onChanged, lines = [], on
           Which RFQ is this quote for?
           <select className={SELECT} value={rfqId} onChange={(e) => setRfqId(e.target.value)}>
             <option value="">Not sure, match against every RFQ on this job</option>
-            {sent.map((r) => <option key={r.id} value={r.id}>{rfqNumber(r.number)} {r.toName}</option>)}
+            {sent.map((r) => <option key={r.id} value={r.id}>{r.label} {r.toName}</option>)}
           </select>
         </label>
       )}
       <QuoteDrop projectId={projectId} known={(data?.quotes || []).map((q) => q.fileName)} onAdd={onAdd} busy={busy} error={err} pasteKey={readerKey} />
       {loadErr && <p className="text-sm text-red-600 mt-2">{loadErr}</p>}
+      {data?.rollup && data.quotes.length > 0 && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3">
+          <StatTile label="Budget Freight" value={money(data.rollup.budget)} />
+          <StatTile label="Freight we expect to pay" value={money(data.rollup.expect)} />
+          <StatTile label="Freight profit" value={money(data.rollup.profit)} />
+          <StatTile label="Share based on real figures" value={data.rollup.realShare == null ? '' : `${cents(data.rollup.realShare * 100)}%`} />
+        </div>
+      )}
       {data?.quotes.length > 0 && (
         <div className="mt-5 space-y-4">
           {data.quotes.map((q) => <QuoteLines key={q.id} projectId={projectId} quote={q} options={options} rfqLines={data.rfqLines} onChanged={changed} mfrIdByName={mfrIdByName} onState={onState} />)}

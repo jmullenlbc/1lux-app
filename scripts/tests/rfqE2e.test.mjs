@@ -12,6 +12,7 @@ import { PrismaClient } from '@prisma/client';
 import { BASE, get, login, post, serverUp } from './_auth.mjs';
 import { ensureE2eAdmin } from './_e2eAdmin.mjs';
 import { needByFrom } from '../../src/lib/rfq/format.js';
+import { compareSnapshots, snapshotOfRound } from '../../src/lib/rfq/compare.js';
 
 const TAG = `CLAUDE E2E RFQ ${Date.now()}`;
 
@@ -23,7 +24,7 @@ async function patch(path, body, cookie) {
   return { status: res.status, text, json };
 }
 
-test('RFQ send, price, quote match and pages', async (t) => {
+test('RFQ send, price, quote match, versions and pages', async (t) => {
   if (!(await serverUp())) { t.skip('dev server not running'); return; }
   const prisma = new PrismaClient();
   const made = { project: null, reps: [], mfrs: [] };
@@ -179,6 +180,58 @@ test('RFQ send, price, quote match and pages', async (t) => {
     assert.equal((await prisma.rfqLine.findUnique({ where: { id: lb.id } })).dnPrice, null);
     assert.equal((await prisma.rfqQuoteLine.findUnique({ where: { id: qx.id } })).status, 'OPEN');
 
+    // Versions and rounds (0157): one label per rep, a round for the job, and a
+    // revision takes every line the rep quotes today, including one added since.
+    const round2 = await post(base, { action: 'round', name: 'GMP' }, cookie);
+    assert.equal(round2.status, 200, round2.text);
+    assert.equal(round2.json.rounds.length, 2);
+    await prisma.peerReviewItem.create({ data: { projectId: project.id, typeCode: 'A2', description: 'Added since', propManufacturer: m1.name, propModel: 'DL-8', qty: 5, sortOrder: 4 } });
+    const s2 = await get(base, cookie);
+    const fam = s2.json.rfqs.find((r) => r.isLatest && r.groupKey);
+    assert.equal(fam.familyNumber, rfq.number, 'the second send to this rep stays one RFQ number');
+    assert.equal(fam.version, 2);
+    assert.match(fam.label, /V2$/);
+    assert.ok(fam.pending.some((c) => c.typeCode === 'A2'), 'the added fixture shows before sending');
+
+    const revised = await post(base, { action: 'send', groupKey: fam.groupKey, revisesId: fam.id }, cookie);
+    assert.equal(revised.status, 201, revised.text);
+    assert.equal(revised.json.rfq.version, 3);
+    const revLines = await prisma.rfqLine.findMany({ where: { rfqId: revised.json.rfq.id } });
+    assert.deepEqual(revLines.map((l) => l.typeCode).sort(), ['A1', 'A2', 'B1', 'C1']);
+    const opened = await get(`${base}/${revised.json.rfq.id}`, cookie);
+    assert.ok(opened.json.changes.some((c) => c.typeCode === 'A2'), 'the rep sees what changed');
+    const s3 = revised.json.state;
+    assert.equal(s3.rfqs.filter((r) => r.isLatest).length, 1);
+    const roundTwo = s3.rounds.find((r) => r.number === 2);
+    assert.deepEqual(roundTwo.sentReps, [rep.name]);
+    const cmp = compareSnapshots(snapshotOfRound(s3.rounds.find((r) => r.number === 1)), snapshotOfRound(roundTwo));
+    const a2Row = cmp.rows.find((r) => r.typeCode === 'A2');
+    assert.equal(a2Row.a, null);
+    assert.ok(a2Row.b, 'A2 is new in round 2');
+
+    // Everything a quote says is kept: freight per brand, terms, lead per row.
+    const q3 = await post(`${base}/quotes`, {
+      rfqId: revised.json.rfq.id, fileName: 'rep quote v3.pdf', quoteNumber: 'Q-3', total: 1000,
+      expiresAt: '2026-12-31', paymentTerms: 'Net 30', fob: 'Origin', revisionNote: 'Rev 3', leadTime: '6 to 8 weeks',
+      totals: { product: 1000 },
+      freight: [{ brand: '', status: 'NOT_INCLUDED', amount: null, wording: 'Freight not included' }],
+      terms: [{ kind: 'TARIFF', text: 'Prices subject to tariff changes' }],
+      lines: [{ typeTag: 'A1', mfr: m1.name, catalog: 'DL-6-35K', qty: 40, unitPrice: 25, leadTime: '6 to 8 weeks' }],
+    }, cookie);
+    assert.equal(q3.status, 201, q3.text);
+    const saved = q3.json.quote;
+    assert.equal(saved.paymentTerms, 'Net 30');
+    assert.equal(saved.fobPoint, 'Origin');
+    assert.equal(saved.terms[0].kind, 'TARIFF');
+    assert.equal(saved.lines[0].leadWeeksMax, 8);
+    assert.equal(saved.summary.freightRows[0].label, 'Estimated');
+    assert.equal(saved.summary.freight, 20, '2% of 1,000 until a real figure comes in');
+    const typedFreight = await patch(`${base}/quotes`, { quoteId: saved.id, brand: saved.summary.freightRows[0].brand, typedAmount: '120' }, cookie);
+    assert.equal(typedFreight.status, 200, typedFreight.text);
+    assert.equal(typedFreight.json.quote.summary.freight, 120);
+    assert.equal(typedFreight.json.quote.summary.cost, 1120);
+    assert.equal(typedFreight.json.rollup.expect, 120);
+
     // The PDF and the history.
     const pdf = await fetch(`${BASE}${base}/${rfq.id}/pdf`, { headers: { cookie } });
     assert.equal(pdf.status, 200);
@@ -199,9 +252,12 @@ test('RFQ send, price, quote match and pages', async (t) => {
       const quotes = await prisma.rfqQuote.findMany({ where: { projectId: made.project }, select: { id: true } });
       await prisma.rfqQuoteLink.deleteMany({ where: { quoteLine: { quoteId: { in: quotes.map((x) => x.id) } } } }).catch(() => {});
       await prisma.rfqQuoteLine.deleteMany({ where: { quoteId: { in: quotes.map((x) => x.id) } } }).catch(() => {});
+      await prisma.rfqQuoteFreight.deleteMany({ where: { quoteId: { in: quotes.map((x) => x.id) } } }).catch(() => {});
+      await prisma.rfqQuoteTerm.deleteMany({ where: { quoteId: { in: quotes.map((x) => x.id) } } }).catch(() => {});
       await prisma.rfqQuote.deleteMany({ where: { projectId: made.project } }).catch(() => {});
       await prisma.rfqLine.deleteMany({ where: { rfqId: { in: rfqs.map((r) => r.id) } } }).catch(() => {});
       await prisma.rfq.deleteMany({ where: { projectId: made.project } }).catch(() => {});
+      await prisma.rfqRound.deleteMany({ where: { projectId: made.project } }).catch(() => {});
       await prisma.project.delete({ where: { id: made.project } }).catch(() => {});
     }
     await prisma.salesRep.deleteMany({ where: { id: { in: made.reps } } }).catch(() => {});
