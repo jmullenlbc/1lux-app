@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { NOT_CO_VERSION } from '@/lib/budgetVersions';
 import { normalizeKey } from '@/lib/pricingIntelligence';
 
 // POST /api/pricing/price-history
@@ -17,7 +18,7 @@ export async function POST(req) {
 
   // Load latest budget items
   const matrix = await prisma.designBidMatrix.findFirst({
-    where:   { projectId },
+    where:   { projectId, ...NOT_CO_VERSION },
     orderBy: { version: 'desc' },
     include: { items: { where: { isArchived: false } } },
   });

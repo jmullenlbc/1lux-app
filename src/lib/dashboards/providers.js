@@ -4,6 +4,7 @@
 // dot-path `source`s resolve directly (e.g. a row's `client.name`, `salesOwner.name`).
 
 import { prisma } from '@/lib/db';
+import { NOT_CO_VERSION } from '@/lib/budgetVersions';
 import { sumCents } from '@/lib/money';
 import { calculateBudget } from '@/lib/calculations';
 import { responsesToSections } from '@/lib/utils';
@@ -98,7 +99,7 @@ async function getBudgetRows() {
         projectData: true, responses: true, ...SITE_FEATURE_SELECT,
       },
     }),
-    prisma.designBidMatrix.findMany({ select: { projectId: true, version: true, items: { select: { cnTotal: true } } } }),
+    prisma.designBidMatrix.findMany({ where: NOT_CO_VERSION, select: { projectId: true, version: true, items: { select: { cnTotal: true } } } }),
     loadPricing().catch(() => null),
   ]);
 

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { NOT_CO_VERSION } from '@/lib/budgetVersions';
 import { chosenLineItems } from '@/lib/changeOrderTotals';
 
 // POST /api/projects/[id]/ship-schedule/push
@@ -66,7 +67,7 @@ export async function POST(req, { params }) {
   } else if (sourceType === 'DESIGN_BID') {
     // Push from latest Design Bid Matrix
     const matrix = await prisma.designBidMatrix.findFirst({
-      where:   { projectId: params.id },
+      where:   { projectId: params.id, ...NOT_CO_VERSION },
       orderBy: { version: 'desc' },
       include: { items: { where: { isArchived: false }, orderBy: [{ sortOrder: 'asc' }] } },
     });

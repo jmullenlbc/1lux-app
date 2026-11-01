@@ -56,7 +56,7 @@ export async function POST(req, { params }) {
     locationTag:   null,
     manufacturer:  li.manufacturer || null,
     partNumber:    li.partNumber   || null,
-    qty:           li.qty > 0 ? Math.round(li.qty) : null,
+    qty:           li.qty == null ? null : Math.round(li.qty), // a credit stays minus, blank would print as 1
     qtyType:       'Unit',
     dnPerUnit:     li.originalDN   ?? null,
     cnPerUnit:     li.cnUnitPrice  ?? null,

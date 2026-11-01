@@ -10,6 +10,7 @@
  * Returns { [projectId]: { total, source } } for jobs with a budget above zero.
  */
 import { prisma } from '@/lib/db';
+import { NOT_CO_VERSION } from '@/lib/budgetVersions';
 import { sumCents } from '@/lib/money';
 import { calculateBudget } from '@/lib/calculations';
 import { responsesToSections } from '@/lib/utils';
@@ -28,7 +29,7 @@ export async function budgetTotals(projectIds) {
       select: { id: true, budgetType: true, buildingType: true, pricingSnapshot: true, projectData: true, responses: true, ...SITE_FEATURE_SELECT },
     }),
     prisma.designBidMatrix.findMany({
-      where: { projectId: { in: ids } },
+      where: { projectId: { in: ids }, ...NOT_CO_VERSION },
       select: { projectId: true, version: true, items: { select: { cnTotal: true } } },
     }),
     loadPricing().catch(() => null),

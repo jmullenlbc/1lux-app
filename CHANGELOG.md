@@ -5,6 +5,19 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Push to Budget: credits and the real budget] - November 1, 2026
+
+### Fixed
+- Push to Budget kept a credit line's minus quantity. It was blanked, and a blank quantity prints as 1, so a credit of 5 at $100 showed as plus $100. A line at 0 now stays 0.
+- A budget version pushed from a change order holds only that change order's lines, and it was being read as the job's newest budget. Every read of the newest budget now skips these (`src/lib/budgetVersions.js`): client portal, Ship Schedule push, budget checks, price history, error radar, PDF and Excel with no version picked, duplicate, Fixture Schedule publish price carry forward, budget dashboard, Meeting Prep, calibration learning and the bot tool.
+- That version no longer locks the real budget from edits, and the budget screen opens on the real budget. The change order version stays listed, opens by version number and is read only, labeled Change order.
+- Editing an old budget version now says in plain terms what happened: nothing was saved, open the newest version (BUDGET_VERSION_LOCKED).
+
+### Known limits
+- Pushing a change order to the Ship Schedule still makes its own batch, so a minus line is a negative row and the main row quantity does not change. Waiting on the change order talk with Mike.
+
+---
+
 ## [RFQ versions, job rounds, full quote data, freight estimate] - November 1, 2026
 
 ### Added

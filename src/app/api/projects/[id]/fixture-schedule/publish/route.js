@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAuth, canSeeAllData } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { NOT_CO_VERSION } from '@/lib/budgetVersions';
 import { INCLUDE_ARCHIVED } from '@/lib/archive';
 
 const ITEM_ORDERBY = [{ sortOrder: 'asc' }, { createdAt: 'asc' }];
@@ -65,7 +66,7 @@ export async function POST(request, { params }) {
 
   // Load last bid matrix for pricing carry-forward
   const lastBid = await prisma.designBidMatrix.findFirst({
-    where: { projectId: params.id },
+    where: { projectId: params.id, ...NOT_CO_VERSION },
     orderBy: { version: 'desc' },
     include: { items: true },
   });

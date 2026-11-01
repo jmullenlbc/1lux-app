@@ -24,6 +24,7 @@
  * redacted, and completely listed. See src/lib/mcp/scope.js.
  */
 import { prisma } from '@/lib/db';
+import { NOT_CO_VERSION } from '@/lib/budgetVersions';
 import { objects, objectKeys, getObject } from '@/lib/ontology/index.js';
 import { redactObject, describeForAudience, readableProps, canReadObject } from '@/lib/ontology/redact.js';
 import {
@@ -325,7 +326,7 @@ const get_project_360 = {
           siteFeatures: { where: { archivedAt: null }, orderBy: { createdAt: 'asc' } },
           changeOrders: { include: { optionGroups: { include: { lineItems: true } } } },
           fixtureSchedules: { include: { items: true } },
-          designBidMatrices: { where: { archivedAt: null }, include: { items: true }, orderBy: { version: 'desc' }, take: 1 },
+          designBidMatrices: { where: { archivedAt: null, ...NOT_CO_VERSION }, include: { items: true }, orderBy: { version: 'desc' }, take: 1 },
           peerReviewItems: true,
         },
       }),

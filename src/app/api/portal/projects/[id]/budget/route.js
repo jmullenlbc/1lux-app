@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requirePortalAuth } from '@/lib/portalAuth';
 import { prisma } from '@/lib/db';
+import { NOT_CO_VERSION } from '@/lib/budgetVersions';
 import { getProjectRates, calcCOTotal, CO_OPTION_MONEY } from '@/lib/changeOrderRates';
 
 // Rates are stored as decimals, the portal page works in percents
@@ -20,10 +21,7 @@ export async function GET(req, { params }) {
   // Latest DesignBidMatrix for this project (highest version). A version pushed
   // from a change order holds only that change order's lines, so it is not the budget.
   const matrix = await prisma.designBidMatrix.findFirst({
-    where: {
-      projectId: params.id,
-      OR: [{ changeSummary: null }, { NOT: { changeSummary: { contains: '"source":"change_order"' } } }],
-    },
+    where: { projectId: params.id, ...NOT_CO_VERSION },
     orderBy: { version: 'desc' },
     select: {
       version: true,

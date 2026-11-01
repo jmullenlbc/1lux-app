@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { NOT_CO_VERSION } from '@/lib/budgetVersions';
 import { runHumanErrorRadar } from '@/lib/humanErrorRadar';
 
 export async function GET(request, { params }) {
@@ -20,7 +21,7 @@ export async function GET(request, { params }) {
       select: { takeoffData: true, originalName: true, createdAt: true },
     }),
     prisma.designBidMatrix.findFirst({
-      where: { projectId },
+      where: { projectId, ...NOT_CO_VERSION },
       orderBy: { version: 'desc' },
       include: {
         items: {

@@ -2,6 +2,8 @@
 // Runs server-side on every GET. Results are not cached.
 // Returns { [itemKey]: { status: 'pass'|'warn', detail: string } }
 
+import { NOT_CO_VERSION } from '@/lib/budgetVersions';
+
 const DRIFT_THRESHOLD = 0.15; // 15%
 
 export async function runAutoChecks(projectId, prisma) {
@@ -9,7 +11,7 @@ export async function runAutoChecks(projectId, prisma) {
 
   // Load latest matrix items
   const matrix = await prisma.designBidMatrix.findFirst({
-    where:   { projectId },
+    where:   { projectId, ...NOT_CO_VERSION },
     orderBy: { version: 'desc' },
     include: { items: { where: { isArchived: false } } },
   });
@@ -36,7 +38,8 @@ export async function runAutoChecks(projectId, prisma) {
   // ── 3. Quantity drift vs previous version ─────────────────────────────────
   if (matrix && matrix.version > 1) {
     const prev = await prisma.designBidMatrix.findFirst({
-      where:   { projectId, version: matrix.version - 1 },
+      where:   { projectId, version: { lt: matrix.version }, ...NOT_CO_VERSION },
+      orderBy: { version: 'desc' },
       include: { items: { where: { isArchived: false } } },
     });
     if (prev?.items?.length) {
@@ -62,7 +65,8 @@ export async function runAutoChecks(projectId, prisma) {
   // ── 4. Price drift vs previous version ───────────────────────────────────
   if (matrix && matrix.version > 1) {
     const prev = await prisma.designBidMatrix.findFirst({
-      where:   { projectId, version: matrix.version - 1 },
+      where:   { projectId, version: { lt: matrix.version }, ...NOT_CO_VERSION },
+      orderBy: { version: 'desc' },
       include: { items: { where: { isArchived: false } } },
     });
     if (prev?.items?.length) {

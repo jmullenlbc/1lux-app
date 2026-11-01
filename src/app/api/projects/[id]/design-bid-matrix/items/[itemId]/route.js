@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { NOT_CO_VERSION } from '@/lib/budgetVersions';
 import { looseNumberOrNull } from '@/lib/numberInput';
 
 // PATCH /api/projects/[id]/design-bid-matrix/items/[itemId]
@@ -18,14 +19,14 @@ export async function PATCH(request, { params }) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
 
-  // Only allow edits to the latest version
+  // Only allow edits to the latest budget. A version pushed from a change order stays as pushed.
   const latest = await prisma.designBidMatrix.findFirst({
-    where: { projectId: params.id },
+    where: { projectId: params.id, ...NOT_CO_VERSION },
     orderBy: { version: 'desc' },
     select: { version: true },
   });
-  if (item.matrix.version !== latest.version) {
-    return NextResponse.json({ error: 'Cannot edit a historical bid matrix' }, { status: 403 });
+  if (item.matrix.version !== latest?.version) {
+    return NextResponse.json({ error: 'This budget version is read only, so nothing was saved. Open the newest budget version and make the change there. (BUDGET_VERSION_LOCKED)' }, { status: 403 });
   }
 
   const body = await request.json();

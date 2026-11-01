@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { NOT_CO_VERSION } from '@/lib/budgetVersions';
 import { htmlToPdf } from '@/lib/pdf';
 import { lineTotal, sumCents } from '@/lib/money';
 import { PM_SELECT, pmPrint } from '@/lib/projectManagers';
@@ -29,7 +30,7 @@ export async function GET(request, { params }) {
 
   const where = version !== undefined
     ? { projectId: params.id, version }
-    : { projectId: params.id };
+    : { projectId: params.id, ...NOT_CO_VERSION };
 
   const matrix = await prisma.designBidMatrix.findFirst({
     where,

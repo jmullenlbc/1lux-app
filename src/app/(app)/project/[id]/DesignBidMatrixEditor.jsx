@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 import { lineTotal, sumCents } from '@/lib/money';
+import { isCoVersion } from '@/lib/budgetVersions';
 
 const RFQ_STATUSES = ['', 'Not Started', 'Sent', 'Received', 'Approved', 'N/A'];
 
@@ -109,6 +110,7 @@ function ChangeSummaryBadge({ changeSummary }) {
   if (!changeSummary) return null;
   let summary;
   try { summary = JSON.parse(changeSummary); } catch { return null; }
+  if (summary.source === 'change_order') return null;
   const added   = summary.added?.length   ?? 0;
   const removed = summary.removed?.length ?? 0;
   if (added === 0 && removed === 0) return <span className="text-xs text-slate-400">No changes from previous</span>;
@@ -178,6 +180,7 @@ export default function DesignBidMatrixEditor({ projectId }) {
       if (!res.ok) throw new Error('Failed to load');
       const data = await res.json();
       setMatrices(data.matrices);
+      setSelectedIdx(Math.max(0, data.matrices.findIndex(m => !isCoVersion(m))));
     } catch (e) {
       setError(e.message);
     } finally {
@@ -188,7 +191,8 @@ export default function DesignBidMatrixEditor({ projectId }) {
   useEffect(() => { load(); }, [projectId]);
 
   const matrix    = matrices[selectedIdx];
-  const isLatest  = selectedIdx === 0;
+  const currentIdx = matrices.findIndex(m => !isCoVersion(m)); // a change order version is never the budget
+  const isLatest  = selectedIdx === currentIdx;
   const isReadOnly = !isLatest;
 
   async function saveItemField(itemId, field, value) {
@@ -256,7 +260,7 @@ export default function DesignBidMatrixEditor({ projectId }) {
             {matrices.map((m, i) => (
               <option key={m.id} value={i}>
                 v{m.version}{m.submissionTag ? ` · ${m.submissionTag}` : ''} · {new Date(m.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                {i === 0 ? ' (current)' : ''}
+                {i === currentIdx ? ' (current)' : ''}
               </option>
             ))}
           </select>
@@ -264,7 +268,7 @@ export default function DesignBidMatrixEditor({ projectId }) {
           {matrix.changeSummary && <ChangeSummaryBadge changeSummary={matrix.changeSummary} />}
 
           {isReadOnly && (
-            <span className="px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-500">Historical, read-only</span>
+            <span className="px-2 py-0.5 rounded text-xs font-medium bg-slate-100 text-slate-500">{isCoVersion(matrix) ? 'Change order, read-only' : 'Historical, read-only'}</span>
           )}
         </div>
 

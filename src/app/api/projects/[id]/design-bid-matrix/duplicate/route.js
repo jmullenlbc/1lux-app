@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { NOT_CO_VERSION } from '@/lib/budgetVersions';
 import { INCLUDE_ARCHIVED } from '@/lib/archive';
 
 // POST /api/projects/[id]/design-bid-matrix/duplicate
@@ -17,7 +18,7 @@ export async function POST(req, { params }) {
   const sourceMatrix = await prisma.designBidMatrix.findFirst({
     where: {
       projectId: params.id,
-      ...(sourceVersion != null ? { version: sourceVersion } : {}),
+      ...(sourceVersion != null ? { version: sourceVersion } : NOT_CO_VERSION),
     },
     orderBy: { version: 'desc' },
     include: { items: { where: { isArchived: false }, orderBy: [{ sortOrder: 'asc' }] } },

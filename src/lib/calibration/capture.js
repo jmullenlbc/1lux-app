@@ -12,6 +12,7 @@
  * total, so it is captured too ('bidmatrix').
  */
 import { prisma } from '@/lib/db';
+import { NOT_CO_VERSION } from '@/lib/budgetVersions';
 import { calculateBudget } from '@/lib/calculations';
 import { responsesToSections } from '@/lib/utils';
 import { loadPricing, pricingForProject } from '@/lib/pricingLoader';
@@ -24,7 +25,7 @@ const THROTTLE_MS = 10 * 60 * 1000;
 const PROJECT_SELECT = {
   id: true, name: true, buildingType: true, pricingSnapshot: true, serviceType: true, projectType: true,
   projectData: true, responses: true, ...SITE_FEATURE_SELECT,
-  designBidMatrices: { where: { archivedAt: null }, select: { version: true, items: { select: { cnTotal: true } } } },
+  designBidMatrices: { where: { archivedAt: null, ...NOT_CO_VERSION }, select: { version: true, items: { select: { cnTotal: true } } } },
 };
 
 function bidMatrixTotal(matrices) {
