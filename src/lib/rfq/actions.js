@@ -3,6 +3,7 @@
 // writes the RFQ's history.
 import { prisma } from '@/lib/db';
 import { logHistory } from '@/lib/recordHistory';
+import { sumCents } from '@/lib/money';
 import { needByFrom, rfqNumber, LINE_STATUS } from './format';
 
 /**
@@ -68,6 +69,67 @@ export async function priceLine(tx, { rfqLineId, price, source, confidence = nul
   });
   await refreshRfqStatus(tx, line.rfqId);
   return line;
+}
+
+/**
+ * An RFQ line's price is its quote rows added up: one row keeps its printed price,
+ * a row counts once whatever its quantity, and no rows left clears the price.
+ */
+export async function repriceLine(tx, { rfqLineId, source, user }) {
+  const links = await tx.rfqQuoteLink.findMany({ where: { rfqLineId }, select: { quoteLine: { select: { unitPrice: true, confidence: true } } } });
+  const rows = links.map((k) => k.quoteLine);
+  const price = rows.length > 1 ? sumCents(rows.map((r) => r.unitPrice)) : rows[0]?.unitPrice ?? null;
+  const confidence = source === 'AUTO' && rows.length ? Math.min(...rows.map((r) => r.confidence ?? 0)) : null;
+  return priceLine(tx, { rfqLineId, price, source, confidence, user });
+}
+
+// A row left with no RFQ line goes back to this status.
+async function settleRow(tx, quoteLineId, status) {
+  const left = await tx.rfqQuoteLink.count({ where: { quoteLineId } });
+  if (!left) await tx.rfqQuoteLine.update({ where: { id: quoteLineId }, data: { status } });
+}
+
+/**
+ * Point rows of one quote at RFQ lines. links: [{ quoteLineId, rfqLineId }].
+ * Rows add up only inside one quote: this quote replaces any other on those lines,
+ * so a revised quote never adds on top of the first one.
+ */
+export async function linkRows(tx, { quoteId, links, source, user }) {
+  const lineIds = [...new Set(links.map((k) => k.rfqLineId))];
+  const replaced = await tx.rfqQuoteLink.findMany({
+    where: { rfqLineId: { in: lineIds }, quoteLine: { quoteId: { not: quoteId } } },
+    select: { id: true, quoteLineId: true },
+  });
+  await tx.rfqQuoteLink.deleteMany({ where: { id: { in: replaced.map((k) => k.id) } } });
+  for (const id of new Set(replaced.map((k) => k.quoteLineId))) await settleRow(tx, id, 'REPLACED');
+  for (const k of links) {
+    await tx.rfqQuoteLink.upsert({ where: { quoteLineId_rfqLineId: k }, create: k, update: {} });
+  }
+  await tx.rfqQuoteLine.updateMany({ where: { id: { in: links.map((k) => k.quoteLineId) } }, data: { status: source } });
+  for (const rfqLineId of lineIds) await repriceLine(tx, { rfqLineId, source, user });
+}
+
+/** A typed price takes the line over from its quote rows. Clearing it sends them back to ask. */
+export async function typePrice(tx, { rfqLineId, price, user }) {
+  const links = await tx.rfqQuoteLink.findMany({ where: { rfqLineId }, select: { quoteLineId: true } });
+  await tx.rfqQuoteLink.deleteMany({ where: { rfqLineId } });
+  for (const { quoteLineId } of links) await settleRow(tx, quoteLineId, price == null ? 'OPEN' : 'REPLACED');
+  return priceLine(tx, { rfqLineId, price, source: 'TYPED', user });
+}
+
+/** This row stops pricing that RFQ line. */
+export async function unlinkRow(tx, { quoteLineId, rfqLineId, user }) {
+  await tx.rfqQuoteLink.deleteMany({ where: { quoteLineId, rfqLineId } });
+  await settleRow(tx, quoteLineId, 'OPEN');
+  await repriceLine(tx, { rfqLineId, source: 'PICKED', user });
+}
+
+/** Not ours: the row stops pricing everything it priced. */
+export async function skipRow(tx, { quoteLineId, user }) {
+  const links = await tx.rfqQuoteLink.findMany({ where: { quoteLineId }, select: { rfqLineId: true } });
+  await tx.rfqQuoteLink.deleteMany({ where: { quoteLineId } });
+  await tx.rfqQuoteLine.update({ where: { id: quoteLineId }, data: { status: 'SKIPPED' } });
+  for (const { rfqLineId } of links) await repriceLine(tx, { rfqLineId, source: 'PICKED', user });
 }
 
 /** RECEIVED once every line has a price; back to SENT if one is cleared. */

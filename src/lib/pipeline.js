@@ -2,6 +2,8 @@
 // Board membership is DERIVED from serviceType; never stored as a fixed tag.
 // Each board has its OWN stage set and its OWN status.
 
+import { currentContract } from './contractBalance.js';
+
 // Mike 2026-09-04: "we still want two pipelines created by the service type of
 // that project exactly how we have it right now. we just are going to have the
 // same pipeline stages." Both boards share ONE stage list. The old Design
@@ -210,7 +212,7 @@ export function statusFieldFor(pipeline) { return pipeline === 'DESIGN' ? 'desig
 
 // Procurement → product sale; Design → design fee.
 export function revenueFor(project, pipeline) {
-  return pipeline === 'DESIGN' ? (project.designContractValue ?? null) : (project.contractValue ?? null);
+  return pipeline === 'DESIGN' ? (project.designContractValue ?? null) : currentContract(project);
 }
 
 /** Revenue on one board × the project's Weighted Probability %. 0 when either is blank. */

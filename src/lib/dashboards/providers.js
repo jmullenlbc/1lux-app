@@ -10,6 +10,7 @@ import { responsesToSections } from '@/lib/utils';
 import { loadPricing, pricingForProject } from '@/lib/pricingLoader';
 import { SITE_FEATURE_SELECT, engineProjectData } from '@/lib/siteFeatureRows';
 import { weightedRevenue, buyoutDays } from '@/lib/pipeline';
+import { currentContract } from '@/lib/contractBalance';
 
 export async function getSectionRows(section) {
   switch (section) {
@@ -24,7 +25,7 @@ export async function getSectionRows(section) {
 async function getSalesRows() {
   const rows = await prisma.project.findMany({
     select: {
-      id: true, name: true, contractValue: true, designContractValue: true,
+      id: true, name: true, contractValue: true, approvedCoTotal: true, designContractValue: true,
       pipelineProbability: true, probabilityToWin: true, probabilityToMoveForward: true,
       projectType: true, serviceType: true, procurementStage: true,
       procurementStatus: true, designStage: true, designStatus: true,
@@ -47,6 +48,7 @@ async function getSalesRows() {
   // board can never disagree.
   return rows.map(({ activities, _count, ...r }) => ({
     ...r,
+    currentContract:    currentContract(r),
     averageProbability: avgProbability(r),
     weightedRevenue:    weightedRevenue(r, 'PROCUREMENT'),
     weightedDesignFee:  weightedRevenue(r, 'DESIGN'),
@@ -69,15 +71,16 @@ function avgProbability(r) {
 
 // MAIN, all projects (executive portfolio overview).
 async function getMainRows() {
-  return prisma.project.findMany({
+  const rows = await prisma.project.findMany({
     select: {
       id: true, name: true, phase: true, serviceType: true, projectType: true, status: true,
-      contractValue: true, designContractValue: true, procurementStatus: true,
+      contractValue: true, approvedCoTotal: true, designContractValue: true, procurementStatus: true,
       createdAt: true, updatedAt: true,
       client:     { select: { name: true } },
       salesOwner: { select: { name: true } },
     },
   });
+  return rows.map(r => ({ ...r, currentContract: currentContract(r) }));
 }
 
 // BUDGET (Pre-con), one row per project's budget. A project's budget is its

@@ -9,6 +9,7 @@ import { loadPricing } from '@/lib/pricingLoader';
 // below without being imported, so this one threw a ReferenceError too.
 import { getAnthropicKey } from '@/lib/anthropicKey';
 import { recordRun } from '@/lib/agent/ledger';
+import { currentContract } from '@/lib/contractBalance';
 import { modelFor } from '@/lib/aiModels';
 import { SITE_FEATURE_LABELS, LINEAR_SITE_FEATURES, siteFeatureCostLine } from '@/lib/siteFeatures';
 import { SITE_FEATURE_INCLUDE, engineProjectData } from '@/lib/siteFeatureRows';
@@ -137,9 +138,11 @@ export async function POST(request, { params }) {
   if (project.projectStage) summaryLines.push(`Stage: ${project.projectStage}`);
   if (clientInitialBudget)  summaryLines.push(`Initial Budget (client target): ${fmt(clientInitialBudget)}`);
   if (currentBudget)        summaryLines.push(`Current Budget${currentBudgetSource ? ` (from "${currentBudgetSource}")` : ''}: ${fmt(currentBudget)}`);
-  if (contractValue)        summaryLines.push(`Supply Contract Total: ${fmt(contractValue)}${project.contractSignedDate ? ` (signed ${fmtDate(project.contractSignedDate)})` : ''}`);
+  if (project.approvedCoTotal) summaryLines.push(`Approved change orders added to the contract: ${fmt(project.approvedCoTotal)}`);
+  if (currentContract(project) != null) summaryLines.push(`Current Contract: ${fmt(currentContract(project))}`);
+  if (contractValue)        summaryLines.push(`Original Contract: ${fmt(contractValue)}${project.contractSignedDate ? ` (signed ${fmtDate(project.contractSignedDate)})` : ''}`);
   if (coTotal != null) {
-    summaryLines.push(`Change Order Total: ${fmt(coTotal)} (${coFiles.length} change order${coFiles.length !== 1 ? 's' : ''})`);
+    summaryLines.push(`Change Order PDFs on file: ${fmt(coTotal)} (${coFiles.length} change order${coFiles.length !== 1 ? 's' : ''})`);
     coFiles.forEach(f => {
       const extraTags = parseTags(f.tags).filter(t => t !== 'Change Order').join(', ');
       summaryLines.push(`  • ${f.originalName}${extraTags ? ` [${extraTags}]` : ''}: ${fmt(f.parsedAmount)}, ${fmtDate(f.createdAt)}`);

@@ -22,7 +22,7 @@ export default async function CRMPage() {
         select: {
           id: true, projectNumber: true, name: true, city: true, state: true,
           buildingType: true, serviceType: true, projectType: true,
-          contractValue: true, designContractValue: true,
+          contractValue: true, approvedCoTotal: true, designContractValue: true,
           procurementStage: true, designStage: true,
           pipelineProbability: true, probabilityToWin: true, probabilityToMoveForward: true, procurementStatus: true, designStatus: true, expectedOrderDate: true,
           expectedContractExecutionDate: true, projectSubtype: true,

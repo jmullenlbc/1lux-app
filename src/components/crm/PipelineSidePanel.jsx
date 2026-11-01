@@ -23,6 +23,8 @@ import { PROJECT_TEAM_ROLES } from '@/lib/projectTeam';
 import { PROJECT_TYPES, projectTypeLabel, serviceTypeOptions, serviceTypeLabel, BUILDING_TYPES, buildingTypeLabel } from '@/lib/utils';
 import { useBuyoutDays } from '@/lib/useBuyoutDays';
 import { LABEL, INPUT } from '@/components/ui/tokens';
+import { currentContract } from '@/lib/contractBalance';
+import { sumCents } from '@/lib/money';
 
 const PROJECT_TYPE_OPTIONS = [{ value: '', label: 'Select' }, ...PROJECT_TYPES];
 // Mike 9-19: the subtype is the fixed building-type list the app already has (Garden, Wrap, Podium …).
@@ -284,7 +286,7 @@ export default function PipelineSidePanel({ project, onClose, onUpdate }) {
   const pMoney = field => value => save(field, cleanMoney(value));
 
   const isDesign     = inDesignPipeline(project);
-  const combined     = (project.contractValue || 0) + (project.designContractValue || 0);
+  const combined     = sumCents([currentContract(project), project.designContractValue]);
   const avgProb      = averageProbability(project);
   const weightedProc = weightedRevenue(project, 'PROCUREMENT');
   const weightedDes  = isDesign ? weightedRevenue(project, 'DESIGN') : null;
@@ -388,8 +390,9 @@ export default function PipelineSidePanel({ project, onClose, onUpdate }) {
           <LeadPersonField project={project} onError={setError} />
 
           <Rule label="Revenue" />
-          <Field label="Product Sale Total ($)" displayValue={money(project.contractValue)}
+          <Field label="Original Contract ($)" displayValue={money(project.contractValue)}
             rawValue={project.contractValue ?? ''} onSave={pMoney('contractValue')} />
+          <Field label="Current Contract ($)" displayValue={money(currentContract(project))} readOnly accent="text-blue-600" />
           <Field label="Design Fee Total ($)" displayValue={money(project.designContractValue)}
             rawValue={project.designContractValue ?? ''} onSave={pMoney('designContractValue')} />
           <Field label="Total Combined ($)" displayValue={money(combined)} readOnly accent="text-blue-600" />

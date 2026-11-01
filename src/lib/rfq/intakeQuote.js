@@ -14,7 +14,7 @@ import { logHistory } from '@/lib/recordHistory';
 import { cleanCheckedLines } from '@/lib/bidLeveling/readQuote';
 import { toNumber } from '@/lib/matrixImport/readMatrix';
 import { matchQuote } from '@/lib/rfq/match';
-import { priceLine } from '@/lib/rfq/actions';
+import { linkRows } from '@/lib/rfq/actions';
 import { parseQuoteReply, quoteReadFailure } from '@/lib/rfq/quoteReply';
 
 const SOURCES = ['DROP', 'EMAIL', 'MICROSOFT'];
@@ -102,13 +102,16 @@ export async function readStoredQuote({ fileId, projectId, user }) {
   return read;
 }
 
-export const quoteInclude = { lines: { orderBy: { sortOrder: 'asc' } }, rfq: { select: { id: true, number: true, toName: true } } };
+export const quoteInclude = {
+  lines: { orderBy: { sortOrder: 'asc' }, include: { links: { select: { rfqLineId: true } } } },
+  rfq: { select: { id: true, number: true, toName: true } },
+};
 
 export async function rfqLinesFor(projectId, rfqId) {
   return prisma.rfqLine.findMany({
     where: { rfq: { projectId, ...(rfqId ? { id: rfqId } : {}) } },
     orderBy: [{ rfq: { number: 'desc' } }, { sortOrder: 'asc' }],
-    include: { rfq: { select: { number: true, toName: true } } },
+    include: { rfq: { select: { number: true, toName: true } }, _count: { select: { quoteLinks: true } } },
   });
 }
 
@@ -152,19 +155,17 @@ export async function saveQuote({ projectId, user, rfqId = null, fileId = null, 
         total: toNumber(total),
         lines: {
           create: quoteLines.map((l, i) => ({
-            ...l, sortOrder: i, confidence: matches[i].confidence,
-            rfqLineId: matches[i].rfqLineId, status: matches[i].status,
+            ...l, sortOrder: i, confidence: matches[i].confidence, status: matches[i].status,
           })),
         },
       },
     });
-    for (let i = 0; i < quoteLines.length; i++) {
-      if (matches[i].status !== 'AUTO') continue;
-      await priceLine(tx, { rfqLineId: matches[i].rfqLineId, price: quoteLines[i].unitPrice, source: 'AUTO', confidence: matches[i].confidence, user });
-    }
+    const rows = await tx.rfqQuoteLine.findMany({ where: { quoteId: q.id }, select: { id: true, sortOrder: true } });
+    const links = rows.flatMap((row) => matches[row.sortOrder].rfqLineIds.map((rfqLineId) => ({ quoteLineId: row.id, rfqLineId })));
+    if (links.length) await linkRows(tx, { quoteId: q.id, links, source: 'AUTO', user });
     // One summary row on each RFQ the quote touched (priceLine logs each price).
     const rfqOf = new Map(rfqLines.map((r) => [r.id, r.rfqId]));
-    const touched = new Set(rfqId ? [rfqId] : matches.map((m) => rfqOf.get(m.rfqLineId)).filter(Boolean));
+    const touched = new Set(rfqId ? [rfqId] : matches.flatMap((m) => m.rfqLineIds.map((id) => rfqOf.get(id))).filter(Boolean));
     const auto = matches.filter((m) => m.status === 'AUTO').length;
     for (const id of touched) {
       await logHistory({ entityType: 'RFQ', entityId: id, action: 'QUOTE', user, db: tx, note: `Quote ${q.fileName} brought in: ${auto} of ${quoteLines.length} lines matched at 75% or better` });

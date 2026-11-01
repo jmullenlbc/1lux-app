@@ -4,8 +4,9 @@
  *   1. RFQ numbers start at RFQ0001; need by is 3 business days after sending,
  *      weekends and observed office holidays skipped.
  *   2. Quote lines matched at 75% or better are priced without asking; ties,
- *      lines with no price and lower scores ask which line; an RFQ line is
- *      only auto-priced once.
+ *      lines with no price and lower scores ask which line. Different parts add
+ *      up on one RFQ line; a duplicate or an alternate asks. One row can name
+ *      several types (0156).
  *   3. The Trackvia rep load drops Logiq and AMPS, maps offices, sets one
  *      default per manufacturer and office, and lists ties for a person. The
  *      marked review workbook loads only KEEP Yes reps and its DEFAULT picks.
@@ -15,7 +16,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { rfqNumber, needByFrom, emailSubject, NEED_BY_BUSINESS_DAYS, holidaysOf, isHoliday } from '../../src/lib/rfq/format.js';
-import { scorePair, matchQuote, AUTO_AT } from '../../src/lib/rfq/match.js';
+import { scorePair, matchQuote, rowTags, AUTO_AT } from '../../src/lib/rfq/match.js';
 import { kindOf, buildRepLoad, chunks, dropped } from '../../src/lib/salesReps/trackvia.js';
 import { parseQuoteReply, quoteReadFailure } from '../../src/lib/rfq/quoteReply.js';
 import { lineReasons, cleanCheckedLines } from '../../src/lib/bidLeveling/readQuote.js';
@@ -65,14 +66,14 @@ test('matchQuote auto prices good matches and asks about the rest', () => {
   ];
   const [a, b, z] = matchQuote(quote, RFQ);
   assert.equal(a.status, 'AUTO');
-  assert.equal(a.rfqLineId, 'a');
+  assert.deepEqual(a.rfqLineIds, ['a']);
   assert.equal(b.status, 'OPEN');
   assert.equal(b.options[0].rfqLineId, 'b');
   assert.equal(z.status, 'OPEN');
   assert.equal(z.options[0].rfqLineId, 'c');
 });
 
-test('an RFQ line is auto priced once, and a tie at the top asks', () => {
+test('the same row twice never doubles a price, and a tie at the top asks', () => {
   const twice = [
     { typeTag: 'A1', catalog: 'LDN6 35/15 LO6', manufacturer: 'Lithonia', qty: 40, unitPrice: 88 },
     { typeTag: 'A1', catalog: 'LDN6 35/15 LO6', manufacturer: 'Lithonia', qty: 40, unitPrice: 90 },
@@ -87,6 +88,49 @@ test('an RFQ line is auto priced once, and a tie at the top asks', () => {
   const [t] = matchQuote([{ typeTag: 'A1', catalog: '', manufacturer: 'Lithonia', qty: 40, unitPrice: 5 }], tied);
   assert.equal(t.status, 'OPEN');
   assert.equal(t.options.length, 2);
+});
+
+const PARTS = [{ id: 'd', typeCode: 'D1', partNumber: 'DOWNLIGHT SYSTEM', manufacturer: 'Acme', qty: 10 }];
+const part = (catalog, unitPrice, extra = {}) => ({ typeTag: 'D1', catalog, manufacturer: 'Acme', qty: 10, unitPrice, ...extra });
+
+test('housing, trim and optic add up on one RFQ line', () => {
+  const r = matchQuote([part('HSG-1', 50), part('TRM-2', 20), part('OPT-3', 5)], PARTS);
+  assert.deepEqual(r.map((x) => x.status), ['AUTO', 'AUTO', 'AUTO']);
+  assert.deepEqual(r.map((x) => x.rfqLineIds), [['d'], ['d'], ['d']]);
+});
+
+test('an alternate or the whole fixture asks instead of adding up', () => {
+  const alt = matchQuote([part('HSG-1', 50), part('HSG-2 ALT', 55)], PARTS);
+  assert.deepEqual(alt.map((x) => x.status), ['AUTO', 'OPEN']);
+  const note = matchQuote([part('HSG-1', 50), part('HSG-2', 55, { description: 'Alternate finish' })], PARTS);
+  assert.deepEqual(note.map((x) => x.status), ['AUTO', 'OPEN']);
+  const whole = matchQuote([part('DOWNLIGHT SYSTEM', 80), part('HSG-1', 50)], PARTS);
+  assert.deepEqual(whole.map((x) => x.status), ['AUTO', 'OPEN']);
+  assert.deepEqual(whole[0].rfqLineIds, ['d']);
+});
+
+const TYPES = [
+  { id: 'c2', typeCode: 'C2', partNumber: 'CYL-A', manufacturer: 'Acme', qty: 6 },
+  { id: 'c4', typeCode: 'C4', partNumber: 'CYL-B', manufacturer: 'Acme', qty: 4 },
+  { id: 'w9', typeCode: 'W9', partNumber: 'WALL-Z', manufacturer: 'Acme', qty: 2 },
+];
+
+test('one row can price several types when its count is their total', () => {
+  assert.deepEqual(rowTags('C2, C4 & W9'), ['C2', 'C4', 'W9']);
+  assert.deepEqual(rowTags('C-02 and c4;C2'), ['C2', 'C4']);
+  assert.deepEqual(rowTags('A1/B'), ['A1/B']);
+  const [ok] = matchQuote([{ typeTag: 'C2, C4, W9', catalog: 'OTHER', manufacturer: 'Acme', qty: 12, unitPrice: 30 }], TYPES);
+  assert.equal(ok.status, 'AUTO');
+  assert.deepEqual(ok.rfqLineIds, ['c2', 'c4', 'w9']);
+  assert.equal(ok.confidence, AUTO_AT);
+  const [wrongCount] = matchQuote([{ typeTag: 'C2, C4', catalog: 'OTHER', manufacturer: 'Acme', qty: 3, unitPrice: 30 }], TYPES);
+  assert.equal(wrongCount.status, 'OPEN');
+  const [missing] = matchQuote([{ typeTag: 'C2, Q7', catalog: 'OTHER', manufacturer: 'Acme', qty: 6, unitPrice: 30 }], TYPES);
+  assert.equal(missing.status, 'OPEN');
+  const [tied] = matchQuote([{ typeTag: 'C2, C4', catalog: 'OTHER', manufacturer: 'Acme', qty: 10, unitPrice: 30 }], [...TYPES, { id: 'c2b', typeCode: 'C2', partNumber: 'CYL-A', manufacturer: 'Acme', qty: 6 }]);
+  assert.equal(tied.status, 'OPEN');
+  assert.equal(cleanCheckedLines([{ typeTag: 'C2, C4, W9', catalog: 'OTHER', qty: 12, unitPrice: 30 }], { repQuote: true }).lines.length, 1);
+  assert.deepEqual(rowTags(cleanCheckedLines([{ typeTag: 'C2, C4, W9', catalog: 'OTHER', qty: 12, unitPrice: 30 }], { repQuote: true }).lines[0].typeTag), ['C2', 'C4', 'W9']);
 });
 
 test('Trackvia export kinds come from the headers', () => {
@@ -200,7 +244,7 @@ test('a $0 quote row reads as no price and never prices an RFQ line', () => {
   assert.equal(r.totals.FREIGHT, 0);
   const typed = matchQuote([{ typeTag: 'L9', catalog: 'TAPE-1', manufacturer: 'Acme', qty: 10, unitPrice: 0 }], [{ id: 'a', typeCode: 'L9', partNumber: 'TAPE-1', manufacturer: 'Acme', qty: 10 }]);
   assert.equal(typed[0].status, 'OPEN'); // a 0 typed on the check screen asks too
-  assert.equal(typed[0].rfqLineId, null);
+  assert.deepEqual(typed[0].rfqLineIds, []);
 });
 
 test('a garbled or empty AI read says so plainly', () => {

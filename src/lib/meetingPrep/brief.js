@@ -19,6 +19,7 @@
  */
 import { boardRows, STAGE_LABEL, STATUS_LABEL, PIPELINE_LABEL, NEXT_ACTION_LABEL, WON_STATUSES } from '../pipeline.js';
 import { describeWorkHistory } from '../workHistory.js';
+import { currentContract } from '../contractBalance.js';
 
 const DAY = 86_400_000;
 
@@ -265,7 +266,7 @@ export function buildFactBlocks(raw = {}, now = new Date()) {
     const parts = [`${p.name}${co ? ` (${co})` : ''}${p.linked ? ', on this meeting' : ''}: ${boards.join('; ')}.`];
     const money = [
       budgetOf(p) ? `budget ${fmtMoney(budgetOf(p))} (${p.budget.source || 'budget'})` : null,
-      p.contractValue > 0 ? `product sale ${fmtMoney(p.contractValue)}` : null,
+      currentContract(p) > 0 ? `product sale ${fmtMoney(currentContract(p))}` : null,
       p.designContractValue > 0 ? `design fee ${fmtMoney(p.designContractValue)}` : null,
     ].filter(Boolean);
     if (money.length) parts.push(`${money.join('; ').replace(/^./, s => s.toUpperCase())}.`);

@@ -48,6 +48,7 @@ export const Project = {
     contractValue:            { type: 'money',   sensitivity: 'ilc_only' },
     designContractValue:      { type: 'money',   sensitivity: 'ilc_only' },
     totalInvoiced:            { type: 'money',   sensitivity: 'ilc_only' },
+    approvedCoTotal:          { type: 'money',   sensitivity: 'ilc_only', desc: 'approved change orders added up' },
     contractSignedDate:       { type: 'string',  sensitivity: 'ilc_only' },
     designContractSignedDate: { type: 'string',  sensitivity: 'ilc_only' },
     pipelineProbability:      { type: 'int',     sensitivity: 'ilc_only', desc: 'legacy single probability' },

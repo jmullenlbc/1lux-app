@@ -12,13 +12,15 @@ import { BOX, usePicks } from './picks';
 // RFQ received (Mike 10-29, 0144; drag and drop 10-30, 0148). Drop the rep's
 // quotes in; a person checks what we read. Lines that match an RFQ line at 75%
 // or better are priced straight away; the rest ask which RFQ line they belong to.
-// A quote with no RFQ yet stays here with its lines open.
+// A quote with no RFQ yet stays here with its lines open. Rows of one quote add up
+// on an RFQ line, one row can price several, and a newer quote replaces an older one.
 
 const SELECT = 'border border-slate-300 rounded-lg px-2 py-1 text-sm bg-white max-w-full';
 const STATUS = {
   AUTO: { text: 'Matched', tone: 'text-emerald-700' },
   PICKED: { text: 'Picked', tone: 'text-emerald-700' },
   SKIPPED: { text: 'Not ours', tone: 'text-slate-400' },
+  REPLACED: { text: 'Replaced', tone: 'text-slate-400' },
   OPEN: { text: 'Which line?', tone: 'text-amber-700' },
 };
 
@@ -33,7 +35,7 @@ function QuoteLines({ projectId, quote, options, rfqLines, onChanged, mfrIdByNam
   const open = quote.lines.filter((l) => l.status === 'OPEN').length;
   const picks = usePicks(quote.lines.map((l) => l.id));
   // The manufacturer of a quote line: its matched RFQ line's, else its own.
-  const mfrIdOf = (ql) => mfrIdByName?.[nameKey(byId[ql.rfqLineId]?.manufacturer)] || mfrIdByName?.[nameKey(ql.manufacturer)] || null;
+  const mfrIdOf = (ql) => mfrIdByName?.[nameKey(byId[ql.links?.[0]?.rfqLineId]?.manufacturer)] || mfrIdByName?.[nameKey(ql.manufacturer)] || null;
   const chosen = quote.lines.filter((l) => picks.has(l.id));
   const chosenMfrs = [...new Set(chosen.map(mfrIdOf).filter(Boolean))];
 
@@ -92,9 +94,13 @@ function QuoteLines({ projectId, quote, options, rfqLines, onChanged, mfrIdByNam
           </thead>
           <tbody className="divide-y divide-slate-100">
             {quote.lines.map((ql) => {
-              const st = STATUS[ql.status] || STATUS.OPEN;
-              const suggested = (options?.[ql.id] || []).map((o) => ({ ...o, line: byId[o.rfqLineId] })).filter((o) => o.line);
-              const rest = rfqLines.filter((r) => !suggested.some((o) => o.rfqLineId === r.id));
+              // AUTO or PICKED with no line left lost it to a newer row before 0156.
+              const status = ql.links.length || !['AUTO', 'PICKED'].includes(ql.status) ? ql.status : 'REPLACED';
+              const st = STATUS[status] || STATUS.OPEN;
+              const linked = ql.links.map((k) => byId[k.rfqLineId]).filter(Boolean);
+              const free = (id) => !ql.links.some((k) => k.rfqLineId === id);
+              const suggested = (options?.[ql.id] || []).map((o) => ({ ...o, line: byId[o.rfqLineId] })).filter((o) => o.line && free(o.rfqLineId));
+              const rest = rfqLines.filter((r) => free(r.id) && !suggested.some((o) => o.rfqLineId === r.id));
               return (
                 <tr key={ql.id} className={`${ql.status === 'SKIPPED' ? 'opacity-60' : ''} ${picks.has(ql.id) ? 'bg-orange-50' : ''}`}>
                   <td className="px-3 py-1.5"><input type="checkbox" className={BOX} checked={picks.has(ql.id)} onChange={() => picks.toggle(ql.id)} aria-label={`Pick quote line ${ql.typeTag || ql.catalog || ''}`} /></td>
@@ -109,11 +115,18 @@ function QuoteLines({ projectId, quote, options, rfqLines, onChanged, mfrIdByNam
                       <>
                         <div className={`text-xs font-semibold flex items-center gap-1 ${st.tone}`}>
                           {ql.status === 'OPEN' && <AlertMark label="Pick a line" size={12} />}
-                          {st.text}{ql.status === 'AUTO' ? `, ${Math.round((ql.confidence || 0) * 100)}%` : ''}
+                          {st.text}{status === 'AUTO' ? `, ${Math.round((ql.confidence || 0) * 100)}%` : ''}
                         </div>
-                        <select className={SELECT} disabled={busy === ql.id} value={ql.status === 'SKIPPED' ? '' : ql.rfqLineId || ''}
+                        {linked.map((r) => (
+                          <div key={r.id} className="text-xs text-slate-600 flex items-center gap-2 py-0.5">
+                            <span>{lineLabel(r)}{r._count?.quoteLinks > 1 ? ' · adds up' : ''}</span>
+                            <button type="button" disabled={busy === ql.id} onClick={() => set(ql, { rfqLineId: r.id, remove: true })}
+                              className="text-slate-400 hover:text-orange-600" aria-label={`Remove ${r.typeCode} from this quote line`}>Remove</button>
+                          </div>
+                        ))}
+                        <select className={SELECT} disabled={busy === ql.id} value=""
                           onChange={(e) => e.target.value && set(ql, { rfqLineId: e.target.value })} aria-label={`RFQ line for ${ql.typeTag}`}>
-                          <option value="">{ql.status === 'SKIPPED' ? 'Not ours' : 'Pick the RFQ line…'}</option>
+                          <option value="">{ql.status === 'SKIPPED' ? 'Not ours' : linked.length ? 'Add another RFQ line…' : 'Pick the RFQ line…'}</option>
                           {suggested.length > 0 && (
                             <optgroup label="Best matches">
                               {suggested.map((o) => <option key={o.rfqLineId} value={o.rfqLineId}>{Math.round(o.score * 100)}% · {lineLabel(o.line)}</option>)}
@@ -180,7 +193,7 @@ export default function RfqReceived({ projectId, rfqs, onChanged, lines = [], on
 
   const sent = rfqs.filter((r) => r.status === 'SENT' || r.status === 'RECEIVED');
   return (
-    <WidgetFrame title="RFQ received" sub="Drop a rep's quote here. Lines matched at 75% or better are priced for you.">
+    <WidgetFrame title="RFQ received" sub="Drop a rep's quote here. Lines matched at 75% or better are priced for you. Rows on one RFQ line add up, and a newer quote replaces an older one.">
       {sent.length > 0 && (
         <label className="flex flex-wrap items-center gap-2 text-sm text-slate-600">
           Which RFQ is this quote for?

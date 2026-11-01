@@ -152,7 +152,7 @@ export default function ContractWidgets({
       {/* Supply contract row, hidden in designOnly mode */}
       {!designOnly && (
         <div className="flex flex-col md:flex-row gap-3">
-          <Widget label="Supply Contract Value" autoParsed={value != null}>
+          <Widget label="Original Supply Contract Value" autoParsed={value != null}>
             <EditableField display={formatCurrencyDisplay(value)} onSave={saveSupplyValue} placeholder="e.g. 754000" lockedNote={moneyLock} />
           </Widget>
           <Widget label="Supply Contract Signed Date" autoParsed={signedDate != null}>

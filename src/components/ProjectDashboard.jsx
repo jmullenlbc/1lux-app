@@ -9,6 +9,8 @@ import { siteFeaturesToRows } from '@/lib/siteFeatures';
 import MissingInputsWarning from './MissingInputsWarning';
 import BudgetLadderCard from './BudgetLadderCard';
 import { currentBudgetAmount, BUDGET_TIER_LABELS, BUDGET_SOURCE_LABELS } from '@/lib/budgetAmounts';
+import { currentContract } from '@/lib/contractBalance';
+import { sumCents } from '@/lib/money';
 import { useFigureAlerts, FigureAlertNote, FigureAlertSummary } from '@/components/figures/FigureAlerts';
 import { FIGURES } from '@/lib/calibration/figureNorms';
 
@@ -36,7 +38,8 @@ function fmtPct(val) {
 function fmtDate(str) {
   if (!str) return null;
   try {
-    return new Date(str + 'T12:00:00').toLocaleDateString('en-US', {
+    const day = (str instanceof Date ? str.toISOString() : String(str)).slice(0, 10);
+    return new Date(day + 'T12:00:00').toLocaleDateString('en-US', {
       month: 'short', day: 'numeric', year: 'numeric',
     });
   } catch { return str; }
@@ -210,7 +213,7 @@ export default function ProjectDashboard({
 
   // ── Sales / Pipeline fields live on the project itself (Deal merged in) ──────
   const isDesignPipeline = inDesignPipeline(project);
-  const combinedRevenue  = (project.contractValue || 0) + (project.designContractValue || 0);
+  const combinedRevenue  = sumCents([currentContract(project), project.designContractValue]);
   // Average Probability, mean of the two entered values (falls back to whichever is present).
   const _probParts = [project.probabilityToWin, project.probabilityToMoveForward].filter(v => v != null && v !== '');
   const avgProbability = _probParts.length ? Math.round(_probParts.reduce((a, b) => a + Number(b), 0) / _probParts.length) : null;
@@ -274,12 +277,8 @@ export default function ProjectDashboard({
   const currentBudgetVal   = currentBudget ?? wizardTotal;
 
   // ── Change order total ────────────────────────────────────────────────────
-  const coFiles = files.filter(f => {
-    if (f.tab !== 'ca' || f.parsedAmount == null) return false;
-    try { const tags = JSON.parse(f.tags || '[]'); return tags.includes('Change Order'); }
-    catch { return false; }
-  });
-  const coTotal = coFiles.length > 0 ? coFiles.reduce((sum, f) => sum + (f.parsedAmount || 0), 0) : null;
+  const originalContract = contractValue ?? project.contractValue;
+  const approvedCoTotal  = project.approvedCoTotal || 0;
 
   // ── Save helpers ──────────────────────────────────────────────────────────
 
@@ -424,17 +423,20 @@ export default function ProjectDashboard({
       {/* ── Contract row ──────────────────────────────────────────────────── */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Widget
-          label="Supply Contract Total"
-          value={fmt(contractValue ?? project.contractValue)}
-          sub={project.contractSignedDate ? `Signed ${fmtDate(project.contractSignedDate)}` : 'No signed date on file'}
+          label="Current Contract"
+          value={fmt(currentContract({ contractValue: originalContract, approvedCoTotal }))}
+          sub={[
+            approvedCoTotal && originalContract != null ? `Original ${fmt(originalContract)}` : null,
+            project.contractSignedDate ? `Signed ${fmtDate(project.contractSignedDate)}` : 'No signed date on file',
+          ].filter(Boolean).join(', ')}
           empty="No supply contract on file"
         />
         <Widget
           label="Change Order Total"
-          value={coTotal != null ? fmt(coTotal) : null}
-          sub={coFiles.length > 0 ? `${coFiles.length} change order${coFiles.length !== 1 ? 's' : ''}` : null}
+          value={approvedCoTotal ? fmt(approvedCoTotal) : null}
+          sub={approvedCoTotal ? 'Approved change orders' : null}
           accent="text-orange-600"
-          empty="No change orders on file"
+          empty="No approved change orders"
         />
       </div>
 
@@ -592,7 +594,8 @@ export default function ProjectDashboard({
 
           {/* ── Revenue ── */}
           <Rule label="Revenue" />
-          <EditableStat label="Product Sale Total ($)" displayValue={fmt(project.contractValue)}       rawValue={project.contractValue ?? ''}       onSave={pMoney('contractValue')} />
+          <EditableStat label="Original Contract ($)"  displayValue={fmt(project.contractValue)}       rawValue={project.contractValue ?? ''}       onSave={pMoney('contractValue')} />
+          <ReadStat     label="Current Contract ($)"   value={fmt(currentContract(project))} accent="text-blue-600" />
           <EditableStat label="Design Fee Total ($)"   displayValue={fmt(project.designContractValue)} rawValue={project.designContractValue ?? ''} onSave={pMoney('designContractValue')} />
           <ReadStat     label="Total Combined ($)"     value={fmt(combinedRevenue)} accent="text-blue-600" />
           <EditableStat label="Probability to Win (%)"          displayValue={project.probabilityToWin != null ? `${project.probabilityToWin}%` : null}                 rawValue={project.probabilityToWin ?? ''}          onSave={p('probabilityToWin')} select options={probabilityOptions(project.probabilityToWin)} />

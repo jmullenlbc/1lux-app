@@ -1,7 +1,8 @@
 // Sales Reps and RFQs (0144) against a running dev server: the RFQs tab groups
 // matrix lines by rep, Send makes RFQ numbers and marks lines Sent, typed DN
 // prices save, a rep quote auto prices good matches and asks about the rest,
-// a pick and a "Not ours" settle open lines, the PDF builds, and the rep,
+// a pick and a "Not ours" settle open lines, rows add up on one line and a newer
+// quote replaces an older one (0156), the PDF builds, and the rep,
 // office and manufacturer pages open. Only this test's own rows are touched
 // and deleted afterwards. Skips when the server is down.
 // Run: node --test scripts/tests/rfqE2e.test.mjs
@@ -120,7 +121,7 @@ test('RFQ send, price, quote match and pages', async (t) => {
     const qx = q.json.quote.lines.find((l) => l.typeTag === 'X9');
     const qz = q.json.quote.lines.find((l) => l.typeTag === 'Z1');
     assert.equal(qa.status, 'AUTO');
-    assert.equal(qa.rfqLineId, la.id);
+    assert.equal(qa.links[0].rfqLineId, la.id);
     assert.equal(qx.status, 'OPEN');
     assert.equal(q.json.options[qx.id][0].rfqLineId, lb.id, 'best guess offered first');
 
@@ -137,6 +138,46 @@ test('RFQ send, price, quote match and pages', async (t) => {
     assert.equal(after.find((l) => l.id === lb.id).priceSource, 'PICKED');
     const s1 = await get(base, cookie);
     assert.equal(lineOf(s1.json, 'A1').status, 'Received');
+
+    // Rows add up (0156): the skipped row joins B and counts once.
+    const add = await patch(`${base}/quotes`, { quoteLineId: qz.id, rfqLineId: lb.id }, cookie);
+    assert.equal(add.status, 200, add.text);
+    assert.equal((await prisma.rfqLine.findUnique({ where: { id: lb.id } })).dnPrice, 66);
+    assert.equal(add.json.rfqLines.find((l) => l.id === lb.id)._count.quoteLinks, 2);
+    assert.equal(add.json.quote.lines.find((l) => l.id === qz.id).status, 'PICKED');
+    // One row can also price a second line, and neither loses its price.
+    const both = await patch(`${base}/quotes`, { quoteLineId: qz.id, rfqLineId: la.id }, cookie);
+    assert.equal(both.status, 200, both.text);
+    assert.equal((await prisma.rfqLine.findUnique({ where: { id: la.id } })).dnPrice, 93);
+    const off = await patch(`${base}/quotes`, { quoteLineId: qz.id, rfqLineId: la.id, remove: true }, cookie);
+    assert.equal(off.status, 200, off.text);
+    assert.equal((await prisma.rfqLine.findUnique({ where: { id: la.id } })).dnPrice, 88);
+    const gone = await patch(`${base}/quotes`, { quoteLineId: qz.id, rfqLineId: la.id, remove: true }, cookie);
+    assert.equal(gone.status, 404, gone.text);
+    const off2 = await patch(`${base}/quotes`, { quoteLineId: qz.id, skip: true }, cookie);
+    assert.equal(off2.status, 200, off2.text);
+    assert.equal((await prisma.rfqLine.findUnique({ where: { id: lb.id } })).dnPrice, 61);
+
+    // A revised quote replaces the first one on that line; it never adds on top.
+    const rev = await post(`${base}/quotes`, {
+      rfqId: rfq.id, fileName: 'rep quote rev.pdf', quoteNumber: 'Q-2',
+      lines: [{ typeTag: 'A1', mfr: m1.name, catalog: 'DL-6-35K', qty: 40, unitPrice: 80 }],
+    }, cookie);
+    assert.equal(rev.status, 201, rev.text);
+    assert.equal((await prisma.rfqLine.findUnique({ where: { id: la.id } })).dnPrice, 80);
+    assert.equal((await prisma.rfqQuoteLine.findUnique({ where: { id: qa.id } })).status, 'REPLACED');
+
+    // A typed price takes the line over; clearing one sends the rows back to ask.
+    const revRow = rev.json.quote.lines[0];
+    const over = await patch(`${base}/${rfq.id}`, { prices: [{ lineId: la.id, dnPrice: 77 }] }, cookie);
+    assert.equal(over.status, 200, over.text);
+    assert.equal(await prisma.rfqQuoteLink.count({ where: { rfqLineId: la.id } }), 0);
+    assert.equal((await prisma.rfqQuoteLine.findUnique({ where: { id: revRow.id } })).status, 'REPLACED');
+    assert.equal((await prisma.rfqLine.findUnique({ where: { id: la.id } })).priceSource, 'TYPED');
+    const cleared = await patch(`${base}/${rfq.id}`, { prices: [{ lineId: lb.id, dnPrice: '' }] }, cookie);
+    assert.equal(cleared.status, 200, cleared.text);
+    assert.equal((await prisma.rfqLine.findUnique({ where: { id: lb.id } })).dnPrice, null);
+    assert.equal((await prisma.rfqQuoteLine.findUnique({ where: { id: qx.id } })).status, 'OPEN');
 
     // The PDF and the history.
     const pdf = await fetch(`${BASE}${base}/${rfq.id}/pdf`, { headers: { cookie } });
@@ -156,6 +197,7 @@ test('RFQ send, price, quote match and pages', async (t) => {
       await prisma.recordHistory?.deleteMany({ where: { entityId: { in: [...rfqs.map((r) => r.id), ...made.reps, ...made.mfrs] } } }).catch(() => {});
       // Local sqlite can skip the cascade and leave RFQs with no job, which breaks /pre-con.
       const quotes = await prisma.rfqQuote.findMany({ where: { projectId: made.project }, select: { id: true } });
+      await prisma.rfqQuoteLink.deleteMany({ where: { quoteLine: { quoteId: { in: quotes.map((x) => x.id) } } } }).catch(() => {});
       await prisma.rfqQuoteLine.deleteMany({ where: { quoteId: { in: quotes.map((x) => x.id) } } }).catch(() => {});
       await prisma.rfqQuote.deleteMany({ where: { projectId: made.project } }).catch(() => {});
       await prisma.rfqLine.deleteMany({ where: { rfqId: { in: rfqs.map((r) => r.id) } } }).catch(() => {});

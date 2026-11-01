@@ -3,6 +3,7 @@ import { requireAuth, canSeeAllData } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { serveStoredFile } from '@/lib/projectFileServe';
 import { logActivity, TAB_LABELS } from '@/lib/activity';
+import { refreshContractRollupQuietly } from '@/lib/changeOrderRollup';
 import { archiveData, readArchivedFlag, deleteRefused, ARCHIVED_FLAG_HELP } from '@/lib/archive';
 
 // GET, serve the file inline (for PDF viewer)
@@ -113,6 +114,7 @@ export async function POST(request, { params }) {
     where: { id: params.fileId },
     data:  archiveData(archived, user),
   });
+  if (record.tab === 'ca' && record.parsedAmount != null) await refreshContractRollupQuietly(record.projectId);
 
   const tabLabel = TAB_LABELS[record.tab] || record.tab;
   await logActivity(

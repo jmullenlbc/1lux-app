@@ -5,6 +5,35 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Current Contract, RFQ rows that add up, Invoiced removed, desktop My Jobs and Ship Schedules] - October 31, 2026 (DEPLOYED November 1, 2026)
+
+### Added
+- Current Contract: the Original Contract plus approved change orders. One stored number (`Project.approvedCoTotal`, migration 0155) and one calculation (`src/lib/contractBalance.js`), so the Change Orders tab, Project dashboard, Pipeline, Sales dashboards, Weekly meeting, Meeting Prep and the project chat all agree. Original Contract stays and shows beside it.
+- The stored number refreshes on approve, undo approval, Job Loader, changes to old change order PDFs, and when the Change Orders tab opens (`src/lib/changeOrderRollup.js`).
+- RFQ quote rows now link to RFQ lines through `RfqQuoteLink` (migration 0156). Several rows on one quote add up on one RFQ line (housing, trim, optic), and one row can price several RFQ lines. On screen: Remove on a linked row, "Add another RFQ line", and " · adds up" where a line has more than one row.
+- Job Loader fills Original Contract and the signed date from the newest Signed PO. A figure already on the job stays.
+- My Jobs and Ship Schedules on the desktop sidebar under Home, staff only.
+
+### Changed
+- Change Order Total card reads approved change orders, not parsed PDF amounts.
+- Push to Budget and Push to Ship Schedule need an approved change order. The server refuses with CO_NOT_APPROVED and the buttons are greyed out.
+- A newer quote replaces an older one on an RFQ line. A typed price takes a line over from its rows; clearing the price sends them back to ask.
+- A quote row marked alt, alternate, option, optional, or equal, or substitute asks instead of adding up. So does a row with the same catalog number as another, and anything landing on a line whose part number exactly matches a whole fixture row.
+
+### Removed
+- Invoiced to Date and Remaining to Bill on the Change Orders tab. The `Project.totalInvoiced` column stays hidden; CRM imports still fill it.
+
+### Fixed
+- "Invalid Date" on the Current Budget card (`fmtDate` in `ProjectDashboard.jsx`).
+
+### Known limits
+- The old Total Revenue dashboard filter stays on Original Contract. Prisma can not filter on two columns added together.
+- 0155 has no backfill. Approved change orders on a job count from the next refresh, usually opening that job's Change Orders tab.
+- Old change order PDFs with an Amount still add to Current Contract. Change orders are made in the system now, so these stay only for old jobs.
+
+### Files changed
+- `prisma/schema.prisma`, `prisma/migrations/0155_approved_co_total/`, `prisma/migrations/0156_rfq_quote_links/`, `src/lib/contractBalance.js` (new), `src/lib/changeOrderRollup.js` (new), `src/lib/changeOrderApproval.js`, `src/lib/jobLoaderLoad.js`, `src/lib/pipeline.js`, `src/lib/dashboardEngine.js`, `src/lib/dashboards/providers.js`, `src/lib/dashboards/fieldCatalog.js`, `src/lib/meetingPrep/gather.js`, `src/lib/meetingPrep/brief.js`, `src/lib/ontology/objects/project.js`, `src/lib/rfq/match.js`, `src/lib/rfq/actions.js`, `src/lib/rfq/intakeQuote.js`, the change order, files, ship schedule, RFQ, pipeline, meeting, chat and Job Loader routes, `src/components/ProjectDashboard.jsx`, `src/components/ContractWidgets.jsx`, `src/components/BudgetLadderCard.jsx`, `src/components/changeOrders/ChangeOrdersTab.jsx`, `src/components/crm/PipelineSidePanel.jsx`, `src/components/rfq/RfqReceived.jsx`, `src/components/layout/Sidebar.jsx`, `src/app/(app)/crm/page.jsx`, `CODetailClient.jsx`, `scripts/tests/contractBalance.test.mjs` (new), `scripts/tests/rfq.test.mjs`, `scripts/tests/rfqE2e.test.mjs`, `scripts/tests/procurementForecast.test.mjs`, `scripts/tests/dashboardWonNotOrdered.test.mjs`, `scripts/verify.mjs`
+
 ## [Phone tabs per department, My Jobs, Ship Schedules across jobs] - October 31, 2026 (DEPLOYED October 31, 2026)
 
 ### Added

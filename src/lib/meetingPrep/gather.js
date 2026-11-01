@@ -115,7 +115,7 @@ export async function gatherMeetingFacts(prisma, noteId, now = new Date(), opts 
       id: true, name: true, clientId: true, serviceType: true,
       procurementStage: true, designStage: true, procurementStatus: true, designStatus: true,
       expectedOrderDate: true, nextActionType: true, nextActionDueDate: true, flagged: true, flagNote: true,
-      contractValue: true, designContractValue: true,
+      contractValue: true, approvedCoTotal: true, designContractValue: true,
       client: { select: { name: true } },
     },
     take: 300,

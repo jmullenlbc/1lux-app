@@ -85,6 +85,7 @@ export default function BudgetLadderCard({ projectId, amounts, onChange, onContr
                       {contractFiles.map(f => <option key={f.id} value={f.id}>{f.originalName}</option>)}
                     </select>
                   )}
+                  {tier === 'po' && <p className="text-[11px] text-slate-500">Enter the PO as first signed. Approved change orders add on their own.</p>}
                   <div className="flex gap-2">
                     <button type="button" onClick={save} disabled={busy} className="px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white disabled:opacity-50">Save</button>
                     <button type="button" onClick={() => { setEditing(null); setErr(null); }} className="text-xs text-slate-500">Cancel</button>

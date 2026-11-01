@@ -38,7 +38,10 @@ export const FIELD_CATALOG = {
   SALES: [
     // measures
     { key: 'projectCount',       label: 'Projects',            type: 'number', unit: 'count', tier: 'ilc_only', source: '_count' },
-    { key: 'productSaleTotal',   label: 'Product Sale Total',  type: 'number', unit: '$',     tier: 'ilc_only', source: 'contractValue' },
+    { key: 'productSaleTotal',   label: 'Product Sale Total',  type: 'number', unit: '$',     tier: 'ilc_only', source: 'currentContract',
+      description: 'Current Contract: the original contract plus approved change orders.' },
+    { key: 'originalContract',   label: 'Original Contract',   type: 'number', unit: '$',     tier: 'ilc_only', source: 'contractValue',
+      description: 'The contract as first signed, before change orders.' },
     { key: 'designFeeTotal',     label: 'Design Fee Total',    type: 'number', unit: '$',     tier: 'ilc_only', source: 'designContractValue' },
     { key: 'probabilityToWin',   label: 'Probability to Win',  type: 'number', unit: '%',     tier: 'ilc_only', source: 'probabilityToWin' },
     { key: 'probabilityToMoveForward', label: 'Probability to Move Forward', type: 'number', unit: '%', tier: 'ilc_only', source: 'probabilityToMoveForward' },
@@ -49,7 +52,7 @@ export const FIELD_CATALOG = {
       description: 'Product sale × Weighted Probability %, per project.' },
     { key: 'weightedDesignFee',  label: `${WEIGHTED_REVENUE_LABEL} (design fee)`, type: 'number', unit: '$', tier: 'ilc_only', source: 'weightedDesignFee',
       description: 'Design fee × Weighted Probability %, per project.' },
-    { key: 'onHoldRevenue',      label: 'On Hold Revenue (product)', type: 'number', unit: '$', tier: 'ilc_only', source: 'contractValue', where: { source: 'procurementStatus', op: 'in', value: ON_HOLD_STATUSES },
+    { key: 'onHoldRevenue',      label: 'On Hold Revenue (product)', type: 'number', unit: '$', tier: 'ilc_only', source: 'currentContract', where: { source: 'procurementStatus', op: 'in', value: ON_HOLD_STATUSES },
       description: 'Product sale on projects whose procurement status is On Hold.' },
     { key: 'onHoldDesignFee',    label: 'On Hold Revenue (design fee)', type: 'number', unit: '$', tier: 'ilc_only', source: 'designContractValue', where: { source: 'designStatus', op: 'in', value: ON_HOLD_STATUSES },
       description: 'Design fee on projects whose design status is On Hold.' },
@@ -103,7 +106,10 @@ export const FIELD_CATALOG = {
   MAIN: [
     // measures
     { key: 'projectCount',       label: 'Projects',            type: 'number', unit: 'count', tier: 'ilc_only', source: '_count' },
-    { key: 'productSaleTotal',   label: 'Product Sale Total',  type: 'number', unit: '$',     tier: 'ilc_only', source: 'contractValue' },
+    { key: 'productSaleTotal',   label: 'Product Sale Total',  type: 'number', unit: '$',     tier: 'ilc_only', source: 'currentContract',
+      description: 'Current Contract: the original contract plus approved change orders.' },
+    { key: 'originalContract',   label: 'Original Contract',   type: 'number', unit: '$',     tier: 'ilc_only', source: 'contractValue',
+      description: 'The contract as first signed, before change orders.' },
     { key: 'designFeeTotal',     label: 'Design Fee Total',    type: 'number', unit: '$',     tier: 'ilc_only', source: 'designContractValue' },
     { key: 'wonCount',           label: 'Won',                 type: 'number', unit: 'count', tier: 'ilc_only', source: '_count', where: { source: 'procurementStatus', op: 'in', value: WON_STATUSES },
       description: 'Projects won (includes Completed: a completed job was won).' },

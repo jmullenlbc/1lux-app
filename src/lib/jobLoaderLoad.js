@@ -278,7 +278,7 @@ export async function loadQuotes(db, user, projectId, rows) {
     const stamp = when(q.quoteDate);
     if (!stamp) continue;
     await db.rfqQuote.update({ where: { id: res.quote.id }, data: { createdAt: stamp } });
-    const priced = res.quote.lines.filter(l => l.status === 'AUTO' && l.rfqLineId).map(l => l.rfqLineId);
+    const priced = res.quote.lines.filter(l => l.status === 'AUTO').flatMap(l => l.links.map(k => k.rfqLineId));
     if (priced.length) await db.rfqLine.updateMany({ where: { id: { in: priced } }, data: { receivedAt: stamp } });
     if (rfq) await db.rfq.updateMany({ where: { id: rfq.id, receivedAt: { not: null } }, data: { receivedAt: stamp } });
   }
@@ -492,7 +492,19 @@ export async function loadBudgets(db, user, projectId, rows) {
     await db.projectBudgetAmount.update({ where: { id: row.id }, data: { createdAt: stamp } });
     out.created += 1;
   }
+  await fillContractFromPo(db, projectId);
   return out;
+}
+
+// The newest Signed PO is the Original Contract, same as typing one in or uploading
+// the PO. A figure already on the job stays.
+async function fillContractFromPo(db, projectId) {
+  const po = await db.projectBudgetAmount.findFirst({
+    where: { projectId, tier: 'po', archivedAt: null }, orderBy: { createdAt: 'desc' }, select: { amount: true, createdAt: true },
+  });
+  if (!po) return;
+  await db.project.updateMany({ where: { id: projectId, contractValue: null }, data: { contractValue: po.amount } });
+  await db.project.updateMany({ where: { id: projectId, contractSignedDate: null }, data: { contractSignedDate: po.createdAt.toISOString().slice(0, 10) } });
 }
 
 const hasTag = (file, tag) => { try { return JSON.parse(file.tags || '[]').includes(tag); } catch { return false; } };

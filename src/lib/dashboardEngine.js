@@ -11,6 +11,7 @@ import {
   normalizeStage, DECIDED_STATUSES, WON_STATUSES,
 } from './pipeline.js';
 import { serviceTypeLabel, projectTypeLabel } from './utils.js';
+import { currentContract } from './contractBalance.js';
 
 // ── Native date helpers ────────────────────────────────────────────────────
 
@@ -381,7 +382,7 @@ export async function runWidget(widget, db) {
         dealStatus:      row.status,
         probability:     averageProbability(p),
         revenue:         row.revenue,            // this board's money, and only this board's
-        totalRevenue:    p.contractValue,        // product sales on the whole job
+        totalRevenue:    currentContract(p),     // product sales on the whole job, approved change orders in
         designFeeTotal:  p.designContractValue,  // design fee on the whole job
         combinedRevenue: combinedRevenue(p),     // Mike's item 3, the two added up
         lostReason:      null,

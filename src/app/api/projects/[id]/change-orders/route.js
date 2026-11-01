@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import { requireAuth, requirePermission, isClientViewer, can } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { getProjectRates, calcCOTotal, nextCoNumber, defaultCoTaxPct } from '@/lib/changeOrderRates';
-import { looseNumberOrNull } from '@/lib/numberInput';
+import { contractBalance } from '@/lib/contractBalance';
+import { legacyCoFilesWhere } from '@/lib/changeOrderRollup';
 
 const CO_INCLUDE = {
   optionGroups: {
@@ -30,19 +31,11 @@ export async function GET(req, { params }) {
     }),
     prisma.project.findUnique({
       where:  { id: params.id },
-      select: { contractValue: true, totalInvoiced: true },
+      select: { contractValue: true, approvedCoTotal: true },
     }),
     getProjectRates(params.id),
     // Legacy CO PDFs uploaded before the structured system
-    prisma.projectFile.findMany({
-      where: {
-        projectId: params.id,
-        tab:       'ca',
-        tags:      { contains: 'Change Order' },
-        parsedAmount: { not: null },
-      },
-      select: { parsedAmount: true },
-    }),
+    prisma.projectFile.findMany({ where: legacyCoFilesWhere(params.id), select: { parsedAmount: true } }),
   ]);
 
   // Compute per-CO totals and contract balance rollup
@@ -51,48 +44,20 @@ export async function GET(req, { params }) {
     totalValue: calcCOTotal(co, rates),
   }));
 
-  // Legacy PDF-based CO total (from files tagged "Change Order" with parsed amounts)
-  const legacyTotal = legacyFiles.reduce((s, f) => s + (f.parsedAmount || 0), 0);
+  const { approvedCoTotal, ...balance } = contractBalance({ originalContract: project?.contractValue, cos, legacyFiles });
 
-  const approvedCOTotal = cos.filter(c => c.status === 'APPROVED').reduce((s, c) => s + c.totalValue, 0);
-  const pendingCOTotal  = cos.filter(c => c.status === 'SENT').reduce((s, c) => s + c.totalValue, 0);
-  const originalContract  = project?.contractValue ?? 0;
-  const newContractTotal  = originalContract + approvedCOTotal + legacyTotal;
-  const totalInvoiced     = project?.totalInvoiced ?? 0;
+  // Heals anything approved before this rollup existed, or a refresh that was missed
+  if (project && project.approvedCoTotal !== approvedCoTotal) {
+    await prisma.project.updateMany({ where: { id: params.id }, data: { approvedCoTotal } });
+  }
 
   return NextResponse.json({
     // So the screen can say "view only" up front instead of failing on click.
     canEdit: can(user, 'editJobMoney'),
     changeOrders: cos,
-    balance: {
-      originalContract,
-      approvedCOTotal,
-      pendingCOTotal,
-      legacyTotal,
-      newContractTotal,
-      totalInvoiced,
-      remainingToBill: newContractTotal - totalInvoiced,
-    },
+    balance,
     rates,
   });
-}
-
-// PATCH /api/projects/[id]/change-orders
-// Invoiced to date lives on the project. Body: { totalInvoiced }
-export async function PATCH(req, { params }) {
-  const { error } = await requirePermission(req, 'editJobMoney');
-  if (error) return error;
-
-  const body = await req.json().catch(() => ({}));
-  const totalInvoiced = looseNumberOrNull(body.totalInvoiced);
-  const typed = String(body.totalInvoiced ?? '').trim();
-  if (totalInvoiced === undefined || (totalInvoiced === null && typed)) {
-    return NextResponse.json({ error: 'Invoiced to date has to be a dollar amount. Nothing was changed.' }, { status: 400 });
-  }
-
-  const { count } = await prisma.project.updateMany({ where: { id: params.id }, data: { totalInvoiced } });
-  if (!count) return NextResponse.json({ error: 'That job was not found. Nothing was changed.' }, { status: 404 });
-  return NextResponse.json({ ok: true, totalInvoiced });
 }
 
 // POST /api/projects/[id]/change-orders

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireStaff } from '@/lib/auth';
 import { prisma } from '@/lib/db';
-import { priceLine } from '@/lib/rfq/actions';
+import { typePrice } from '@/lib/rfq/actions';
 import { emailBody, emailSubject } from '@/lib/rfq/format';
 import { looseNumberOrNull } from '@/lib/numberInput';
 import { historyFor } from '@/lib/recordHistory';
@@ -45,7 +45,7 @@ export async function PATCH(request, { params }) {
       if (price != null && isNaN(price)) continue;
       const line = rfq.lines.find((l) => l.id === p.lineId);
       if (line.dnPrice === price) continue;
-      await priceLine(tx, { rfqLineId: p.lineId, price, source: 'TYPED', user });
+      await typePrice(tx, { rfqLineId: p.lineId, price, user });
     }
   });
   return NextResponse.json({ rfq: await load(params.id, params.rfqId) });

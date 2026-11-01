@@ -27,6 +27,9 @@ export async function POST(req, { params }) {
   if (!co || co.projectId !== params.id) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
+  if (co.status !== 'APPROVED') {
+    return NextResponse.json({ error: 'This change order is not approved yet, so nothing was pushed. Approve it first, then push again. (CO_NOT_APPROVED)' }, { status: 400 });
+  }
 
   // Only the chosen option, with per line alternates resolved to the one picked
   if (!co.optionGroups.some(g => g.isSelected)) {

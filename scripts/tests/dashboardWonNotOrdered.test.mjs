@@ -17,9 +17,9 @@ function inMonths(n) {
 }
 
 const rows = [
-  { id: 'a', name: 'Won, no PO',   procurementStatus: 'WON',  designStatus: 'WON',  hasPurchaseOrder: 'No',  shipmentCount: 0, expectedOrderDate: inMonths(2), contractValue: 100000, designContractValue: 5000, averageProbability: 100 },
-  { id: 'b', name: 'Won, has PO',  procurementStatus: 'WON',  designStatus: 'WON',  hasPurchaseOrder: 'Yes', shipmentCount: 1, expectedOrderDate: inMonths(2), contractValue: 50000,  designContractValue: 2000, averageProbability: 100 },
-  { id: 'c', name: 'Still open',   procurementStatus: 'OPEN', designStatus: 'OPEN', hasPurchaseOrder: 'No',  shipmentCount: 0, expectedOrderDate: inMonths(2), contractValue: 70000,  designContractValue: 3000, averageProbability: 50 },
+  { id: 'a', name: 'Won, no PO',   procurementStatus: 'WON',  designStatus: 'WON',  hasPurchaseOrder: 'No',  shipmentCount: 0, expectedOrderDate: inMonths(2), currentContract: 100000, designContractValue: 5000, averageProbability: 100 },
+  { id: 'b', name: 'Won, has PO',  procurementStatus: 'WON',  designStatus: 'WON',  hasPurchaseOrder: 'Yes', shipmentCount: 1, expectedOrderDate: inMonths(2), currentContract: 50000,  designContractValue: 2000, averageProbability: 100 },
+  { id: 'c', name: 'Still open',   procurementStatus: 'OPEN', designStatus: 'OPEN', hasPurchaseOrder: 'No',  shipmentCount: 0, expectedOrderDate: inMonths(2), currentContract: 70000,  designContractValue: 3000, averageProbability: 50 },
 ];
 
 const sum = (series) => series.reduce((s, x) => s + x.value, 0);

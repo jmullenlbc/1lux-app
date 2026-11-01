@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { NEXT_ACTION_LABEL } from '@/lib/pipeline';
+import { currentContract } from '@/lib/contractBalance';
+import { sumCents } from '@/lib/money';
 import { QUIET_AFTER_DAYS, normalizeLayout } from '@/lib/meeting/cards';
 import { isWaitExecutor } from '@/lib/followUp/watch';
 
@@ -48,7 +50,7 @@ export async function GET(request) {
     needsProjects ? prisma.project.findMany({
       where: { lifecycleStatus: { not: 'ARCHIVED' } },
       select: {
-        id: true, name: true, serviceType: true, contractValue: true, designContractValue: true,
+        id: true, name: true, serviceType: true, contractValue: true, approvedCoTotal: true, designContractValue: true,
         procurementStatus: true, designStatus: true, procurementStage: true, designStage: true,
         procurementStatusReason: true, designStatusReason: true,
         proposalSentDate: true, budgetSentDate: true, expectedOrderDate: true,
@@ -66,7 +68,7 @@ export async function GET(request) {
 
   const shape = (p) => ({
     id: p.id, name: p.name, client: p.client?.name || null, serviceType: p.serviceType,
-    value: (p.contractValue || 0) + (p.designContractValue || 0),
+    value: sumCents([currentContract(p), p.designContractValue]),
     proposalSentDate: p.proposalSentDate, daysWaiting: daysSince(p.proposalSentDate),
     nextActionType: p.nextActionType, nextActionLabel: p.nextActionType ? (NEXT_ACTION_LABEL[p.nextActionType] || p.nextActionType) : null,
     nextActionOwnerId: p.nextActionOwnerId, nextActionOwnerName: p.nextActionOwnerId ? (nameOf[p.nextActionOwnerId] || null) : null,

@@ -32,13 +32,13 @@ function StatusBadge({ status }) {
 }
 
 // ── Contract Balance Bar ───────────────────────────────────────────────────────
-function ContractBalanceBar({ balance, canEdit, onInvoiced }) {
+function ContractBalanceBar({ balance }) {
   const items = [
     { label: 'Original Contract', value: balance.originalContract, color: 'text-slate-800' },
     { label: 'Approved COs',      value: balance.approvedCOTotal,  color: (balance.approvedCOTotal ?? 0) >= 0 ? 'text-green-700' : 'text-red-600', showSign: true },
     { label: 'Pending COs',       value: balance.pendingCOTotal,   color: 'text-amber-700', showSign: true },
     ...(balance.legacyTotal ? [{ label: 'Legacy CO PDFs', value: balance.legacyTotal, color: 'text-slate-500', showSign: true }] : []),
-    { label: 'New Contract Total', value: balance.newContractTotal, color: 'text-blue-700', bold: true },
+    { label: 'Current Contract',  value: balance.currentContract,  color: 'text-blue-700', bold: true },
   ];
 
   return (
@@ -53,26 +53,6 @@ function ContractBalanceBar({ balance, canEdit, onInvoiced }) {
             </p>
           </div>
         ))}
-        <div className="min-w-[140px]">
-          <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1">Invoiced to Date</p>
-          {canEdit ? (
-            <input
-              type="number" step="0.01"
-              key={balance.totalInvoiced ?? 0}
-              defaultValue={balance.totalInvoiced || ''}
-              placeholder="0.00"
-              onBlur={e => { if (Number(e.target.value || 0) !== (balance.totalInvoiced ?? 0)) onInvoiced(e.target.value); }}
-              onKeyDown={e => e.key === 'Enter' && e.target.blur()}
-              className="w-32 text-base font-bold text-slate-800 border-b border-slate-200 bg-transparent outline-none hover:border-slate-400 focus:border-orange-500 pb-0.5 transition-colors"
-            />
-          ) : (
-            <p className="text-base font-bold text-slate-800">{fmt(balance.totalInvoiced)}</p>
-          )}
-        </div>
-        <div className="min-w-[140px]">
-          <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1">Remaining to Bill</p>
-          <p className={`text-xl font-bold ${(balance.remainingToBill ?? 0) < 0 ? 'text-red-600' : 'text-slate-800'}`}>{fmt(balance.remainingToBill)}</p>
-        </div>
       </div>
     </div>
   );
@@ -100,16 +80,6 @@ export default function ChangeOrdersTab({ projectId }) {
   }
 
   useEffect(() => { load(); }, [projectId]);
-
-  async function saveInvoiced(value) {
-    const res = await fetch(`/api/projects/${projectId}/change-orders`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ totalInvoiced: value }),
-    });
-    if (!res.ok) alert((await res.json().catch(() => ({}))).error || 'Could not save Invoiced to date. Nothing was changed. Try again.');
-    load();
-  }
 
   async function createCO() {
     setCreating(true);
@@ -166,7 +136,7 @@ export default function ChangeOrdersTab({ projectId }) {
   return (
     <div>
       {/* Contract Balance Bar */}
-      <ContractBalanceBar balance={balance} canEdit={canEdit} onInvoiced={saveInvoiced} />
+      <ContractBalanceBar balance={balance} />
 
       {!canEdit && (
         <div className="mb-4 rounded-lg bg-slate-100 border border-slate-200 px-4 py-2.5 text-xs text-slate-600">

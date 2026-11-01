@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db';
 import { getProjectRates, calcCOTotal, freezeRates } from '@/lib/changeOrderRates';
+import { refreshContractRollupQuietly } from '@/lib/changeOrderRollup';
 import { notifyProjectManagers } from '@/lib/alerts';
 import { formatCurrency } from '@/lib/format';
 
@@ -63,6 +64,7 @@ export async function approveChangeOrder({ projectId, coId, via, from, userId = 
   if (!approved) {
     return { status: 409, body: { error: 'This change order changed while you were approving it. Nothing was changed. Reload and try again.' } };
   }
+  await refreshContractRollupQuietly(projectId);
   if (via === 'PORTAL') await tellProjectManagers({ projectId, co, option: selected.label, amount, portalUserId });
   return { status: 200, body: { ok: true, amount } };
 }
@@ -77,5 +79,6 @@ export async function undoApproval({ projectId, coId, userId, note = null }) {
     prisma.changeOrder.update({ where: { id: coId }, data: { status: 'SENT' } }),
     prisma.changeOrderApproval.create({ data: { changeOrderId: coId, action: 'UNDONE', via: 'STAFF', userId, note } }),
   ]);
+  await refreshContractRollupQuietly(projectId);
   return { status: 200, body: { ok: true } };
 }

@@ -719,6 +719,7 @@ model Project {
   flagged                       Boolean        @default(false)
   flagNote                      String?
   contractValue                 Float?
+  approvedCoTotal               Float          @default(0) // approved change orders added up, see src/lib/changeOrderRollup.js
   contractSignedDate            String?
   totalInvoiced                 Float?
   designContractValue           Float?
@@ -5148,6 +5149,7 @@ model RfqLine {
   receivedAt       DateTime?
   sortOrder        Int             @default(0)
   createdAt        DateTime        @default(now())
+  quoteLinks       RfqQuoteLink[]
 
   @@index([rfqId])
   @@index([peerReviewItemId])
@@ -5188,13 +5190,28 @@ model RfqQuoteLine {
   description  String   @default("")
   qty          Float?
   unitPrice    Float?
-  rfqLineId    String? // the RFQ line it priced
+  rfqLineId    String? // retired by 0156, see RfqQuoteLink
   confidence   Float? // the best match score, 0 to 1
-  status       String   @default("OPEN") // AUTO (75% or better) | PICKED | SKIPPED | OPEN
+  status       String   @default("OPEN") // AUTO (75% or better) | PICKED | SKIPPED | REPLACED (by another quote or a typed price) | OPEN
   sortOrder    Int      @default(0)
   createdAt    DateTime @default(now())
+  links        RfqQuoteLink[]
 
   @@index([quoteId])
+}
+
+// Which RFQ lines a quote row prices. One row can price several RFQ lines, and
+// several rows (housing, trim, optic) add up on one RFQ line (Mike 10-31).
+model RfqQuoteLink {
+  id          String       @id @default(cuid())
+  quoteLineId String
+  quoteLine   RfqQuoteLine @relation(fields: [quoteLineId], references: [id], onDelete: Cascade)
+  rfqLineId   String
+  rfqLine     RfqLine      @relation(fields: [rfqLineId], references: [id], onDelete: Cascade)
+  createdAt   DateTime     @default(now())
+
+  @@unique([quoteLineId, rfqLineId])
+  @@index([rfqLineId])
 }
 
 // Who did what to a record, and when (Mike 10-29: "like everything we need a

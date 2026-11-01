@@ -3,6 +3,7 @@ import { requireSuperAdmin } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { isUploadKey, presignAvailable } from '@/lib/uploadStorage';
 import { LOADERS, heldFiles, loadFile } from '@/lib/jobLoaderLoad';
+import { refreshContractRollupQuietly } from '@/lib/changeOrderRollup';
 
 export const dynamic = 'force-dynamic';
 
@@ -59,12 +60,15 @@ export async function POST(request) {
       if (uploadKey && !isUploadKey(uploadKey)) return fail('That upload key is not one of ours. Nothing was saved.', 'JOB_LOADER_BAD_KEY');
       if (!uploadKey && (!buffer || presignAvailable())) return fail('The file never reached us. Nothing was saved. Press Continue to send it again.', 'JOB_LOADER_NO_FILE');
       const res = await loadFile(prisma, user, projectId, body.row, { buffer, uploadKey });
+      if (!res.error && body.row?.tab === 'ca' && body.row?.amount != null) await refreshContractRollupQuietly(projectId);
       return res.error ? NextResponse.json(res, { status: 400 }) : NextResponse.json(res);
     }
 
     const loader = LOADERS[step];
     if (!loader) return fail(`We do not know a step called ${step}. Nothing was saved.`, 'JOB_LOADER_BAD_STEP');
-    return NextResponse.json({ ok: true, ...(await loader(prisma, user, projectId, body.rows || [])) });
+    const res = await loader(prisma, user, projectId, body.rows || []);
+    if (step === 'changeOrders') await refreshContractRollupQuietly(projectId);
+    return NextResponse.json({ ok: true, ...res });
   } catch (e) {
     console.error('[job-loader]', e);
     return fail('Our server stopped partway through. What saved before the stop is kept, and sending it again skips it. Press Continue to retry.', `JOB_LOADER_FAILED: ${String(e?.message || e).slice(0, 160)}`, 500);

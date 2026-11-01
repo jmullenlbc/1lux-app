@@ -12,13 +12,13 @@ import TEMPLATES from '../../prisma/seeds/dashboardTemplates.js';
 const now = new Date();
 const inMonths = (n) => new Date(now.getFullYear(), now.getMonth() + n, 10).toISOString();
 const rows = [
-  { contractValue: 900000, averageProbability: 90, procurementStatus: 'OPEN', expectedOrderDate: inMonths(1) },
-  { contractValue: 500000, averageProbability: 85, procurementStatus: 'OPEN', expectedOrderDate: inMonths(5) },
-  { contractValue: 300000, averageProbability: 50, procurementStatus: 'OPEN', expectedOrderDate: inMonths(1) },
-  { contractValue: 200000, averageProbability: 30, procurementStatus: 'WON',  expectedOrderDate: inMonths(2) },
-  { contractValue: 700000, averageProbability: 95, procurementStatus: 'OPEN', expectedOrderDate: inMonths(14) }, // past the window
-  { contractValue: 100000, averageProbability: 10, procurementStatus: 'OPEN', expectedOrderDate: inMonths(1) },  // under 20%
-  { contractValue: 400000, averageProbability: 90, procurementStatus: 'LOST', expectedOrderDate: inMonths(1) },
+  { currentContract: 900000, averageProbability: 90, procurementStatus: 'OPEN', expectedOrderDate: inMonths(1) },
+  { currentContract: 500000, averageProbability: 85, procurementStatus: 'OPEN', expectedOrderDate: inMonths(5) },
+  { currentContract: 300000, averageProbability: 50, procurementStatus: 'OPEN', expectedOrderDate: inMonths(1) },
+  { currentContract: 200000, averageProbability: 30, procurementStatus: 'WON',  expectedOrderDate: inMonths(2) },
+  { currentContract: 700000, averageProbability: 95, procurementStatus: 'OPEN', expectedOrderDate: inMonths(14) }, // past the window
+  { currentContract: 100000, averageProbability: 10, procurementStatus: 'OPEN', expectedOrderDate: inMonths(1) },  // under 20%
+  { currentContract: 400000, averageProbability: 90, procurementStatus: 'LOST', expectedOrderDate: inMonths(1) },
 ];
 const SALES = (TEMPLATES.TEMPLATES_BY_SECTION || TEMPLATES).SALES;
 const card = (tpl) => { const t = SALES.find(t => t.dataSpec.tpl === tpl); return { ...t, dataSpec: t.dataSpec }; };

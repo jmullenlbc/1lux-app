@@ -801,8 +801,10 @@ function ShareCOModal({ co, projectId, onClose }) {
   );
 }
 
+const NEEDS_APPROVAL = 'Approve this change order first, then push it.';
+
 // ── Push CO → New Budget Version (PO/RFQ) ─────────────────────────────────────
-function PushCOToBudgetButton({ projectId, coId, coNumber }) {
+function PushCOToBudgetButton({ projectId, coId, coNumber, approved }) {
   const [pushing, setPushing] = useState(false);
   const [done,    setDone]    = useState(null);
   const [err,     setErr]     = useState('');
@@ -826,7 +828,7 @@ function PushCOToBudgetButton({ projectId, coId, coNumber }) {
 
   return (
     <div className="relative">
-      <button onClick={push} disabled={pushing}
+      <button onClick={push} disabled={pushing || !approved} title={approved ? undefined : NEEDS_APPROVAL}
         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 text-xs font-semibold hover:bg-slate-50 transition-colors disabled:opacity-60">
         <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 11h.01M12 11h.01M15 11h.01M4 19h16a2 2 0 002-2V7a2 2 0 00-2-2H4a2 2 0 00-2 2v10a2 2 0 002 2z" />
@@ -839,7 +841,7 @@ function PushCOToBudgetButton({ projectId, coId, coNumber }) {
 }
 
 // ── Push CO → Ship Schedule (supplemental batch) ──────────────────────────────
-function PushCOToShipButton({ projectId, coId, coNumber }) {
+function PushCOToShipButton({ projectId, coId, coNumber, approved }) {
   const [pushing, setPushing] = useState(false);
   const [done,    setDone]    = useState(null);
   const [err,     setErr]     = useState('');
@@ -860,7 +862,7 @@ function PushCOToShipButton({ projectId, coId, coNumber }) {
 
   return (
     <div className="relative">
-      <button onClick={push} disabled={pushing}
+      <button onClick={push} disabled={pushing || !approved} title={approved ? undefined : NEEDS_APPROVAL}
         className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-200 text-slate-600 text-xs font-semibold hover:bg-slate-50 transition-colors disabled:opacity-60">
         <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 00-3.213-9.193 2.056 2.056 0 00-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 00-10.026 0 1.106 1.106 0 00-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" />
@@ -1057,9 +1059,9 @@ export default function CODetailClient({ projectId, coId }) {
             </button>}
             {!viewOnly && <>
               {/* Push CO → New Budget Version (for PO/RFQ) */}
-              <PushCOToBudgetButton projectId={projectId} coId={coId} coNumber={co.coNumber} />
+              <PushCOToBudgetButton projectId={projectId} coId={coId} coNumber={co.coNumber} approved={co.status === 'APPROVED'} />
               {/* Push CO → Ship Schedule (supplemental batch) */}
-              <PushCOToShipButton projectId={projectId} coId={coId} coNumber={co.coNumber} />
+              <PushCOToShipButton projectId={projectId} coId={coId} coNumber={co.coNumber} approved={co.status === 'APPROVED'} />
             </>}
           </div>
         </div>

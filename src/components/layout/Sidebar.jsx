@@ -455,6 +455,7 @@ export default function Sidebar({ user }) {
   // as an admin. The Software section stays Super Admin only.
   const isAdmin    = actsAsAdmin(user);
   const isIlcAdmin = normalizeRole(user?.role) === 'SUPER_ADMIN';
+  const isStaff    = normalizeRole(user?.role) !== 'CLIENT_VIEWER';
   // My calendar meetings still waiting for a published note, shown on Sales
   // Notes until the count is zero. No page wide banner (Mike 10-29: alerts live
   // inside their module, here, on My Desk and on the Sales Notes page).
@@ -492,6 +493,7 @@ export default function Sidebar({ user }) {
   // ── Route groupings ──────────────────────────────────────────────────────────
   const homeRelated     = at('/home') || startsWith('/dashboard') || startsWith('/dashboards/main') ||
                           (startsWith('/project') && !startsWith('/project/new')) ||
+                          startsWith('/my-jobs') || startsWith('/ship-schedules') ||
                           startsWith('/knowledge-base');
   const crmRelated      = startsWith('/crm') || startsWith('/clients') || startsWith('/sales') ||
                           startsWith('/market-intel') || startsWith('/dashboards/sales') || startsWith('/dashboards/meeting');
@@ -592,6 +594,8 @@ export default function Sidebar({ user }) {
             <div className="mt-0.5 space-y-0.5 ml-1">
               <SubNavItem href="/dashboards/main" icon={<IconBarChart />}  label="Dashboard"  expanded={expanded} active={startsWith('/dashboards/main')} />
               <SubNavItem href="/dashboard" icon={<IconFolder />} label="Projects"  expanded={expanded} active={at('/dashboard') || (startsWith('/project') && !startsWith('/project/new'))} />
+              {isStaff && <SubNavItem href="/my-jobs" icon={<IconUserCircle />} label="My Jobs" expanded={expanded} active={startsWith('/my-jobs')} />}
+              {isStaff && <SubNavItem href="/ship-schedules" icon={<IconCalendarSm />} label="Ship Schedules" expanded={expanded} active={startsWith('/ship-schedules')} />}
               <SubNavItem href="/knowledge-base" icon={<IconBook />} label="Knowledge Base" expanded={expanded} active={startsWith('/knowledge-base')} />
             </div>
           )}

@@ -45,6 +45,9 @@ export async function POST(req, { params }) {
     if (!co || co.projectId !== params.id) {
       return NextResponse.json({ error: 'CO not found' }, { status: 404 });
     }
+    if (co.status !== 'APPROVED') {
+      return NextResponse.json({ error: 'This change order is not approved yet, so nothing was pushed. Approve it first, then push again. (CO_NOT_APPROVED)' }, { status: 400 });
+    }
     if (!co.optionGroups.some(g => g.isSelected)) {
       return NextResponse.json({ error: 'No option is chosen on this change order, so nothing was pushed. Choose one and try again.' }, { status: 400 });
     }

@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import { requireAuth, requirePermission, isClientViewer, isAnyAdmin, can } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { getProjectRates, calcCOTotal, ratesForCO, freezeRates } from '@/lib/changeOrderRates';
-import { looseNumberOrNull } from '@/lib/numberInput';
 
 const CO_INCLUDE = {
   optionGroups: {
@@ -48,7 +47,7 @@ export async function GET(req, { params }) {
 }
 
 // PATCH /api/projects/[id]/change-orders/[coId]
-// Update header fields (title, date, status, notes, salesTaxPct, totalInvoiced on project)
+// Update header fields (title, date, status, notes, salesTaxPct)
 export async function PATCH(req, { params }) {
   // Change orders are job money: Construction, Operations, Finance and admins.
   const { user, error } = await requirePermission(req, 'editJobMoney');
@@ -63,7 +62,7 @@ export async function PATCH(req, { params }) {
   }
 
   const body = await req.json().catch(() => ({}));
-  const { title, date, status, notes, totalInvoiced, salesTaxPct } = body;
+  const { title, date, status, notes, salesTaxPct } = body;
 
   if (status != null && !['DRAFT', 'SENT'].includes(status)) {
     return NextResponse.json({ error: 'Use Mark Approved to approve a change order, so who and when get recorded. Nothing was changed.' }, { status: 400 });
@@ -75,14 +74,6 @@ export async function PATCH(req, { params }) {
     if (salesTaxPct !== null && !(Number.isFinite(salesTaxPct) && salesTaxPct >= 0 && salesTaxPct <= 1)) {
       return NextResponse.json({ error: 'Sales tax has to be between 0% and 100%. Nothing was changed.' }, { status: 400 });
     }
-  }
-
-  // totalInvoiced lives on the project, not the CO
-  if (totalInvoiced != null) {
-    await prisma.project.update({
-      where: { id: params.id },
-      data:  { totalInvoiced: looseNumberOrNull(totalInvoiced) },
-    });
   }
 
   // Going to Sent freezes the rates, the same as the Send button. Back to Draft

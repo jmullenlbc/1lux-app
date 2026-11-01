@@ -7,6 +7,7 @@ import { putProjectFile } from '@/lib/projectFileStorage';
 import { readUploadedFile } from '@/lib/uploadIntake';
 import { logActivity, TAB_LABELS } from '@/lib/activity';
 import { sendNotification } from '@/lib/notify';
+import { refreshContractRollupQuietly } from '@/lib/changeOrderRollup';
 
 // The upload itself is quick: store the bytes, pull the text layer, write the
 // row. The two schedule reads that used to run in here (design milestones and
@@ -221,6 +222,8 @@ export async function POST(request, { params }) {
     },
     include: { uploadedBy: { select: { name: true, email: true } } },
   });
+
+  if (tab === 'ca' && tags.includes('Change Order') && parsedAmount != null) await refreshContractRollupQuietly(params.id);
 
   // The number ladder (0116): a budget PDF's total is the Budget step, a
   // signed supply contract's value is the Signed PO step. Never fatal.
