@@ -2,22 +2,21 @@
 import { Fragment, useMemo, useState } from 'react';
 import Link from 'next/link';
 import SectionTabs, { EVENTS_TABS } from '@/components/ui/SectionTabs';
-import StatTile from '@/components/ui/StatTile';
 import { FilterToolbar, FilterPanel, countFilters } from '@/components/ui/FilterPanel';
 import SortHeader, { Th, SortSelect } from '@/components/ui/SortHeader';
 import { WidgetLoading, WidgetEmpty } from '@/components/ui/WidgetFrame';
 import { CARD_PADDED, H1 } from '@/components/ui/tokens';
+import { FORCED_IN, OUT_STATUSES } from '@/lib/conferences/engine';
 import { useUrlView } from '@/lib/useUrlView';
 import { EDITION_STATUSES, statusLabel } from '@/lib/conferences/constants';
 import {
-  SHARED_FILTERS, filterChoices, useConferences, useVisible, money, moneyCents, dateText, placeText, TierPill, EventMarks, NotLoaded,
+  SHARED_FILTERS, PANEL_FILTERS, filterChoices, useConferences, useVisible, money, dateText, placeText, TierPill, EventMarks, NotLoaded, GoingBox, SearchBox, YearNumbers, FIELD,
 } from '@/components/events/eventsShared';
 
 const SORT_KEYS = ['date', 'rank', 'score', 'cost', 'planned', 'name'];
 const VIEW_FIELDS = [...SHARED_FILTERS, ...SORT_KEYS.map(k => ({ key: k, kind: 'sort' }))];
 const SORT_DEFAULT = { key: 'date', dir: 'asc' };
 const SORT_CHOICES = [{ key: 'date', label: 'Date' }, { key: 'rank', label: 'Rank' }, { key: 'score', label: 'Score' }, { key: 'cost', label: 'Per person' }];
-const FIELD = 'border border-slate-300 rounded px-1 py-0.5 text-xs bg-white';
 const quarterName = (q) => (q === 'TBD' ? 'Date TBD' : q);
 
 function StatusPick({ r, canEdit, onSave }) {
@@ -26,15 +25,6 @@ function StatusPick({ r, canEdit, onSave }) {
     <select className={FIELD} aria-label={`Status of ${r.name}`} value={r.status} onChange={e => onSave(r.id, { status: e.target.value })}>
       {EDITION_STATUSES.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
     </select>
-  );
-}
-
-function Headcount({ r, canEdit, onSave }) {
-  if (!canEdit) return <span className="tabular-nums">{r.headcount}</span>;
-  return (
-    <input key={`${r.id}-${r.headcount}`} type="number" min="0" className={`${FIELD} w-12 text-right tabular-nums`} aria-label={`Headcount for ${r.name}`}
-      defaultValue={r.headcount}
-      onBlur={e => { if (Number(e.target.value) !== r.headcount) onSave(r.id, { headcountOverride: e.target.value }); }} />
   );
 }
 
@@ -51,12 +41,12 @@ function TierPick({ r, canEdit, onSave }) {
 function IncludeBox({ r, canEdit, onSave }) {
   return (
     <input type="checkbox" className="h-4 w-4 accent-orange-600" aria-label={`Include ${r.name}`} checked={!!r.include}
-      disabled={!canEdit || r.tier === 'X'} onChange={e => onSave(r.id, { includeOverride: e.target.checked })} />
+      disabled={!canEdit || r.tier === 'X' || FORCED_IN.includes(r.status) || OUT_STATUSES.includes(r.status)} onChange={e => onSave(r.id, { includeOverride: e.target.checked })} />
   );
 }
 
 // The working list. Tier X events can't be included, so they only show when the
-// Tier filter asks for them. Filters change the list, never the totals.
+// Tier filter asks for them. Filters change the list and the top numbers.
 export default function PlanClient() {
   const { filters, setFilter, clearFilters, sort, setSort, toggleSort } = useUrlView({ fields: VIEW_FIELDS, sortDefault: SORT_DEFAULT });
   const { data, err, loading, saveEvent } = useConferences();
@@ -66,7 +56,6 @@ export default function PlanClient() {
   const rows = useVisible(all, filters, sort);
   const choices = useMemo(() => filterChoices(data?.rows || []), [data]);
   const canEdit = !!data?.canEdit;
-  const current = data?.result?.scenarios?.current;
   const byDate = sort.key === 'date';
   const hiddenX = filters.tier === 'X' ? 0 : (data?.rows || []).filter(r => r.tier === 'X').length;
 
@@ -86,29 +75,21 @@ export default function PlanClient() {
       <div className="max-w-7xl mx-auto space-y-5">
         <div>
           <h1 className={H1}>Plan</h1>
-          <p className="text-xs text-slate-500 mt-0.5">Pick what we go to. Totals and ranks update when a change saves.</p>
+          <p className="text-xs text-slate-500 mt-0.5">Pick what we go to. Changes save themselves and the top numbers follow.</p>
         </div>
         {err && <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{err}</p>}
 
-        {current && (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-            <StatTile label="Events included" value={current.events} />
-            <StatTile label="Trips" value={current.attendeeTrips} />
-            <StatTile label="Current plan" value={moneyCents(current.total)} sub="With contingency" />
-            <StatTile label="With memberships" value={moneyCents(data.result.grandTotal)}
-              sub={data.result.vsCap == null ? 'No budget cap set' : `${money(Math.abs(data.result.vsCap))} ${data.result.vsCap < 0 ? 'over' : 'under'} cap`}
-              tone={data.result.vsCap != null && data.result.vsCap < 0 ? 'danger' : 'default'} />
-          </div>
-        )}
+        {data?.loaded && <YearNumbers data={data} filters={filters} />}
 
         <div className={CARD_PADDED}>
           {loading ? <WidgetLoading /> : data && !data.loaded ? <NotLoaded canLoad={canEdit} /> : (
             <>
               <div className="mb-3">
+                <SearchBox value={filters.q} onChange={setFilter} />
                 <FilterToolbar count={countFilters(filters, SHARED_FILTERS)} open={open} onToggle={() => setOpen(o => !o)} onClear={clearFilters}
                   shown={rows.length} total={all.length} noun="events"
                   right={<SortSelect className="sm:hidden" fields={SORT_CHOICES} sort={sort} onChange={setSort} />} />
-                <FilterPanel open={open} fields={SHARED_FILTERS} filters={filters} choices={choices} onChange={setFilter} />
+                <FilterPanel open={open} fields={PANEL_FILTERS} filters={filters} choices={choices} onChange={setFilter} />
                 {hiddenX > 0 && <p className="text-xs text-slate-500 mt-2">{hiddenX} Tier X {hiddenX === 1 ? 'event is' : 'events are'} hidden because a supplier can't attend. Set the Tier filter to X to see them.</p>}
                 {canEdit && data?.archived?.length > 0 && (
                   <div className="text-xs text-slate-500 mt-2 flex flex-wrap gap-x-3 gap-y-1">
@@ -137,10 +118,10 @@ export default function PlanClient() {
                                 <p className="text-xs text-slate-500 mt-0.5">{dateText(r)} · {placeText(r)}</p>
                                 <div className="mt-1 flex flex-wrap items-center gap-1">
                                   <TierPill tier={r.tier} />
-                                  <span className="text-xs text-slate-600 tabular-nums">#{r.rank} · {money(r.perPerson)} each · {r.headcount} going</span>
+                                  <span className="text-xs text-slate-600 tabular-nums">#{r.rank} · {money(r.perPerson)} each</span>
                                   <EventMarks r={r} />
                                 </div>
-                                <div className="mt-1.5"><StatusPick r={r} canEdit={canEdit} onSave={saveEvent} /></div>
+                                <div className="mt-1.5 flex flex-wrap items-center gap-2"><StatusPick r={r} canEdit={canEdit} onSave={saveEvent} /><span className="text-xs text-slate-600">Going</span><GoingBox r={r} canEdit={canEdit} onSave={saveEvent} /></div>
                               </div>
                             </li>
                           ))}
@@ -187,8 +168,8 @@ export default function PlanClient() {
                                 <td className="py-2 pr-3 whitespace-nowrap">{placeText(r)}</td>
                                 <td className="py-2 pr-3 text-right tabular-nums">{r.score?.toFixed(2)}</td>
                                 <td className="py-2 pr-3 text-right tabular-nums">{money(r.perPerson)}</td>
-                                <td className="py-2 pr-3 text-right"><Headcount r={r} canEdit={canEdit} onSave={saveEvent} /></td>
-                                <td className="py-2 pr-3 text-right tabular-nums">{r.include ? money(r.plannedCost) : ''}</td>
+                                <td className="py-2 pr-3 text-right"><GoingBox r={r} canEdit={canEdit} onSave={saveEvent} /></td>
+                                <td className={`py-2 pr-3 text-right tabular-nums ${r.include ? '' : 'text-slate-400'}`}>{money(r.plannedCost)}</td>
                                 <td className="py-2"><StatusPick r={r} canEdit={canEdit} onSave={saveEvent} /></td>
                               </tr>
                             ))}

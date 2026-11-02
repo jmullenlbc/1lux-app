@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  DEFAULT_PLAN_SETTINGS, computeEdition, computePlan, rankRows, markClashes, settingsFromRows, settingRowsFrom,
+  DEFAULT_PLAN_SETTINGS, computeEdition, computePlan, rankRows, markClashes, settingsFromRows, settingRowsFrom, yearTotals,
 } from '../../src/lib/conferences/engine.js';
 import { CONFERENCE_SEED } from '../../src/lib/conferences/seedData.js';
 import { seriesFromSeed, editionFromSeed, SEED_MEMBERSHIPS } from '../../src/lib/conferences/seedMap.js';
@@ -121,4 +121,28 @@ test('a local event carries no air or hotel, and a 0 hotel rate stays 0', () => 
   const undated = computeEdition({ state: 'TX', scope: 'NATIONAL' }, series);
   assert.equal(undated.days, 3);
   assert.equal(undated.quarter, 'TBD');
+});
+
+test('status decides the plan, and a typed registration wins over the access route', () => {
+  const base = { tierOverride: 'C', includeOverride: null };
+  const series = { supplierEligible: true, buyerDensity: 3, supplierAccess: 3, vertical: 'MULTIFAMILY', accessRoute: 'TICKET' };
+  const row = (x, s = series) => computeEdition({ ...base, ...x }, s, DEFAULT_PLAN_SETTINGS);
+  assert.equal(row({ status: 'REGISTERED' }).include, true);
+  assert.equal(row({ status: 'CONSIDERING' }).include, false);
+  assert.equal(row({ status: 'CONSIDERING', includeOverride: true }).include, true);
+  assert.equal(row({ status: 'SKIPPED', includeOverride: true }).include, false);
+  assert.equal(row({ status: 'PLANNED', includeOverride: false }).include, true);
+  const members = { ...series, accessRoute: 'MEMBERS_ONLY' };
+  assert.equal(row({ regCost: 500 }, members).reg, 0);
+  assert.equal(row({ regCost: 500, regCostBasis: 'MANUAL' }, members).reg, 500);
+});
+
+test('yearTotals: spend is Registered and Attended, no contingency, YTD stops today', () => {
+  const r = (status, start, plannedCost, include = true) => ({ year: 2026, status, start, plannedCost, include, headcount: 1, vertical: 'X', region: 'X', quarter: 'Q1' });
+  const rows = [r('ATTENDED', '2026-02-01', 1000), r('REGISTERED', '2026-12-01', 500.25), r('PLANNED', '2026-03-01', 200), r('CONSIDERING', '2026-03-01', 75, false), r('SKIPPED', '2026-03-01', 999, false)];
+  const t = yearTotals(rows, 2026, '2026-11-02', 0.1);
+  assert.equal(t.ytdSpend, 1000);
+  assert.equal(t.yearSpend, 1500.25);
+  assert.equal(t.events, 3);
+  assert.equal(yearTotals(rows, 2025, '2026-11-02', 0.1).yearSpend, 0);
 });

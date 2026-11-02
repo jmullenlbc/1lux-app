@@ -19,15 +19,15 @@ function rankedSheet(rows) {
   }));
 }
 
-function budgetSheet(result) {
+function budgetSheet(result, annualBudget) {
   const rows = [['Scenario', 'Events', 'Trips', 'Subtotal', 'Contingency', 'Total']];
-  for (const [label, key] of [['Lean', 'lean'], ['Core', 'core'], ['Full', 'full'], ['Current plan', 'current']]) {
+  for (const [label, key] of [['Current plan', 'current']]) {
     const s = result.scenarios[key];
     rows.push([label, s.events, s.attendeeTrips, s.subtotal, s.contingency, s.total]);
   }
   rows.push([], ['Membership', 'Include', 'Dues', 'Counted', 'Events unlocked']);
   for (const m of result.memberships) rows.push([m.orgName, m.include, m.annualDues, m.duesCounted, m.unlockedCount]);
-  rows.push([], ['Dues counted', result.dues], ['Grand total', result.grandTotal], ['Budget cap', result.budgetCap ?? ''], ['Against cap', result.vsCap ?? '']);
+  rows.push([], ['Dues counted', result.dues], ['Grand total', result.grandTotal], ['Annual budget', annualBudget ?? '']);
   for (const [label, list] of [['Quarter', result.byQuarter], ['Vertical', result.byVertical], ['Region', result.byRegion]]) {
     rows.push([], [label, 'Events', 'Planned']);
     for (const b of list) rows.push([b.key, b.events, b.planned]);
@@ -54,7 +54,7 @@ export async function GET() {
 
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rankedSheet(data.rows)), 'Ranked');
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(budgetSheet(data.result)), 'Budget');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(budgetSheet(data.result, data.budgets[data.plan.year]?.budget)), 'Budget');
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(conferencesSheet(data.rows)), 'Conferences');
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(settingRowsFrom(data.settings).map(r => ({ Rule: r.key, Value: r.value }))), 'Assumptions');
 

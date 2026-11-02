@@ -65,7 +65,7 @@ test('an unknown picker shows the same list it showed before', () => {
 const tabs = u => phoneTabsFor(u).map(t => t.label);
 
 test('each department gets its own phone tabs, Search last', () => {
-  assert.deepEqual(tabs(withDepts(['SALES_MARKETING'])), ['Desk', 'Notes', 'Market Intel', 'Search']);
+  assert.deepEqual(tabs(withDepts(['SALES_MARKETING'])), ['Desk', 'Notes', 'Market Intel', 'Expenses', 'Search']);
   assert.deepEqual(tabs(withDepts(['PRECONSTRUCTION'])), ['Pre-Con', 'Budgets', 'RFQs', 'Search']);
   assert.deepEqual(tabs(withDepts(['CONSTRUCTION'])), ['My Jobs', 'Projects', 'Shipping', 'Search']);
   assert.deepEqual(tabs(withDepts(['DESIGN'])), ['Projects', 'Budgets', 'Search']);
@@ -84,7 +84,7 @@ test('no department keeps the old tabs, except admins and the Sales roles', () =
     assert.deepEqual(tabs(u), ['Desk', 'Notes', 'People', 'Search']);
   }
   for (const role of ['SUPER_ADMIN', 'COMPANY_ADMIN', 'ILC_ADMIN', 'ADMIN']) {
-    assert.deepEqual(tabs({ role }), tabs(withDepts(['FINANCE'])), role);
+    assert.deepEqual(tabs({ role }), ['Dashboard', 'Projects', 'Sales', 'Expenses', 'Search'], role);
   }
   for (const role of ['SALES', 'SALES_ADMIN']) {
     assert.deepEqual(tabs({ role }), tabs(withDepts(['SALES_MARKETING'])), role);
@@ -92,8 +92,9 @@ test('no department keeps the old tabs, except admins and the Sales roles', () =
   }
 });
 
-test('a recorded department beats the admin set', () => {
-  assert.deepEqual(tabs({ role: 'SUPER_ADMIN', departments: ['PRECONSTRUCTION'] }), tabs(withDepts(['PRECONSTRUCTION'])));
+test('a recorded department beats the admin set, and admins keep Expenses', () => {
+  assert.deepEqual(tabs({ role: 'SUPER_ADMIN', departments: ['PRECONSTRUCTION'] }), ['Pre-Con', 'Budgets', 'RFQs', 'Expenses', 'Search']);
+  assert.deepEqual(tabs({ role: 'SUPER_ADMIN', departments: ['SALES_MARKETING'] }), tabs(withDepts(['SALES_MARKETING'])));
 });
 
 test('client viewers get Projects only, whatever is on the account', () => {

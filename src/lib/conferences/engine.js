@@ -1,5 +1,11 @@
 import { cents, lineTotal, sumCents } from '../money.js';
 
+// Status decides the plan. These always count, these never do. Considering follows the tick.
+export const FORCED_IN = ['PLANNED', 'REGISTERED', 'ATTENDED'];
+export const OUT_STATUSES = ['SKIPPED', 'CANCELLED'];
+// Until Expenses feeds real receipts, spend is the planned cost of these.
+export const SPEND_STATUSES = ['REGISTERED', 'ATTENDED'];
+
 // Conference planner math (0160, Mike 11-1). Pure, no database, so the test can
 // hold it to every row of the plan's own numbers. Money here is dollars, always
 // through money.js; the database keeps whole cents.
@@ -85,7 +91,8 @@ export function computeEdition(edition, series, settings = DEFAULT_PLAN_SETTINGS
   const hotelRate   = isLocal ? 0 : (edition.hotelRateOverride ?? s.hotelDefault);
 
   const route = series.accessRoute;
-  const reg = route === 'MEMBERS_ONLY' || route === 'BARRED' ? 0
+  const reg = edition.regCostBasis === 'MANUAL' ? (edition.regCost ?? 0)
+    : route === 'MEMBERS_ONLY' || route === 'BARRED' ? 0
     : edition.regCost ?? (route === 'SPONSOR_ONLY' ? s.sponsorPlaceholder : 0);
 
   const hotel   = lineTotal(hotelNights, hotelRate);
@@ -104,8 +111,9 @@ export function computeEdition(edition, series, settings = DEFAULT_PLAN_SETTINGS
 
   const tier = !series.supplierEligible ? 'X'
     : edition.tierOverride || (score >= s.tiers.A ? 'A' : score >= s.tiers.B ? 'B' : 'C');
-  const out = edition.status === 'SKIPPED' || edition.status === 'CANCELLED';
-  const include = tier === 'X' || out ? false : edition.includeOverride ?? (tier === 'A' || tier === 'B');
+  const out = OUT_STATUSES.includes(edition.status);
+  const forced = FORCED_IN.includes(edition.status);
+  const include = tier === 'X' || out ? false : forced || (edition.includeOverride ?? (tier === 'A' || tier === 'B'));
   const headcount = edition.headcountOverride ?? s.headcount[tier === 'X' ? 'C' : tier];
 
   const travel = cents(perPerson - reg);
@@ -155,7 +163,7 @@ function scenario(rows, contingency) {
   };
 }
 
-function groupTotals(rows, keyOf) {
+export function groupTotals(rows, keyOf) {
   const map = new Map();
   for (const r of rows) {
     const k = keyOf(r);
@@ -202,5 +210,22 @@ export function computePlan(rows, memberships = [], settings = DEFAULT_PLAN_SETT
     byQuarter:  groupTotals(included, r => r.quarter),
     byVertical: groupTotals(included, r => r.vertical),
     byRegion:   groupTotals(included, r => r.region),
+  };
+}
+
+/**
+ * The top numbers for one year. Pure, so filtered rows give filtered numbers.
+ * Spend has no contingency: it is what we are committed to, not a cushion.
+ */
+export function yearTotals(rows, year, today, contingency = 0) {
+  const inYear = rows.filter(r => Number(r.year) === Number(year) && !OUT_STATUSES.includes(r.status));
+  const spent = inYear.filter(r => SPEND_STATUSES.includes(r.status));
+  const planned = scenario(inYear.filter(r => r.include), contingency);
+  return {
+    events: planned.events,
+    trips: planned.attendeeTrips,
+    planned: planned.total,
+    ytdSpend: sumCents(spent.filter(r => r.start && r.start <= today).map(r => r.plannedCost)),
+    yearSpend: sumCents(spent.map(r => r.plannedCost)),
   };
 }

@@ -6,6 +6,7 @@ import { EXPENSE_CATEGORIES, categoryLabel, formatMoney, centsToInput } from '@/
 import { FilterToolbar, FilterPanel, countFilters } from '@/components/ui/FilterPanel';
 import SortHeader, { Th, sortRows } from '@/components/ui/SortHeader';
 import { WidgetLoading, WidgetEmpty } from '@/components/ui/WidgetFrame';
+import ExpenseNumbers from './ExpenseNumbers';
 import { useUrlView } from '@/lib/useUrlView';
 import { CARD_PADDED, CARD_TITLE, BTN_PRIMARY, BTN_SECONDARY, INPUT, LABEL, H1, TD } from '@/components/ui/tokens';
 
@@ -33,7 +34,7 @@ const today = () => new Date().toISOString().slice(0, 10);
 const blankForm = (userId = '') => ({ userId, spentOn: today(), amount: '', category: 'MEAL', clientId: '', projectId: '', description: '' });
 
 function fmtDate(v) {
-  if (!v) return '—';
+  if (!v) return 'None';
   return new Date(v).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
@@ -214,7 +215,7 @@ export default function SalesExpensesPage() {
   const filterCount = countFilters(filters, FILTER_FIELDS);
 
   return (
-    <div className="px-4 py-6">
+    <div className="px-4 py-6 pb-28">
       <SectionTabs tabs={ACTIVITY_TABS} className="mb-5" />
       <div className="max-w-5xl mx-auto space-y-5">
         <div>
@@ -223,6 +224,8 @@ export default function SalesExpensesPage() {
         </div>
 
         {err && <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{err}</p>}
+
+        <ExpenseNumbers userId={filterUser === 'all' ? '' : filterUser} rows={rows} />
 
         <div className={CARD_PADDED}>
           <h2 className={`${CARD_TITLE} mb-3`}>Add an expense</h2>
@@ -276,12 +279,12 @@ export default function SalesExpensesPage() {
                     ) : (
                       <tr key={r.id} className="hover:bg-slate-50">
                         <td className={`${TD} whitespace-nowrap tabular-nums`}>{fmtDate(r.spentOn)}</td>
-                        <td className={TD}>{r.user?.name || '—'}</td>
+                        <td className={TD}>{r.user?.name || 'None'}</td>
                         <td className={`${TD} text-right font-semibold text-slate-800 tabular-nums`}>{formatMoney(r.amountCents)}</td>
                         <td className={`${TD} text-slate-500`}>{categoryLabel(r.category)}</td>
-                        <td className={TD}>{r.client ? <Link href={`/clients/${r.client.id}`} className="text-slate-700 hover:text-orange-600">{r.client.name}</Link> : <span className="text-slate-400">—</span>}</td>
-                        <td className={TD}>{r.project ? <Link href={`/projects/${r.project.id}`} className="text-slate-700 hover:text-orange-600">{r.project.name}</Link> : <span className="text-slate-400">—</span>}</td>
-                        <td className={TD}>{r.note ? <Link href={`/crm/notes?note=${r.note.id}`} className="text-slate-700 hover:text-orange-600">#{r.note.noteNumber}{r.note.title ? ` ${r.note.title}` : ''}</Link> : <span className="text-slate-400">—</span>}</td>
+                        <td className={TD}>{r.client ? <Link href={`/clients/${r.client.id}`} className="text-slate-700 hover:text-orange-600">{r.client.name}</Link> : <span className="text-slate-400">None</span>}</td>
+                        <td className={TD}>{r.project ? <Link href={`/projects/${r.project.id}`} className="text-slate-700 hover:text-orange-600">{r.project.name}</Link> : <span className="text-slate-400">None</span>}</td>
+                        <td className={TD}>{r.note ? <Link href={`/crm/notes?note=${r.note.id}`} className="text-slate-700 hover:text-orange-600">#{r.note.noteNumber}{r.note.title ? ` ${r.note.title}` : ''}</Link> : <span className="text-slate-400">None</span>}</td>
                         <td className={`${TD} text-slate-500 max-w-[220px] truncate`} title={r.description}>{r.description || ''}</td>
                         <td className={`${TD} text-right whitespace-nowrap`}>
                           {r.note ? (

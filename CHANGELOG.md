@@ -5,6 +5,40 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Events/Memberships feedback, top numbers, Expenses numbers and phone tab] - November 2, 2026
+
+Deployed November 2, 2026, with migration 0161.
+
+### Added
+- Migration 0161 adds one table, SalesAnnualBudget: one row per area (EVENTS or EXPENSES) and year, holding the typed budget and typed spend. Additive only.
+- Events tabs each have their own search box.
+- Eight top numbers on Plan, Budget and Library: Annual budget, YTD spend, Current year spend, Planned, Last year budget, Last year spend, Next year budget, Next year planned. Spend and Planned move with search and filters. Budgets are for the whole year and stay put.
+- Each event's Vertical, Focus, Format and Access can be changed, with Add new for a new option. Registration can be typed, and a typed number wins over the member or barred price.
+- Expenses page has five top numbers: Last year spend, Last year budget, YTD spend, This year budget, Top client spend.
+- Expenses tab on the phone bottom bar for the Sales set and for every admin.
+
+### Changed
+- Events is now Events/Memberships. Tabs run Plan, Budget, Library.
+- Lean, Core and Full are gone from the Budget tab and the Excel export. Budget cap folds into Annual budget, one number and one name. A cap already typed carries over.
+- Going, Hotel, Airfare, Registration, dues and budget numbers save themselves half a second after the last change and on leaving the box. A failed save puts the number back.
+- Going above 0 ticks the event, 0 unticks it, blank goes back to automatic. Planned, Registered and Attended always count. Skipped and Cancelled never count. Considering follows the tick.
+- Clicking any auto save number box selects it, so typing replaces the number.
+- Top number tiles show whole dollars, rows keep cents.
+
+### Fixed
+- Changing Going did not move the top numbers. The box saved only on leaving it, unticked rows were left out, and the phone list had no Going box.
+- Clicking a right aligned Going box placed the cursor before the digit, so typing 2 gave 21.
+
+### Files
+- `prisma/schema.prisma`, `prisma/migrations/0161_sales_annual_budget/`
+- `src/components/ui/AutoNumber.jsx`, `src/components/events/EventFields.jsx`, `src/components/events/eventsShared.jsx`, `src/components/ui/SectionTabs.jsx`
+- `src/app/(app)/sales/events/` Plan, Budget, Library and event pages
+- `src/app/(app)/sales/activity/expenses/ExpenseNumbers.jsx`, `src/app/api/sales/expenses/summary/route.js`, `src/app/api/sales/annual-budgets/route.js`
+- `src/lib/conferences/`, `src/lib/sales/annualBudgets.js`, `src/lib/sales/expenses.js`, `src/lib/deptScreens.js`
+- `scripts/tests/conference-engine.test.mjs`, `scripts/tests/salesExpenses.test.mjs`, `scripts/tests/deptScreens.test.mjs`, `scripts/verify.mjs`
+
+---
+
 ## [Events under Sales, home per salesperson, Expenses phone test] - November 2, 2026
 
 ### Added

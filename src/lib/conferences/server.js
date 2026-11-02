@@ -1,3 +1,4 @@
+import { loadAnnualBudgets } from '@/lib/sales/annualBudgets';
 import { prisma } from '@/lib/db';
 import { actsAsAdmin, isSalesAdmin } from '@/lib/auth';
 import { settingsFromRows, computeEdition, computePlan, rankRows, markClashes, dayOf, DEFAULT_PLAN_SETTINGS } from './engine';
@@ -48,6 +49,7 @@ function rowOf(e, settings, membershipBySlug) {
     vertical: s.vertical,
     verticalLabel: verticalLabel(s.vertical),
     format: formatLabel(s.format),
+    formatKey: s.format,
     access: accessLabel(s.accessRoute),
     accessRoute: s.accessRoute,
     tags,
@@ -121,6 +123,8 @@ export async function loadConferencePlan() {
   const rows = markClashes(rankRows(editions.filter(e => !e.series.archivedAt).map(e => rowOf(e, settings, membershipBySlug))));
   const budgetCap = dollars(plan.budgetCapCents);
   const result = computePlan(rows, memberships, settings, budgetCap);
+  const budgets = await loadAnnualBudgets('EVENTS');
+  if (budgetCap != null && budgets[plan.year]?.budget == null) budgets[plan.year] = { typedSpend: null, ...budgets[plan.year], budget: budgetCap };
 
   return {
     loaded: true,
@@ -130,10 +134,26 @@ export async function loadConferencePlan() {
     rows,
     result,
     archived,
+    budgets,
   };
 }
 
 /** One event with its research text and cost ledger. */
+// Everything typed so far, so a new option shows on the other events too.
+async function optionsInUse() {
+  const [series, tags] = await Promise.all([
+    prisma.conferenceSeries.findMany({ select: { vertical: true, format: true, accessRoute: true } }),
+    prisma.conferenceSeriesTag.findMany({ select: { tag: true }, distinct: ['tag'] }),
+  ]);
+  const uniq = (list) => [...new Set(list.filter(Boolean))].sort();
+  return {
+    vertical: uniq(series.map(s => s.vertical)),
+    format: uniq(series.map(s => s.format)),
+    access: uniq(series.map(s => s.accessRoute)),
+    focus: uniq(tags.map(t => t.tag)),
+  };
+}
+
 export async function loadConferenceEdition(id) {
   const [edition, plan] = await Promise.all([
     prisma.conferenceEdition.findUnique({
@@ -169,6 +189,7 @@ export async function loadConferenceEdition(id) {
     hotelRateOverride: dollars(edition.hotelRateOverrideCents),
     airfareOverride: dollars(edition.airfareOverrideCents),
     sources: edition.sources.map(s => s.url),
+    options: await optionsInUse(),
     settings,
   };
 }

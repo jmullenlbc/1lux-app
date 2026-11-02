@@ -1,13 +1,20 @@
 'use client';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import Link from 'next/link';
 import SectionTabs, { EVENTS_TABS } from '@/components/ui/SectionTabs';
-import StatTile from '@/components/ui/StatTile';
+import { FilterToolbar, FilterPanel, countFilters } from '@/components/ui/FilterPanel';
+import SortHeader, { Th, SortSelect } from '@/components/ui/SortHeader';
+import AutoNumber from '@/components/ui/AutoNumber';
 import { WidgetLoading } from '@/components/ui/WidgetFrame';
+import { useUrlView } from '@/lib/useUrlView';
+import { groupTotals } from '@/lib/conferences/engine';
 import { BTN_COMPACT, BTN_COMPACT_PRIMARY, CARD_PADDED, CARD_TITLE, H1, HELPER, INPUT, LABEL } from '@/components/ui/tokens';
-import { MEMBERSHIP_INCLUDE, verticalLabel, regionLabel } from '@/lib/conferences/constants';
-import { useConferences, money, moneyCents, NotLoaded } from '@/components/events/eventsShared';
+import { MEMBERSHIP_INCLUDE, verticalLabel, regionLabel, statusLabel } from '@/lib/conferences/constants';
+import { SHARED_FILTERS, PANEL_FILTERS, FIELD, filterChoices, useConferences, useVisible, money, dateText, NotLoaded, GoingBox, SearchBox, YearNumbers } from '@/components/events/eventsShared';
 
-const SCENARIOS = [['lean', 'Lean', 'Tier A only'], ['core', 'Core', 'Tier A and B'], ['full', 'Full', 'Everything we could go to'], ['current', 'Current plan', 'What is ticked on Plan']];
+const VIEW_FIELDS = [...SHARED_FILTERS, ...['date', 'name', 'reg', 'cost', 'planned'].map(k => ({ key: k, kind: 'sort' }))];
+const SORT_DEFAULT = { key: 'date', dir: 'asc' };
+const SORT_CHOICES = [{ key: 'date', label: 'Date' }, { key: 'name', label: 'Name' }, { key: 'reg', label: 'Registration' }, { key: 'cost', label: 'Per person' }, { key: 'planned', label: 'Planned' }];
 
 function Breakdown({ title, rows, label = (k) => k }) {
   return (
@@ -28,7 +35,7 @@ function Breakdown({ title, rows, label = (k) => k }) {
   );
 }
 
-function Memberships({ result, canEdit, save }) {
+function Memberships({ result, canEdit, save, q }) {
   return (
     <div className={CARD_PADDED}>
       <h2 className={`${CARD_TITLE} mb-1`}>Memberships</h2>
@@ -45,7 +52,7 @@ function Memberships({ result, canEdit, save }) {
             </tr>
           </thead>
           <tbody>
-            {result.memberships.map(m => (
+            {result.memberships.filter(m => !q || m.orgName.toLowerCase().includes(q.toLowerCase())).map(m => (
               <tr key={m.id} className="border-b border-slate-100 align-top">
                 <td className="py-2 pr-3 min-w-[160px]">
                   <span className="font-medium text-slate-900">{m.orgName}</span>
@@ -61,9 +68,8 @@ function Memberships({ result, canEdit, save }) {
                 </td>
                 <td className="py-2 pr-3 text-right">
                   {canEdit ? (
-                    <input key={`${m.id}-${m.annualDues}`} type="number" min="0" className="border border-slate-300 rounded px-1 py-0.5 text-xs w-24 text-right tabular-nums"
-                      aria-label={`Dues for ${m.orgName}`} defaultValue={m.annualDues ?? ''} placeholder="Not priced"
-                      onBlur={e => { if ((e.target.value === '' ? null : Number(e.target.value)) !== m.annualDues) save(`/api/conferences/memberships/${m.id}`, { annualDues: e.target.value }); }} />
+                    <AutoNumber className={`${FIELD} w-24 text-right tabular-nums`} value={m.annualDues} label={`Dues for ${m.orgName}`} placeholder="Not priced"
+                      onSave={v => save(`/api/conferences/memberships/${m.id}`, { annualDues: v })} />
                   ) : money(m.annualDues)}
                 </td>
                 <td className="py-2 pr-3 text-right tabular-nums">{m.on ? money(m.duesCounted) : ''}</td>
@@ -92,7 +98,6 @@ const NumberBox = ({ label, value, onChange, step = 'any', suffix }) => (
 function PlanningRules({ data, save }) {
   const [open, setOpen] = useState(false);
   const [s, setS] = useState(null);
-  const [cap, setCap] = useState(data.plan.budgetCap ?? '');
   const [busy, setBusy] = useState(false);
   const settings = s || data.settings;
 
@@ -105,7 +110,7 @@ function PlanningRules({ data, save }) {
 
   async function submit() {
     setBusy(true);
-    const ok = await save('/api/conferences/plan', { settings, budgetCap: cap });
+    const ok = await save('/api/conferences/plan', { settings });
     setBusy(false);
     if (ok) setS(null);
   }
@@ -117,7 +122,6 @@ function PlanningRules({ data, save }) {
       </button>
       {open && (
         <div className="mt-3 space-y-5">
-          <div className="max-w-xs"><NumberBox label="Budget cap" value={cap === '' ? '' : Number(cap)} onChange={v => setCap(Number.isNaN(v) ? '' : v)} /></div>
           <section>
             <h3 className={`${LABEL} mb-2`}>Score weights {weightTotal !== 100 && <span className="text-red-600">Adds up to {weightTotal}%, should be 100%</span>}</h3>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
@@ -173,48 +177,90 @@ function PlanningRules({ data, save }) {
 }
 
 // What the plan costs under each scenario, with memberships on top.
+function EventCosts({ rows, canEdit, saveEvent, sort, onSort }) {
+  if (!rows.length) return <p className={HELPER}>No events match.</p>;
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full min-w-[720px] text-sm">
+        <thead>
+          <tr className="border-b border-slate-200">
+            <SortHeader field="name" label="Event" sort={sort} onSort={onSort} />
+            <SortHeader field="date" label="Dates" sort={sort} onSort={onSort} />
+            <Th>Status</Th>
+            <Th align="right">Going</Th>
+            <SortHeader field="reg" label="Registration" sort={sort} onSort={onSort} align="right" />
+            <SortHeader field="cost" label="Per person" sort={sort} onSort={onSort} align="right" />
+            <SortHeader field="planned" label="Planned" sort={sort} onSort={onSort} align="right" />
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map(r => (
+            <tr key={r.id} className="border-b border-slate-100 last:border-0">
+              <td className="py-2 pr-3"><Link href={`/sales/events/${r.id}`} className="text-orange-600 hover:underline">{r.name}</Link></td>
+              <td className="py-2 pr-3 text-xs text-slate-600 whitespace-nowrap">{dateText(r)}</td>
+              <td className="py-2 pr-3 text-xs text-slate-600">{statusLabel(r.status)}</td>
+              <td className="py-2 pr-3 text-right"><GoingBox r={r} canEdit={canEdit} onSave={saveEvent} /></td>
+              <td className="py-2 pr-3 text-right tabular-nums">
+                {canEdit ? <AutoNumber className={`${FIELD} w-24 text-right tabular-nums`} value={r.reg} label={`Registration for ${r.name}`} onSave={v => saveEvent(r.id, { regCost: v })} /> : money(r.reg)}
+              </td>
+              <td className="py-2 pr-3 text-right tabular-nums">{money(r.perPerson)}</td>
+              <td className="py-2 text-right tabular-nums">{money(r.plannedCost)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export default function BudgetClient() {
-  const { data, err, loading, save } = useConferences();
-  const result = data?.result;
+  const { filters, setFilter, clearFilters, sort, setSort, toggleSort } = useUrlView({ fields: VIEW_FIELDS, sortDefault: SORT_DEFAULT });
+  const { data, err, loading, save, saveEvent } = useConferences();
+  const [open, setOpen] = useState(false);
+
+  const all = useMemo(() => data?.rows || [], [data]);
+  const rows = useVisible(all, filters, sort);
+  const choices = useMemo(() => filterChoices(all), [all]);
+  const year = Number(filters.year) || new Date().getFullYear();
+  const listed = filters.included ? rows : rows.filter(r => r.include);
+  const counted = rows.filter(r => r.include && Number(r.year) === year);
 
   return (
     <div className="px-4 py-6 pb-28">
       <SectionTabs tabs={EVENTS_TABS} className="mb-5" />
       <div className="max-w-6xl mx-auto space-y-5">
-        <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex items-start justify-between gap-3">
           <div>
             <h1 className={H1}>Budget</h1>
-            <p className="text-xs text-slate-500 mt-0.5">The {data?.plan?.year || ''} plan under each scenario. Totals include contingency.</p>
+            <p className="text-xs text-slate-500 mt-0.5">The yearly budget against what we have spent and planned.</p>
           </div>
-          {data?.loaded && <a href="/api/conferences/export" className={BTN_COMPACT}>Export to Excel</a>}
+          <a href="/api/conferences/export" className={BTN_COMPACT}>Export to Excel</a>
         </div>
         {err && <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{err}</p>}
 
-        {loading ? <WidgetLoading /> : data && !data.loaded ? <div className={CARD_PADDED}><NotLoaded canLoad={data.canEdit} /></div> : result && (
+        {loading ? <WidgetLoading /> : data && !data.loaded ? <div className={CARD_PADDED}><NotLoaded canLoad={data.canEdit} /></div> : data && (
           <>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-              {SCENARIOS.map(([key, label, hint]) => {
-                const s = result.scenarios[key];
-                return <StatTile key={key} label={label} value={moneyCents(s.total)} sub={`${s.events} events, ${s.attendeeTrips} trips. ${hint}. Subtotal ${money(s.subtotal)} plus ${money(s.contingency)} contingency.`} />;
-              })}
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <StatTile label="Current plan plus memberships" value={moneyCents(result.grandTotal)} tone="brand" />
-              <StatTile label="Dues counted" value={moneyCents(result.dues)} />
-              <StatTile label="Against budget cap" value={result.vsCap == null ? 'No cap set' : moneyCents(Math.abs(result.vsCap))}
-                sub={result.vsCap == null ? 'Set one under Planning rules' : result.vsCap < 0 ? 'Over' : 'Under'}
-                tone={result.vsCap != null && result.vsCap < 0 ? 'danger' : 'default'} />
-            </div>
-
-            <Memberships result={result} canEdit={data.canEdit} save={save} />
+            <YearNumbers data={data} filters={filters} editable={data.canEdit} save={save} />
 
             <div className={CARD_PADDED}>
-              <h2 className={`${CARD_TITLE} mb-3`}>Where the current plan goes</h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <Breakdown title="By quarter" rows={result.byQuarter} label={k => (k === 'TBD' ? 'Date TBD' : k)} />
-                <Breakdown title="By vertical" rows={result.byVertical} label={verticalLabel} />
-                <Breakdown title="By region" rows={result.byRegion} label={regionLabel} />
+              <div className="mb-3">
+                <SearchBox value={filters.q} onChange={setFilter} />
+                <FilterToolbar count={countFilters(filters, SHARED_FILTERS)} open={open} onToggle={() => setOpen(o => !o)} onClear={clearFilters}
+                  shown={listed.length} total={all.filter(r => r.include).length} noun="events"
+                  right={<SortSelect className="sm:hidden" fields={SORT_CHOICES} sort={sort} onChange={setSort} />} />
+                <FilterPanel open={open} fields={PANEL_FILTERS} filters={filters} choices={choices} onChange={setFilter} />
+              </div>
+              <EventCosts rows={listed} canEdit={data.canEdit} saveEvent={saveEvent} sort={sort} onSort={toggleSort} />
+            </div>
+
+            <Memberships result={data.result} canEdit={data.canEdit} save={save} q={filters.q} />
+
+            <div className={CARD_PADDED}>
+              <h2 className={`${CARD_TITLE} mb-3`}>Where the {year} plan goes</h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                <Breakdown title="By quarter" rows={groupTotals(counted, r => r.quarter || 'TBD')} label={k => (k === 'TBD' ? 'Date TBD' : k)} />
+                <Breakdown title="By vertical" rows={groupTotals(counted, r => r.vertical)} label={verticalLabel} />
+                <Breakdown title="By region" rows={groupTotals(counted, r => r.region)} label={regionLabel} />
               </div>
             </div>
 

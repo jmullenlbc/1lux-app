@@ -12,6 +12,7 @@ const STATUS_KEYS = EDITION_STATUSES.map(s => s.key);
 const TIER_KEYS = TIERS.map(t => (typeof t === 'string' ? t : t.key));
 const bad = (error) => NextResponse.json({ error }, { status: 400 });
 
+const text = (v) => (typeof v === 'string' ? v.trim().slice(0, 60) : '');
 // Blank goes back to the worked out number. 0 is a real number.
 function moneyField(v) {
   if (v === null || v === '') return { value: null };
@@ -37,7 +38,7 @@ export async function PATCH(request, { params }) {
 
   const body = await request.json().catch(() => null);
   if (!body) return bad('The change did not come through. Nothing was saved. Try again.');
-  const found = await prisma.conferenceEdition.findUnique({ where: { id: params.id }, select: { id: true } });
+  const found = await prisma.conferenceEdition.findUnique({ where: { id: params.id }, select: { id: true, seriesId: true } });
   if (!found) return NextResponse.json({ error: 'This event is not in the plan. Nothing was saved.' }, { status: 404 });
 
   const data = {};
@@ -68,6 +69,40 @@ export async function PATCH(request, { params }) {
     data[column] = m.value;
   }
 
-  await prisma.conferenceEdition.update({ where: { id: params.id }, data });
+  if (body.regCost !== undefined) {
+    const m = moneyField(body.regCost);
+    if (m.error) return bad(m.error);
+    data.regCostCents = m.value;
+    data.regCostBasis = m.value === null ? 'ESTIMATED' : 'MANUAL';
+  }
+
+  // Vertical, Focus, Format and Access belong to the conference, so they apply to every year of it.
+  const series = {};
+  if (body.vertical !== undefined) {
+    const v = text(body.vertical);
+    if (!v) return bad('Vertical needs a value.');
+    series.vertical = v;
+  }
+  if (body.format !== undefined) series.format = text(body.format) || null;
+  if (body.accessRoute !== undefined) {
+    const v = text(body.accessRoute);
+    if (!v) return bad('Access needs a value.');
+    series.accessRoute = v;
+    series.supplierEligible = v !== 'BARRED';
+  }
+  let tags = null;
+  if (body.tags !== undefined) {
+    if (!Array.isArray(body.tags)) return bad('Focus has to be a list.');
+    tags = [...new Set(body.tags.map(text).filter(Boolean))];
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.conferenceEdition.update({ where: { id: params.id }, data });
+    if (Object.keys(series).length) await tx.conferenceSeries.update({ where: { id: found.seriesId }, data: series });
+    if (tags) {
+      await tx.conferenceSeriesTag.deleteMany({ where: { seriesId: found.seriesId } });
+      if (tags.length) await tx.conferenceSeriesTag.createMany({ data: tags.map(tag => ({ seriesId: found.seriesId, tag })) });
+    }
+  });
   return NextResponse.json({ ok: true });
 }

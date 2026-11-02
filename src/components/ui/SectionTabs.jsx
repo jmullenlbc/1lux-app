@@ -70,9 +70,9 @@ export const ACTIVITY_TABS = [
 ];
 
 export const EVENTS_TABS = [
-  { key: 'library', href: '/sales/events',        label: 'Library' },
   { key: 'plan',    href: '/sales/events/plan',   label: 'Plan' },
   { key: 'budget',  href: '/sales/events/budget', label: 'Budget' },
+  { key: 'library', href: '/sales/events',        label: 'Library' },
 ];
 
 export const PROPOSAL_TABS = [

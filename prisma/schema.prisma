@@ -51,6 +51,7 @@ model User {
   notesCreated               Note[]                       @relation("NoteCreator")
   notesOwned                 NoteOwner[]                  @relation("NoteOwnerUser")
   salesExpenses              SalesExpense[]               @relation("SalesExpenseUser")
+  salesAnnualBudgetsUpdated  SalesAnnualBudget[]          @relation("SalesAnnualBudgetUpdatedBy")
   noteStepsLed               NoteAction[]                 @relation("NoteActionLead")
   publishedSchedules         FixtureSchedule[]            @relation("SchedulePublisher")
   pushedBidMatrices          DesignBidMatrix[]            @relation("BidPusher")
@@ -1459,6 +1460,21 @@ model Note {
   // that lookup gets an index. Not unique: a manually typed calendarRef could
   // repeat, and a duplicate must never fail the sync.
   @@index([calendarRef])
+}
+
+// The number typed for a year. One row per area and year, so Events and Expenses share one place.
+model SalesAnnualBudget {
+  id              String   @id @default(cuid())
+  area            String   // EVENTS | EXPENSES
+  year            Int
+  budgetCents     Int?
+  typedSpendCents Int?
+  updatedById     String?
+  updatedBy       User?    @relation("SalesAnnualBudgetUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([area, year])
 }
 
 // Money a salesperson spent on sales activity (Mike 10-9, migration 0129).
@@ -5657,7 +5673,7 @@ model ConferenceEdition {
   isLocal                Boolean                   @default(false)
   attendance             Int?
   regCostCents           Int?
-  regCostBasis           String                    @default("ESTIMATED") // PUBLISHED | INDICATIVE | ESTIMATED
+  regCostBasis           String                    @default("ESTIMATED") // PUBLISHED | INDICATIVE | ESTIMATED | MANUAL
   regCostDetail          String?
   earlyBirdDeadline      DateTime?
   sponsorMinText         String?

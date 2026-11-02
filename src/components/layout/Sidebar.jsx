@@ -621,7 +621,7 @@ export default function Sidebar({ user }) {
               <SubNavItem href="/crm/notes"      icon={<IconNotes />}           label="Sales Notes" expanded={expanded} badge={waitingDrafts} active={startsWith('/crm/notes')} />
               <SubNavItem href="/market-intel"      icon={<IconNews />}      label="Market Intelligence" expanded={expanded} active={startsWith('/market-intel')} />
               <SubNavItem href="/sales/docs"       icon={<IconFolderSm />}  label="Sales Docs"          expanded={expanded} active={startsWith('/sales/docs')} />
-              <SubNavItem href="/sales/events"     icon={<IconCalendarSm />} label="Events"              expanded={expanded} active={startsWith('/sales/events')} />
+              <SubNavItem href="/sales/events/plan" icon={<IconCalendarSm />} label="Events/Memberships" expanded={expanded} active={startsWith('/sales/events')} />
               <SubNavItem href="/sales/activity"   icon={<IconBarChart />}  label="Sales Activity"      expanded={expanded} active={startsWith('/sales/activity')} />
               <SubNavItem href="/sales/automation" icon={<IconSparkles />}  label="Sales Automation"    expanded={expanded} active={startsWith('/sales/automation')} />
               <SubNavItem href="/sales/proposals"  icon={<IconDoc />}      label="Proposals"           expanded={expanded} active={startsWith('/sales/proposals')} />

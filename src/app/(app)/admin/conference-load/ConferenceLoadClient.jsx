@@ -39,7 +39,7 @@ export default function ConferenceLoadClient() {
       <div className="max-w-2xl mx-auto space-y-5">
         <div>
           <h1 className={H1}>Conference Load</h1>
-          <p className="text-xs text-slate-500 mt-0.5">Adds the conference research file to Sales, Events. Pressing it twice is safe and never overwrites an edit.</p>
+          <p className="text-xs text-slate-500 mt-0.5">Adds the conference research file to Sales, Events/Memberships. Pressing it twice is safe and never overwrites an edit.</p>
         </div>
         <div className={CARD_PADDED}>
           {counts && (
@@ -55,7 +55,7 @@ export default function ConferenceLoadClient() {
             <p className={`${HELPER} mt-3 tabular-nums`}>
               Added {done.editions} events, {done.series} conferences, {done.sources} source links and {done.memberships} memberships.
               {done.editions === 0 ? ' Everything was already here.' : ' '}
-              <Link href="/sales/events" className="text-orange-600 hover:underline ml-1">Open Events</Link>
+              <Link href="/sales/events/plan" className="text-orange-600 hover:underline ml-1">Open Events/Memberships</Link>
             </p>
           )}
         </div>

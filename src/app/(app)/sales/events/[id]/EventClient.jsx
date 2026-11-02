@@ -1,10 +1,12 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
+import AutoNumber from '@/components/ui/AutoNumber';
+import EventFields from '@/components/events/EventFields';
 import { WidgetLoading } from '@/components/ui/WidgetFrame';
 import { BTN_COMPACT, CARD_PADDED, CARD_TITLE, H1, HELPER, INPUT, LABEL, SELECT } from '@/components/ui/tokens';
 import { EDITION_STATUSES } from '@/lib/conferences/constants';
-import { money, moneyCents, dateText, placeText, TierPill, EventMarks, Pill } from '@/components/events/eventsShared';
+import { money, moneyCents, dateText, placeText, TierPill, EventMarks, Pill, FIELD, goingPatch } from '@/components/events/eventsShared';
 
 const Fact = ({ label, children }) => (children == null || children === '' ? null : (
   <div>
@@ -74,8 +76,10 @@ export default function EventClient({ id }) {
       const out = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(out.error || `The change did not save on our server. Try again. (HTTP ${res.status})`);
       await load();
+      return true;
     } catch (x) {
       setErr(x instanceof TypeError ? 'No signal reaching our server. That change was not saved. Check your connection and try again.' : x.message);
+      return false;
     }
   }
 
@@ -120,14 +124,15 @@ export default function EventClient({ id }) {
                         {people.map(p => <option key={p.id} value={p.id}>{p.name || p.email}</option>)}
                       </select>
                     </label>
+                    <label className="block"><span className={LABEL}>Going</span>
+                      <AutoNumber className={`${FIELD} block w-20 text-right tabular-nums`} step="1" value={e.headcount} label="Going" onSave={v => save(goingPatch(v))} />
+                    </label>
                     <div className="grid grid-cols-2 gap-3">
                       <label className="block"><span className={LABEL}>Hotel a night</span>
-                        <input key={`h${e.hotelRateOverride}`} type="number" min="0" className={INPUT} defaultValue={e.hotelRateOverride ?? ''} placeholder={money(e.settings.hotelDefault)}
-                          onBlur={x => { if ((x.target.value === '' ? null : Number(x.target.value)) !== e.hotelRateOverride) save({ hotelRateOverride: x.target.value }); }} />
+                        <AutoNumber className={INPUT} value={e.hotelRateOverride} label="Hotel a night" placeholder={money(e.settings.hotelDefault)} onSave={v => save({ hotelRateOverride: v })} />
                       </label>
                       <label className="block"><span className={LABEL}>Airfare</span>
-                        <input key={`a${e.airfareOverride}`} type="number" min="0" className={INPUT} defaultValue={e.airfareOverride ?? ''} placeholder={money(e.airfare)}
-                          onBlur={x => { if ((x.target.value === '' ? null : Number(x.target.value)) !== e.airfareOverride) save({ airfareOverride: x.target.value }); }} />
+                        <AutoNumber className={INPUT} value={e.airfareOverride} label="Airfare" placeholder={money(e.airfare)} onSave={v => save({ airfareOverride: v })} />
                       </label>
                     </div>
                     <p className={HELPER}>Blank follows the planning rules. 0 means free.</p>
@@ -159,10 +164,15 @@ export default function EventClient({ id }) {
             <div className={CARD_PADDED}>
               <h2 className={`${CARD_TITLE} mb-3`}>Overview</h2>
               <dl className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Fact label="Vertical">{e.verticalLabel}</Fact>
-                <Fact label="Focus">{e.tagLabels.join(', ')}</Fact>
-                <Fact label="Format">{e.format}</Fact>
-                <Fact label="Access">{e.access}</Fact>
+                {canEdit ? <EventFields e={e} onSave={save} /> : (
+                  <>
+                    <Fact label="Vertical">{e.verticalLabel}</Fact>
+                    <Fact label="Focus">{e.tagLabels.join(', ')}</Fact>
+                    <Fact label="Format">{e.format}</Fact>
+                    <Fact label="Access">{e.access}</Fact>
+                    <Fact label="Registration">{money(e.reg)}</Fact>
+                  </>
+                )}
                 <Fact label="Scope">{e.scopeLabel}</Fact>
                 <Fact label="Region">{e.regionLabel}</Fact>
                 <Fact label="Attendance">{e.attendance ? e.attendance.toLocaleString('en-US') : null}</Fact>

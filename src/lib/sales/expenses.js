@@ -136,3 +136,25 @@ export function summarizeFirstProjectCosts(rows = []) {
     openSpentCents:     open.reduce((s, r) => s + r.spentCents, 0),
   };
 }
+
+/**
+ * The top numbers on the Expenses page, in whole cents. Rows are { spentOn, amountCents, clientId, client }.
+ * `today` is a YYYY-MM-DD day, compared as text so a late evening entry lands on its own day.
+ */
+export function expenseTopNumbers(rows, year, today) {
+  const dayOf = (r) => new Date(r.spentOn).toISOString().slice(0, 10);
+  let lastYearCents = 0, ytdCents = 0;
+  const byClient = new Map();
+  for (const r of rows) {
+    const day = dayOf(r), y = Number(day.slice(0, 4));
+    if (y === year - 1) lastYearCents += r.amountCents;
+    if (y !== year || day > today) continue;
+    ytdCents += r.amountCents;
+    if (!r.clientId) continue;
+    const c = byClient.get(r.clientId) || { name: r.client?.name || 'Unnamed client', cents: 0 };
+    c.cents += r.amountCents;
+    byClient.set(r.clientId, c);
+  }
+  const topClient = [...byClient.values()].sort((a, b) => b.cents - a.cents)[0] || null;
+  return { lastYearCents, ytdCents, topClient };
+}

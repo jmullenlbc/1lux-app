@@ -56,6 +56,7 @@ export const PRICE_BASES = [
   { key: 'PUBLISHED',  label: 'Published' },
   { key: 'INDICATIVE', label: 'Indicative' },
   { key: 'ESTIMATED',  label: 'Rough' },
+  { key: 'MANUAL',     label: 'Typed' },
 ];
 
 export const MEMBERSHIP_INCLUDE = [

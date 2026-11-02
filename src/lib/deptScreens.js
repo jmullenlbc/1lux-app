@@ -62,6 +62,7 @@ export const PHONE_TABS = {
   shipSchedules:   { key: 'shipSchedules',   label: 'Shipping',     href: '/ship-schedules',    match: p => p.startsWith('/ship-schedules') },
   mainDashboard:   { key: 'mainDashboard',   label: 'Dashboard',    href: '/dashboards/main',   match: p => p.startsWith('/dashboards/main') },
   salesDashboard:  { key: 'salesDashboard',  label: 'Sales',        href: '/dashboards/sales',  match: p => p.startsWith('/dashboards/sales') },
+  expenses: { key: 'expenses', label: 'Expenses', href: '/sales/activity/expenses', match: p => p.startsWith('/sales/activity/expenses') },
   search:          { key: 'search',          label: 'Search',       href: '/search',            match: p => p.startsWith('/search') },
 };
 
@@ -70,7 +71,7 @@ export const PHONE_ORDER = ['SALES_MARKETING', 'PRECONSTRUCTION', 'CONSTRUCTION'
 
 const OFFICE_TABS = ['mainDashboard', 'projects', 'salesDashboard'];
 const PHONE_SETS = {
-  SALES_MARKETING: ['desk', 'notes', 'marketIntel'],
+  SALES_MARKETING: ['desk', 'notes', 'marketIntel', 'expenses'],
   PRECONSTRUCTION: ['preconDashboard', 'budgets', 'rfqs'],
   CONSTRUCTION:    ['myJobs', 'projects', 'shipSchedules'],
   DESIGN:          ['projects', 'budgets'],
@@ -93,7 +94,9 @@ export function phoneTabsFor(user) {
   // Rule 1: nothing recorded, nothing changes. Admins get the office set.
   const admin = role === 'SUPER_ADMIN' || role === 'COMPANY_ADMIN';
   const set = first ? PHONE_SETS[first] : admin ? OFFICE_TABS : NO_DEPARTMENT_TABS;
-  return [...set, 'search'].map(k => PHONE_TABS[k]);
+  // Admins spend too, so Expenses sits on every admin's bar (Mike 11-2).
+  const all = admin && !set.includes('expenses') ? [...set, 'expenses'] : set;
+  return [...all, 'search'].map(k => PHONE_TABS[k]);
 }
 
 // Which departments each people-dropdown is really asking about. The key is the

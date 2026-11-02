@@ -2,6 +2,10 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
+**2026-11-02** Mike's Claude - Migration 0161_sales_annual_budget adds table SalesAnnualBudget: one row per area (EVENTS or EXPENSES) and year, holding the typed budget and typed spend for the Events and Expenses top numbers. User gets a back relation only, with no new column. The regCostBasis comment now lists MANUAL, no database change. Additive only: no existing table, column or row changes. Foreign key updatedById goes to User with ON DELETE SET NULL. Reaches prod through prisma migrate deploy.
+
+**2026-11-02** Mike's Claude - **DEPLOYED ed23b1c**: Events under Sales, Admin Conference Load, home per person, Profile name save fix. Mike presses Conference Load in prod.
+
 **2026-11-02** Mike's Claude - Migration 0160_conference_planner (additive only). Adds nullable User.homeCity and User.homeState, plus eight new Conference tables for the conference planner: series, series tags, editions, edition sources, plans, plan settings, memberships, and membership to series links. The one new link to an existing table is ConferenceEdition.ownerId to User, which goes null if the user is deleted. Nothing is removed or renamed and no existing rows change. Existing users read NULL for home city and state. Applied by prisma migrate deploy; never use db push.
 
 **2026-11-01** Mike's Claude - Migration 0159_sales_tasks (Mike 11-1): adds SalesTask, SalesTaskClient, SalesTaskContact, SalesTaskProject, SalesTaskTag and SalesTaskTagLink for My Desk sales tasks. New tables only; no existing column or table is changed. Data impact: none on existing rows. The CRM Upload wipe removes only the link rows; tasks survive unlinked. DEPLOYED 98baa6f 11-1. Next migration 0160.

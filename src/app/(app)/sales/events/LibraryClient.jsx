@@ -8,7 +8,7 @@ import { WidgetLoading, WidgetEmpty } from '@/components/ui/WidgetFrame';
 import { CARD_PADDED, H1 } from '@/components/ui/tokens';
 import { useUrlView } from '@/lib/useUrlView';
 import {
-  SHARED_FILTERS, filterChoices, useConferences, useVisible, money, dateText, placeText, TierPill, Pill, EventMarks, NotLoaded,
+  SHARED_FILTERS, PANEL_FILTERS, filterChoices, SearchBox, YearNumbers, useConferences, useVisible, money, dateText, placeText, TierPill, Pill, EventMarks, NotLoaded,
 } from '@/components/events/eventsShared';
 
 const SORT_KEYS = ['date', 'name', 'place', 'attendance', 'reg', 'score'];
@@ -31,19 +31,21 @@ export default function LibraryClient() {
       <SectionTabs tabs={EVENTS_TABS} className="mb-5" />
       <div className="max-w-7xl mx-auto space-y-5">
         <div>
-          <h1 className={H1}>Events</h1>
+          <h1 className={H1}>Library</h1>
           <p className="text-xs text-slate-500 mt-0.5">Every conference we have looked at. Plan picks which ones we go to. Budget adds up what they cost.</p>
         </div>
         {err && <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{err}</p>}
+        {data?.loaded && <YearNumbers data={data} filters={filters} />}
 
         <div className={CARD_PADDED}>
           {loading ? <WidgetLoading /> : data && !data.loaded ? <NotLoaded canLoad={data.canEdit} /> : (
             <>
               <div className="mb-3">
+                <SearchBox value={filters.q} onChange={setFilter} />
                 <FilterToolbar count={countFilters(filters, SHARED_FILTERS)} open={open} onToggle={() => setOpen(o => !o)} onClear={clearFilters}
                   shown={rows.length} total={all.length} noun="events"
                   right={<SortSelect className="sm:hidden" fields={SORT_CHOICES} sort={sort} onChange={setSort} />} />
-                <FilterPanel open={open} fields={SHARED_FILTERS} filters={filters} choices={choices} onChange={setFilter} />
+                <FilterPanel open={open} fields={PANEL_FILTERS} filters={filters} choices={choices} onChange={setFilter} />
               </div>
 
               {rows.length === 0 ? <WidgetEmpty>No events match these filters.</WidgetEmpty> : (

@@ -5,7 +5,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
   parseAmountCents, centsToInput, formatMoney, categoryForActivity, normalizeCategory,
-  costToFirstProject, summarizeFirstProjectCosts, EXPENSE_CATEGORY_KEYS,
+  costToFirstProject, summarizeFirstProjectCosts, EXPENSE_CATEGORY_KEYS, expenseTopNumbers,
 } from '../../src/lib/sales/expenses.js';
 import { bucketByPeriod } from '../../src/lib/activity/byPeriod.js';
 import { ARCHIVABLE } from '../../src/lib/archive.js';
@@ -151,4 +151,21 @@ test('the note editor and both note routes carry Amount spent', () => {
   assert.match(read('src/app/(app)/crm/notes/NotesClient.jsx'), /amountSpent/);
   assert.match(read('src/app/api/crm/notes/[id]/route.js'), /syncNoteExpense\(/);
   assert.match(read('src/app/api/crm/notes/route.js'), /syncNoteExpense\(/);
+});
+
+test('expenseTopNumbers: last year, YTD stops today, top client', () => {
+  const r = (spentOn, amountCents, clientId, name) => ({ spentOn, amountCents, clientId, client: name ? { name } : null });
+  const rows = [
+    r('2025-06-01T12:00:00Z', 10000),
+    r('2026-02-01T12:00:00Z', 2000, 'a', 'Alpha'),
+    r('2026-03-01T12:00:00Z', 3000, 'a', 'Alpha'),
+    r('2026-04-01T12:00:00Z', 4000, 'b', 'Beta'),
+    r('2026-05-01T12:00:00Z', 700),
+    r('2026-12-01T12:00:00Z', 90000, 'b', 'Beta'),
+  ];
+  const n = expenseTopNumbers(rows, 2026, '2026-11-02');
+  assert.equal(n.lastYearCents, 10000);
+  assert.equal(n.ytdCents, 9700);
+  assert.deepEqual(n.topClient, { name: 'Alpha', cents: 5000 });
+  assert.equal(expenseTopNumbers([r('2026-05-01T12:00:00Z', 700)], 2026, '2026-11-02').topClient, null);
 });
