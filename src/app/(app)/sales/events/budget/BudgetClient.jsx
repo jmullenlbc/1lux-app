@@ -9,7 +9,7 @@ import { WidgetLoading } from '@/components/ui/WidgetFrame';
 import { useUrlView } from '@/lib/useUrlView';
 import { groupTotals } from '@/lib/conferences/engine';
 import { BTN_COMPACT, BTN_COMPACT_PRIMARY, CARD_PADDED, CARD_TITLE, H1, HELPER, INPUT, LABEL } from '@/components/ui/tokens';
-import { MEMBERSHIP_INCLUDE, verticalLabel, regionLabel, statusLabel } from '@/lib/conferences/constants';
+import { verticalLabel, regionLabel, statusLabel } from '@/lib/conferences/constants';
 import { SHARED_FILTERS, PANEL_FILTERS, FIELD, filterChoices, useConferences, useVisible, money, dateText, NotLoaded, GoingBox, SearchBox, YearNumbers } from '@/components/events/eventsShared';
 
 const VIEW_FIELDS = [...SHARED_FILTERS, ...['date', 'name', 'reg', 'cost', 'planned'].map(k => ({ key: k, kind: 'sort' }))];
@@ -31,54 +31,6 @@ function Breakdown({ title, rows, label = (k) => k }) {
           ))}
         </tbody>
       </table>
-    </div>
-  );
-}
-
-function Memberships({ result, canEdit, save, q }) {
-  return (
-    <div className={CARD_PADDED}>
-      <h2 className={`${CARD_TITLE} mb-1`}>Memberships</h2>
-      <p className={`${HELPER} mb-3`}>Automatic turns on when a ticked event needs the membership, and off when none does.</p>
-      <div className="overflow-x-auto">
-        <table className="w-full text-xs">
-          <thead>
-            <tr className="border-b border-slate-200 text-left text-slate-500">
-              <th className="py-1 pr-3 font-medium">Membership</th>
-              <th className="py-1 pr-3 font-medium">Include</th>
-              <th className="py-1 pr-3 font-medium text-right">Dues</th>
-              <th className="py-1 pr-3 font-medium text-right">Counted</th>
-              <th className="py-1 font-medium text-right">Events unlocked</th>
-            </tr>
-          </thead>
-          <tbody>
-            {result.memberships.filter(m => !q || m.orgName.toLowerCase().includes(q.toLowerCase())).map(m => (
-              <tr key={m.id} className="border-b border-slate-100 align-top">
-                <td className="py-2 pr-3 min-w-[160px]">
-                  <span className="font-medium text-slate-900">{m.orgName}</span>
-                  {m.notes && <p className="text-slate-500 mt-0.5">{m.notes}</p>}
-                </td>
-                <td className="py-2 pr-3">
-                  {canEdit ? (
-                    <select className="border border-slate-300 rounded px-1 py-0.5 text-xs bg-white" aria-label={`Include ${m.orgName}`} value={m.include}
-                      onChange={e => save(`/api/conferences/memberships/${m.id}`, { include: e.target.value })}>
-                      {MEMBERSHIP_INCLUDE.map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
-                    </select>
-                  ) : MEMBERSHIP_INCLUDE.find(o => o.key === m.include)?.label}
-                </td>
-                <td className="py-2 pr-3 text-right">
-                  {canEdit ? (
-                    <AutoNumber className={`${FIELD} w-24 text-right tabular-nums`} value={m.annualDues} label={`Dues for ${m.orgName}`} placeholder="Not priced"
-                      onSave={v => save(`/api/conferences/memberships/${m.id}`, { annualDues: v })} />
-                  ) : money(m.annualDues)}
-                </td>
-                <td className="py-2 pr-3 text-right tabular-nums">{m.on ? money(m.duesCounted) : ''}</td>
-                <td className="py-2 text-right tabular-nums">{m.unlocks.length ? m.unlockedCount : ''}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
     </div>
   );
 }
@@ -176,7 +128,6 @@ function PlanningRules({ data, save }) {
   );
 }
 
-// What the plan costs under each scenario, with memberships on top.
 function EventCosts({ rows, canEdit, saveEvent, sort, onSort }) {
   if (!rows.length) return <p className={HELPER}>No events match.</p>;
   return (
@@ -253,7 +204,6 @@ export default function BudgetClient() {
               <EventCosts rows={listed} canEdit={data.canEdit} saveEvent={saveEvent} sort={sort} onSort={toggleSort} />
             </div>
 
-            <Memberships result={data.result} canEdit={data.canEdit} save={save} q={filters.q} />
 
             <div className={CARD_PADDED}>
               <h2 className={`${CARD_TITLE} mb-3`}>Where the {year} plan goes</h2>

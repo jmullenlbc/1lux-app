@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  DEFAULT_PLAN_SETTINGS, computeEdition, computePlan, rankRows, markClashes, settingsFromRows, settingRowsFrom, yearTotals,
+  DEFAULT_PLAN_SETTINGS, computeEdition, computePlan, rankRows, markClashes, settingsFromRows, settingRowsFrom, yearTotals, membershipTotals,
 } from '../../src/lib/conferences/engine.js';
 import { CONFERENCE_SEED } from '../../src/lib/conferences/seedData.js';
 import { seriesFromSeed, editionFromSeed, SEED_MEMBERSHIPS } from '../../src/lib/conferences/seedMap.js';
@@ -66,6 +66,21 @@ test('Lean, Core, Full and the membership reproduce the plan', () => {
   assert.ok(plan.memberships[0].on, 'NMHC turns on by itself');
   assert.equal(plan.dues, 10000);
   assert.equal(plan.grandTotal, 108081.5);
+});
+
+test('Memberships: dues count as planned, payments count as spend, an undated payment counts as paid', () => {
+  const rows = [
+    { on: true, duesCounted: 1000, paid: 900, paidOn: '2027-01-15' },
+    { on: true, duesCounted: 500, paid: 500, paidOn: '2027-06-15' },
+    { on: true, duesCounted: 250, paid: 250, paidOn: null },
+    { on: true, duesCounted: 300, paid: null, paidOn: null },
+    { on: false, duesCounted: 0, paid: 75, paidOn: '2027-02-01' },
+  ];
+  const t = membershipTotals(rows, '2027-03-01');
+  assert.equal(t.planned, 2050);
+  assert.equal(t.ytdSpend, 1225);
+  assert.equal(t.yearSpend, 1725);
+  assert.equal(t.toPay, 300);
 });
 
 test('top five by rank', () => {

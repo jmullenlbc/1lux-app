@@ -5,6 +5,19 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Memberships tab, budget and actuals] - November 2, 2026
+
+### Added
+- Memberships is its own tab under Events/Memberships: Plan, Budget, Library, Memberships. The list moved here from the Budget tab, so there is one place for it.
+- Eight top numbers: Annual budget, YTD spend, Current year spend, Planned, Last year budget, Last year spend, Next year budget, Still to pay. Search and filters move the spend numbers. Typed budgets stay put.
+- Each membership shows Dues, Actual and Paid on. Typing an Actual on an Automatic row turns it to Yes. An Actual with no date counts as paid.
+- Add membership, with a plain refusal for a name already on the list.
+- Export to Excel adds Actual and Paid on.
+- Migration 0162_membership_actuals: two blank columns on ConferenceMembership, paidCents and paidOn. Additive only.
+
+### Changed
+- Events Planned and Next year planned no longer add dues, so nothing counts against two budgets. The export still prints Dues counted and Grand total.
+
 ## [Events/Memberships feedback, top numbers, Expenses numbers and phone tab] - November 2, 2026
 
 Deployed November 2, 2026, with migration 0161.

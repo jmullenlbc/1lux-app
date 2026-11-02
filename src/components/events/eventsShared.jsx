@@ -11,7 +11,7 @@ import { sumCents } from '@/lib/money';
 import { yearTotals } from '@/lib/conferences/engine';
 import { TIERS, VERTICALS, FOCUS_TAGS, FORMATS, ACCESS_ROUTES, SCOPES, EDITION_STATUSES, PRICE_BASES, REGIONS, regionLabel } from '@/lib/conferences/constants';
 
-// Shared by the Library, Plan and Budget tabs. Every tab reads one answer from
+// Shared by the Library, Plan, Budget and Memberships tabs. Every tab reads one answer from
 // /api/conferences, so a change on one shows on all three.
 
 export const money = (n) => (n == null ? '' : Number(n).toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }));
@@ -207,8 +207,8 @@ export function GoingBox({ r, canEdit, onSave }) {
   return <AutoNumber value={r.headcount} step="1" className={`${FIELD} w-14 text-right tabular-nums`} label={`Going to ${r.name}`} onSave={v => onSave(r.id, goingPatch(v))} />;
 }
 
-export function SearchBox({ value, onChange }) {
-  return <input type="search" className={`${INPUT} mb-3`} placeholder="Search events" aria-label="Search events" value={value || ''} onChange={e => onChange('q', e.target.value)} />;
+export function SearchBox({ value, onChange, label = 'Search events' }) {
+  return <input type="search" className={`${INPUT} mb-3`} placeholder={label} aria-label={label} value={value || ''} onChange={e => onChange('q', e.target.value)} />;
 }
 
 /**
@@ -225,8 +225,6 @@ export function YearNumbers({ data, filters, editable = false, save }) {
   const last = yearTotals(scoped, year - 1, today, c);
   const next = yearTotals(scoped, year + 1, today, c);
 
-  // Memberships are not events, so they only count when nothing is filtered.
-  const dues = (y) => (!filtered && y === data.plan.year ? data.result.dues : 0);
   const budget = (y) => data.budgets?.[y]?.budget ?? null;
   const typed = data.budgets?.[year - 1]?.typedSpend ?? null;
   const lastSpend = filtered ? last.yearSpend : typed ?? last.yearSpend;
@@ -244,14 +242,13 @@ export function YearNumbers({ data, filters, editable = false, save }) {
       <StatTile label="YTD spend" value={money(now.ytdSpend)} tone={left != null && left < 0 ? 'danger' : 'default'}
         sub={left == null ? String(year) : `${money(Math.abs(left))} ${left < 0 ? 'over' : 'left of'} budget`} />
       <StatTile label="Current year spend" value={money(now.yearSpend)} sub={`${year}, Registered and Attended`} />
-      <StatTile label="Planned" value={money(sumCents([now.planned, dues(year)]))}
-        sub={`${year}: ${now.events} events, ${now.trips} trips${filtered ? ', events only while filtered' : ', with contingency and dues'}`} />
+      <StatTile label="Planned" value={money(now.planned)} sub={`${year}: ${now.events} events, ${now.trips} trips, with contingency`} />
       {budgetTile('Last year budget', year - 1, String(year - 1))}
       <NumberTile label="Last year spend" value={typed} shown={money(lastSpend)} canEdit={editable && !filtered} placeholder={String(last.yearSpend)}
         sub={`${year - 1}, ${!filtered && typed != null ? 'typed' : 'from events'}`}
         onSave={v => save('/api/sales/annual-budgets', { area: 'EVENTS', year: year - 1, typedSpend: v })} />
       {budgetTile('Next year budget', year + 1, String(year + 1))}
-      <StatTile label="Next year planned" value={money(sumCents([next.planned, dues(year + 1)]))} sub={`${year + 1}: ${next.events} events`} />
+      <StatTile label="Next year planned" value={money(next.planned)} sub={`${year + 1}: ${next.events} events`} />
     </div>
   );
 }

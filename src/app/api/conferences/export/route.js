@@ -25,8 +25,8 @@ function budgetSheet(result, annualBudget) {
     const s = result.scenarios[key];
     rows.push([label, s.events, s.attendeeTrips, s.subtotal, s.contingency, s.total]);
   }
-  rows.push([], ['Membership', 'Include', 'Dues', 'Counted', 'Events unlocked']);
-  for (const m of result.memberships) rows.push([m.orgName, m.include, m.annualDues, m.duesCounted, m.unlockedCount]);
+  rows.push([], ['Membership', 'Include', 'Dues', 'Actual', 'Paid on', 'Counted', 'Events unlocked']);
+  for (const m of result.memberships) rows.push([m.orgName, m.include, m.annualDues, m.paid ?? '', m.paidOn ?? '', m.duesCounted, m.unlockedCount]);
   rows.push([], ['Dues counted', result.dues], ['Grand total', result.grandTotal], ['Annual budget', annualBudget ?? '']);
   for (const [label, list] of [['Quarter', result.byQuarter], ['Vertical', result.byVertical], ['Region', result.byRegion]]) {
     rows.push([], [label, 'Events', 'Planned']);

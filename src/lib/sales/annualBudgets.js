@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/db';
 
-export const BUDGET_AREAS = ['EVENTS', 'EXPENSES'];
+export const BUDGET_AREAS = ['EVENTS', 'MEMBERSHIPS', 'EXPENSES'];
 
 const dollars = (c) => (c == null ? null : c / 100);
 

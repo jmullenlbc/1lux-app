@@ -229,3 +229,18 @@ export function yearTotals(rows, year, today, contingency = 0) {
     yearSpend: sumCents(spent.map(r => r.plannedCost)),
   };
 }
+
+/**
+ * The top numbers on the Memberships tab, from the rows computePlan returns.
+ * Pure, so filtered rows give filtered numbers. A typed Actual with no date
+ * counts as already paid.
+ */
+export function membershipTotals(rows, today) {
+  const paid = rows.filter(m => m.paid != null);
+  return {
+    planned: sumCents(rows.map(m => m.duesCounted)),
+    ytdSpend: sumCents(paid.filter(m => !m.paidOn || m.paidOn <= today).map(m => m.paid)),
+    yearSpend: sumCents(paid.map(m => m.paid)),
+    toPay: sumCents(rows.filter(m => m.on && m.paid == null).map(m => m.duesCounted)),
+  };
+}

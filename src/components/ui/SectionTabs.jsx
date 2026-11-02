@@ -73,6 +73,7 @@ export const EVENTS_TABS = [
   { key: 'plan',    href: '/sales/events/plan',   label: 'Plan' },
   { key: 'budget',  href: '/sales/events/budget', label: 'Budget' },
   { key: 'library', href: '/sales/events',        label: 'Library' },
+  { key: 'memberships', href: '/sales/events/memberships', label: 'Memberships' },
 ];
 
 export const PROPOSAL_TABS = [

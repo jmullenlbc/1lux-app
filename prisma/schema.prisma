@@ -5735,6 +5735,8 @@ model ConferenceMembership {
   annualDuesCents Int?
   include         String                       @default("N") // Y | N | AUTO
   renewalDate     DateTime?
+  paidCents       Int? // what we actually paid this year, blank until paid
+  paidOn          DateTime?
   notes           String?
   createdAt       DateTime                     @default(now())
   updatedAt       DateTime                     @updatedAt

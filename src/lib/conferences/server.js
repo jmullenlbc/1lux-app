@@ -91,6 +91,8 @@ async function loadMemberships(year) {
     id: m.id,
     orgName: m.orgName,
     annualDues: dollars(m.annualDuesCents),
+    paid: dollars(m.paidCents),
+    paidOn: dayOf(m.paidOn),
     include: m.include,
     notes: m.notes,
     unlocks: m.unlocks.map(u => u.series.slug),
@@ -98,7 +100,7 @@ async function loadMemberships(year) {
   }));
 }
 
-/** Everything the three tabs read. `loaded` is false until the Admin button has run. */
+/** Everything the four tabs read. `loaded` is false until the Admin button has run. */
 export async function loadConferencePlan() {
   const plan = await currentPlan();
   if (!plan) return { loaded: false };
@@ -123,7 +125,7 @@ export async function loadConferencePlan() {
   const rows = markClashes(rankRows(editions.filter(e => !e.series.archivedAt).map(e => rowOf(e, settings, membershipBySlug))));
   const budgetCap = dollars(plan.budgetCapCents);
   const result = computePlan(rows, memberships, settings, budgetCap);
-  const budgets = await loadAnnualBudgets('EVENTS');
+  const [budgets, membershipBudgets] = await Promise.all([loadAnnualBudgets('EVENTS'), loadAnnualBudgets('MEMBERSHIPS')]);
   if (budgetCap != null && budgets[plan.year]?.budget == null) budgets[plan.year] = { typedSpend: null, ...budgets[plan.year], budget: budgetCap };
 
   return {
@@ -135,6 +137,7 @@ export async function loadConferencePlan() {
     result,
     archived,
     budgets,
+    membershipBudgets,
   };
 }
 

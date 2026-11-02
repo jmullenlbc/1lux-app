@@ -2,6 +2,10 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
+**2026-11-02** Mike's Claude - **Migration 0162_membership_actuals**: adds two nullable columns to ConferenceMembership: paidCents (Int?) and paidOn (DateTime?). They record what was actually paid for a membership in its year, and stay blank until paid. Additive only: nothing dropped or renamed, existing rows read NULL, no data impact. schema-guard found no destructive change; not run against Postgres. Next free migration 0163.
+
+**2026-11-02** Mike's Claude - **DEPLOYED b7088d1**: Events/Memberships feedback (tabs Plan, Budget, Library, editable fields, auto save, search and filters driving the top numbers, typed annual budget), Expenses top numbers, Expenses tab on the Sales phone bar and every admin's bar. Migration 0161 reaches prod through migrate deploy. Live fingerprint a85d71d7eaf1. Not tried on a real phone or in prod.
+
 **2026-11-02** Mike's Claude - Migration 0161_sales_annual_budget adds table SalesAnnualBudget: one row per area (EVENTS or EXPENSES) and year, holding the typed budget and typed spend for the Events and Expenses top numbers. User gets a back relation only, with no new column. The regCostBasis comment now lists MANUAL, no database change. Additive only: no existing table, column or row changes. Foreign key updatedById goes to User with ON DELETE SET NULL. Reaches prod through prisma migrate deploy.
 
 **2026-11-02** Mike's Claude - **DEPLOYED ed23b1c**: Events under Sales, Admin Conference Load, home per person, Profile name save fix. Mike presses Conference Load in prod.

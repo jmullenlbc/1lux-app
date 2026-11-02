@@ -9,7 +9,9 @@ export const dynamic = 'force-dynamic';
 
 const bad = (error) => NextResponse.json({ error }, { status: 400 });
 
-// PATCH: turn a membership on, off or automatic, and set its dues.
+// PATCH: turn a membership on, off or automatic, set its dues, and record what
+// was actually paid. Typing a paid amount turns the membership on, the same way
+// typing Going on an event ticks it.
 export async function PATCH(request, { params }) {
   const { user, error } = await requireAuth();
   if (error) return error;
@@ -17,7 +19,7 @@ export async function PATCH(request, { params }) {
 
   const body = await request.json().catch(() => null);
   if (!body) return bad('The change did not come through. Nothing was saved. Try again.');
-  const found = await prisma.conferenceMembership.findUnique({ where: { id: params.id }, select: { id: true } });
+  const found = await prisma.conferenceMembership.findUnique({ where: { id: params.id }, select: { id: true, include: true } });
   if (!found) return NextResponse.json({ error: 'This membership is not in the plan. Nothing was saved.' }, { status: 404 });
 
   const data = {};
@@ -29,6 +31,17 @@ export async function PATCH(request, { params }) {
     const n = body.annualDues === '' || body.annualDues === null ? null : Number(body.annualDues);
     if (n !== null && (!Number.isFinite(n) || n < 0)) return bad('Type dues of 0 or more, or leave them blank.');
     data.annualDuesCents = n === null ? null : Math.round(cents(n) * 100);
+  }
+  if (body.paid !== undefined) {
+    const n = body.paid === '' || body.paid === null ? null : Number(body.paid);
+    if (n !== null && (!Number.isFinite(n) || n < 0)) return bad('Type an actual of 0 or more, or leave it blank.');
+    data.paidCents = n === null ? null : Math.round(cents(n) * 100);
+    if (n !== null && body.include === undefined && found.include !== 'Y') data.include = 'Y';
+  }
+  if (body.paidOn !== undefined) {
+    const d = body.paidOn ? new Date(`${body.paidOn}T12:00:00.000Z`) : null;
+    if (d && Number.isNaN(d.getTime())) return bad('That paid date is not a real date. Nothing was saved. Pick it again.');
+    data.paidOn = d;
   }
   if (body.notes !== undefined) data.notes = String(body.notes || '').trim() || null;
 
