@@ -170,7 +170,7 @@ function TypeForm({ draft, setDraft, onSave, onCancel, busy, msg }) {
         </Field>
         <Field label="Kind">
           <select className={input} value={draft.kind} onChange={e => set('kind', e.target.value)}>
-            <option value="ACTION">Action (to-do)</option>
+            <option value="ACTION">Action (task)</option>
             <option value="INTEL">Intel (fact)</option>
           </select>
         </Field>

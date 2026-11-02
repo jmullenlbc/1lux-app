@@ -1,4 +1,5 @@
 'use client';
+import RecordTasks from '@/components/desk/RecordTasks';
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { PersonTickList } from '@/components/people/PeopleOptions';
 import Link from 'next/link';
@@ -1415,6 +1416,8 @@ export default function ProjectHubClient({ userId, userRole, canEditMoney = fals
         })()}
 
         {/* ── CORRESPONDENCE ───────────────────────────────────────────── */}
+        {activeTab === 'tasks' && <RecordTasks kind="project" id={project.id} name={project.name} />}
+
         {activeTab === 'correspondence' && (
           <CorrespondenceTab
             projectId={project.id}

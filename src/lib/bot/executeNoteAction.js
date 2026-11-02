@@ -6,9 +6,9 @@
  *  • Expect intro / reply / drawings / invite → a "waiting" step: the email
  *    watch closes it when they do it, and the reminder ladder (14/30/60 days
  *    after the meeting, editable) nudges when they don't. See src/lib/followUp/.
- *  • Text / Call → confirmed to-do only, the bot can't send texts or place
+ *  • Text / Call → confirmed task only, the bot can't send texts or place
  *    calls yet (down the road), so no draft is produced.
- *  • Add-to-list / Internal task / Other → confirmed to-do.
+ *  • Add-to-list / Internal task / Other → confirmed task.
  */
 import { prisma } from '@/lib/db';
 import { OUTREACH_EMAIL_METHODS } from '@/lib/bot/composeOutreach';
@@ -55,7 +55,7 @@ export async function executeNoteAction(action, type, opts = {}) {
     return { remindAt, executed: false };
   }
 
-  // Text / Call / Add-to-list / Internal task / Other → confirmed to-do, no draft
+  // Text / Call / Add-to-list / Internal task / Other → confirmed task, no draft
   // (the bot can't text or call yet, those stay manual tasks for now). A step
   // with a deadline ("by Friday") rings the bell on that day.
   await prisma.noteAction.update({

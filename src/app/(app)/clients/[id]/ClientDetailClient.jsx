@@ -21,6 +21,7 @@ import PipelineTab from './PipelineTab';
 import StandardFixtureScheduleTab from './StandardFixtureScheduleTab';
 import ProductOptionsTab from './ProductOptionsTab';
 import ShareStandardsButton from './ShareStandardsButton';
+import RecordTasks from '@/components/desk/RecordTasks';
 import PersonalFactsPanel from '@/components/crm/PersonalFactsPanel';
 import SalesNotesPanel from '@/components/crm/SalesNotesPanel';
 import FirstProjectCostCard from '@/components/crm/FirstProjectCostCard';
@@ -69,6 +70,7 @@ const TABS = [
   { id: 'projects',   label: 'Projects'       },
   { id: 'projectData', label: 'Project Data'  },
   { id: 'pipeline',   label: 'Pipeline'       },
+  { id: 'tasks',      label: 'Tasks'          },
 ];
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -1239,6 +1241,7 @@ function PeopleTab({ contacts: initial, clientId, onContactsChange }) {
   const [dealList,  setDealList]  = useState(null); // {contact, bucket, projects} | null
   const [historyFor, setHistoryFor] = useState(null); // contact id whose work history is open
   const [personalFor, setPersonalFor] = useState(null); // contact id whose personal facts are open
+  const [tasksFor, setTasksFor] = useState(null); // contact id whose tasks are open
   const [salesNotesFor, setSalesNotesFor] = useState(null); // contact id whose published sales notes are open
 
   // Propagate any contact change up so the Overview count, tab badge, and
@@ -1487,6 +1490,10 @@ function PeopleTab({ contacts: initial, clientId, onContactsChange }) {
                 className="text-slate-400 hover:text-orange-600" title="Published sales notes that name this person">
                 {salesNotesFor === c.id ? '▾' : '▸'} Sales notes
               </button>
+              <button type="button" onClick={() => setTasksFor(s => (s === c.id ? null : c.id))}
+                className="text-slate-400 hover:text-orange-600" title="Tasks connected to this person">
+                {tasksFor === c.id ? '▾' : '▸'} Tasks
+              </button>
               {(c.lastEmailReceivedAt || c.lastEmailSentAt) && (
                 <span className="text-slate-300">
                   Last email {c.lastEmailReceivedAt ? `in ${new Date(c.lastEmailReceivedAt).toLocaleDateString()}` : ''}
@@ -1505,6 +1512,7 @@ function PeopleTab({ contacts: initial, clientId, onContactsChange }) {
             )}
             {personalFor === c.id && <PersonalFactsPanel contactId={c.id} name={c.name} />}
             {salesNotesFor === c.id && <SalesNotesPanel contactId={c.id} compact />}
+            {tasksFor === c.id && <RecordTasks kind="contact" id={c.id} name={c.name} />}
             {WORK_HISTORY_READY && historyFor === c.id && <WorkHistoryPanel clientId={clientId} contactId={c.id} name={c.name} />}
           </div>
         ))}
@@ -2537,6 +2545,7 @@ export default function ClientDetailClient({ client: initial, availableProjects,
         )}
         {activeTab === 'projectData' && <ProjectDataTab clientId={client.id} />}
         {activeTab === 'pipeline' && <PipelineTab clientId={client.id} canEdit={canEditPlaybook} />}
+      {activeTab === 'tasks' && <RecordTasks kind="client" id={client.id} name={client.name} />}
         {activeTab === 'standards' && (
           <ClientStandardsTab
             clientId={client.id}

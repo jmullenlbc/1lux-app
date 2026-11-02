@@ -107,6 +107,13 @@ export const MEETING_CARDS = [
     defaultOn: true,
   },
   {
+    key: 'tasksDueThisWeek',
+    title: 'Tasks due this week',
+    subtitle: 'By salesperson, overdue in red',
+    ...DEALS,
+    defaultOn: true,
+  },
+  {
     key: 'clientFollowUps',
     title: 'Client follow-ups',
     subtitle: 'Open steps where we are waiting on the client, grouped by client, oldest first',

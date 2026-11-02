@@ -69,7 +69,18 @@ export async function loadDesk(userId, now = new Date(), { full = true } = {}) {
     who: cBy.get(a.contactId)?.name || a.contactName || '',
     clientId: cBy.get(a.contactId)?.clientId || null,
   }));
-  const groups = groupDesk(items, { isWaiting: a => a.waiting, now });
+  // A task someone made counts like one from a note: the sidebar number, the briefing and the dashboard card all read these groups.
+  const own = await prisma.salesTask.findMany({
+    where: { noteActionId: null, status: { not: 'DONE' }, OR: [{ assigneeId: userId }, { assigneeId: null, createdById: userId }] },
+    select: { id: true, title: true, status: true, dueDate: true },
+    take: 500,
+  });
+  const ownItems = own.map(t => ({
+    id: t.id, type: 'TASK', detail: t.title, rawText: t.title, contactId: null, contactName: null, targetName: null, company: null,
+    dueDate: t.dueDate, remindAt: null, reminderCount: 0, snoozedUntil: null, pausedAt: null, nudgeDraftId: null,
+    note: null, label: 'Task', waiting: t.status === 'WAITING', who: '', clientId: null,
+  }));
+  const groups = groupDesk([...items, ...ownItems], { isWaiting: a => a.waiting, now });
   return { userId, groups, drafts, meetings, noOwner, pool, reviews, salesPeople, budgetsNotSent, attention: deskAttention({ groups, drafts: drafts.length, meetings: meetings.length }) };
 }
 
@@ -192,7 +203,7 @@ async function withdrawNudge(draftId, now, reason) {
 }
 
 /**
- * Done / Snooze / Pause / Resume one step. Returns { error, status } or { ok }.
+ * Done / Reopen / Snooze / Pause / Resume one step. Returns { error, status } or { ok }.
  * Only the note's owners (or an admin) can change its steps.
  */
 export async function actOnStep(user, actionId, body, { isAdmin = false, now = new Date() } = {}) {
@@ -215,6 +226,15 @@ export async function actOnStep(user, actionId, body, { isAdmin = false, now = n
     const label = a.detail || a.rawText || 'step';
     await logNoteChanges(prisma, a.noteId, user, [{ field: 'step', before: `${label}: Confirmed`, after: `${label}: Done` }], now);
     await withdrawNudge(a.nudgeDraftId, now, 'Withdrawn: marked done on My Desk');
+    return { ok: true };
+  }
+  if (what === 'reopen') {
+    await prisma.noteAction.update({
+      where: { id: a.id },
+      data: { status: 'CONFIRMED', fulfilledAt: null, fulfilledVia: null, fulfilledByEmailId: null, fulfilledNote: null },
+    });
+    const label = a.detail || a.rawText || 'step';
+    await logNoteChanges(prisma, a.noteId, user, [{ field: 'step', before: `${label}: Done`, after: `${label}: Confirmed` }], now);
     return { ok: true };
   }
   if (what === 'snooze') {

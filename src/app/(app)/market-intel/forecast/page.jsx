@@ -117,7 +117,7 @@ export default function ForecastPage() {
   const panelFields = FILTER_FIELDS.filter(f => !['by', 'months', 'q'].includes(f.key) && (by === 'company' || (f.key !== 'role' && f.key !== 'clients')));
 
   return (
-    <div className="p-6">
+    <div className="p-4 sm:p-6">
       <SectionTabs tabs={MARKET_INTEL_TABS} />
       <div className="max-w-5xl mx-auto">
         <div className="flex items-start justify-between mb-5">
@@ -164,16 +164,16 @@ export default function ForecastPage() {
             <span className={cn(HELPER, 'block mt-1')}>{hasFilters ? 'Clear a filter to widen the list.' : 'Articles get a unit count when they are read. Press "Screen articles" on the Sources tab to fill in older ones.'}</span>
           </WidgetEmpty>
         ) : (
-          <div className={cn(CARD, 'overflow-hidden')}>
+          <div className={cn(CARD, 'overflow-x-auto')}>
             <table className="w-full text-sm">
               <thead className="bg-slate-50">
                 <tr>
                   <SortHeader label={by === 'company' ? 'Company' : by === 'metro' ? 'Metro' : 'State'} field="label" sort={sort} onSort={toggleSort} />
                   <SortHeader label="Units" field="units" sort={sort} onSort={toggleSort} align="right" />
                   <SortHeader label="Projects" field="projects" sort={sort} onSort={toggleSort} align="right" />
-                  <SortHeader label="Articles" field="articles" sort={sort} onSort={toggleSort} align="right" />
-                  {by === 'company' && <Th>Where</Th>}
-                  <th className={cn(TH, 'w-40')}></th>
+                  <SortHeader label="Articles" field="articles" sort={sort} onSort={toggleSort} align="right" className="hidden sm:table-cell" />
+                  {by === 'company' && <Th className="hidden sm:table-cell">Where</Th>}
+                  <th className={cn(TH, 'w-40 hidden sm:table-cell')}></th>
                 </tr>
               </thead>
               <tbody>
@@ -187,12 +187,13 @@ export default function ForecastPage() {
                       <span className="inline-block w-4 text-slate-400 text-xs">{open.has(r.key) ? '▾' : '▸'}</span>
                       {r.label}
                       {r.clientId && <Link href={`/clients/${r.clientId}`} onClick={e => e.stopPropagation()} className="ml-2 text-[11px] text-green-600 hover:underline">client ✓</Link>}
+                      {by === 'company' && (r.metros || []).length > 0 && <div className="sm:hidden pl-4 text-xs font-normal text-slate-500">{r.metros.slice(0, 3).join(', ')}</div>}
                     </td>
                     <td className={cn(TD, 'text-right tabular-nums')}>{r.units.toLocaleString()}</td>
                     <td className={cn(TD, 'text-right tabular-nums text-slate-500')}>{r.projects}</td>
-                    <td className={cn(TD, 'text-right tabular-nums text-slate-500')}>{r.articles}</td>
-                    {by === 'company' && <td className={cn(TD, 'text-xs text-slate-500')}>{(r.metros || []).slice(0, 3).join(', ')}{(r.metros || []).length > 3 ? ', +' + (r.metros.length - 3) : ''}</td>}
-                    <td className={TD}>
+                    <td className={cn(TD, 'text-right tabular-nums text-slate-500 hidden sm:table-cell')}>{r.articles}</td>
+                    {by === 'company' && <td className={cn(TD, 'text-xs text-slate-500 hidden sm:table-cell')}>{(r.metros || []).slice(0, 3).join(', ')}{(r.metros || []).length > 3 ? ', +' + (r.metros.length - 3) : ''}</td>}
+                    <td className={cn(TD, 'hidden sm:table-cell')}>
                       <div className="h-2 rounded bg-orange-100">
                         <div className="h-2 rounded bg-orange-500" style={{ width: `${Math.max(2, Math.round(100 * r.units / max))}%` }} />
                       </div>
@@ -206,8 +207,8 @@ export default function ForecastPage() {
                             <tr>
                               <th className={cn(TH, 'pl-4 pr-2 py-1')}>Project</th>
                               <th className={cn(TH, 'text-right px-2 py-1')}>Units</th>
-                              <th className={cn(TH, 'px-2 py-1')}>Where</th>
-                              <th className={cn(TH, 'px-2 py-1')}>From</th>
+                              <th className={cn(TH, 'px-2 py-1 hidden sm:table-cell')}>Where</th>
+                              <th className={cn(TH, 'px-2 py-1 hidden sm:table-cell')}>From</th>
                               <th className={cn(TH, 'px-2 py-1')}>Date</th>
                             </tr>
                           </thead>
@@ -225,8 +226,8 @@ export default function ForecastPage() {
                                   {it.sources > 1 && <span className="ml-1 text-slate-500">({it.sources} articles, biggest figure counted)</span>}
                                 </td>
                                 <td className="px-2 py-1 text-right tabular-nums">{it.units.toLocaleString()}</td>
-                                <td className="px-2 py-1 text-slate-500">{it.metro || ''}</td>
-                                <td className="px-2 py-1 text-slate-500">{it.kind === 'PERMIT' ? 'Permit' : it.kind === 'CONCEPT' ? 'Concept plan' : 'Article'}</td>
+                                <td className="px-2 py-1 text-slate-500 hidden sm:table-cell">{it.metro || ''}</td>
+                                <td className="px-2 py-1 text-slate-500 hidden sm:table-cell">{it.kind === 'PERMIT' ? 'Permit' : it.kind === 'CONCEPT' ? 'Concept plan' : 'Article'}</td>
                                 <td className="px-2 py-1 text-slate-500 whitespace-nowrap tabular-nums">{it.publishedAt ? new Date(it.publishedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : ''}</td>
                               </tr>
                             ))}

@@ -61,7 +61,7 @@ function NotRelevantPicker({ onSave, onCancel }) {
     try { await onSave({ reasonCode, reasonText: reasonText.trim() }); } finally { setSaving(false); }
   }
   return (
-    <div className="flex flex-col gap-1.5 items-end" onClick={e => e.stopPropagation()}>
+    <div className="flex flex-col gap-1.5 sm:items-end" onClick={e => e.stopPropagation()}>
       <select value={reasonCode} onChange={e => setReasonCode(e.target.value)} autoFocus className="text-xs border border-slate-300 rounded-lg px-2 py-1 bg-white text-slate-700">
         <option value="">Why not relevant?</option>
         {REASONS.map(r => <option key={r.code} value={r.code}>{r.label}</option>)}
@@ -74,7 +74,7 @@ function NotRelevantPicker({ onSave, onCancel }) {
           onKeyDown={e => { if (e.key === 'Enter') save(); }}
           placeholder="One sentence on why"
           maxLength={300}
-          className="text-xs border border-slate-300 rounded-lg px-2 py-1 bg-white text-slate-700 w-56"
+          className="text-xs border border-slate-300 rounded-lg px-2 py-1 bg-white text-slate-700 w-full sm:w-56"
         />
       )}
       <div className="flex gap-1.5">
@@ -97,7 +97,7 @@ const TAG_STYLES  = {
 };
 
 function Field({ label, children }) {
-  return <div className="min-w-0"><dt className="text-slate-500">{label}</dt><dd className="text-slate-700 truncate">{children}</dd></div>;
+  return <div className="min-w-0"><dt className="text-slate-500">{label}</dt><dd className="text-slate-700 break-words sm:truncate">{children}</dd></div>;
 }
 
 function money(n) {
@@ -168,8 +168,8 @@ export default function SignalCard({ signal, onUpdate, onTagClick, onAddToCrm, o
 
   return (
     <div className={`bg-white border border-slate-200 rounded-xl p-4 transition-opacity ${isDismissed ? 'opacity-50' : ''}`}>
-      <div className="flex items-start gap-3">
-        <div className="flex-1 min-w-0">
+      <div className="flex flex-col sm:flex-row sm:items-start gap-3">
+        <div className="w-full min-w-0 sm:flex-1">
           {/* Title + type chips */}
           <div className="flex flex-wrap items-center gap-2 mb-1.5">
             <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${meta.color}`}>
@@ -410,7 +410,7 @@ export default function SignalCard({ signal, onUpdate, onTagClick, onAddToCrm, o
           />
         )}
         {!isDismissed && signal.reviewStatus !== 'REVIEWED' && !picking && (
-          <div className="flex gap-1.5 shrink-0">
+          <div className="flex flex-wrap gap-1.5 shrink-0">
             {signal.projectRelated === false && (
               <button
                 onClick={() => onUpdate(signal.id, { projectRelated: true })}
@@ -447,7 +447,7 @@ export default function SignalCard({ signal, onUpdate, onTagClick, onAddToCrm, o
         {isDismissed && (
           <button
             onClick={() => onUpdate(signal.id, { reviewStatus: 'UNREVIEWED' })}
-            className="text-xs px-2.5 py-1 rounded-lg border border-slate-300 text-slate-700 font-semibold hover:bg-slate-50 shrink-0"
+            className="text-xs px-2.5 py-1 rounded-lg border border-slate-300 text-slate-700 font-semibold hover:bg-slate-50 shrink-0 self-start"
           >
             Restore
           </button>

@@ -1212,7 +1212,7 @@ export default function CODetailClient({ projectId, coId }) {
               defaultValue={co.notes || ''}
               disabled={isLocked}
               onBlur={e => { if ((e.target.value || null) !== co.notes) patchCO({ notes: e.target.value }); }}
-              placeholder="What this change order is for"
+              placeholder="I.e. an ASI, RFI or replacement"
               rows={2}
               className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500 resize-none disabled:opacity-60 bg-white"
             />

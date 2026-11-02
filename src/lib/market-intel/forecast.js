@@ -28,7 +28,7 @@ function groupKeysFor(signal, by, roles) {
     return links
       .filter(l => (l.tag || l).kind === 'COMPANY' && (!roles || roles.includes(l.role || null)))
       .map(l => l.tag || l)
-      .map(t => ({ key: t.normalized, label: t.name, clientId: t.clientId || null }));
+      .map(t => ({ key: t.normalized, label: t.name.replace(/\\/g, ''), clientId: t.clientId || null }));
   }
   if (by === 'metro')   return tags.filter(t => t.kind === 'METRO').map(t => ({ key: t.normalized, label: t.name }));
   if (by === 'state')   return tags.filter(t => t.kind === 'STATE').map(t => ({ key: t.normalized, label: t.name }));

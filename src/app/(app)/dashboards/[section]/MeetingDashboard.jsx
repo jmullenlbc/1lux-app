@@ -150,6 +150,22 @@ function CardBody({ cardKey, data, users, patch }) {
         </Table>
       );
 
+    case 'tasksDueThisWeek':
+      return (
+        <Table cols={['Salesperson', 'Task', 'Company or project', 'Due']}>
+          {rows.map((t, i) => {
+            const samePerson = i > 0 && rows[i - 1].salesperson === t.salesperson;
+            return (
+              <Row key={t.id}>
+                <Td className={samePerson ? 'text-transparent' : 'font-semibold text-slate-700'}>{t.salesperson}</Td>
+                <Td>{t.title}</Td>
+                <Td className="text-slate-500">{t.company || t.project || blank}</Td>
+                <Td className={t.overdue ? 'text-red-600 font-semibold' : 'text-slate-500'}>{fmtDate(t.dueDate) || blank}</Td>
+              </Row>
+            );
+          })}
+        </Table>
+      );
     case 'nextActions':
       return (
         <Table cols={['Project', 'Client', 'Action', 'Owner', 'Due', '']}>
@@ -438,6 +454,7 @@ const EMPTY_LINE = {
   newOpportunities:     'No new projects in the last 7 days.',
   introductions:        'No introductions asked for lately.',
   ownership:            'Every open job has an owner.',
+  tasksDueThisWeek:     'No open tasks due this week.',
   clientFollowUps:      'Nothing is waiting on a client right now.',
   deadlines:            'No dates landing in the next two weeks.',
   blockers:             'Nothing is waiting or blocked.',

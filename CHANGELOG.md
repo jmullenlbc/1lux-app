@@ -5,6 +5,51 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [One Tasks list on My Desk, weekly meeting card and phone fixes] - November 1, 2026
+
+### Added
+- My Desk has one list called Tasks, in List and Board views. Steps from sales notes land there on their own, and salespeople can make their own tasks. The word To-do is gone.
+- Own tasks and note tasks count the same in the sidebar number, the morning briefing and the dashboard card.
+- Every task from a sales note carries the tag In-person follow-up, and it cannot be taken off.
+- Each task connects to companies, people and projects separately, and takes custom tags. Only a Sales Admin can make a new tag.
+- Tasks show on company pages, on project pages, and under each person on the company People tab.
+- Weekly meeting card: Tasks due this week, by salesperson, late ones in red.
+- Moving a note task to Done finishes the step. Moving it back reopens it.
+- Filters for status, tag and where it came from, plus search. Drag between columns on a computer, pick the column on a phone.
+
+### Fixed
+- Market Intel signal card on a phone: the card takes the full width and the buttons sit under it.
+- Pipeline forecast on a phone: no cut off columns, and the market shows under the company name.
+- Every tab strip scrolls sideways on a phone and brings the open tab into view.
+- The search box in a filter bar fills its row on a phone.
+- Stray backslashes no longer show in company names read from tags.
+
+### Database
+- Migration 0159_sales_tasks: six new tables. No existing column, table or row is changed.
+
+### Files
+- `prisma/schema.prisma`, `prisma/migrations/0159_sales_tasks/`, `src/lib/archive.js`.
+- `src/lib/desk/tasks.js`, `src/lib/desk/tasksServer.js`, `src/lib/desk/deskServer.js`, `src/lib/desk/briefing.js`, `src/lib/noteActions.js`, `src/lib/bot/executeNoteAction.js`.
+- `src/lib/meeting/cards.js`, `src/app/api/sales/meeting/route.js`, `src/app/(app)/dashboards/[section]/MeetingDashboard.jsx`.
+- `src/lib/projectNavConfig.js`, `src/app/(app)/project/[id]/ProjectHubClient.jsx`, `src/app/(app)/clients/[id]/ClientDetailClient.jsx`, `src/app/(app)/sales/automation/actions/NoteActionTypesEditor.jsx`, `src/components/layout/useDeskCount.js`.
+- `src/app/api/sales/tasks/`, `src/app/api/sales/task-tags/`.
+- `src/components/desk/TasksTab.jsx`, `src/components/desk/RecordTasks.jsx`, `src/components/desk/PersonPicker.jsx`, `src/app/(app)/sales/desk/page.jsx`.
+- `src/components/market-intel/SignalCard.jsx`, `src/app/(app)/market-intel/forecast/page.jsx`, `src/lib/market-intel/forecast.js`, `src/lib/market-intel/tagRules.js`.
+- `src/components/ui/SectionTabs.jsx`, `src/components/ui/FilterPanel.jsx`.
+- `scripts/tests/salesTasks.test.mjs`, `scripts/tests/crmArchive.test.mjs`, `scripts/tests/deskBriefing.test.mjs`, `scripts/tests/meetingAgendaCards.test.mjs`.
+
+---
+
+## [Change order description hint] - November 1, 2026
+
+### Changed
+- The CO Description box now shows gray hint text: "I.e. an ASI, RFI or replacement".
+
+### Files
+- `src/app/(app)/project/[id]/change-orders/[coId]/CODetailClient.jsx`.
+
+---
+
 ## [Change orders: line kinds, product timeline, restocking fees, tax only COs, RFQs for COs] - November 1, 2026
 
 ### Added

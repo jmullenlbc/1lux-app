@@ -55,6 +55,7 @@ export const NAV_CONFIG = {
       icon: '◎',
       items: [
         { id: 'meetings',        label: 'Meetings',        icon: 'Calendar' },
+        { id: 'tasks',           label: 'Tasks',           icon: 'ListChecks' },
         { id: 'correspondence',  label: 'Correspondence',  icon: 'Mail' },
       ],
     },
@@ -109,6 +110,7 @@ export const NAV_CONFIG = {
       icon: '◎',
       items: [
         { id: 'meetings',        label: 'Meetings',        icon: 'Calendar' },
+        { id: 'tasks',           label: 'Tasks',           icon: 'ListChecks' },
         { id: 'correspondence',  label: 'Correspondence',  icon: 'Mail' },
       ],
     },
@@ -153,6 +155,7 @@ export const NAV_CONFIG = {
       icon: '◎',
       items: [
         { id: 'meetings',        label: 'Meetings',        icon: 'Calendar' },
+        { id: 'tasks',           label: 'Tasks',           icon: 'ListChecks' },
         { id: 'correspondence',  label: 'Correspondence',  icon: 'Mail' },
       ],
     },

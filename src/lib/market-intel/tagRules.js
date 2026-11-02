@@ -110,7 +110,7 @@ const CODE_SET = new Set(Object.values(STATE_CODES));
 export function normalizeTagName(name, kind = 'COMPANY') {
   let s = String(name || '')
     .toLowerCase()
-    .replace(/[.,'"()]/g, ' ')
+    .replace(/[.,'"()\\]/g, ' ')
     .replace(/&/g, ' and ');
   if (kind === 'COMPANY') s = s.replace(/\b(inc|llc|lp|llp|ltd|corp|corporation|company|co|group|holdings|partners)\b/g, ' ');
   return s.replace(/\s+/g, ' ').trim();
@@ -168,7 +168,7 @@ export function tagsFromExtraction(extracted = {}) {
     const key = `${kind}|${normalized}`;
     if (seen.has(key)) return;
     seen.add(key);
-    out.push({ kind, name: String(name).trim(), normalized, role });
+    out.push({ kind, name: String(name).replace(/\\/g, '').trim(), normalized, role });
   };
 
   for (const c of extracted.companies || []) {

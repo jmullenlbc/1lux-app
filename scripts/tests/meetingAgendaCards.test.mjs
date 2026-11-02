@@ -6,7 +6,7 @@ import { MEETING_CARDS, getCard, defaultLayout, cardLevel, availableCardKeys } f
 
 const AGENDA = [
   'newOpportunities', 'newLeads', 'introductions', 'ownership',
-  'nextActions', 'clientFollowUps', 'deadlines', 'blockers',
+  'nextActions', 'tasksDueThisWeek', 'clientFollowUps', 'deadlines', 'blockers',
 ];
 const NEW = ['newOpportunities', 'introductions', 'ownership', 'clientFollowUps', 'deadlines', 'blockers'];
 

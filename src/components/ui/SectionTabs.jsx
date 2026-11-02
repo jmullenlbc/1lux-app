@@ -1,5 +1,6 @@
 'use client';
 import Link from 'next/link';
+import { useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
 
 // One tab strip for every Sales module with sibling views (Mike 10-6: "all
@@ -19,15 +20,24 @@ export default function SectionTabs({ tabs, active = null, className = 'mb-6 -mt
       }
     }
   }
+  // On a phone the strip scrolls sideways, so bring the open tab into view.
+  const strip = useRef(null);
+  useEffect(() => {
+    const el = strip.current;
+    const tab = el?.querySelector('[aria-current="page"]');
+    if (!tab || el.scrollWidth <= el.clientWidth) return;
+    el.scrollLeft += tab.getBoundingClientRect().left - el.getBoundingClientRect().left - (el.clientWidth - tab.offsetWidth) / 2;
+  }, [current]);
   return (
-    <div className={`flex items-center gap-1 border-b border-slate-200 ${className}`}>
+    <div ref={strip} className={`flex items-center gap-1 border-b border-slate-200 overflow-x-auto [scrollbar-width:none] ${className}`}>
       {tabs.map(tab => {
         const key = tab.key || tab.href;
         return (
           <Link
             key={key}
             href={tab.href}
-            className={`px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${
+            aria-current={current === key ? 'page' : undefined}
+            className={`shrink-0 px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${
               current === key
                 ? 'border-orange-500 text-orange-600'
                 : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'

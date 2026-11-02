@@ -1,15 +1,15 @@
 'use client';
-import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import { Suspense, useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import DraftCard from '@/components/sales/DraftCard';
 import SnoozeBox from '@/components/sales/SnoozeBox';
 import { DESK_CHANGED } from '@/lib/desk/desk';
-import { groupStepsByPerson } from '@/lib/desk/groupByPerson';
 import { useDraftReminder } from '@/components/layout/useDraftReminder';
 import QuickNote from '@/components/desk/QuickNote';
 import MorningBriefing from '@/components/desk/MorningBriefing';
 import PersonPicker from '@/components/desk/PersonPicker';
+import TasksTab from '@/components/desk/TasksTab';
 import { ReviewRow } from '@/components/crm/LookAlikeReviews';
 import CrmDuplicates from '@/components/crm/CrmDuplicates';
 import AlertMark from '@/components/ui/AlertMark';
@@ -17,7 +17,6 @@ import IntelClient from '../../crm/intel/IntelClient';
 import IntroductionsCard from '@/components/crm/IntroductionsCard';
 import FieldSuggestionsCard from '@/components/crm/FieldSuggestionsCard';
 import { FilterToolbar, FilterPanel, countFilters } from '@/components/ui/FilterPanel';
-import { SortSelect, sortRows } from '@/components/ui/SortHeader';
 import { WidgetLoading } from '@/components/ui/WidgetFrame';
 import CompareBudgetsTable from '@/components/intake/CompareBudgetsTable';
 import { MAX_COMPARE } from '@/lib/intake/compareBudgets';
@@ -27,33 +26,19 @@ import { BTN_PRIMARY, CARD, INPUT, TAB_ACTIVE, TAB_INACTIVE, H1 } from '@/compon
 // My Desk (Mike 9-26): the one place a salesperson looks. Reminders from their
 // sales notes, email drafts to review, check-ins due, notes still to finish.
 // Built for a phone first: one column, big buttons.
-// 10-5: three tabs (To-dos, Intel, Look-alikes and pool), a "whose desk"
-// picker, and steps for one person inside a week bundled under one header.
+// 10-5: three tabs (Tasks, Intel, Look-alikes and pool) and a "whose desk"
+// picker. 11-1: reminders and own tasks are one list, TasksTab, as a list or a board.
 
 const TABS = [
-  { key: 'todos', label: 'To-dos' },
+  { key: 'tasks', label: 'Tasks' },
   { key: 'intel', label: 'Intel' },
   { key: 'pool',  label: 'Look-alikes and pool' },
 ];
 const HASH_TABS = { '#look-alikes': 'pool', '#pool': 'pool' };
-const BUNDLED = new Set(['OVERDUE', 'TODAY', 'WEEK', 'LATER']);
-const LOCKED_TITLE = 'Only the owner can change this';
 
-// Whose desk and the step sort live in the address (useUrlView); the tab keeps
-// its own search param. Whose drives the server fetch.
+// Whose desk lives in the address (useUrlView); the tab keeps its own search
+// param. Whose drives the server fetch and the task list.
 const FILTER_FIELDS = [{ key: 'whose', label: 'Whose desk', kind: 'pick' }];
-const SORT_FIELDS = [
-  { key: 'due',   label: 'Due date' },
-  { key: 'who',   label: 'Person' },
-  { key: 'label', label: 'Kind' },
-];
-const VIEW_FIELDS = [...FILTER_FIELDS, ...SORT_FIELDS.map(f => ({ key: f.key, kind: 'sort' }))];
-const SORT_DEFAULT = { key: '', dir: 'asc' };
-const STEP_GETTERS = {
-  due:   a => { const d = a.snoozedUntil || a.remindAt || a.dueDate; return d ? new Date(d).getTime() : null; },
-  who:   a => a.who || '',
-  label: a => a.label || '',
-};
 const ROW = `${CARD} p-3`;
 
 
@@ -78,77 +63,6 @@ function Btn({ children, onClick, tone = 'plain', disabled, title }) {
   return (
     <button type="button" onClick={onClick} disabled={disabled} title={title}
       className={`min-h-[40px] px-3 rounded-lg text-sm font-semibold disabled:opacity-40 ${cls}`}>{children}</button>
-  );
-}
-
-function OwnerChip({ name }) {
-  if (!name) return null;
-  return <span className="inline-block rounded-lg bg-slate-100 text-slate-600 text-xs px-2 py-0.5 ml-1">{name}</span>;
-}
-
-// `locked` = somebody else's step: look, do not touch (the server refuses too).
-function StepRow({ a, group, onAct, locked = false, showOwner = false, indent = false }) {
-  const [snoozing, setSnoozing] = useState(false);
-  const [busy, setBusy] = useState(false);
-  async function act(body) {
-    setBusy(true);
-    await onAct(a.id, body);
-    setBusy(false);
-    setSnoozing(false);
-  }
-  const due = group === 'SNOOZED' ? a.snoozedUntil : (a.remindAt || a.dueDate);
-  const off = busy || locked;
-  const title = locked ? LOCKED_TITLE : undefined;
-  return (
-    <li className={`${ROW} ${indent ? 'ml-4' : ''}`}>
-      <div className="flex items-start gap-2">
-        <div className="flex-1 min-w-0">
-          <p className="text-sm text-slate-800">{a.detail || a.rawText}{showOwner && <OwnerChip name={a.ownerName} />}</p>
-          <p className="text-xs text-slate-500 mt-0.5">
-            {a.who && (a.clientId ? <Link href={`/clients/${a.clientId}`} className="hover:underline">{a.who}</Link> : a.who)}
-            {a.who && ' · '}{a.label}
-            {a.note && <> · <Link href={`/crm/notes?note=${a.note.id}`} className="hover:underline">{a.note.title || 'note'}</Link></>}
-          </p>
-        </div>
-        <span className={`shrink-0 text-xs tabular-nums ${group === 'OVERDUE' ? 'text-red-600 font-semibold' : 'text-slate-500'}`}>
-          {group === 'SNOOZED' ? `Until ${when(due)}` : group === 'PAUSED' ? 'Paused' : when(due)}
-        </span>
-      </div>
-      <div className="flex flex-wrap gap-2 mt-2">
-        <Btn tone="go" disabled={off} title={title} onClick={() => act({ do: 'done' })}>Done</Btn>
-        {group === 'SNOOZED'
-          ? <Btn disabled={off} title={title} onClick={() => act({ do: 'unsnooze' })}>Wake up now</Btn>
-          : group !== 'PAUSED' && <Btn disabled={off} title={title} onClick={() => setSnoozing(s => !s)}>Snooze</Btn>}
-        {group === 'PAUSED'
-          ? <Btn tone="warn" disabled={off} title={title} onClick={() => act({ do: 'resume' })}>Turn back on</Btn>
-          : <Btn disabled={off} title={title} onClick={() => act({ do: 'pause' })}>Pause</Btn>}
-      </div>
-      {snoozing && !locked && <SnoozeBox busy={busy} onPick={pick => act({ do: 'snooze', ...pick })} onClose={() => setSnoozing(false)} />}
-    </li>
-  );
-}
-
-// One desk group's rows, bundled by person (10-5): 2+ steps for one person
-// inside a rolling week sit under one header with the alert mark.
-function GroupRows({ items, group, onAct, isLocked, showOwner, sort }) {
-  const sorted = useMemo(() => sortRows(items, sort, STEP_GETTERS), [items, sort]);
-  const bundles = BUNDLED.has(group) ? groupStepsByPerson(sorted, { now: new Date() }) : sorted.map(a => ({ key: a.id, items: [a], alert: false }));
-  return (
-    <ul className="space-y-2">
-      {bundles.map(b => b.items.length > 1 ? (
-        <li key={b.key} className="space-y-2">
-          <div className="flex items-center gap-2 text-sm font-semibold text-slate-800">
-            <AlertMark label={`${b.items.length} steps for ${b.who || 'this person'} this week`} />
-            <span>{b.who || 'Someone'} ({b.items.length} steps this week)</span>
-          </div>
-          <ul className="space-y-2">
-            {b.items.map(a => <StepRow key={a.id} a={a} group={group} onAct={onAct} locked={isLocked(a)} showOwner={showOwner} indent />)}
-          </ul>
-        </li>
-      ) : (
-        <StepRow key={b.items[0].id} a={b.items[0]} group={group} onAct={onAct} locked={isLocked(b.items[0])} showOwner={showOwner} />
-      ))}
-    </ul>
   );
 }
 
@@ -370,11 +284,11 @@ function Section({ title, count, children, right, id }) {
 
 function TabBar({ tab, onPick, counts }) {
   return (
-    <div className="flex items-center gap-1 border-b border-slate-200 mb-4">
+    <div className="flex items-center gap-1 border-b border-slate-200 mb-4 overflow-x-auto [scrollbar-width:none]">
       {/* Same look as the Sales Automation tabs (Mike 10-6). */}
       {TABS.map(t => (
         <button key={t.key} type="button" onClick={() => onPick(t.key)}
-          className={`px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px transition-colors whitespace-nowrap ${tab === t.key ? TAB_ACTIVE : TAB_INACTIVE}`}>
+          className={`shrink-0 px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px transition-colors whitespace-nowrap ${tab === t.key ? TAB_ACTIVE : TAB_INACTIVE}`}>
           {t.label}{counts?.[t.key] > 0 && <span className="ml-1 text-xs text-slate-500 tabular-nums">{counts[t.key]}</span>}
         </button>
       ))}
@@ -383,13 +297,12 @@ function TabBar({ tab, onPick, counts }) {
 }
 
 // Whose desk (10-5): mine, everyone's, or one salesperson's. Others' desks are look-only.
-function WhosePicker({ whose, salesPeople, filters, filterCount, open, onToggle, onClear, onChange, sort, onSort, steps }) {
+function WhosePicker({ whose, salesPeople, filters, filterCount, open, onToggle, onClear, onChange, steps }) {
   const choices = { whose: [['mine', 'Mine'], ['everyone', 'Everyone'], ...salesPeople.map(u => [u.id, u.name])] };
   return (
     <div className="mb-3">
       <FilterToolbar count={filterCount} open={open} onToggle={onToggle} onClear={onClear}
-        shown={steps} total={steps} noun="steps"
-        right={<SortSelect fields={SORT_FIELDS} sort={sort} onChange={onSort} />}>
+        shown={steps} total={steps} noun="tasks">
         {filterCount === 0 && <span className="text-xs text-slate-500">My desk</span>}
       </FilterToolbar>
       <FilterPanel open={open} fields={FILTER_FIELDS} filters={{ ...filters, whose }} choices={choices} onChange={onChange} />
@@ -408,9 +321,9 @@ export default function MyDeskPageShell() {
 function MyDeskPage() {
   const router = useRouter();
   const params = useSearchParams();
-  const urlTab = TABS.some(t => t.key === params.get('tab')) ? params.get('tab') : 'todos';
+  const urlTab = TABS.some(t => t.key === params.get('tab')) ? params.get('tab') : 'tasks';
   const [tab, setTabState] = useState(urlTab);
-  const { filters, setFilter, clearFilters, sort, setSort, ready } = useUrlView({ fields: VIEW_FIELDS, sortDefault: SORT_DEFAULT });
+  const { filters, setFilter, clearFilters, ready } = useUrlView({ fields: FILTER_FIELDS });
   const [filterOpen, setFilterOpen] = useState(false);
   const [dupeCount, setDupeCount] = useState(0);
   const whose = filters.whose || 'mine';
@@ -418,7 +331,6 @@ function MyDeskPage() {
   const [checkIns, setCheckIns] = useState([]);
   const [err, setErr] = useState('');
   const [flash, setFlash] = useState('');
-  const [openGroups, setOpenGroups] = useState({ SNOOZED: false, PAUSED: false });
   const { count: notesToFinish } = useDraftReminder() || {};
 
   useEffect(() => { setTabState(urlTab); }, [urlTab]);
@@ -437,7 +349,7 @@ function MyDeskPage() {
 
   const setTab = key => {
     setTabState(key);
-    router.replace(key === 'todos' ? '/sales/desk' : `/sales/desk?tab=${key}`, { scroll: false });
+    router.replace(key === 'tasks' ? '/sales/desk' : `/sales/desk?tab=${key}`, { scroll: false });
   };
 
   // A briefing line points at a section on this tab ("#drafts") or another tab ("tab:pool").
@@ -461,17 +373,6 @@ function MyDeskPage() {
   }, [whose]);
   useEffect(() => { if (ready) load(); }, [ready, load]);
 
-  async function act(id, body) {
-    const res = await fetch(`/api/sales/desk/${id}`, {
-      method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
-    }).catch(() => null);
-    const d = await res?.json().catch(() => ({}));
-    if (!res?.ok) { setErr(d?.error || 'Could not save.'); return; }
-    setErr('');
-    await load();
-    window.dispatchEvent(new Event(DESK_CHANGED));
-  }
-
   const changed = async text => {
     if (text) setFlash(text);
     await load();
@@ -489,8 +390,6 @@ function MyDeskPage() {
   const myId = desk.viewerId || desk.userId;
   const everyone = desk.scope === 'everyone';
   const lookOnly = !everyone && desk.userId !== myId;
-  // Mine: my own desk, or in "Everyone" the rows tagged with my id. Anything else is look-only.
-  const isLocked = a => (everyone ? a.ownerId !== myId : lookOnly);
   const steps = desk.groups.reduce((n, g) => n + (g.key === 'SNOOZED' || g.key === 'PAUSED' ? 0 : g.items.length), 0);
   const quiet = steps === 0 && desk.drafts.length === 0 && checkIns.length === 0 && !notesToFinish && !desk.meetings?.length && !desk.noOwner?.length
     && !desk.budgetsNotSent?.length;
@@ -502,7 +401,7 @@ function MyDeskPage() {
       <TabBar tab={tab} onPick={setTab} counts={{ pool: poolCount }} />
       <div className="max-w-2xl mx-auto">
       <h1 className={H1}>My Desk</h1>
-      <p className="text-xs text-slate-500 mb-4">Everything waiting on you: reminders, emails to review, check-ins and notes to finish.</p>
+      <p className="text-xs text-slate-500 mb-4">Everything waiting on you: tasks, emails to review, check-ins and notes to finish.</p>
 
       {tab === 'intel' && <IntelClient />}
 
@@ -525,9 +424,9 @@ function MyDeskPage() {
         </>
       )}
 
-      {tab === 'todos' && (<>
+      {tab === 'tasks' && (<>
       <WhosePicker whose={whose} salesPeople={desk.salesPeople || []} filters={filters} filterCount={countFilters(filters, FILTER_FIELDS)}
-        open={filterOpen} onToggle={() => setFilterOpen(o => !o)} onClear={clearFilters} onChange={setFilter} sort={sort} onSort={setSort} steps={steps} />
+        open={filterOpen} onToggle={() => setFilterOpen(o => !o)} onClear={clearFilters} onChange={setFilter} steps={steps} />
       {lookOnly && <p className="text-xs text-slate-500 mb-3">You are looking at {desk.ownerName || 'someone else'}&apos;s desk. Only the owner can change these.</p>}
       {!lookOnly && !everyone && <MorningBriefing onGo={goTo} />}
       {err && <p className="text-sm text-red-600 mb-3">{err}</p>}
@@ -573,20 +472,12 @@ function MyDeskPage() {
         </Section>
       )}
 
-      {desk.groups.map(g => {
-        const folded = (g.key === 'SNOOZED' || g.key === 'PAUSED') && !openGroups[g.key];
-        return (
-          <Section key={g.key} id={`group-${g.key}`} title={g.label} count={g.items.length}
-            right={(g.key === 'SNOOZED' || g.key === 'PAUSED') && (
-              <button type="button" onClick={() => setOpenGroups(o => ({ ...o, [g.key]: !o[g.key] }))} className="text-xs font-semibold text-slate-600 hover:underline">
-                {folded ? 'Show' : 'Hide'}
-              </button>
-            )}>
-            {!folded && <GroupRows items={g.items} group={g.key} onAct={act} isLocked={isLocked} showOwner={everyone} sort={sort} />}
-          </Section>
-        );
-      })}
+      </>)}
+      </div>
 
+      {tab === 'tasks' && <div className="max-w-6xl mx-auto"><TasksTab whose={whose} onChanged={() => changed()} /></div>}
+
+      {tab === 'tasks' && (<div className="max-w-2xl mx-auto mt-6">
       {desk.drafts.length > 0 && (
         <Section id="drafts" title="Emails to review" count={desk.drafts.length}>
           <p className="text-xs text-slate-500 mb-2">Nothing sends on its own. Edit, copy, or dismiss. Check-in emails are written the day before each one comes due.</p>
@@ -620,8 +511,7 @@ function MyDeskPage() {
           <ul className="space-y-2">{desk.noOwner.slice(0, 10).map(c => <NoOwnerRow key={c.id} c={c} onDone={changed} />)}</ul>
         </Section>
       )}
-      </>)}
-      </div>
+      </div>)}
     </div>
   );
 }

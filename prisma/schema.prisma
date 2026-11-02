@@ -52,6 +52,8 @@ model User {
   pushedBidMatrices          DesignBidMatrix[]            @relation("BidPusher")
   tasksCreated               Task[]                       @relation("TaskCreator")
   tasksAssigned              Task[]                       @relation("TaskAssignee")
+  salesTasksCreated          SalesTask[]                  @relation("SalesTaskCreator")
+  salesTasksAssigned         SalesTask[]                  @relation("SalesTaskAssignee")
   dashboards                 Dashboard[]                  @relation("DashboardCreator")
   ownedDashboards            Dashboard[]                  @relation("DashboardOwner")
   dashboardShares            DashboardShare[]             @relation("DashboardSharedWith")
@@ -348,6 +350,7 @@ model Client {
   standardFixtures     ClientStandardFixture[]
   productOptions       ClientProductOption[]
   noteLinks            NoteClient[]
+  salesTaskLinks       SalesTaskClient[]
   standardsShare       ClientStandardsShare?
   playbook             ClientPlaybook?
   paymentTerms         String? // NET30 | NET45 | NET60 | OTHER — shown on Overview (moved off Playbook)
@@ -574,6 +577,7 @@ model Contact {
   fieldSuggestions    ContactFieldSuggestion[]
   emailLinks          EmailContactLink[]
   noteLinks           NoteContact[]
+  salesTaskLinks      SalesTaskContact[]
   employment          ContactEmployment[]
   personalFacts       ContactPersonalFact[]
   botDrafts           BotDraft[]          @relation("ContactBotDrafts")
@@ -783,6 +787,7 @@ model Project {
   chatConversations    ChatConversation[]
   botDrafts            BotDraft[]                  @relation("ProjectBotDrafts")
   noteLinks            NoteProject[]               @relation("ProjectNoteLinks")
+  salesTaskLinks       SalesTaskProject[]
   fixtureSchedules     FixtureSchedule[]
   designBidMatrices    DesignBidMatrix[]
   bidLevelings         BidLeveling[]        @relation("ProjectBidLevelings")
@@ -1530,6 +1535,7 @@ model NoteAction {
   // gets it and its reminders (Mike 9-27: "Both if no one chosen as lead").
   leadUserId         String?
   lead               User?         @relation("NoteActionLead", fields: [leadUserId], references: [id], onDelete: SetNull)
+  salesTask          SalesTask?
 
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
@@ -5493,4 +5499,95 @@ model CampaignClick {
 
   @@index([sendId])
   @@index([blockId])
+}
+
+// Sales tasks on My Desk (0159, Mike 11-1). Two kinds in one table: tasks a
+// person makes (noteActionId null) and one row per sales note step. For a step
+// the NoteAction stays the truth for wording, due date and done; this row adds
+// the board column, details, links and tags. The Admin `Task` model is separate.
+model SalesTask {
+  id           String      @id @default(cuid())
+  title        String
+  detail       String?
+  status       String      @default("TODO") // TODO | DOING | WAITING | DONE
+  dueDate      DateTime?
+  assigneeId   String?
+  assignee     User?       @relation("SalesTaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  createdById  String?
+  createdBy    User?       @relation("SalesTaskCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  noteActionId String?     @unique
+  noteAction   NoteAction? @relation(fields: [noteActionId], references: [id], onDelete: SetNull)
+  doneAt       DateTime?
+  // Archived, never deleted (archive.js).
+  archivedAt   DateTime?
+  archivedById String?
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  clients  SalesTaskClient[]
+  contacts SalesTaskContact[]
+  projects SalesTaskProject[]
+  tags     SalesTaskTagLink[]
+
+  @@index([assigneeId, status])
+  @@index([createdById])
+  @@index([status])
+}
+
+model SalesTaskClient {
+  id        String    @id @default(cuid())
+  taskId    String
+  task      SalesTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  clientId  String
+  client    Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now())
+
+  @@unique([taskId, clientId])
+  @@index([clientId])
+}
+
+model SalesTaskContact {
+  id        String    @id @default(cuid())
+  taskId    String
+  task      SalesTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  contactId String
+  contact   Contact   @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now())
+
+  @@unique([taskId, contactId])
+  @@index([contactId])
+}
+
+model SalesTaskProject {
+  id        String    @id @default(cuid())
+  taskId    String
+  task      SalesTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  projectId String
+  project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdAt DateTime  @default(now())
+
+  @@unique([taskId, projectId])
+  @@index([projectId])
+}
+
+// Custom tags for sales tasks, company wide. Anyone adds one while tagging a task.
+model SalesTaskTag {
+  id          String             @id @default(cuid())
+  name        String             @unique
+  createdById String?
+  archivedAt  DateTime?
+  createdAt   DateTime           @default(now())
+  links       SalesTaskTagLink[]
+}
+
+model SalesTaskTagLink {
+  id        String       @id @default(cuid())
+  taskId    String
+  task      SalesTask    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  tagId     String
+  tag       SalesTaskTag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  createdAt DateTime     @default(now())
+
+  @@unique([taskId, tagId])
+  @@index([tagId])
 }

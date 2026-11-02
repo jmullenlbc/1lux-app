@@ -27,7 +27,7 @@ test('facts come in urgency order, each with a place to go', () => {
   assert.deepEqual(facts.map(f => f.ref), ['F1', 'F2', 'F3', 'F4', 'F5', 'F6', 'F7']);
   assert.equal(facts.find(f => f.section === 'overdue').go, '#group-OVERDUE');
   assert.equal(facts.find(f => f.section === 'pool').go, 'tab:pool');
-  assert.match(facts.find(f => f.section === 'overdue').text, /Overdue steps: 2\. Call about the lobby, Jane Roe at Acme Dev \(due Oct 20\)/);
+  assert.match(facts.find(f => f.section === 'overdue').text, /Overdue tasks: 2\. Call about the lobby, Jane Roe at Acme Dev \(due Oct 20\)/);
   assert.match(facts.find(f => f.section === 'checkIns').text, /Sam Poe at Poe GC, 12 days past due/);
   assert.match(facts[0].text, /Lunch with Acme at 12:00 PM/);
 });
@@ -70,7 +70,7 @@ test('reply checker caps the lines and survives junk', () => {
 test('plain lines stand in when the writer fails', () => {
   const lines = plainBriefing(briefingFacts(desk()));
   assert.equal(lines.length, MAX_LINES);
-  assert.match(lines[0].text, /^2 steps are overdue, starting with Call about the lobby/);
+  assert.match(lines[0].text, /^2 tasks are overdue, starting with Call about the lobby/);
   assert.equal(lines[0].go, '#group-OVERDUE');
 });
 

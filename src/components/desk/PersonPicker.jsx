@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 // Find someone in the CRM, or add them on the spot. Phone first: 16px text so
 // the phone does not zoom, and big rows to tap. Used by the Quick Note and the
 // "not in the system" flags on My Desk.
-export default function PersonPicker({ onPick, start = {}, skipIds = [], autoFocus = false, addOnly = false }) {
+export default function PersonPicker({ onPick, start = {}, skipIds = [], autoFocus = false, addOnly = false, placeholder = 'Who did you meet? Type a name' }) {
   const [q, setQ] = useState(start.name || '');
   const [results, setResults] = useState([]);
   const [adding, setAdding] = useState(addOnly);
@@ -61,7 +61,7 @@ export default function PersonPicker({ onPick, start = {}, skipIds = [], autoFoc
 
   return (
     <div>
-      <input autoFocus={autoFocus} value={q} onChange={e => setQ(e.target.value)} placeholder="Who did you meet? Type a name" className={input} />
+      <input autoFocus={autoFocus} value={q} onChange={e => setQ(e.target.value)} placeholder={placeholder} className={input} />
       {results.length > 0 && (
         <ul className="mt-1 rounded-lg border border-slate-200 bg-white divide-y divide-slate-100 overflow-hidden">
           {results.map(c => (

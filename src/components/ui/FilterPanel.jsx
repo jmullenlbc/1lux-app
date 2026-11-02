@@ -49,7 +49,7 @@ export function FilterToolbar({ count = 0, open, onToggle, onClear, shown, total
         </button>
       )}
       {children}
-      {right ? <div className="ml-auto flex items-center gap-2">{right}</div> : null}
+      {right ? <div className="ml-auto flex items-center justify-end gap-2 max-sm:flex-1 max-sm:min-w-[10rem] max-sm:[&>input]:w-full">{right}</div> : null}
     </div>
   );
 }

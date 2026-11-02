@@ -6,6 +6,7 @@ import { currentContract } from '@/lib/contractBalance';
 import { sumCents } from '@/lib/money';
 import { QUIET_AFTER_DAYS, normalizeLayout } from '@/lib/meeting/cards';
 import { isWaitExecutor } from '@/lib/followUp/watch';
+import { tasksDueThisWeek } from '@/lib/desk/tasksServer';
 
 // Web budget projects (src/lib/intake/conceptualProjects.js, CONCEPTUAL_SERVICE_TYPE).
 // Spelled out here so this route does not pull in the whole intake module.
@@ -440,6 +441,8 @@ export async function GET(request) {
       .filter(Boolean)
       .sort((a, b) => b.silentFor - a.silentFor);
   }
+
+  if (want('tasksDueThisWeek')) out.tasksDueThisWeek = await tasksDueThisWeek(new Date());
 
   return NextResponse.json({
     ...out,

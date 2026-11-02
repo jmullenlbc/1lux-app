@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { DESK_CHANGED } from '@/lib/desk/desk';
 
-/** The sidebar number on My Desk: late + today reminders + emails to review. */
+/** The sidebar number on My Desk: late + today tasks + emails to review. */
 export function useDeskCount(pathname, enabled = true) {
   const [n, setN] = useState(0);
   useEffect(() => {
