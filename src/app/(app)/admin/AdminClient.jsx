@@ -374,6 +374,8 @@ function EditUserModal({ user, currentUserRole, projects, onSaved, onClose }) {
 
   const [form, setForm] = useState({
     name:              user.name || '',
+    homeCity:          user.homeCity || '',
+    homeState:         user.homeState || '',
     role:              user.role,
     departments:       user.departments || [],
     mustChangePassword: user.mustChangePassword,
@@ -403,6 +405,8 @@ function EditUserModal({ user, currentUserRole, projects, onSaved, onClose }) {
     try {
       const body = {
         name:              form.name,
+        homeCity:          form.homeCity,
+        homeState:         form.homeState,
         role:              form.role,
         departments:       form.departments,
         mustChangePassword: form.mustChangePassword,
@@ -452,6 +456,19 @@ function EditUserModal({ user, currentUserRole, projects, onSaved, onClose }) {
                   <label className="block text-xs font-semibold text-slate-600 mb-1">Full Name</label>
                   <input type="text" value={form.name} onChange={e => set('name', e.target.value)}
                     className={INPUT} />
+                </div>
+
+                <div className="grid grid-cols-[1fr_5rem] gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">Home city</label>
+                    <input type="text" value={form.homeCity} onChange={e => set('homeCity', e.target.value)}
+                      placeholder="Denver" className={INPUT} />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-600 mb-1">State</label>
+                    <input type="text" maxLength={2} value={form.homeState} onChange={e => set('homeState', e.target.value.toUpperCase())}
+                      placeholder="CO" className={INPUT} />
+                  </div>
                 </div>
 
                 <div>

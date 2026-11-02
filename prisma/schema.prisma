@@ -30,9 +30,13 @@ model User {
   // here for months while the column did not exist, so every choice was lost.
   // Added by migration 0084.
   notificationPrefs          String? // JSON: { [notificationType]: boolean }
+  // Where a salesperson travels from (0160, Mike 11-1).
+  homeCity                   String?
+  homeState                  String?
   createdAt                  DateTime                     @default(now())
   updatedAt                  DateTime                     @updatedAt
   invitedById                String?
+  conferenceEditionsOwned    ConferenceEdition[]          @relation("ConferenceEditionOwner")
   projects                   Project[]
   shipPublishes              ShipSchedulePublish[]        @relation("ShipPublisher")
   clients                    Client[]
@@ -5590,4 +5594,145 @@ model SalesTaskTagLink {
 
   @@unique([taskId, tagId])
   @@index([tagId])
+}
+
+// Conference planner (0160, Mike 11-1). A series is the recurring event, an
+// edition is one dated running of it inside one plan year. Money is whole
+// cents. Scores are worked out from these rows, never stored.
+model ConferenceSeries {
+  id                   String                       @id @default(cuid())
+  archivedAt           DateTime?
+  archivedById         String?
+  slug                 String                       @unique
+  name                 String
+  organizer            String?
+  vertical             String // MULTIFAMILY | BTR | AFFORDABLE | SENIORS | STUDENT | LIGHTING_DESIGN
+  format               String? // DEAL_MAKING | EDUCATION | EXPO | MIXED
+  audience             String?
+  description          String?
+  url                  String?
+  accessRoute          String                       @default("TICKET") // TICKET | MEMBERS_ONLY | SPONSOR_ONLY | EXHIBIT_ONLY | BARRED
+  supplierEligible     Boolean                      @default(true) // false = Tier X
+  regCostPerCompany    Boolean                      @default(false)
+  membershipRequired   String?
+  supplierRestrictions String?
+  buyerDensity         Int                          @default(3)
+  supplierAccess       Int                          @default(3)
+  createdAt            DateTime                     @default(now())
+  updatedAt            DateTime                     @updatedAt
+  tags                 ConferenceSeriesTag[]
+  editions             ConferenceEdition[]
+  memberships          ConferenceMembershipSeries[]
+
+  @@index([vertical])
+}
+
+model ConferenceSeriesTag {
+  seriesId String
+  series   ConferenceSeries @relation(fields: [seriesId], references: [id])
+  tag      String
+
+  @@id([seriesId, tag])
+  @@index([tag])
+}
+
+model ConferenceEdition {
+  id                     String                    @id @default(cuid())
+  archivedAt             DateTime?
+  archivedById           String?
+  key                    String                    @unique
+  seriesId               String
+  series                 ConferenceSeries          @relation(fields: [seriesId], references: [id])
+  planYear               Int
+  year                   Int
+  name                   String
+  startDate              DateTime? // day only, noon UTC
+  endDate                DateTime?
+  dateStatus             String                    @default("ESTIMATED") // CONFIRMED | ESTIMATED
+  priorDates             String?
+  city                   String?
+  state                  String?
+  region                 String?
+  scope                  String                    @default("NATIONAL") // COLORADO | NATIONAL | REGIONAL
+  isLocal                Boolean                   @default(false)
+  attendance             Int?
+  regCostCents           Int?
+  regCostBasis           String                    @default("ESTIMATED") // PUBLISHED | INDICATIVE | ESTIMATED
+  regCostDetail          String?
+  earlyBirdDeadline      DateTime?
+  sponsorMinText         String?
+  hotelRateOverrideCents Int?
+  airfareOverrideCents   Int?
+  researchNotes          String?
+  addedFrom              String?
+  tierOverride           String?
+  includeOverride        Boolean?
+  headcountOverride      Int?
+  status                 String                    @default("CONSIDERING") // CONSIDERING | PLANNED | REGISTERED | ATTENDED | SKIPPED | CANCELLED
+  ownerId                String?
+  owner                  User?                     @relation("ConferenceEditionOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  planNotes              String?
+  lastVerifiedAt         DateTime?
+  createdAt              DateTime                  @default(now())
+  updatedAt              DateTime                  @updatedAt
+  sources                ConferenceEditionSource[]
+
+  @@index([planYear, startDate])
+  @@index([seriesId])
+  @@index([ownerId])
+}
+
+model ConferenceEditionSource {
+  id        String            @id @default(cuid())
+  editionId String
+  edition   ConferenceEdition @relation(fields: [editionId], references: [id])
+  url       String
+
+  @@unique([editionId, url])
+}
+
+model ConferencePlan {
+  id             String                  @id @default(cuid())
+  year           Int                     @unique
+  budgetCapCents Int?
+  notes          String?
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
+  settings       ConferencePlanSetting[]
+}
+
+// One row per changed setting, like "weights.reach" or "airfareByState.CO".
+// Anything without a row uses the default in src/lib/conferences/engine.js.
+model ConferencePlanSetting {
+  planId String
+  plan   ConferencePlan @relation(fields: [planId], references: [id])
+  key    String
+  value  Float
+
+  @@id([planId, key])
+}
+
+model ConferenceMembership {
+  id              String                       @id @default(cuid())
+  year            Int
+  orgName         String
+  annualDuesCents Int?
+  include         String                       @default("N") // Y | N | AUTO
+  renewalDate     DateTime?
+  notes           String?
+  createdAt       DateTime                     @default(now())
+  updatedAt       DateTime                     @updatedAt
+  unlocks         ConferenceMembershipSeries[]
+
+  @@unique([year, orgName])
+}
+
+model ConferenceMembershipSeries {
+  membershipId String
+  membership   ConferenceMembership @relation(fields: [membershipId], references: [id])
+  seriesId     String
+  series       ConferenceSeries     @relation(fields: [seriesId], references: [id])
+
+  @@id([membershipId, seriesId])
+  @@index([seriesId])
 }

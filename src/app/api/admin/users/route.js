@@ -16,6 +16,8 @@ export async function GET(request) {
       id:                true,
       email:             true,
       name:              true,
+      homeCity:          true,
+      homeState:         true,
       role:              true,
       departments:       DEPARTMENTS_SELECT,
       permissions:       true,

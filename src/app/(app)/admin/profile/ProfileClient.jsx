@@ -282,7 +282,7 @@ export default function ProfileClient({ user }) {
     setSavingName(true);
     setNameMsg(null);
     try {
-      const res = await fetch('/api/admin/users/' + user.id, {
+      const res = await fetch('/api/user/preferences', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: name.trim() }),
@@ -294,6 +294,34 @@ export default function ProfileClient({ user }) {
       setNameMsg({ type: 'error', text: err.message });
     } finally {
       setSavingName(false);
+    }
+  }
+
+  // ── Home base ─────────────────────────────────────────────────────────────
+  const [home,       setHome]       = useState(null);
+  const [savingHome, setSavingHome] = useState(false);
+  const [homeMsg,    setHomeMsg]    = useState(null);
+
+  useEffect(() => {
+    fetch('/api/user/preferences').then(r => (r.ok ? r.json() : null))
+      .then(d => setHome({ homeCity: d?.homeCity || '', homeState: d?.homeState || '' })).catch(() => setHome({ homeCity: '', homeState: '' }));
+  }, []);
+
+  async function handleSaveHome() {
+    setSavingHome(true);
+    setHomeMsg(null);
+    try {
+      const res = await fetch('/api/user/preferences', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(home),
+      });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `Your home did not save on our server. Try again. (HTTP ${res.status})`);
+      setHomeMsg({ type: 'success', text: 'Home updated.' });
+    } catch (err) {
+      setHomeMsg({ type: 'error', text: err instanceof TypeError ? 'No signal reaching our server. Your home was not saved. Check your connection and try again.' : err.message });
+    } finally {
+      setSavingHome(false);
     }
   }
 
@@ -371,6 +399,45 @@ export default function ProfileClient({ user }) {
         {nameMsg && (
           <p className={`text-xs mt-2 ${nameMsg.type === 'error' ? 'text-red-500' : 'text-green-600'}`}>
             {nameMsg.text}
+          </p>
+        )}
+      </div>
+
+      {/* Home base */}
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5 mb-5">
+        <h2 className="text-sm font-semibold text-slate-700 mb-1">Home</h2>
+        <p className="text-xs text-slate-500 mb-4">Where your trips start from, for travel costs.</p>
+        <div className="flex gap-3">
+          <input
+            type="text"
+            aria-label="Home city"
+            value={home?.homeCity || ''}
+            disabled={!home}
+            onChange={e => setHome(h => ({ ...h, homeCity: e.target.value }))}
+            placeholder="Denver"
+            className="flex-1 min-w-0 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+          />
+          <input
+            type="text"
+            aria-label="Home state"
+            maxLength={2}
+            value={home?.homeState || ''}
+            disabled={!home}
+            onChange={e => setHome(h => ({ ...h, homeState: e.target.value.toUpperCase() }))}
+            placeholder="CO"
+            className="w-16 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+          />
+          <button
+            onClick={handleSaveHome}
+            disabled={savingHome || !home}
+            className="px-4 py-2 text-sm font-semibold rounded-lg bg-orange-500 hover:bg-orange-600 text-white transition-colors disabled:opacity-40"
+          >
+            {savingHome ? 'Saving…' : 'Save'}
+          </button>
+        </div>
+        {homeMsg && (
+          <p className={`text-xs mt-2 ${homeMsg.type === 'error' ? 'text-red-500' : 'text-green-600'}`}>
+            {homeMsg.text}
           </p>
         )}
       </div>

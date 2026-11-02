@@ -24,7 +24,7 @@ export async function PATCH(request, { params }) {
     return NextResponse.json({ error: 'Use account settings to modify your own account' }, { status: 400 });
   }
 
-  const { name, role, departments, permissions, mustChangePassword, isActive, newPassword } = await request.json();
+  const { name, role, departments, permissions, mustChangePassword, isActive, newPassword, homeCity, homeState } = await request.json();
 
   // Only the four real role names can be saved, this used to store any text it
   // was sent. A Company Admin can make someone an admin (Mike, 2026-09-14);
@@ -54,6 +54,8 @@ export async function PATCH(request, { params }) {
   if (permissions !== undefined)       data.permissions       = JSON.stringify(permissions);
   if (mustChangePassword !== undefined) data.mustChangePassword = mustChangePassword;
   if (isActive !== undefined)          data.isActive          = isActive;
+  if (homeCity !== undefined)          data.homeCity          = String(homeCity || '').trim() || null;
+  if (homeState !== undefined)         data.homeState         = String(homeState || '').trim().toUpperCase() || null;
   if (newPassword) {
     if (newPassword.length < 8) {
       return NextResponse.json({ error: 'Password must be at least 8 characters' }, { status: 400 });
@@ -93,6 +95,8 @@ export async function PATCH(request, { params }) {
     permissions:       updated.permissions,
     mustChangePassword: updated.mustChangePassword,
     isActive:          updated.isActive,
+    homeCity:          updated.homeCity,
+    homeState:         updated.homeState,
   });
 }
 

@@ -5,6 +5,26 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Events under Sales, home per salesperson, Expenses phone test] - November 2, 2026
+
+### Added
+- Events row under Sales with Library, Plan and Budget tabs and a page for each event, for 140 conferences. Migration 0160 adds eight conference tables and two home columns on the user.
+- Admin, Conference Load adds the 140 events. Pressing it twice is safe and never overwrites edits.
+- Plan shows Lean, Core and Full with the Core total $98,081.50, or $108,081.50 with NMHC. A test checks every row against the plan's scores and costs.
+- Excel export of the plan.
+- Archived events show on Plan with a Restore link.
+- Each person has a Home, city and state, on Admin user edit and on Profile.
+
+### Fixed
+- Saving your own name on Profile failed for everyone. It saves now.
+
+### Files
+- New: `prisma/migrations/0160_conference_planner/`, `src/lib/conferences/`, `src/app/api/conferences/`, `src/app/api/admin/conferences/load/`, `src/app/(app)/sales/events/`, `src/app/(app)/admin/conference-load/`, `src/components/events/eventsShared.jsx`, `scripts/tests/conference-engine.test.mjs`.
+- Changed: `prisma/schema.prisma`, `src/lib/archive.js`, `src/components/layout/Sidebar.jsx`, `src/components/ui/SectionTabs.jsx`, `src/app/(app)/admin/AdminClient.jsx`, `src/app/(app)/admin/profile/ProfileClient.jsx`, `src/app/api/admin/users/route.js`, `src/app/api/admin/users/[id]/route.js`, `src/app/api/user/preferences/route.js`, `scripts/verify.mjs`.
+- The Expenses phone test lives outside the repo. No app code changed for it. Its camera step now has Take a photo and Choose a photo.
+
+---
+
 ## [One Tasks list on My Desk, weekly meeting card and phone fixes] - November 1, 2026
 
 ### Added

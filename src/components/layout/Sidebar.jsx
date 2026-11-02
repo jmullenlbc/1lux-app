@@ -504,7 +504,7 @@ export default function Sidebar({ user }) {
                           startsWith('/admin/usage') || startsWith('/admin/agent-runs') ||
                           startsWith('/admin/mcp-keys') || startsWith('/admin/crm-import') ||
                           startsWith('/admin/sales-reps-import') || startsWith('/admin/offices') ||
-                          startsWith('/admin/calendar-import') || startsWith('/admin/job-loader');
+                          startsWith('/admin/calendar-import') || startsWith('/admin/job-loader') || startsWith('/admin/conference-load');
   const adminRelated    = at('/admin') || startsWith('/admin/intake');
 
   // ── Collapsible open states ───────────────────────────────────────────────────
@@ -621,6 +621,7 @@ export default function Sidebar({ user }) {
               <SubNavItem href="/crm/notes"      icon={<IconNotes />}           label="Sales Notes" expanded={expanded} badge={waitingDrafts} active={startsWith('/crm/notes')} />
               <SubNavItem href="/market-intel"      icon={<IconNews />}      label="Market Intelligence" expanded={expanded} active={startsWith('/market-intel')} />
               <SubNavItem href="/sales/docs"       icon={<IconFolderSm />}  label="Sales Docs"          expanded={expanded} active={startsWith('/sales/docs')} />
+              <SubNavItem href="/sales/events"     icon={<IconCalendarSm />} label="Events"              expanded={expanded} active={startsWith('/sales/events')} />
               <SubNavItem href="/sales/activity"   icon={<IconBarChart />}  label="Sales Activity"      expanded={expanded} active={startsWith('/sales/activity')} />
               <SubNavItem href="/sales/automation" icon={<IconSparkles />}  label="Sales Automation"    expanded={expanded} active={startsWith('/sales/automation')} />
               <SubNavItem href="/sales/proposals"  icon={<IconDoc />}      label="Proposals"           expanded={expanded} active={startsWith('/sales/proposals')} />
@@ -697,6 +698,7 @@ export default function Sidebar({ user }) {
                 {isIlcAdmin && <SubNavItem href="/admin/sales-reps-import" icon={<IconUsers />} label="Sales Rep Upload" expanded={expanded} active={startsWith('/admin/sales-reps-import')} />}
                 {isIlcAdmin && <SubNavItem href="/admin/calendar-import" icon={<IconCalendarSm />} label="Calendar Upload" expanded={expanded} active={startsWith('/admin/calendar-import')} />}
                 {isIlcAdmin && <SubNavItem href="/admin/job-loader" icon={<IconFolderSm />} label="Job Loader" expanded={expanded} active={startsWith('/admin/job-loader')} />}
+                  {isIlcAdmin && <SubNavItem href="/admin/conference-load" icon={<IconCalendarSm />} label="Conference Load" expanded={expanded} active={startsWith('/admin/conference-load')} />}
                 {isIlcAdmin && <SubNavItem href="/admin/offices" icon={<IconUsers />} label="Our Offices" expanded={expanded} active={startsWith('/admin/offices')} />}
               </div>
             )}

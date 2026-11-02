@@ -27,8 +27,8 @@
 
 // Sales expenses joined 2026-10-09 (migration 0129): archived from the
 // Expenses tab, auto-hidden like the rest.
-// Sales tasks joined 2026-11-01 (migration 0159).
-export const ARCHIVABLE = ['client', 'project', 'contact', 'note', 'salesExpense', 'salesTask'];
+// Sales tasks joined 2026-11-01 (migration 0159), conferences the same day (0160).
+export const ARCHIVABLE = ['client', 'project', 'contact', 'note', 'salesExpense', 'salesTask', 'conferenceSeries', 'conferenceEdition'];
 export const ARCHIVABLE_DOCUMENTS = ['projectFile', 'drawingSubmission', 'manufacturerProduct', 'designBidMatrix'];
 
 // Records that may never be deleted through the app's database client, even by
