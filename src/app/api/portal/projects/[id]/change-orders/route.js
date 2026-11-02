@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requirePortalAuth } from '@/lib/portalAuth';
 import { prisma } from '@/lib/db';
-import { getProjectRates, calcCOTotal, CO_OPTION_MONEY } from '@/lib/changeOrderRates';
+import { getProjectRates, calcCOTotal, CO_OPTION_MONEY, CO_LINE_MONEY_SELECT } from '@/lib/changeOrderRates';
 
 export async function GET(req, { params }) {
   const { portalUser, error } = await requirePortalAuth();
@@ -28,7 +28,7 @@ export async function GET(req, { params }) {
         select: {
           label: true, isSelected: true, ...CO_OPTION_MONEY,
           lineItems: {
-            select: { id: true, qty: true, cnUnitPrice: true, isOptionRow: true, parentLineItemId: true, isGroupSelected: true },
+            select: CO_LINE_MONEY_SELECT,
           },
         },
       },

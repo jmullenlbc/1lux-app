@@ -12,7 +12,7 @@ const NO_PROJECT = () => NextResponse.json({ error: 'That project is not in the 
 export async function GET(request, { params }) {
   const { error } = await requireStaff(request);
   if (error) return error;
-  const state = await rfqState(params.id);
+  const state = await rfqState(params.id, { coId: new URL(request.url).searchParams.get('coId') });
   if (!state) return NO_PROJECT();
   return NextResponse.json(state);
 }
@@ -80,12 +80,15 @@ export async function POST(request, { params }) {
   }
 
   if (body.action === 'send') {
-    const state = await rfqState(projectId);
+    const coId = body.coId || null;
+    const state = await rfqState(projectId, { coId });
     if (!state) return NO_PROJECT();
     const group = state.groups.find((g) => g.key === body.groupKey);
     if (!group) return NextResponse.json({ error: 'That rep has no lines on this matrix any more. Nothing was sent. Reload the page. (RFQ_NO_GROUP)' }, { status: 400 });
     if (group.problems.length) return NextResponse.json({ error: `${group.problems.join(' ')} Nothing was sent. (RFQ_NOT_READY)` }, { status: 400 });
-    const res = await sendRfq({ projectId, group, lineIds: body.lineIds, notes: body.notes, officeId: state.office?.id, user, revisesId: body.revisesId || null });
+    const co = state.changeOrder;
+    const notes = co ? [`Change order ${co.coNumber}${co.title ? `: ${co.title}` : ''}`, body.notes].filter(Boolean).join('. ') : body.notes;
+    const res = await sendRfq({ projectId, group, lineIds: body.lineIds, notes, officeId: state.office?.id, user, revisesId: body.revisesId || null, coId });
     if (res.error) return NextResponse.json({ error: res.error }, { status: 400 });
     const info = {
       number: res.rfq.number, familyNumber: res.rfq.familyNumber, version: res.rfq.version, projectName: state.project.name,
@@ -94,7 +97,7 @@ export async function POST(request, { params }) {
     return NextResponse.json({
       rfq: res.rfq,
       email: { to: res.rfq.sentTo, subject: emailSubject(info), body: emailBody(info) },
-      state: await rfqState(projectId),
+      state: await rfqState(projectId, { coId }),
     }, { status: 201 });
   }
 

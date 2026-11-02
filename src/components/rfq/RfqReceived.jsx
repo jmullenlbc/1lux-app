@@ -238,7 +238,7 @@ function QuoteFacts({ projectId, quote, onChanged }) {
   );
 }
 
-export default function RfqReceived({ projectId, rfqs, onChanged, lines = [], onState }) {
+export default function RfqReceived({ projectId, rfqs, onChanged, lines = [], onState, forCo = false }) {
   const mfrIdByName = Object.fromEntries(lines.filter((l) => l.manufacturerId).map((l) => [nameKey(l.manufacturer), l.manufacturerId]));
   const [data, setData] = useState(null); // { quotes, rfqLines, rollup }
   const [options, setOptions] = useState({}); // quoteLineId -> best matches, from this visit's reads
@@ -259,7 +259,7 @@ export default function RfqReceived({ projectId, rfqs, onChanged, lines = [], on
     const d = await rfqApi(`/api/projects/${projectId}/rfqs/quotes`, {
       method: 'POST', what: 'The quote',
       body: {
-        rfqId: rfqId || null, fileId: read.fileId || null, fileName: read.fileName || 'Pasted quote', quoteNumber: read.quoteNumber || null,
+        rfqId: chosenRfq || null, fileId: read.fileId || null, fileName: read.fileName || 'Pasted quote', quoteNumber: read.quoteNumber || null,
         fromName: read.bidderName || null, quoteDate: read.quoteDate || null, total: read.totals?.GRAND || null, lines: read.lines,
         expiresAt: read.expiresAt || null, paymentTerms: read.paymentTerms || null, fob: read.fob || null, revisionNote: read.revisionNote || null,
         leadTime: read.leadTime || null, notes: read.notesRaw || null, totals: read.totals, freight: read.freight, terms: read.terms,
@@ -280,20 +280,23 @@ export default function RfqReceived({ projectId, rfqs, onChanged, lines = [], on
   }
 
   const sent = rfqs.filter((r) => r.isLatest && (r.status === 'SENT' || r.status === 'RECEIVED'));
+  const chosenRfq = rfqId || (forCo ? sent[0]?.id : '') || '';
+  // On a change order, only its own quotes and quotes not tied to an RFQ yet
+  const quotes = (data?.quotes || []).filter((q) => !forCo || !q.rfqId || rfqs.some((r) => r.id === q.rfqId));
   return (
     <WidgetFrame title="RFQ received" sub="Drop a rep's quote here. Lines matched at 75% or better are priced for you. Rows on one RFQ line add up, and a newer quote replaces an older one.">
       {sent.length > 0 && (
         <label className="flex flex-wrap items-center gap-2 text-sm text-slate-600">
           Which RFQ is this quote for?
-          <select className={SELECT} value={rfqId} onChange={(e) => setRfqId(e.target.value)}>
-            <option value="">Not sure, match against every RFQ on this job</option>
+          <select className={SELECT} value={chosenRfq} onChange={(e) => setRfqId(e.target.value)}>
+            {!forCo && <option value="">Not sure, match against every RFQ on this job</option>}
             {sent.map((r) => <option key={r.id} value={r.id}>{r.label} {r.toName}</option>)}
           </select>
         </label>
       )}
       <QuoteDrop projectId={projectId} known={(data?.quotes || []).map((q) => q.fileName)} onAdd={onAdd} busy={busy} error={err} pasteKey={readerKey} />
       {loadErr && <p className="text-sm text-red-600 mt-2">{loadErr}</p>}
-      {data?.rollup && data.quotes.length > 0 && (
+      {!forCo && data?.rollup && data.quotes.length > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3">
           <StatTile label="Budget Freight" value={money(data.rollup.budget)} />
           <StatTile label="Freight we expect to pay" value={money(data.rollup.expect)} />
@@ -301,9 +304,9 @@ export default function RfqReceived({ projectId, rfqs, onChanged, lines = [], on
           <StatTile label="Share based on real figures" value={data.rollup.realShare == null ? '' : `${cents(data.rollup.realShare * 100)}%`} />
         </div>
       )}
-      {data?.quotes.length > 0 && (
+      {quotes.length > 0 && (
         <div className="mt-5 space-y-4">
-          {data.quotes.map((q) => <QuoteLines key={q.id} projectId={projectId} quote={q} options={options} rfqLines={data.rfqLines} onChanged={changed} mfrIdByName={mfrIdByName} onState={onState} />)}
+          {quotes.map((q) => <QuoteLines key={q.id} projectId={projectId} quote={q} options={options} rfqLines={data.rfqLines} onChanged={changed} mfrIdByName={mfrIdByName} onState={onState} />)}
         </div>
       )}
     </WidgetFrame>

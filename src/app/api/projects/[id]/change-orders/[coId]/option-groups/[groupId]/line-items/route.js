@@ -2,11 +2,14 @@ import { NextResponse } from 'next/server';
 import { requirePermission } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { cents } from '@/lib/money';
+import { coProducts } from '@/lib/changeOrderProductStart';
+import { productKey } from '@/lib/changeOrderProducts';
 
 const OPTION_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
 // POST, add line item to group
-// body.action: 'add_line' | 'add_option'
+// body.action: 'add_line' | 'add_option' | 'add_fee'
+// body.fromType: on add_line, start the line from this product on the budget
 // body.afterItemId: insert after this item ID
 // body.parentLineItemId: for add_option, the root of the group
 export async function POST(req, { params }) {
@@ -35,6 +38,40 @@ export async function POST(req, { params }) {
   }
 
   const items = group.lineItems;
+
+  // Opens a row after a line. sortOrder is a whole number, so later rows move down one.
+  const openRowAfter = async (after) => {
+    await prisma.changeOrderLineItem.updateMany({
+      where: { optionGroupId: params.groupId, sortOrder: { gt: after.sortOrder } },
+      data:  { sortOrder: { increment: 1 } },
+    });
+    return after.sortOrder + 1;
+  };
+
+  // ── Action: add_fee, a restocking fee tied to the credit it came from ──────
+  if (action === 'add_fee') {
+    const credit = items.find(i => i.id === afterItemId);
+    if (!credit || !(credit.qty < 0)) {
+      return NextResponse.json({ error: 'A restocking fee sits on a credit, and this line is not one. Nothing was added. Give the line a negative quantity first, then add the fee. (CO_FEE_NEEDS_CREDIT)' }, { status: 400 });
+    }
+    const fee = await prisma.changeOrderLineItem.create({
+      data: {
+        optionGroupId:    params.groupId,
+        sortOrder:        await openRowAfter(credit),
+        fixtureType:      credit.fixtureType,
+        qty:              1,
+        manufacturer:     credit.manufacturer,
+        description:      'Restocking fee',
+        originalDN:       body.originalDN ?? null,
+        cnUnitPrice,
+        isFee:            true,
+        feeForLineId:     credit.id,
+        isOptionRow:      false,
+        isGroupSelected:  false,
+      },
+    });
+    return NextResponse.json(fee, { status: 201 });
+  }
 
   // ── Action: add_option, convert a line into Option A and add Option B ──────
   if (action === 'add_option') {
@@ -83,8 +120,26 @@ export async function POST(req, { params }) {
   // ── Action: add_line, add a plain new line after afterItemId ───────────────
   const afterItem = afterItemId ? items.find(i => i.id === afterItemId) : null;
   const nextOrder = afterItem
-    ? afterItem.sortOrder + 0.5
+    ? await openRowAfter(afterItem)
     : (items.length > 0 ? Math.max(...items.map(i => i.sortOrder)) + 1 : 0);
+
+  // Picked from the budget: the server reads where the product stands now, so Was and Now
+  // and the billing compare against the record, not against what the browser sent.
+  let fromBudget = {};
+  if (body.fromType) {
+    const product = (await coProducts(params.id)).find(p => p.key === productKey(body.fromType));
+    if (!product) {
+      return NextResponse.json({ error: `${body.fromType} is not on this job's budget or change orders, so no line was added. Reload the page and pick again. (CO_NO_PRODUCT)` }, { status: 400 });
+    }
+    const { qty, unitCost, manufacturer, partNumber, description } = product.now;
+    const margin = rates.marginPct != null && rates.marginPct < 1 ? rates.marginPct : null;
+    const sell = product.now.unitPrice ?? (unitCost != null && margin != null ? cents(unitCost / (1 - margin)) : 0);
+    fromBudget = {
+      fixtureType: product.type, qty: 0, manufacturer, partNumber, description, originalDN: unitCost, cnUnitPrice: sell,
+      fromBudget: true, wasFixtureType: product.type, wasQty: qty, wasUnitPrice: sell, wasUnitCost: unitCost,
+      wasManufacturer: manufacturer, wasPartNumber: partNumber, wasDescription: description, creditTaxPct: product.taxPct,
+    };
+  }
 
   const item = await prisma.changeOrderLineItem.create({
     data: {
@@ -102,6 +157,7 @@ export async function POST(req, { params }) {
       notes:            body.notes          || null,
       isOptionRow:      false,
       isGroupSelected:  false,
+      ...fromBudget,
     },
   });
 

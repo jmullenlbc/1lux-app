@@ -9,7 +9,7 @@ const versionOf = (r) => r.version || 1;
 const roundOf = (r) => r.roundNumber ?? versionOf(r); // an RFQ with no round counts by its version
 
 const fallbackKey = (l) => `${String(l.typeCode || '').trim().toUpperCase()}|${normName(l.manufacturer)}`;
-export const lineKey = (l) => l.peerReviewItemId || fallbackKey(l);
+export const lineKey = (l) => l.peerReviewItemId || l.changeOrderLineItemId || fallbackKey(l);
 
 const extOf = (e) => (e.price == null ? 0 : cents((Number(e.qty) || 0) * e.price));
 

@@ -3,6 +3,7 @@ import { requirePermission } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { INCLUDE_ARCHIVED } from '@/lib/archive';
 import { getProjectRates, chosenLineItems, ratesForCO, calcGroupFooter } from '@/lib/changeOrderRates';
+import { coLineUnit } from '@/lib/changeOrderTotals';
 
 // POST /api/projects/[id]/change-orders/[coId]/push-to-budget
 // Creates a new DesignBidMatrix version containing ONLY the CO's line items.
@@ -35,7 +36,8 @@ export async function POST(req, { params }) {
   if (!co.optionGroups.some(g => g.isSelected)) {
     return NextResponse.json({ error: 'No option is chosen on this change order, so nothing was pushed. Choose one and try again.' }, { status: 400 });
   }
-  const allLineItems = chosenLineItems(co);
+  // Fees and tax lines are dollars, not products, so they never become budget rows
+  const allLineItems = chosenLineItems(co).filter(li => !li.isFee && !li.isTaxLine);
   if (allLineItems.length === 0) {
     return NextResponse.json({ error: 'CO has no line items' }, { status: 400 });
   }
@@ -59,7 +61,7 @@ export async function POST(req, { params }) {
     qty:           li.qty == null ? null : Math.round(li.qty), // a credit stays minus, blank would print as 1
     qtyType:       'Unit',
     dnPerUnit:     li.originalDN   ?? null,
-    cnPerUnit:     li.cnUnitPrice  ?? null,
+    cnPerUnit:     coLineUnit(li)  ?? null,
     notes:         li.notes        || null,
     internalNotes: null,
     sortOrder:     idx,

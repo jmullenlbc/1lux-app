@@ -2,7 +2,9 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
-**2026-11-01** Mike's Claude - Push to Budget: credits keep their minus, and a version pushed from a change order is never read as the budget (`src/lib/budgetVersions.js`, `NOT_CO_VERSION`). Any new read of the newest budget must use it. No schema change. Next migration 0158.
+**2026-11-01** Mike's Claude - Migration 0158_co_line_kinds_tax_rfq (additive only). Adds to ChangeOrderLineItem: fromBudget, was* product snapshot, isFee, feeForLineId (self FK), isTaxLine, creditTaxPct. Adds to ChangeOrder: taxChangeOldPct, taxChangeNewPct, taxChangeDate, taxChangeBase. Adds Rfq.changeOrderId and RfqLine.changeOrderLineItemId (FKs, ON DELETE SET NULL). Why: Mike's 11-1 CO design (Was and Now, restocking fees, tax only COs, RFQs for COs). Data impact: none on existing rows; new columns are NULL or false, nothing removed or renamed. wasUnitCost is an internal buy price and must never reach clients.
+
+**2026-11-01** Mike's Claude - Push to Budget: credits keep their minus, and a version pushed from a change order is never read as the budget (`src/lib/budgetVersions.js`, `NOT_CO_VERSION`). Any new read of the newest budget must use it. No schema change. DEPLOYED 9ff8a99. Next migration 0158.
 
 ### 2026-11-01 (newest) - Mike's Claude - **DEPLOYED 1138515**, **0157_rfq_versions_quote_data** (additive only, 11-1). Adds RfqRound, RfqQuoteFreight, RfqQuoteTerm; Rfq familyNumber, version, addOn, roundId; quote wide fields on RfqQuote; lead time, stock, extended price and discontinued on RfqQuoteLine. Why: RFQ versions, job rounds and full quote data. Data impact: no column dropped or changed. Backfill sets family, version and round on every existing Rfq and creates one RfqRound per job and version reached.
 

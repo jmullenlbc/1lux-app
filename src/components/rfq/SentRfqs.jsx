@@ -11,7 +11,7 @@ import SentNotice from './SentNotice';
 // Sent RFQs on this project, one row per rep. Open a version to type DN prices
 // by hand, get the email again, or send the next version (RFQ0041 V3).
 
-function Detail({ projectId, summary, state, onSent, reload }) {
+function Detail({ projectId, summary, state, onSent, reload, coId }) {
   const [d, setD] = useState(null);
   const [prices, setPrices] = useState({});
   const [err, setErr] = useState('');
@@ -48,7 +48,7 @@ function Detail({ projectId, summary, state, onSent, reload }) {
     setBusy(true); setErr('');
     const r = await rfqApi(`/api/projects/${projectId}/rfqs`, {
       method: 'POST', what: 'The revision',
-      body: { action: 'send', groupKey: group.key, revisesId: summary.id },
+      body: { action: 'send', groupKey: group.key, revisesId: summary.id, coId },
     });
     setBusy(false);
     if (r.error) { setErr(r.error); return; }
@@ -112,7 +112,7 @@ function Detail({ projectId, summary, state, onSent, reload }) {
   );
 }
 
-export default function SentRfqs({ projectId, state, onSent, reload }) {
+export default function SentRfqs({ projectId, state, onSent, reload, coId }) {
   const [open, setOpen] = useState(null);
   const rfqs = state.rfqs;
   const families = rfqs.filter((r) => r.isLatest);
@@ -147,7 +147,7 @@ export default function SentRfqs({ projectId, state, onSent, reload }) {
                 ))}
               </div>
             )}
-            {shown && <Detail key={shown.id} projectId={projectId} summary={shown} state={state} onSent={onSent} reload={reload} />}
+            {shown && <Detail key={shown.id} projectId={projectId} summary={shown} state={state} onSent={onSent} reload={reload} coId={coId} />}
           </li>
           );
         })}

@@ -68,6 +68,35 @@ export const CO_OPTION_MONEY = {
   warehousingOverride: true, warehousingOverridePct: true,
 };
 
+/** The line columns the footer reads, for routes that pick their columns by hand. */
+export const CO_LINE_MONEY_SELECT = {
+  id: true, qty: true, cnUnitPrice: true, isOptionRow: true, parentLineItemId: true, isGroupSelected: true,
+  fromBudget: true, wasUnitPrice: true, wasFixtureType: true, wasManufacturer: true, wasPartNumber: true,
+  fixtureType: true, manufacturer: true, partNumber: true, creditTaxPct: true,
+};
+
+const sameText = (a, b) => String(a ?? '').trim().toLowerCase() === String(b ?? '').trim().toLowerCase();
+
+/** Picked from the budget, and the type, manufacturer or part is not what it was. */
+export const productChanged = (li) => !!li.fromBudget && (
+  !sameText(li.fixtureType, li.wasFixtureType) || !sameText(li.manufacturer, li.wasManufacturer) || !sameText(li.partNumber, li.wasPartNumber)
+);
+
+/** Picked from the budget, and the sell price is not what it was. */
+export const priceChanged = (li) => !!li.fromBudget && li.wasUnitPrice != null && cents(li.cnUnitPrice ?? 0) !== cents(li.wasUnitPrice);
+
+/**
+ * What one unit of a line bills. On a repriced or swapped budget line qty is the units it applies
+ * to, so it bills only the difference. A negative qty is a plain credit at the price on the line.
+ */
+export function coLineUnit(li) {
+  const price = li.cnUnitPrice ?? 0;
+  if (li.qty > 0 && (priceChanged(li) || productChanged(li))) return cents(price - (li.wasUnitPrice ?? 0));
+  return price;
+}
+
+export const coLineTotal = (li) => lineTotal(li.qty, coLineUnit(li));
+
 /**
  * Freight or warehousing on an option. Blank follows the job's rate, a typed
  * value replaces it, and 0 waives it. pct is the percent in force, null when
@@ -85,18 +114,22 @@ function feeFor(net, rate, override, overridePct) {
  * discounted figure. subtotal stays the undiscounted sum of the lines. Every
  * part is to the cent before the next step, so the footer adds up by hand.
  * option is the group's row, for its discount and overrides.
- * Returns { subtotal, discount, tax, freight, warehousing, total, freightPct, warehousingPct }
+ * Returns { subtotal, discount, tax, freight, warehousing, total, freightPct, warehousingPct, taxMixed }
  */
 export function calcGroupFooter(lineItems, rates, option = null) {
   const effective = resolveLineItems(lineItems);
-  const subtotal = sumCents(effective.map(li => lineTotal(li.qty, li.cnUnitPrice)));
+  const subtotal = sumCents(effective.map(coLineTotal));
   const discount = discountFor(option, subtotal);
   const net = cents(subtotal - discount);
-  const tax        = rates?.salesTaxPct   != null ? cents(net * rates.salesTaxPct)   : 0;
+  // A credit refunds the rate first charged; everything else takes the CO's rate
+  const credits = effective.filter(li => li.creditTaxPct != null && li.qty < 0 && li.creditTaxPct !== rates?.salesTaxPct);
+  const creditBase = sumCents(credits.map(coLineTotal));
+  const creditTax = sumCents(credits.map(li => cents(coLineTotal(li) * li.creditTaxPct)));
+  const tax        = rates?.salesTaxPct   != null ? sumCents([cents(cents(net - creditBase) * rates.salesTaxPct), creditTax]) : 0;
   const { amount: freight, pct: freightPct } = feeFor(net, rates?.freightPct, option?.freightOverride, option?.freightOverridePct);
   const { amount: warehousing, pct: warehousingPct } = feeFor(net, rates?.warehousingPct, option?.warehousingOverride, option?.warehousingOverridePct);
   const total      = sumCents([net, tax, freight, warehousing]);
-  return { subtotal, discount, tax, freight, warehousing, total, freightPct, warehousingPct };
+  return { subtotal, discount, tax, freight, warehousing, total, freightPct, warehousingPct, taxMixed: credits.length > 0 };
 }
 
 /**

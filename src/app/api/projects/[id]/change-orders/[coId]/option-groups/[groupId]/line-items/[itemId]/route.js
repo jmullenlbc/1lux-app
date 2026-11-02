@@ -42,6 +42,7 @@ export async function PATCH(req, { params }) {
       ...(body.notes          != null && { notes:          body.notes          || null }),
       ...(body.sortOrder      != null && { sortOrder:      looseInteger(body.sortOrder) }),
       ...(body.optionLabel    != null && { optionLabel:    body.optionLabel    || null }),
+      ...(body.creditTaxPct !== undefined && { creditTaxPct: looseNumberOrNull(body.creditTaxPct) }),
     },
   });
 
@@ -57,6 +58,8 @@ export async function DELETE(req, { params }) {
   if (!co || co.projectId !== params.id) return NextResponse.json({ error: 'Not found' }, { status: 404 });
   if (co.status === 'APPROVED') return NextResponse.json({ error: 'This change order is approved and locked. Nothing was changed. An admin can undo the approval.' }, { status: 403 });
 
+  // A restocking fee goes with the credit it came from
+  await prisma.changeOrderLineItem.deleteMany({ where: { feeForLineId: params.itemId } });
   await prisma.changeOrderLineItem.delete({ where: { id: params.itemId } });
   return NextResponse.json({ ok: true });
 }

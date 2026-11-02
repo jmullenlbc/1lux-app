@@ -1,6 +1,8 @@
 'use client';
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import ProductTimeline from './ProductTimeline';
+import TaxChangeButton from './TaxChangeButton';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function fmt(n, showSign = false) {
@@ -169,6 +171,7 @@ export default function ChangeOrdersTab({ projectId }) {
           )}
           New CO
         </button>}
+        {canEdit && <TaxChangeButton projectId={projectId} />}
       </div>
 
       {/* Empty state */}
@@ -258,6 +261,7 @@ export default function ChangeOrdersTab({ projectId }) {
           </table>
         </div>
       )}
+      <ProductTimeline projectId={projectId} />
     </div>
   );
 }

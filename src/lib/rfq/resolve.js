@@ -28,16 +28,37 @@ export function guessOffice(project, offices) {
 const lineMfrName = (it) => (it.propManufacturer || it.specManufacturer || '').trim();
 const linePart = (it) => (it.propModel || it.specModel || '').trim();
 
-/** Everything the RFQs tab shows for one project. */
-export async function rfqState(projectId) {
+/** A change order's lines in the shape the RFQ screens read. Fees and tax lines go to no rep. */
+async function coItems(projectId, coId) {
+  const co = await prisma.changeOrder.findFirst({
+    where: { id: coId, projectId },
+    select: { coNumber: true, title: true, optionGroups: { orderBy: { sortOrder: 'asc' }, select: { lineItems: { orderBy: { sortOrder: 'asc' } } } } },
+  });
+  if (!co) return null;
+  const items = co.optionGroups.flatMap((g) => g.lineItems)
+    .filter((li) => !li.isFee && !li.isTaxLine && (li.fixtureType || li.manufacturer || li.description))
+    .map((li) => ({
+      id: li.id, typeCode: li.fixtureType, description: li.description, propManufacturer: li.manufacturer, propModel: li.partNumber, qty: li.qty,
+      notes: [li.notes, li.qty < 0 ? 'Credit: please quote the credit and any restocking fee.' : ''].filter(Boolean).join(' '),
+    }));
+  return { coNumber: co.coNumber, title: co.title, items };
+}
+
+/**
+ * Everything the RFQs tab shows for one project. With coId, the same state for
+ * one change order: its lines, and only its RFQs. Rounds stay with the drawings.
+ */
+export async function rfqState(projectId, { coId = null } = {}) {
   const project = await prisma.project.findUnique({
     where: { id: projectId },
     select: { id: true, name: true, state: true, location: true, ourOfficeId: true, preconManager: { select: { name: true } } },
   });
   if (!project) return null;
-  const [offices, items, manufacturers, picks, rfqs, rounds] = await Promise.all([
+  const onCo = coId ? await coItems(projectId, coId) : null;
+  if (coId && !onCo) return null;
+  const [offices, items, manufacturers, picks, rfqRows, rounds] = await Promise.all([
     prisma.ourOffice.findMany({ where: { active: true }, orderBy: { sortOrder: 'asc' } }),
-    prisma.peerReviewItem.findMany({ where: { projectId }, orderBy: [{ section: 'asc' }, { sortOrder: 'asc' }, { createdAt: 'asc' }] }),
+    onCo ? onCo.items : prisma.peerReviewItem.findMany({ where: { projectId }, orderBy: [{ section: 'asc' }, { sortOrder: 'asc' }, { createdAt: 'asc' }] }),
     prisma.manufacturer.findMany({
       select: {
         id: true, name: true, buyDirect: true,
@@ -47,13 +68,14 @@ export async function rfqState(projectId) {
     }),
     prisma.projectRepPick.findMany({ where: { projectId } }),
     prisma.rfq.findMany({
-      where: { projectId },
+      where: { projectId, changeOrderId: coId },
       orderBy: { number: 'desc' },
       include: { lines: { orderBy: { sortOrder: 'asc' } }, salesRep: { select: { id: true, name: true } }, manufacturer: { select: { id: true, name: true } } },
     }),
     prisma.rfqRound.findMany({ where: { projectId }, orderBy: { number: 'asc' } }),
   ]);
   const { office, guessed } = guessOffice(project, offices);
+  const rfqs = coId ? rfqRows.map((r) => ({ ...r, lines: r.lines.map((l) => ({ ...l, peerReviewItemId: l.changeOrderLineItemId })) })) : rfqRows;
 
   const byId = new Map(manufacturers.map((m) => [m.id, m]));
   const byName = new Map();
@@ -134,6 +156,7 @@ export async function rfqState(projectId) {
 
   return {
     project: { id: project.id, name: project.name, pm: project.preconManager?.name || '' },
+    changeOrder: onCo ? { id: coId, coNumber: onCo.coNumber, title: onCo.title } : null,
     office, officeGuessed: guessed, offices, lines, groups: out, rounds: roundsFor(rounds, sends),
     rfqs: sends.map((r) => {
       const isLatest = newest.get(familyOf(r)).id === r.id;

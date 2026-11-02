@@ -3,14 +3,15 @@
 // writes the RFQ's history.
 import { prisma } from '@/lib/db';
 import { logHistory } from '@/lib/recordHistory';
-import { sumCents } from '@/lib/money';
+import { cents, sumCents } from '@/lib/money';
+import { getProjectRates } from '@/lib/changeOrderRates';
 import { needByFrom, rfqLabel, roundLabel, LINE_STATUS } from './format';
 import { familyOf } from './compare';
 
 /** The rep's newest send on this job. A loaded RFQ has no rep on it, so the one being revised starts the family. */
-async function lastInFamily(tx, { projectId, group, revisesId }) {
+async function lastInFamily(tx, { projectId, group, revisesId, coId = null }) {
   const rep = group.salesRepId ? { salesRepId: group.salesRepId } : { salesRepId: null, manufacturerId: group.manufacturerId };
-  const own = await tx.rfq.findFirst({ where: { projectId, ...rep }, orderBy: { number: 'desc' } });
+  const own = await tx.rfq.findFirst({ where: { projectId, changeOrderId: coId, ...rep }, orderBy: { number: 'desc' } });
   if (own || !revisesId) return own;
   return tx.rfq.findFirst({ where: { id: revisesId, projectId, salesRepId: null, manufacturerId: null } });
 }
@@ -60,7 +61,7 @@ export async function renameRound({ projectId, roundId, name, user }) {
  * replaces what they had; a later plain send adds lines to it. Returns the new
  * Rfq with lines.
  */
-export async function sendRfq({ projectId, group, lineIds, notes, officeId, user, revisesId = null }) {
+export async function sendRfq({ projectId, group, lineIds, notes, officeId, user, revisesId = null, coId = null }) {
   const pick = revisesId ? group.lines : lineIds?.length ? group.lines.filter((l) => lineIds.includes(l.id)) : group.lines.filter((l) => l.status === LINE_STATUS.DRAFT);
   if (!pick.length) return { error: 'Every line for this rep was already sent, so nothing was sent. Open the rep under Sent RFQs and press Send revision. (RFQ_NOTHING_TO_SEND)' };
   const sentAt = new Date();
@@ -69,30 +70,33 @@ export async function sendRfq({ projectId, group, lineIds, notes, officeId, user
       return await prisma.$transaction(async (tx) => {
         const top = await tx.rfq.aggregate({ _max: { number: true } });
         const number = (top._max.number || 0) + 1;
-        const prior = await lastInFamily(tx, { projectId, group, revisesId });
-        const round = await currentRound(tx, projectId);
+        const prior = await lastInFamily(tx, { projectId, group, revisesId, coId });
+        const round = coId ? null : await currentRound(tx, projectId); // a change order is not a drawing round
         const rfq = await tx.rfq.create({
           data: {
             number, projectId, salesRepId: group.salesRepId, manufacturerId: group.manufacturerId, officeId: officeId || null,
-            familyNumber: prior ? familyOf(prior) : number, version: prior ? (prior.version || 1) + 1 : 1, addOn: !!prior && !revisesId, roundId: round.id,
+            familyNumber: prior ? familyOf(prior) : number, version: prior ? (prior.version || 1) + 1 : 1, addOn: !!prior && !revisesId, roundId: round?.id ?? null, changeOrderId: coId,
             toName: group.toName, sentTo: group.quoteEmails.join(', '), needBy: needByFrom(sentAt), notes: String(notes || '').trim() || null,
             sentById: user?.id || null, sentByName: user?.name || user?.email || null, revisesId,
             lines: {
               create: pick.map((l, i) => ({
-                peerReviewItemId: l.id, typeCode: l.typeCode, manufacturer: l.manufacturer, partNumber: l.partNumber,
+                peerReviewItemId: coId ? null : l.id, changeOrderLineItemId: coId ? l.id : null,
+                typeCode: l.typeCode, manufacturer: l.manufacturer, partNumber: l.partNumber,
                 notes: l.notes, qty: l.qty, sortOrder: i,
               })),
             },
           },
           include: { lines: { orderBy: { sortOrder: 'asc' } } },
         });
-        await tx.peerReviewItem.updateMany({
-          where: { id: { in: pick.map((l) => l.id) } },
-          data: { repName: group.kind === 'DIRECT' ? `${group.toName} (direct)` : group.toName, repEmail: group.quoteEmails[0] || null, rfqStatus: LINE_STATUS.SENT },
-        });
+        if (!coId) {
+          await tx.peerReviewItem.updateMany({
+            where: { id: { in: pick.map((l) => l.id) } },
+            data: { repName: group.kind === 'DIRECT' ? `${group.toName} (direct)` : group.toName, repEmail: group.quoteEmails[0] || null, rfqStatus: LINE_STATUS.SENT },
+          });
+        }
         await logHistory({
           entityType: 'RFQ', entityId: rfq.id, action: 'SEND', user, db: tx,
-          note: `${rfqLabel(rfq)} sent to ${group.toName} (${rfq.sentTo || 'no email'}), ${pick.length} line${pick.length === 1 ? '' : 's'}${revisesId ? ', revision' : rfq.addOn ? ', added to what they had' : ''}, ${roundLabel(round)}`,
+          note: `${rfqLabel(rfq)} sent to ${group.toName} (${rfq.sentTo || 'no email'}), ${pick.length} line${pick.length === 1 ? '' : 's'}${revisesId ? ', revision' : rfq.addOn ? ', added to what they had' : ''}, ${coId ? 'change order' : roundLabel(round)}`,
         });
         return { rfq };
       });
@@ -103,7 +107,22 @@ export async function sendRfq({ projectId, group, lineIds, notes, officeId, user
   }
 }
 
-/** Put a DN price on one RFQ line and its matrix line. source AUTO | PICKED | TYPED. */
+/** A rep's price lands on the CO line while the CO is a draft. A credit keeps the sell the client paid. */
+async function priceCoLine(tx, lineId, price) {
+  const li = await tx.changeOrderLineItem.findUnique({
+    where: { id: lineId },
+    select: { qty: true, optionGroup: { select: { changeOrder: { select: { projectId: true, status: true } } } } },
+  });
+  const co = li?.optionGroup.changeOrder;
+  if (co?.status !== 'DRAFT') return;
+  const { marginPct } = await getProjectRates(co.projectId, tx);
+  await tx.changeOrderLineItem.update({
+    where: { id: lineId },
+    data: { originalDN: price, ...(li.qty >= 0 && { cnUnitPrice: cents(price / (1 - marginPct)) }) },
+  });
+}
+
+/** Put a DN price on one RFQ line and its matrix or change order line. source AUTO | PICKED | TYPED. */
 export async function priceLine(tx, { rfqLineId, price, source, confidence = null, user }) {
   const line = await tx.rfqLine.update({
     where: { id: rfqLineId },
@@ -115,6 +134,7 @@ export async function priceLine(tx, { rfqLineId, price, source, confidence = nul
       data: { propUnitDN: price, rfqStatus: price == null ? LINE_STATUS.SENT : LINE_STATUS.RECEIVED },
     }).catch(() => {}); // the matrix line may have been deleted since
   }
+  if (line.changeOrderLineItemId && price != null) await priceCoLine(tx, line.changeOrderLineItemId, price);
   await logHistory({
     entityType: 'RFQ', entityId: line.rfqId, action: 'RECEIVE', user, db: tx,
     changes: { [`${line.typeCode || 'Line'} DN price`]: [null, price] },

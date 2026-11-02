@@ -1,9 +1,11 @@
 'use client';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
-import { calcGroupFooter } from '@/lib/changeOrderTotals';
-import { cents, lineTotal } from '@/lib/money';
+import { calcGroupFooter, coLineTotal } from '@/lib/changeOrderTotals';
+import { cents } from '@/lib/money';
+import { creditAtOtherRate, lineNote } from '@/lib/changeOrderLineKind';
 import { HandOffNotice } from '@/components/rfq/SentNotice';
+import CoRfqPanel from '@/components/rfq/CoRfqPanel';
 
 // ── Manufacturer dropdown (fixed-position to escape overflow:hidden containers) ─
 function MfrDropdown({ value, manufacturers, readOnly, onSave }) {
@@ -177,8 +179,8 @@ function InlineCell({ value, onSave, placeholder = '—', type = 'text', classNa
 }
 
 // ── Line item row ─────────────────────────────────────────────────────────────
-function LineItemRow({ item, groupId, projectId, coId, manufacturers, rates, onUpdate, onDelete, onAddLine, onAddOption, onSelectOption, isLocked, canPick }) {
-  const totalCN = lineTotal(item.qty, item.cnUnitPrice);
+function LineItemRow({ item, groupId, projectId, coId, manufacturers, rates, onUpdate, onDelete, onAddLine, onAddOption, onAddFee, onSelectOption, isLocked, canPick }) {
+  const totalCN = coLineTotal(item);
   const [localCN, setLocalCN] = useState(item.cnUnitPrice ?? 0);
 
   useEffect(() => setLocalCN(item.cnUnitPrice ?? 0), [item.cnUnitPrice]);
@@ -234,6 +236,14 @@ function LineItemRow({ item, groupId, projectId, coId, manufacturers, rates, onU
               </svg>
               Opt
             </button>
+            {/* Restocking fee, only a credit can carry one */}
+            {item.qty < 0 && !item.isFee && (
+              <button onClick={() => onAddFee(item)}
+                className="h-5 flex items-center px-1 rounded text-[11px] font-bold text-slate-400 hover:text-orange-600 hover:bg-orange-50 transition-colors whitespace-nowrap"
+                title="Add a restocking fee to this credit">
+                Fee
+              </button>
+            )}
             {/* Delete */}
             <button onClick={() => onDelete(item.id)}
               className="w-5 h-5 flex items-center justify-center rounded text-slate-300 hover:text-red-400 hover:bg-red-50 transition-colors"
@@ -271,6 +281,16 @@ function LineItemRow({ item, groupId, projectId, coId, manufacturers, rates, onU
       {/* Description */}
       <td className="px-0.5 py-0.5">
         <InlineCell value={item.description} onSave={v => patch({ description: v })} placeholder="Description" readOnly={isLocked} />
+        {lineNote(item) && <p className="px-1.5 pb-0.5 text-[11px] text-slate-500">{lineNote(item)}</p>}
+        {item.fromBudget && item.qty < 0 && (
+          <div className="flex items-center gap-1 px-1.5 pb-0.5 text-[11px] text-slate-500">
+            <span>Credit tax rate %</span>
+            <span className="w-14">
+              <InlineCell value={item.creditTaxPct != null ? cents(item.creditTaxPct * 10000) / 100 : ''} type="number" onSave={v => patch({ creditTaxPct: v === '' ? null : parseFloat(v) / 100 })} placeholder="CO rate" readOnly={isLocked} />
+            </span>
+            {creditAtOtherRate(item, rates?.salesTaxPct) && <span>differs from this CO</span>}
+          </div>
+        )}
       </td>
       {/* Qty */}
       <td className="px-0.5 py-0.5 w-14">
@@ -427,7 +447,16 @@ function OptionGroupPanel({ group, co, projectId, coId, rates, manufacturers, on
   const [saving, setSaving] = useState(false);
 
   const lineItems = group.lineItems || [];
-  const { subtotal: totalCN, discount, tax, freight, warehousing, total: grandTotal, freightPct, warehousingPct } = calcGroupFooter(lineItems, rates, group);
+  const { subtotal: totalCN, discount, tax, freight, warehousing, total: grandTotal, freightPct, warehousingPct, taxMixed } = calcGroupFooter(lineItems, rates, group);
+  const [products, setProducts] = useState([]);
+
+  useEffect(() => {
+    if (isLocked) return;
+    fetch(`/api/projects/${projectId}/change-orders/products`)
+      .then(res => (res.ok ? res.json() : { products: [] }))
+      .then(d => setProducts(d.products || []))
+      .catch(() => {});
+  }, [projectId, isLocked]);
 
   async function apiPost(body) {
     const res = await fetch(`/api/projects/${projectId}/change-orders/${coId}/option-groups/${group.id}/line-items`, {
@@ -443,6 +472,26 @@ function OptionGroupPanel({ group, co, projectId, coId, rates, manufacturers, on
     setSaving(true);
     const item = await apiPost({ action: 'add_line', afterItemId: afterItem?.id });
     if (item) onGroupUpdated({ ...group, lineItems: [...lineItems, item] });
+    setSaving(false);
+  }
+
+  // Start a line from a product already on the job; the server fills in where it stands now
+  async function addFromBudget(fromType) {
+    if (!fromType) return;
+    setSaving(true);
+    const item = await apiPost({ action: 'add_line', fromType });
+    if (item) onGroupUpdated({ ...group, lineItems: [...lineItems, item] });
+    setSaving(false);
+  }
+
+  // A restocking fee sits right under the credit it came from
+  async function addFeeFor(credit) {
+    setSaving(true);
+    const fee = await apiPost({ action: 'add_fee', afterItemId: credit.id });
+    if (fee) {
+      const at = lineItems.findIndex(li => li.id === credit.id);
+      onGroupUpdated({ ...group, lineItems: [...lineItems.slice(0, at + 1), fee, ...lineItems.slice(at + 1)] });
+    }
     setSaving(false);
   }
 
@@ -485,7 +534,7 @@ function OptionGroupPanel({ group, co, projectId, coId, rates, manufacturers, on
     if (!confirm('Delete this line item?')) return;
     const res = await fetch(`/api/projects/${projectId}/change-orders/${coId}/option-groups/${group.id}/line-items/${itemId}`, { method: 'DELETE' });
     if (!res.ok) { alert(await refusalText(res, 'Could not delete that line.')); return; }
-    onGroupUpdated({ ...group, lineItems: lineItems.filter(li => li.id !== itemId) });
+    onGroupUpdated({ ...group, lineItems: lineItems.filter(li => li.id !== itemId && li.feeForLineId !== itemId) });
   }
 
   function updateItem(updated) {
@@ -568,7 +617,7 @@ function OptionGroupPanel({ group, co, projectId, coId, rates, manufacturers, on
               {[
                 { h: 'Type',         cls: '' },
                 { h: 'Description',  cls: '' },
-                { h: 'Qty',          cls: '' },
+                { h: 'Qty +/-',      cls: '' },
                 { h: 'Manufacturer', cls: '' },
                 { h: 'Part #',       cls: '' },
                 { h: 'Orig DN',      cls: 'text-slate-300' },
@@ -597,6 +646,7 @@ function OptionGroupPanel({ group, co, projectId, coId, rates, manufacturers, on
                 onDelete={deleteItem}
                 onAddLine={addLineAfter}
                 onAddOption={addOptionFor}
+                onAddFee={addFeeFor}
                 onSelectOption={selectOption}
                 isLocked={isLocked}
                 canPick={canPick}
@@ -623,6 +673,15 @@ function OptionGroupPanel({ group, co, projectId, coId, rates, manufacturers, on
             </svg>
             Add line
           </button>
+          {products.length > 0 && (
+            <select value="" disabled={saving} onChange={e => addFromBudget(e.target.value)}
+              className="text-xs border border-slate-200 rounded-lg px-2 py-1 bg-white text-slate-600 disabled:opacity-50">
+              <option value="">Add from budget</option>
+              {products.map(p => (
+                <option key={p.key} value={p.type}>{[p.type, p.now.manufacturer, `qty ${p.now.qty}`].filter(Boolean).join(', ')}</option>
+              ))}
+            </select>
+          )}
           <span className="text-[11px] text-slate-300">Hover any row to add a line below it or create an option group</span>
         </div>
       )}
@@ -637,7 +696,7 @@ function OptionGroupPanel({ group, co, projectId, coId, rates, manufacturers, on
           <DiscountRow group={group} discount={discount} isLocked={isLocked} onSave={patchMoney} />
           {rates?.salesTaxPct != null && (
             <div className="flex justify-between text-slate-400">
-              <span>Sales Tax ({pct(rates.salesTaxPct)})</span>
+              <span>Sales Tax ({pct(rates.salesTaxPct)}{taxMixed ? ', credits at rate charged' : ''})</span>
               <span>{fmt(tax)}</span>
             </div>
           )}
@@ -1146,14 +1205,14 @@ export default function CODetailClient({ projectId, coId }) {
               )}
             </div>
           </div>
-          {/* Notes */}
+          {/* Description, prints on the PDF, portal and share link */}
           <div className="mt-4">
-            <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1">Notes</label>
+            <label className="block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1">Description</label>
             <textarea
               defaultValue={co.notes || ''}
               disabled={isLocked}
               onBlur={e => { if ((e.target.value || null) !== co.notes) patchCO({ notes: e.target.value }); }}
-              placeholder="Optional notes for this CO…"
+              placeholder="What this change order is for"
               rows={2}
               className="w-full text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500 resize-none disabled:opacity-60 bg-white"
             />
@@ -1276,6 +1335,12 @@ export default function CODetailClient({ projectId, coId }) {
             />
           ))}
         </div>
+
+        {!viewOnly && (
+          <div className="mt-4">
+            <CoRfqPanel projectId={projectId} coId={coId} stamp={(co.optionGroups || []).flatMap(g => (g.lineItems || []).map(li => `${li.id}:${li.qty}:${li.manufacturer}`)).join()} />
+          </div>
+        )}
       </div>
     </div>
   );

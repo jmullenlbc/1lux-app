@@ -5,6 +5,27 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Change orders: line kinds, product timeline, restocking fees, tax only COs, RFQs for COs] - November 1, 2026
+
+### Added
+- Migration 0158 (additive only). New CO line fields for what the line was (`fromBudget`, the `was*` snapshot), fees (`isFee`, `feeForLineId`), tax lines (`isTaxLine`), the credit refund rate (`creditTaxPct`). New CO fields for a tax change (`taxChangeOldPct`, `taxChangeNewPct`, `taxChangeDate`, `taxChangeBase`). `Rfq.changeOrderId` and `RfqLine.changeOrderLineItemId`. `wasUnitCost` is a buy price and never reaches a client.
+- Add a CO line as a blank row or from a dropdown of any type on the job. No picker for the kind of change: what you do on the line tells it (New product, Quantity added, Quantity reduced, Removed, Price change, Changed product, Spec change). The label prints with Was and Now on the CO PDF, the share link and the portal.
+- Product timeline on the Change Orders tab: each product keeps its own running record from the budget through every CO (`src/lib/changeOrderProducts.js`, `src/lib/changeOrderProductStart.js`).
+- Restocking fee: a Fee button on a credit line adds a fee row tied to that credit, with typed buy and sell. The sell follows job margin and can be typed over.
+- Tax rate change: makes one tax only CO, same layout as Modera CO 2, on goods not delivered by the rate date. The dollars fill in from the Ship Schedule and can be typed over (`src/lib/changeOrderTaxChange.js`).
+- A credit refunds the rate originally charged, and that rate can be typed over on the line.
+- RFQs for change orders: a panel on the CO runs the same send, quote and price steps as the RFQs tab (`src/components/rfq/CoRfqPanel.jsx`). Sends stay out of drawing rounds. A credit line asks the rep for the credit and any restocking fee. A rep's price lands on the CO line while the CO is a draft; on a credit it moves the buy only.
+
+### Changed
+- CO Notes is now Description, under the title. Same field, no data moved.
+- On a line picked from the budget with a new price or product, the quantity means the units it applies to, and the line bills only the difference.
+- A CO with nothing to ship refuses the Ship Schedule push with a plain message (CO_NOTHING_TO_SHIP).
+
+### Files
+- `prisma/schema.prisma`, `prisma/migrations/0158_co_line_kinds_tax_rfq/`, `src/lib/changeOrder*.js`, `src/lib/rfq/*`, `src/lib/ontology/objects/changeOrder.js`, CO and RFQ routes, `CODetailClient.jsx`, `src/components/changeOrders/*`, `src/components/rfq/*`, `scripts/tests/coLineKind.test.mjs`, `scripts/tests/coPushToBudget.test.mjs`.
+
+---
+
 ## [Push to Budget: credits and the real budget] - November 1, 2026
 
 ### Fixed
@@ -14,7 +35,7 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 - Editing an old budget version now says in plain terms what happened: nothing was saved, open the newest version (BUDGET_VERSION_LOCKED).
 
 ### Known limits
-- Pushing a change order to the Ship Schedule still makes its own batch, so a minus line is a negative row and the main row quantity does not change. Waiting on the change order talk with Mike.
+- Pushing a change order to the Ship Schedule still makes its own batch, so a minus line is a negative row and the main row quantity does not change. Mike settled this as right: change order lines keep their own rows because they have their own order dates, ESDs and delivery dates.
 
 ---
 

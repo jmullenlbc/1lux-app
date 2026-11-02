@@ -4,10 +4,10 @@
  */
 import { prisma } from '@/lib/db';
 
-export { resolveLineItems, chosenLineItems, ratesForCO, freezeRates, discountFor, calcGroupFooter, calcCOTotal, CO_OPTION_MONEY } from './changeOrderTotals';
+export { resolveLineItems, chosenLineItems, ratesForCO, freezeRates, discountFor, calcGroupFooter, calcCOTotal, CO_OPTION_MONEY, CO_LINE_MONEY_SELECT } from './changeOrderTotals';
 
-export async function getProjectRates(projectId) {
-  const pd = await prisma.projectData.findUnique({ where: { projectId } });
+export async function getProjectRates(projectId, db = prisma) {
+  const pd = await db.projectData.findUnique({ where: { projectId } });
   return {
     salesTaxPct:   pd?.salesTaxPct   ?? null,
     freightPct:    pd?.freightPct    ?? 0.06,
@@ -22,12 +22,13 @@ export async function getProjectRates(projectId) {
  * and the job's budget rate is left alone.
  */
 export async function defaultCoTaxPct(projectId) {
+  // A tax only CO prints no tax of its own, so the next CO takes the rate it moved to
   const last = await prisma.changeOrder.findFirst({
     where:   { projectId, salesTaxPct: { not: null } },
     orderBy: { coNumber: 'desc' },
-    select:  { salesTaxPct: true },
+    select:  { salesTaxPct: true, taxChangeNewPct: true },
   });
-  if (last) return last.salesTaxPct;
+  if (last) return last.taxChangeNewPct ?? last.salesTaxPct;
   return (await getProjectRates(projectId)).salesTaxPct;
 }
 

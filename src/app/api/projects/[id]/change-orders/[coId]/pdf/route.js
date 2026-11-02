@@ -3,7 +3,8 @@ import { requirePortalAuth } from '@/lib/portalAuth';
 import { prisma } from '@/lib/db';
 import { getProjectRates, calcGroupFooter, resolveLineItems, ratesForCO } from '@/lib/changeOrderRates';
 import { redact, audienceForRole, AUDIENCE } from '@/lib/redact';
-import { lineTotal } from '@/lib/money';
+import { coLineTotal } from '@/lib/changeOrderTotals';
+import { lineNote as noteFor } from '@/lib/changeOrderLineKind';
 import { PM_SELECT, pmPrint } from '@/lib/projectManagers';
 
 function fmt(n, showSign = false) {
@@ -17,6 +18,10 @@ function fmt(n, showSign = false) {
 function pct(n) { return n != null ? `${(Number(n) * 100).toFixed(2).replace(/\.?0+$/, '')}%` : '—'; }
 // Typed dollars print plain, never with a percent
 function feeName(name, p) { return p ? `${name} (${pct(p)})` : name; }
+function lineNote(li) {
+  const note = noteFor(li);
+  return note ? `<div style="font-size:8.5px;color:#64748b;margin-top:1px">${note}</div>` : '';
+}
 
 // GET /api/projects/[id]/change-orders/[coId]/pdf?hideInternalDN=true
 export async function GET(req, { params }) {
@@ -85,12 +90,12 @@ export async function GET(req, { params }) {
     const mainItems  = group.lineItems.filter(li => !li.isOptionRow);
 
     const rows = mainItems.map((li, idx) => {
-      const totalCN = lineTotal(li.qty, li.cnUnitPrice);
+      const totalCN = coLineTotal(li);
       const myOptions = group.lineItems.filter(o => o.isOptionRow && o.parentLineItemId === li.id);
       const bg = idx % 2 === 0 ? '#ffffff' : '#fafafa';
 
       const optRows = myOptions.map(o => {
-        const oCN = lineTotal(o.qty, o.cnUnitPrice);
+        const oCN = coLineTotal(o);
         return `<tr style="background:#f0f7ff;font-style:italic;color:#64748b">
           <td style="padding-left:20px;font-size:8px">${o.optionLabel || 'Alt'}</td>
           <td colspan="2">${o.description || ''}</td>
@@ -106,7 +111,7 @@ export async function GET(req, { params }) {
 
       return `<tr style="background:${bg}">
         <td style="font-weight:700">${li.optionLabel ? `${li.fixtureType} <em style="font-weight:400;font-size:8px;color:#888">(${li.optionLabel})</em>` : (li.fixtureType || '')}</td>
-        <td colspan="2">${li.description || ''}</td>
+        <td colspan="2">${li.description || ''}${lineNote(li)}</td>
         <td style="text-align:right">${li.qty}</td>
         <td>${li.manufacturer || ''}</td>
         <td style="font-family:monospace;font-size:9px">${li.partNumber || ''}</td>
@@ -240,7 +245,7 @@ td { padding:5px 6px; border-bottom:1px solid #f0f0f0; vertical-align:top; font-
     </div>
   </div>
 
-  ${co.notes ? `<div class="notes-box"><strong>Notes:</strong> ${co.notes}</div>` : ''}
+  ${co.notes ? `<div class="notes-box"><strong>Description:</strong> ${co.notes}</div>` : ''}
 
   <!-- Line items table -->
   <table>
@@ -270,7 +275,7 @@ td { padding:5px 6px; border-bottom:1px solid #f0f0f0; vertical-align:top; font-
       ${selectedFooter.discount ? `<tr><td class="lbl">Discount${selected?.discountPct != null ? ` (${pct(selected.discountPct)})` : ''}${discountNote ? `<div style="font-size:8px;font-weight:400">${discountNote}</div>` : ''}</td><td class="val">${fmt(-selectedFooter.discount, true)}</td></tr>` : ''}
       ${selectedFooter.freightPct || selectedFooter.freight ? `<tr><td class="lbl">${feeName('Freight', selectedFooter.freightPct)}</td><td class="val">${fmt(selectedFooter.freight)}</td></tr>` : ''}
       ${selectedFooter.warehousingPct || selectedFooter.warehousing ? `<tr><td class="lbl">${feeName('Warehousing', selectedFooter.warehousingPct)}</td><td class="val">${fmt(selectedFooter.warehousing)}</td></tr>` : ''}
-      ${rates.salesTaxPct ? `<tr><td class="lbl">Sales Tax (${pct(rates.salesTaxPct)})</td><td class="val">${fmt(selectedFooter.tax)}</td></tr>` : ''}
+      ${rates.salesTaxPct ? `<tr><td class="lbl">Sales Tax (${pct(rates.salesTaxPct)}${selectedFooter.taxMixed ? ', credits at rate charged' : ''})</td><td class="val">${fmt(selectedFooter.tax)}</td></tr>` : ''}
       <tr class="grand"><td colspan="2" style="text-align:right;padding:8px 8px">Change Order Total &nbsp;&nbsp; ${fmt(selectedFooter.total, true)}</td></tr>
     </tbody>
   </table>

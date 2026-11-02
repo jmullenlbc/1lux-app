@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { CARD, LABEL, NUM, TH, TD } from '@/components/ui/tokens';
 import { WidgetLoading } from '@/components/ui/WidgetFrame';
+import { lineNote } from '@/lib/changeOrderLineKind';
 
 function fmt(n, showSign = false) {
   if (n == null || isNaN(n)) return '—';
@@ -68,7 +69,7 @@ export default function SharedCOView({ token }) {
                   </div>
                   <h1 className="text-xl font-bold text-slate-900">{co.title}</h1>
                   {co.project?.name && <p className="text-sm text-slate-500 mt-1">{co.project.name}</p>}
-                  {co.notes && <p className="text-sm text-slate-500 mt-2 italic">"{co.notes}"</p>}
+                  {co.notes && <p className="text-sm text-slate-500 mt-2">{co.notes}</p>}
                 </div>
                 <div className="text-right shrink-0">
                   <p className={LABEL}>Date</p>
@@ -104,7 +105,10 @@ export default function SharedCOView({ token }) {
                             <td className={`px-3 py-2 text-right ${NUM}`}>{li.qty}</td>
                             <td className="px-3 py-2">{li.manufacturer || '—'}</td>
                             <td className="px-3 py-2 font-mono text-[11px]">{li.partNumber || '—'}</td>
-                            <td className="px-3 py-2">{li.description || '—'}</td>
+                            <td className="px-3 py-2">
+                              {li.description || '—'}
+                              {lineNote(li) && <p className="text-[11px] text-slate-500 mt-0.5">{lineNote(li)}</p>}
+                            </td>
                             <td className={`px-3 py-2 text-right ${NUM}`}>{fmt(li.cnUnitPrice)}</td>
                             <td className={`px-3 py-2 text-right font-bold ${NUM} ${li.totalCN < 0 ? 'text-red-600' : 'text-slate-900'}`}>{fmt(li.totalCN, true)}</td>
                             <td className="px-3 py-2 text-[11px]">{li.quoteReference || '—'}</td>
@@ -121,7 +125,7 @@ export default function SharedCOView({ token }) {
                       {[
                         { label: 'Subtotal', val: group.footer?.subtotal },
                         !!group.footer?.discount && { label: `Discount${group.discountPct != null ? ` (${pct(group.discountPct)})` : ''}`, val: -group.footer.discount, note: group.discountNote },
-                        rates.salesTaxPct != null && { label: `Sales Tax (${pct(rates.salesTaxPct)})`, val: group.footer?.tax },
+                        rates.salesTaxPct != null && { label: `Sales Tax (${pct(rates.salesTaxPct)}${group.footer?.taxMixed ? ', credits at rate charged' : ''})`, val: group.footer?.tax },
                         (group.footer?.freightPct != null || !!group.footer?.freight) && { label: feeName('Freight', group.footer?.freightPct), val: group.footer?.freight },
                         (group.footer?.warehousingPct != null || !!group.footer?.warehousing) && { label: feeName('Warehousing', group.footer?.warehousingPct), val: group.footer?.warehousing },
                       ].filter(Boolean).map((row, i) => (

@@ -2688,6 +2688,12 @@ model ChangeOrder {
   approvals    ChangeOrderApproval[]
   rfi          RFI?                     @relation("COFromRFI", fields: [rfiId], references: [id])
   rfiId        String?                  @unique // set when CO is generated from an RFI substitution
+  // Tax only CO (0158). The rate moved mid job; these say what the lines were built from.
+  taxChangeOldPct Float? // rate at contract, a decimal
+  taxChangeNewPct Float? // the new rate, a decimal. The next CO starts from it
+  taxChangeDate   DateTime? // the date the new rate took effect
+  taxChangeBase   Float? // dollars of goods not delivered by that date, can be typed over
+  rfqs            Rfq[]
 
   @@index([projectId])
 }
@@ -2736,11 +2742,29 @@ model ChangeOrderLineItem {
   isOptionRow      Boolean                @default(false) // true = part of a group
   optionLabel      String? // "Option A", "Option B", etc.
   isGroupSelected  Boolean                @default(false) // true = this option counts toward total (one per group)
+  // Picked from the budget (0158). What the product was when the line was added; the line's own
+  // action tells the kind of change, nobody picks one. qty is the change, not the new total.
+  fromBudget       Boolean                @default(false)
+  wasFixtureType   String?
+  wasQty           Float?
+  wasUnitPrice     Float?
+  wasUnitCost      Float? // internal buy price — never shown to clients
+  wasManufacturer  String?
+  wasPartNumber    String?
+  wasDescription   String?
+  isFee            Boolean                @default(false) // a restocking fee row, tied to its credit
+  feeForLineId     String?
+  feeFor           ChangeOrderLineItem?   @relation("COLineFee", fields: [feeForLineId], references: [id], onDelete: SetNull)
+  fees             ChangeOrderLineItem[]  @relation("COLineFee")
+  isTaxLine        Boolean                @default(false) // a tax only CO line: dollars of tax, not fixtures
+  creditTaxPct     Float? // the rate first charged on this product; a credit refunds at it
+  rfqLines         RfqLine[]
   createdAt        DateTime               @default(now())
   updatedAt        DateTime               @updatedAt
 
   @@index([optionGroupId])
   @@index([parentLineItemId])
+  @@index([feeForLineId])
 }
 
 model ChangeOrderSend {
@@ -5145,6 +5169,8 @@ model Rfq {
   addOn          Boolean       @default(false) // true adds lines to what the rep has, false replaces the list
   roundId        String?
   round          RfqRound?     @relation(fields: [roundId], references: [id], onDelete: SetNull)
+  changeOrderId  String? // set when this RFQ prices a change order, not a drawing round
+  changeOrder    ChangeOrder?  @relation(fields: [changeOrderId], references: [id], onDelete: SetNull)
   receivedAt     DateTime?
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
@@ -5155,6 +5181,7 @@ model Rfq {
   @@index([salesRepId])
   @@index([familyNumber])
   @@index([roundId])
+  @@index([changeOrderId])
 }
 
 // A matrix line as it went out on the RFQ, and the DN price that came back.
@@ -5164,6 +5191,8 @@ model RfqLine {
   rfq              Rfq             @relation(fields: [rfqId], references: [id], onDelete: Cascade)
   peerReviewItemId String?
   peerReviewItem   PeerReviewItem? @relation(fields: [peerReviewItemId], references: [id], onDelete: SetNull)
+  changeOrderLineItemId String?
+  changeOrderLineItem   ChangeOrderLineItem? @relation(fields: [changeOrderLineItemId], references: [id], onDelete: SetNull)
   typeCode         String          @default("")
   manufacturer     String          @default("")
   partNumber       String          @default("")
@@ -5179,6 +5208,7 @@ model RfqLine {
 
   @@index([rfqId])
   @@index([peerReviewItemId])
+  @@index([changeOrderLineItemId])
 }
 
 // A rep quote brought in on the RFQ received screen.

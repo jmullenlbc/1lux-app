@@ -40,7 +40,7 @@ function RepPick({ projectId, mfr, choices, onState, setErr }) {
   );
 }
 
-function GroupCard({ projectId, group, onState, onSent, setErr }) {
+export function GroupCard({ projectId, group, onState, onSent, setErr, coId }) {
   const [notes, setNotes] = useState('');
   const [busy, setBusy] = useState(false);
   const picks = usePicks(group.lines.map((l) => l.id));
@@ -49,7 +49,7 @@ function GroupCard({ projectId, group, onState, onSent, setErr }) {
 
   async function send() {
     setBusy(true); setErr('');
-    const d = await rfqApi(`/api/projects/${projectId}/rfqs`, { method: 'POST', body: { action: 'send', groupKey: group.key, lineIds: n ? [...picks.picked] : undefined, notes: notes.trim() || undefined }, what: 'The RFQ' });
+    const d = await rfqApi(`/api/projects/${projectId}/rfqs`, { method: 'POST', body: { action: 'send', groupKey: group.key, lineIds: n ? [...picks.picked] : undefined, notes: notes.trim() || undefined, coId }, what: 'The RFQ' });
     setBusy(false);
     if (d.error) { setErr(d.error); return; }
     setNotes('');

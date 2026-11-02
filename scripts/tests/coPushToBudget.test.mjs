@@ -9,6 +9,7 @@ const read = (p) => readFileSync(new URL(`../../src/${p}`, import.meta.url), 'ut
 const PUSH = 'app/api/projects/[id]/change-orders/[coId]/push-to-budget/route.js';
 
 const READERS = [
+  'lib/changeOrderProductStart.js',
   'app/api/portal/projects/[id]/budget/route.js',
   'app/api/projects/[id]/ship-schedule/push/route.js',
   'lib/budgetQCAutoChecks.js',

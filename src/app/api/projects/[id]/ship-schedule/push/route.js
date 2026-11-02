@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { NOT_CO_VERSION } from '@/lib/budgetVersions';
-import { chosenLineItems } from '@/lib/changeOrderTotals';
+import { chosenLineItems, priceChanged, productChanged } from '@/lib/changeOrderTotals';
 
 // POST /api/projects/[id]/ship-schedule/push
 // Body: { sourceType?: 'DESIGN_BID'|'PEER_REVIEW', coId?: string }
@@ -54,7 +54,14 @@ export async function POST(req, { params }) {
     }
     batchLabel = `${co.coNumber}: ${co.title}`;
     // Only the chosen option, with per line alternates resolved to the one picked
-    const allItems = chosenLineItems(co);
+    // Fees, tax lines, spec notes and price only lines move no product, so they are not on the schedule
+    const allItems = chosenLineItems(co).filter((li) => {
+      if (li.isFee || li.isTaxLine || !li.qty) return false;
+      return !(li.qty > 0 && priceChanged(li) && !productChanged(li));
+    });
+    if (allItems.length === 0) {
+      return NextResponse.json({ error: 'This change order moves no product, so nothing went to the Ship Schedule. Price changes, spec notes, fees and tax lines do not ship. (CO_NOTHING_TO_SHIP)' }, { status: 400 });
+    }
     sourceItems = allItems.map((li, idx) => ({
       id:              li.id,
       typeCode:        li.fixtureType,

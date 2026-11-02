@@ -35,6 +35,10 @@ export const ChangeOrder = {
     updatedAt:   { type: 'datetime', sensitivity: 'client_ok' },
     rfiId:       { type: 'string',   sensitivity: 'ilc_only' },
     createdById: { type: 'string',   sensitivity: 'ilc_only' },
+    taxChangeOldPct: { type: 'percent',  sensitivity: 'client_ok', desc: 'Tax only CO: the rate at contract, a decimal' },
+    taxChangeNewPct: { type: 'percent',  sensitivity: 'client_ok', desc: 'Tax only CO: the new rate, a decimal. The next CO starts from it' },
+    taxChangeDate:   { type: 'datetime', sensitivity: 'client_ok', desc: 'Tax only CO: the date the new rate took effect' },
+    taxChangeBase:   { type: 'money',    sensitivity: 'client_ok', desc: 'Tax only CO: dollars of goods not delivered by that date' },
   },
 
   links: {
@@ -106,12 +110,24 @@ export const ChangeOrderLineItem = {
     parentLineItemId: { type: 'string', sensitivity: 'client_ok' },
     createdAt:     { type: 'datetime', sensitivity: 'client_ok' },
     updatedAt:     { type: 'datetime', sensitivity: 'client_ok' },
+    fromBudget:      { type: 'boolean', sensitivity: 'client_ok', desc: 'Picked from the budget, so the was values below are filled' },
+    wasFixtureType:  { type: 'string',  sensitivity: 'client_ok' },
+    wasQty:          { type: 'float',   sensitivity: 'client_ok', desc: 'Quantity when the line was added; qty is the change' },
+    wasUnitPrice:    { type: 'money',   sensitivity: 'client_ok', desc: 'Sell price when the line was added' },
+    wasManufacturer: { type: 'string',  sensitivity: 'client_ok' },
+    wasPartNumber:   { type: 'string',  sensitivity: 'client_ok' },
+    wasDescription:  { type: 'string',  sensitivity: 'client_ok' },
+    isFee:           { type: 'boolean', sensitivity: 'client_ok', desc: 'A restocking fee row, tied to its credit' },
+    feeForLineId:    { type: 'string',  sensitivity: 'client_ok' },
+    isTaxLine:       { type: 'boolean', sensitivity: 'client_ok', desc: 'A tax only CO line: dollars of tax, not fixtures' },
+    creditTaxPct:    { type: 'percent', sensitivity: 'client_ok', desc: 'The rate first charged on this product; a credit refunds at it' },
 
     // ── the hard boundary ──
     // globalDeny: the bare field name is unambiguous across all 116 models, so
     // the transport-level redactor in src/lib/redact.js can also strip it from
     // hand-assembled payloads whose object type it does not know.
     originalDN:     { type: 'money',  sensitivity: 'ilc_only', globalDeny: true, desc: 'dealer net / ILC buy price, NEVER to contractors' },
+    wasUnitCost:    { type: 'money',  sensitivity: 'ilc_only', globalDeny: true, desc: 'dealer net when the line was added, NEVER to contractors' },
     quoteReference: { type: 'string', sensitivity: 'ilc_only', globalDeny: true, desc: 'manufacturer quote number backing the DN' },
   },
 
