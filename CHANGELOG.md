@@ -5,6 +5,19 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Expenses: Snap page, receipts, AI read, drop box] - November 2, 2026
+
+### Added
+- Drop box at the top of the Add an expense card on the Expenses page. Takes PDF, Excel, JPG and PNG by drag or by tapping to choose.
+- Snap page on phones at Sales, Expenses: Take a photo, Choose a photo, and the same drop box. The Expenses tab on the phone bar opens it.
+- Receipt storage (migration 0163): new ExpenseReceipt table, and a vendor field on expenses. The file's bytes decide its type. The same file sent twice adds nothing.
+- AI read of each receipt: vendor, amount, day, category. The guess stays on the receipt. An expense exists only after a person presses OK, so no total can include a guess.
+- Needs your OK card under Add an expense. The expense row shows the vendor and a View link to the receipt.
+
+### Files
+- New: `src/lib/sales/receipts.js`, `receiptRead.js`, `receiptClient.js`, `src/components/sales/ExpenseForm.jsx`, `ReceiptDrop.jsx`, `ReceiptsToConfirm.jsx`, `src/app/(app)/sales/activity/expenses/snap/page.jsx`, the routes under `src/app/api/sales/expenses/receipts/`, `scripts/tests/receipts.test.mjs`, `receiptsE2e.test.mjs`, `prisma/migrations/0163_expense_receipts/`.
+- Changed: `prisma/schema.prisma`, `src/lib/archive.js`, `aiModels.js`, `uploadStorage.js`, `uploadClient.js`, `salesDocs/storage.js`, `deptScreens.js`, the Expenses page and route, `scripts/verify.mjs`.
+
 ## [Memberships tab, budget and actuals] - November 2, 2026
 
 ### Added

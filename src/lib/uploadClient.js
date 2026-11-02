@@ -325,6 +325,7 @@ const KNOWLEDGE_EXT = [
 export function isPresignable(file, scope = 'project') {
   const ext = (file?.name || '').split('.').pop()?.toLowerCase();
   if (scope === 'salesdoc') return ext === 'pdf' || ext === 'xlsx';
+  if (scope === 'receipt') return ['pdf', 'xlsx', 'xls', 'png', 'jpg', 'jpeg'].includes(ext);
   return (scope === 'knowledge' ? KNOWLEDGE_EXT : PRESIGNABLE_EXT).includes(ext);
 }
 

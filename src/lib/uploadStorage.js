@@ -54,6 +54,7 @@ export const MAX_KNOWLEDGE_UPLOAD_BYTES = 25 * 1024 * 1024; // 25 MB
 
 // Sales Docs (0137): price sheets, spec books and decks shared by link.
 export const MAX_SALESDOC_UPLOAD_BYTES = 50 * 1024 * 1024; // 50 MB
+export const MAX_RECEIPT_UPLOAD_BYTES = 25 * 1024 * 1024; // 25 MB
 
 // The slip has to outlive the upload itself. A 400 MB set over a job-site
 // connection at 2 Mbps takes ~27 minutes, and a slip that expires mid-transfer
@@ -102,7 +103,17 @@ const SALESDOC_PRESIGNABLE = {
 // under uploads/, so a scope cannot be used to reach an existing object, it
 // only selects which ceiling and which type list apply, and makes the temp keys
 // readable.
-const SCOPES = ['intake', 'project', 'knowledge', 'salesdoc'];
+// Receipts on Expenses: a phone photo, a PDF, or a card statement in Excel.
+const RECEIPT_PRESIGNABLE = {
+  pdf: PRESIGNABLE.pdf,
+  xlsx: PRESIGNABLE.xlsx,
+  xls: PRESIGNABLE.xls,
+  png: KNOWLEDGE_PRESIGNABLE.png,
+  jpg: KNOWLEDGE_PRESIGNABLE.jpg,
+  jpeg: KNOWLEDGE_PRESIGNABLE.jpeg,
+};
+
+const SCOPES = ['intake', 'project', 'knowledge', 'salesdoc', 'receipt'];
 
 const mb = (bytes) => Math.round(bytes / (1024 * 1024));
 
@@ -110,6 +121,7 @@ export function limitForScope(scope) {
   if (scope === 'project')   return MAX_PROJECT_UPLOAD_BYTES;
   if (scope === 'knowledge') return MAX_KNOWLEDGE_UPLOAD_BYTES;
   if (scope === 'salesdoc')  return MAX_SALESDOC_UPLOAD_BYTES;
+  if (scope === 'receipt')   return MAX_RECEIPT_UPLOAD_BYTES;
   return MAX_INTAKE_UPLOAD_BYTES;
 }
 
@@ -117,6 +129,7 @@ export function limitForScope(scope) {
 export function typesForScope(scope) {
   if (scope === 'knowledge') return KNOWLEDGE_PRESIGNABLE;
   if (scope === 'salesdoc') return SALESDOC_PRESIGNABLE;
+  if (scope === 'receipt') return RECEIPT_PRESIGNABLE;
   return PRESIGNABLE;
 }
 
@@ -143,7 +156,9 @@ export function validatePresignRequest({ fileName, size, scope = 'intake' } = {}
         ? 'Unsupported file type. Word, Excel, PDF, images and text files work.'
         : scope === 'salesdoc'
           ? 'Unsupported file type. Please upload a PDF or an .xlsx workbook.'
-          : 'Unsupported file type. Please upload a PDF or Excel file.',
+          : scope === 'receipt'
+            ? 'Unsupported file type. Please upload a PDF, Excel, JPG or PNG file.'
+            : 'Unsupported file type. Please upload a PDF or Excel file.',
     };
   }
   const bytes = Number(size);

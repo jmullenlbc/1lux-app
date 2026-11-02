@@ -2,6 +2,10 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
+**2026-11-02** Mike's Claude - **BUILT, NOT DEPLOYED. Migration 0163_expense_receipts**: adds SalesExpense.vendor (default empty) and a new ExpenseReceipt table for snapped or dropped receipts. The AI read stays on the receipt row, and a SalesExpense exists only after a person confirms the amount. Additive only, no existing data changed or removed. A user with receipts cannot be hard deleted.
+
+**2026-11-02** Mike's Claude - DEPLOYED 7ff84ce (0162), Memberships tab, live a30a828ea58d.
+
 **2026-11-02** Mike's Claude - **Migration 0162_membership_actuals**: adds two nullable columns to ConferenceMembership: paidCents (Int?) and paidOn (DateTime?). They record what was actually paid for a membership in its year, and stay blank until paid. Additive only: nothing dropped or renamed, existing rows read NULL, no data impact. schema-guard found no destructive change; not run against Postgres. Next free migration 0163.
 
 **2026-11-02** Mike's Claude - **DEPLOYED b7088d1**: Events/Memberships feedback (tabs Plan, Budget, Library, editable fields, auto save, search and filters driving the top numbers, typed annual budget), Expenses top numbers, Expenses tab on the Sales phone bar and every admin's bar. Migration 0161 reaches prod through migrate deploy. Live fingerprint a85d71d7eaf1. Not tried on a real phone or in prod.

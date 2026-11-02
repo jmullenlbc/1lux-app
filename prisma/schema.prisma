@@ -51,6 +51,7 @@ model User {
   notesCreated               Note[]                       @relation("NoteCreator")
   notesOwned                 NoteOwner[]                  @relation("NoteOwnerUser")
   salesExpenses              SalesExpense[]               @relation("SalesExpenseUser")
+  expenseReceipts            ExpenseReceipt[]             @relation("ExpenseReceiptUser")
   salesAnnualBudgetsUpdated  SalesAnnualBudget[]          @relation("SalesAnnualBudgetUpdatedBy")
   noteStepsLed               NoteAction[]                 @relation("NoteActionLead")
   publishedSchedules         FixtureSchedule[]            @relation("SchedulePublisher")
@@ -1498,13 +1499,47 @@ model SalesExpense {
   amountCents  Int
   category     String    @default("OTHER") // MEAL | TRAVEL | GOLF | EVENT | GIFT | OTHER
   description  String    @default("")
+  vendor       String    @default("")
   createdById  String?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
+  receipts ExpenseReceipt[]
+
   @@index([userId])
   @@index([clientId])
   @@index([spentOn])
+}
+
+// A receipt someone snapped or dropped (0163). The AI's guess stays on this
+// row. A SalesExpense exists only once a person confirms the amount, so no
+// total anywhere can include a guess.
+model ExpenseReceipt {
+  id            String        @id @default(cuid())
+  archivedAt    DateTime?
+  archivedById  String?
+  expenseId     String?
+  expense       SalesExpense? @relation(fields: [expenseId], references: [id], onDelete: SetNull)
+  userId        String // who sent it in; it waits on their list until they say OK
+  user          User          @relation("ExpenseReceiptUser", fields: [userId], references: [id])
+  fileName      String
+  mimeType      String
+  sizeBytes     Int
+  storedKey     String
+  sha256        String
+  source        String        @default("DROP") // SNAP | DROP
+  aiStatus      String        @default("WAITING") // WAITING | READING | READ | FAILED
+  aiError       String?
+  aiVendor      String?
+  aiAmountCents Int?
+  aiSpentOn     DateTime?
+  aiCategory    String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([userId])
+  @@index([expenseId])
+  @@index([userId, sha256])
 }
 
 // Structured items the AI extracts from a note's prose: ACTIONs (→ bot follow-ups)

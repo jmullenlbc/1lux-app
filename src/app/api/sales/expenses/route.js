@@ -12,6 +12,7 @@ export const EXPENSE_INCLUDE = {
   client:  { select: { id: true, name: true, clientNumber: true } },
   project: { select: { id: true, name: true, projectNumber: true } },
   note:    { select: { id: true, noteNumber: true, title: true, activityType: true } },
+  receipts: { where: { archivedAt: null }, select: { id: true, fileName: true, mimeType: true } },
 };
 
 // GET /api/sales/expenses?userId=&clientId=&projectId=&from=YYYY-MM-DD&to=YYYY-MM-DD
@@ -61,12 +62,13 @@ export async function expenseDataFrom(body, { partial = false } = {}) {
   }
   if (body.category    !== undefined) data.category    = normalizeCategory(body.category);
   if (body.description !== undefined) data.description = String(body.description || '').trim();
+  if (body.vendor      !== undefined) data.vendor      = String(body.vendor || '').trim().slice(0, 120);
   if (body.clientId    !== undefined) data.clientId    = body.clientId  || null;
   if (body.projectId   !== undefined) data.projectId   = body.projectId || null;
   return { data };
 }
 
-// POST /api/sales/expenses  { userId, spentOn, amount, category, clientId, projectId, description }
+// POST /api/sales/expenses  { userId, spentOn, amount, category, vendor, clientId, projectId, description }
 export async function POST(request) {
   const { user, error } = await requireAuth();
   if (error) return error;

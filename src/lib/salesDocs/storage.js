@@ -123,13 +123,13 @@ export async function getSalesDocRange(key, start, end) {
  * A short-lived download link that saves the file under its own name.
  * Null in dev; the download route streams the bytes instead.
  */
-export async function presignSalesDocDownload(key, fileName) {
+export async function presignSalesDocDownload(key, fileName, disposition = 'attachment') {
   if (!isSalesDocKey(key) || !salesDocS3On()) return null;
   const safeName = String(fileName || 'document').replace(/["\\\r\n]/g, '');
   return getSignedUrl(s3Client(), new GetObjectCommand({
     Bucket: process.env.S3_BUCKET,
     Key: key,
-    ResponseContentDisposition: `attachment; filename="${safeName}"`,
+    ResponseContentDisposition: `${disposition}; filename="${safeName}"`,
   }), { expiresIn: DOWNLOAD_TTL_SECONDS });
 }
 

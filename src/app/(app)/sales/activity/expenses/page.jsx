@@ -2,23 +2,22 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import Link from 'next/link';
 import SectionTabs, { ACTIVITY_TABS } from '@/components/ui/SectionTabs';
-import { EXPENSE_CATEGORIES, categoryLabel, formatMoney, centsToInput } from '@/lib/sales/expenses';
+import ExpenseForm, { blankExpenseForm } from '@/components/sales/ExpenseForm';
+import ReceiptDrop from '@/components/sales/ReceiptDrop';
+import ReceiptsToConfirm from '@/components/sales/ReceiptsToConfirm';
+import { categoryLabel, formatMoney, centsToInput } from '@/lib/sales/expenses';
 import { FilterToolbar, FilterPanel, countFilters } from '@/components/ui/FilterPanel';
 import SortHeader, { Th, sortRows } from '@/components/ui/SortHeader';
 import { WidgetLoading, WidgetEmpty } from '@/components/ui/WidgetFrame';
 import ExpenseNumbers from './ExpenseNumbers';
 import { useUrlView } from '@/lib/useUrlView';
-import { CARD_PADDED, CARD_TITLE, BTN_PRIMARY, BTN_SECONDARY, INPUT, LABEL, H1, TD } from '@/components/ui/tokens';
+import { CARD_PADDED, CARD_TITLE, BTN_COMPACT, H1, TD } from '@/components/ui/tokens';
 
 // Sales > Activity > Expenses (0129). Every dollar a salesperson spent on a
 // client: rows typed on a note ("Amount spent") show here read-only with a
 // link back to the note, and standalone rows (no meeting, or a gift) are added
 // and edited here. Rows are archived, never deleted.
 
-const input = INPUT;
-const btn   = BTN_PRIMARY;
-const btn2  = BTN_SECONDARY;
-const label = `block ${LABEL} mb-1`;
 
 // Filters drive the server fetch; they and the sort live in the address.
 const FILTER_FIELDS = [
@@ -30,67 +29,11 @@ const SORT_KEYS = ['date', 'who', 'amount', 'category', 'company', 'project', 'n
 const VIEW_FIELDS = [...FILTER_FIELDS, ...SORT_KEYS.map(k => ({ key: k, kind: 'sort' }))];
 const SORT_DEFAULT = { key: 'date', dir: 'desc' };
 
-const today = () => new Date().toISOString().slice(0, 10);
-const blankForm = (userId = '') => ({ userId, spentOn: today(), amount: '', category: 'MEAL', clientId: '', projectId: '', description: '' });
+const blankForm = blankExpenseForm;
 
 function fmtDate(v) {
   if (!v) return 'None';
   return new Date(v).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-}
-
-function ExpenseForm({ value, onChange, users, clients, projects, onSubmit, onCancel, busy, submitLabel }) {
-  const set = (k, v) => onChange({ ...value, [k]: v });
-  const projectOptions = useMemo(
-    () => value.clientId ? projects.filter(p => p.clientId === value.clientId) : projects,
-    [projects, value.clientId]
-  );
-  return (
-    <form onSubmit={onSubmit} className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-      <div>
-        <label className={label}>Who</label>
-        <select value={value.userId} onChange={e => set('userId', e.target.value)} className={input}>
-          <option value="">Pick a person</option>
-          {users.map(u => <option key={u.id} value={u.id}>{u.name || u.email}</option>)}
-        </select>
-      </div>
-      <div>
-        <label className={label}>Date</label>
-        <input type="date" value={value.spentOn} onChange={e => set('spentOn', e.target.value)} className={input} />
-      </div>
-      <div>
-        <label className={label}>Amount <span className="font-normal normal-case text-slate-500">($)</span></label>
-        <input inputMode="decimal" value={value.amount} onChange={e => set('amount', e.target.value)} placeholder="0.00" className={input} />
-      </div>
-      <div>
-        <label className={label}>What for</label>
-        <select value={value.category} onChange={e => set('category', e.target.value)} className={input}>
-          {EXPENSE_CATEGORIES.map(c => <option key={c.key} value={c.key}>{c.label}</option>)}
-        </select>
-      </div>
-      <div>
-        <label className={label}>Company</label>
-        <select value={value.clientId} onChange={e => onChange({ ...value, clientId: e.target.value, projectId: '' })} className={input}>
-          <option value="">No company</option>
-          {clients.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-        </select>
-      </div>
-      <div>
-        <label className={label}>Project <span className="font-normal normal-case text-slate-500">(optional)</span></label>
-        <select value={value.projectId} onChange={e => set('projectId', e.target.value)} className={input}>
-          <option value="">No project</option>
-          {projectOptions.map(p => <option key={p.id} value={p.id}>{p.projectNumber ? `${p.projectNumber} ` : ''}{p.name}</option>)}
-        </select>
-      </div>
-      <div className="col-span-2">
-        <label className={label}>Description</label>
-        <input value={value.description} onChange={e => set('description', e.target.value)} placeholder="Dinner at Fogo with the Hines team" className={input} />
-      </div>
-      <div className="col-span-2 sm:col-span-4 flex items-center gap-2">
-        <button type="submit" disabled={busy} className={btn}>{busy ? 'Saving…' : submitLabel}</button>
-        {onCancel && <button type="button" onClick={onCancel} className={btn2}>Cancel</button>}
-      </div>
-    </form>
-  );
 }
 
 export default function SalesExpensesPage() {
@@ -106,6 +49,7 @@ export default function SalesExpensesPage() {
   const [editId,   setEditId]   = useState(null);
   const [editForm, setEditForm] = useState(null);
   const [open,     setOpen]     = useState(false);
+  const [receipts, setReceipts] = useState([]);
   const { filters, setFilter, clearFilters, sort, toggleSort, ready } = useUrlView({ fields: VIEW_FIELDS, sortDefault: SORT_DEFAULT });
   const filterUser = filters.user || 'all';
   const filterFrom = filters.from || '';
@@ -126,6 +70,23 @@ export default function SalesExpensesPage() {
   }, [filterUser, filterFrom, filterTo]);
 
   useEffect(() => { if (ready) load(); }, [ready, load]);
+
+  const loadReceipts = useCallback(async () => {
+    try {
+      const res = await fetch('/api/sales/expenses/receipts');
+      if (!res.ok) throw new Error(`Your receipts did not load. Try again. (HTTP ${res.status})`);
+      setReceipts((await res.json()).receipts || []);
+    } catch (e) {
+      setErr(e instanceof TypeError ? 'No signal reaching our server. Your receipts did not load. Check your connection and try again.' : e.message);
+    }
+  }, []);
+
+  useEffect(() => { loadReceipts(); }, [loadReceipts]);
+
+  async function receiptChanged(saved) {
+    await loadReceipts();
+    if (saved) await load();
+  }
 
   useEffect(() => {
     (async () => {
@@ -163,7 +124,7 @@ export default function SalesExpensesPage() {
     setEditId(r.id);
     setEditForm({
       userId: r.userId, spentOn: (r.spentOn || '').slice(0, 10), amount: centsToInput(r.amountCents),
-      category: r.category, clientId: r.clientId || '', projectId: r.projectId || '', description: r.description || '',
+      category: r.category, vendor: r.vendor || '', clientId: r.clientId || '', projectId: r.projectId || '', description: r.description || '',
     });
   }
 
@@ -209,7 +170,7 @@ export default function SalesExpensesPage() {
     company:     r => r.client?.name || '',
     project:     r => r.project?.name || '',
     note:        r => r.note ? Number(r.note.noteNumber) || 0 : null,
-    description: r => r.description || '',
+    description: r => [r.vendor, r.description].filter(Boolean).join(' ') || '',
   }), [rows, sort]);
   const choices = { user: users.map(u => [u.id, u.name || u.email]) };
   const filterCount = countFilters(filters, FILTER_FIELDS);
@@ -220,7 +181,7 @@ export default function SalesExpensesPage() {
       <div className="max-w-5xl mx-auto space-y-5">
         <div>
           <h1 className={H1}>Expenses</h1>
-          <p className="text-xs text-slate-500 mt-0.5">What each salesperson spent on clients. Money typed on a sales note lands here on its own; add anything without a meeting below.</p>
+          <p className="text-xs text-slate-500 mt-0.5">What each salesperson spent on clients. Drop a receipt and AI fills it in, or type it. Money typed on a sales note lands here on its own.</p>
         </div>
 
         {err && <p className="text-xs text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{err}</p>}
@@ -228,10 +189,16 @@ export default function SalesExpensesPage() {
         <ExpenseNumbers userId={filterUser === 'all' ? '' : filterUser} rows={rows} />
 
         <div className={CARD_PADDED}>
-          <h2 className={`${CARD_TITLE} mb-3`}>Add an expense</h2>
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <h2 className={CARD_TITLE}>Add an expense</h2>
+            <Link href="/sales/activity/expenses/snap" className={`${BTN_COMPACT} sm:hidden`}>Snap a receipt</Link>
+          </div>
+          <ReceiptDrop onDone={loadReceipts} className="mb-4" />
           <ExpenseForm value={form} onChange={setForm} users={users} clients={clients} projects={projects}
             onSubmit={create} busy={busy} submitLabel="Add expense" />
         </div>
+
+        <ReceiptsToConfirm receipts={receipts} me={me} users={users} clients={clients} projects={projects} onChanged={receiptChanged} />
 
         <div className={CARD_PADDED}>
           <h2 className={`${CARD_TITLE} mb-3`}>All expenses <span className="font-normal text-slate-500 tabular-nums">({rows.length}, {formatMoney(total)})</span></h2>
@@ -252,7 +219,7 @@ export default function SalesExpensesPage() {
           {loading ? (
             <WidgetLoading />
           ) : rows.length === 0 ? (
-            <WidgetEmpty>Nothing spent yet. Type an amount on a sales note or add one above.</WidgetEmpty>
+            <WidgetEmpty>Nothing spent yet. Drop a receipt above, add one by hand, or type an amount on a sales note.</WidgetEmpty>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
@@ -266,13 +233,14 @@ export default function SalesExpensesPage() {
                     <SortHeader field="project" label="Project" sort={sort} onSort={toggleSort} />
                     <SortHeader field="note" label="Note" sort={sort} onSort={toggleSort} />
                     <SortHeader field="description" label="Description" sort={sort} onSort={toggleSort} />
+                    <Th>Receipt</Th>
                     <Th />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-50">
                   {sorted.map(r => (
                     editId === r.id ? (
-                      <tr key={r.id}><td colSpan={9} className="px-3 py-3">
+                      <tr key={r.id}><td colSpan={10} className="px-3 py-3">
                         <ExpenseForm value={editForm} onChange={setEditForm} users={users} clients={clients} projects={projects}
                           onSubmit={saveEdit} onCancel={() => { setEditId(null); setEditForm(null); }} busy={busy} submitLabel="Save" />
                       </td></tr>
@@ -285,7 +253,12 @@ export default function SalesExpensesPage() {
                         <td className={TD}>{r.client ? <Link href={`/clients/${r.client.id}`} className="text-slate-700 hover:text-orange-600">{r.client.name}</Link> : <span className="text-slate-400">None</span>}</td>
                         <td className={TD}>{r.project ? <Link href={`/projects/${r.project.id}`} className="text-slate-700 hover:text-orange-600">{r.project.name}</Link> : <span className="text-slate-400">None</span>}</td>
                         <td className={TD}>{r.note ? <Link href={`/crm/notes?note=${r.note.id}`} className="text-slate-700 hover:text-orange-600">#{r.note.noteNumber}{r.note.title ? ` ${r.note.title}` : ''}</Link> : <span className="text-slate-400">None</span>}</td>
-                        <td className={`${TD} text-slate-500 max-w-[220px] truncate`} title={r.description}>{r.description || ''}</td>
+                        <td className={`${TD} text-slate-500 max-w-[220px] truncate`} title={[r.vendor, r.description].filter(Boolean).join(': ')}>{[r.vendor, r.description].filter(Boolean).join(': ')}</td>
+                          <td className={`${TD} whitespace-nowrap`}>
+                            {r.receipts?.[0]
+                              ? <a href={`/api/sales/expenses/receipts/${r.receipts[0].id}/file`} target="_blank" rel="noreferrer" className="text-orange-600 hover:underline">View</a>
+                              : ''}
+                          </td>
                         <td className={`${TD} text-right whitespace-nowrap`}>
                           {r.note ? (
                             <span className="text-xs text-slate-500" title="Change the amount on the note itself">from note</span>

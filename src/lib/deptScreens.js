@@ -62,7 +62,7 @@ export const PHONE_TABS = {
   shipSchedules:   { key: 'shipSchedules',   label: 'Shipping',     href: '/ship-schedules',    match: p => p.startsWith('/ship-schedules') },
   mainDashboard:   { key: 'mainDashboard',   label: 'Dashboard',    href: '/dashboards/main',   match: p => p.startsWith('/dashboards/main') },
   salesDashboard:  { key: 'salesDashboard',  label: 'Sales',        href: '/dashboards/sales',  match: p => p.startsWith('/dashboards/sales') },
-  expenses: { key: 'expenses', label: 'Expenses', href: '/sales/activity/expenses', match: p => p.startsWith('/sales/activity/expenses') },
+  expenses: { key: 'expenses', label: 'Expenses', href: '/sales/activity/expenses/snap', match: p => p.startsWith('/sales/activity/expenses') },
   search:          { key: 'search',          label: 'Search',       href: '/search',            match: p => p.startsWith('/search') },
 };
 
