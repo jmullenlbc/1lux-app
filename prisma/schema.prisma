@@ -5263,6 +5263,11 @@ model RfqLine {
   priceSource      String? // AUTO | PICKED | TYPED
   confidence       Float? // 0 to 1, when the price came from a quote file
   receivedAt       DateTime?
+  // A person's OK puts the price on the matrix or CO line (0164). Nothing
+  // reaches the DN without it; a new price clears it.
+  approvedAt       DateTime?
+  approvedById     String?
+  approvedByName   String?
   sortOrder        Int             @default(0)
   createdAt        DateTime        @default(now())
   quoteLinks       RfqQuoteLink[]

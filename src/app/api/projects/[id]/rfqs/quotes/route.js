@@ -5,8 +5,9 @@ import { linkRows, unlinkRow, skipRow } from '@/lib/rfq/actions';
 import { quotesFor, saveQuote, setQuoteFreight } from '@/lib/rfq/intakeQuote';
 
 // The RFQ received screen (0144). The browser posts the lines a person checked,
-// from a dropped file or a pasted table. Lines matched at 75% or better are
-// priced straight away; the rest wait for someone to pick the RFQ line.
+// from a dropped file or a pasted table. Lines matched at 75% or better get the
+// rep price; the rest wait for someone to pick the RFQ line. No price reaches
+// the matrix DN until a person approves it on Review prices (0164).
 
 // GET  quotes brought in on this project, newest first, and every RFQ line they can be matched to.
 export async function GET(request, { params }) {
@@ -31,14 +32,14 @@ export async function POST(request, { params }) {
   return NextResponse.json({ quote: screen.quotes.find((q) => q.id === saved.quote.id), options: saved.options, rfqLines: screen.rfqLines, rollup: screen.rollup }, { status: 201 });
 }
 
-// PATCH { quoteLineId, rfqLineId }                this quote line also prices that RFQ line
+// PATCH { quoteLineId, rfqLineId, approve? }      this quote line also prices that RFQ line; approve puts it on the DN too
 //       { quoteLineId, rfqLineId, remove: true }  it stops pricing that RFQ line
 //       { quoteLineId, skip: true }               not ours (freight, a spare, an option)
 //       { quoteId, brand, typedAmount?, status? } a person's freight figure, or their answer
 export async function PATCH(request, { params }) {
   const { user, error } = await requireStaff(request);
   if (error) return error;
-  const { quoteId, brand, typedAmount, status, quoteLineId, rfqLineId, skip, remove } = await request.json();
+  const { quoteId, brand, typedAmount, status, quoteLineId, rfqLineId, skip, remove, approve } = await request.json();
   if (quoteId) {
     const res = await setQuoteFreight({ projectId: params.id, quoteId, brand, typedAmount, status, user });
     if (res.error) return NextResponse.json({ error: res.error }, { status: 400 });
@@ -58,7 +59,7 @@ export async function PATCH(request, { params }) {
   await prisma.$transaction(async (tx) => {
     if (skip) await skipRow(tx, { quoteLineId: ql.id, user });
     else if (remove) await unlinkRow(tx, { quoteLineId: ql.id, rfqLineId, user });
-    else await linkRows(tx, { quoteId: ql.quoteId, links: [{ quoteLineId: ql.id, rfqLineId }], source: 'PICKED', user });
+    else await linkRows(tx, { quoteId: ql.quoteId, links: [{ quoteLineId: ql.id, rfqLineId }], source: 'PICKED', user, approve: !!approve });
   });
   const screen = await quotesFor(params.id);
   return NextResponse.json({ quote: screen.quotes.find((q) => q.id === ql.quoteId), rfqLines: screen.rfqLines, rollup: screen.rollup });

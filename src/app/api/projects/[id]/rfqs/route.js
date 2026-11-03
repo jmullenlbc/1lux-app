@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireStaff } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { changesFor, rfqState } from '@/lib/rfq/resolve';
-import { renameRound, sendRfq, startRound } from '@/lib/rfq/actions';
+import { approveLine, renameRound, sendRfq, startRound } from '@/lib/rfq/actions';
 import { emailBody, emailSubject } from '@/lib/rfq/format';
 import { linkHistory } from '@/lib/salesReps/links';
 
@@ -22,6 +22,7 @@ export async function GET(request, { params }) {
 //      { action: 'send', groupKey, lineIds?, notes?, revisesId? }
 //      { action: 'round', name }                             start the next round (a new drawing submission)
 //      { action: 'roundName', roundId, name }                rename a round
+//      { action: 'approve', rfqLineIds, coId? }              a person's OK: the rep price becomes the DN (0164)
 export async function POST(request, { params }) {
   const { user, error } = await requireStaff(request);
   if (error) return error;
@@ -77,6 +78,23 @@ export async function POST(request, { params }) {
       return NextResponse.json({ error: 'That round is not on this job any more. Nothing was changed. Reload the page. (RFQ_NO_ROUND)' }, { status: 400 });
     }
     return NextResponse.json(await rfqState(projectId));
+  }
+
+  if (body.action === 'approve') {
+    const ids = [...new Set(body.rfqLineIds || [])].filter(Boolean);
+    if (!ids.length) return NextResponse.json({ error: 'Pick at least one line to approve. Nothing was changed. (RFQ_APPROVE_NONE)' }, { status: 400 });
+    const found = await prisma.rfqLine.count({ where: { id: { in: ids }, rfq: { projectId } } });
+    if (found !== ids.length) return NextResponse.json({ error: 'One of those lines is not on this job any more. Nothing was changed. Reload the page. (RFQ_APPROVE_BAD_LINE)' }, { status: 400 });
+    let missed = 0;
+    try {
+      await prisma.$transaction(async (tx) => {
+        for (const rfqLineId of ids) if (!(await approveLine(tx, { rfqLineId, user })).landed) missed++;
+      }, { timeout: 20000 });
+    } catch (e) {
+      if (String(e?.code || '').startsWith('RFQ_')) return NextResponse.json({ error: e.message }, { status: 400 });
+      throw e;
+    }
+    return NextResponse.json({ approved: ids.length, missed, state: await rfqState(projectId, { coId: body.coId || null }) });
   }
 
   if (body.action === 'send') {

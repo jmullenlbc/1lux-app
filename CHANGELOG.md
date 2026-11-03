@@ -5,6 +5,25 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [RFQ tabs, Review prices, price approval] - November 2, 2026
+
+### Added
+- The RFQs screen is now five tabs: Review prices, To send, Sent, Quotes, All lines. The tab sits in the link (`rfq=`), and the screen opens on the tab with work waiting.
+- Review prices tab: every rep price waits here, line by line. Approve takes 1 click, or tick rows and Approve all. Rows with no match get an Assign drop down. Wrong match and Not ours are one click too.
+- Price approval (migration 0164): RfqLine gets approvedAt, approvedById, approvedByName. Nothing reaches the bid matrix on its own, auto matches included. Approve writes the DN, marks the line Received and works out the client sell at the job margin. A changed price clears the OK.
+- Change order RFQ panel uses the same review list. CO lines need an OK too, while the CO is a draft.
+- To send: one slim row per rep, opened only when needed. Send all ready when more than one rep is ready.
+- All lines: one table with filters, search, sorting and a bulk Change rep. Shows "Waiting for an OK" for prices not approved yet.
+- Sent lists overdue RFQs first.
+
+### Changed
+- Quotes tab is a read only list: drop a quote, see what was read. Matching happens on Review prices only.
+- Clients page opens as a list. No cards.
+
+### Files
+- New: `src/components/rfq/RfqReview.jsx`, `prisma/migrations/0164_rfq_price_approval/migration.sql`.
+- Changed: `prisma/schema.prisma`, `src/lib/rfq/actions.js`, `resolve.js`, both RFQ routes, `RfqTab.jsx`, `RfqReceived.jsx`, `SentRfqs.jsx`, `CoRfqPanel.jsx`, `SectionTabs.jsx`, `CODetailClient.jsx`, `ClientsClient.jsx`, `scripts/tests/rfqE2e.test.mjs`.
+
 ## [Expenses: Snap page, receipts, AI read, drop box] - November 2, 2026
 
 ### Added

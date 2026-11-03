@@ -2,7 +2,8 @@
 // matrix lines by rep, Send makes RFQ numbers and marks lines Sent, typed DN
 // prices save, a rep quote auto prices good matches and asks about the rest,
 // a pick and a "Not ours" settle open lines, rows add up on one line and a newer
-// quote replaces an older one (0156), the PDF builds, and the rep,
+// quote replaces an older one (0156), a rep price reaches the matrix DN only
+// after a person approves it (0164), the PDF builds, and the rep,
 // office and manufacturer pages open. Only this test's own rows are touched
 // and deleted afterwards. Skips when the server is down.
 // Run: node --test scripts/tests/rfqE2e.test.mjs
@@ -13,6 +14,7 @@ import { BASE, get, login, post, serverUp } from './_auth.mjs';
 import { ensureE2eAdmin } from './_e2eAdmin.mjs';
 import { needByFrom } from '../../src/lib/rfq/format.js';
 import { compareSnapshots, snapshotOfRound } from '../../src/lib/rfq/compare.js';
+import { cents, lineTotal } from '../../src/lib/money.js';
 
 const TAG = `CLAUDE E2E RFQ ${Date.now()}`;
 
@@ -107,6 +109,12 @@ test('RFQ send, price, quote match, versions and pages', async (t) => {
     const typed = await patch(`${base}/${rfq.id}`, { prices: [{ lineId: lb.id, dnPrice: '55.5' }] }, cookie);
     assert.equal(typed.status, 200, typed.text);
     assert.equal(typed.json.rfq.lines.find((l) => l.id === lb.id).dnPrice, 55.5);
+    // A typed price is a person, so it goes on the matrix: sell at the 23% default margin, then the line total.
+    const itemOf = (code) => prisma.peerReviewItem.findFirst({ where: { projectId: project.id, typeCode: code } });
+    const b1 = await itemOf('B1');
+    assert.equal(b1.propUnitDN, 55.5);
+    assert.equal(b1.propUnitPrice, cents(55.5 / 0.77));
+    assert.equal(b1.totalSavings, lineTotal(12, cents(55.5 / 0.77)));
 
     // A quote: A1 matches well and is priced; X9 asks; Z1 is not ours.
     const q = await post(`${base}/quotes`, {
@@ -140,6 +148,23 @@ test('RFQ send, price, quote match, versions and pages', async (t) => {
     const s1 = await get(base, cookie);
     assert.equal(lineOf(s1.json, 'A1').status, 'Received');
 
+    // Nothing reaches the matrix DN on its own (0164, Mike 11-2).
+    assert.equal((await itemOf('A1')).propUnitDN, null, 'an auto match waits for a person');
+    assert.equal(lineOf(s1.json, 'A1').approved, false);
+    assert.equal(lineOf(s1.json, 'A1').rfqLineId, la.id);
+    assert.equal(lineOf(s1.json, 'B1').approved, false, 'a new price undoes the typed OK');
+    assert.equal(lineOf(s1.json, 'B1').nowDN, 55.5, 'the matrix keeps the last approved DN');
+    const ok = await post(base, { action: 'approve', rfqLineIds: [la.id] }, cookie);
+    assert.equal(ok.status, 200, ok.text);
+    assert.equal(lineOf(ok.json.state, 'A1').approved, true);
+    assert.equal(lineOf(ok.json.state, 'A1').nowDN, 88);
+    const a1 = await itemOf('A1');
+    assert.equal(a1.propUnitPrice, cents(88 / 0.77));
+    assert.equal(a1.totalSavings, lineTotal(40, cents(88 / 0.77)));
+    const bad = await post(base, { action: 'approve', rfqLineIds: ['not-a-line'] }, cookie);
+    assert.equal(bad.status, 400);
+    assert.match(bad.json.error, /RFQ_APPROVE_BAD_LINE/);
+
     // Rows add up (0156): the skipped row joins B and counts once.
     const add = await patch(`${base}/quotes`, { quoteLineId: qz.id, rfqLineId: lb.id }, cookie);
     assert.equal(add.status, 200, add.text);
@@ -150,6 +175,8 @@ test('RFQ send, price, quote match, versions and pages', async (t) => {
     const both = await patch(`${base}/quotes`, { quoteLineId: qz.id, rfqLineId: la.id }, cookie);
     assert.equal(both.status, 200, both.text);
     assert.equal((await prisma.rfqLine.findUnique({ where: { id: la.id } })).dnPrice, 93);
+    assert.equal((await prisma.rfqLine.findUnique({ where: { id: la.id } })).approvedAt, null, 'a new price waits for a new OK');
+    assert.equal((await itemOf('A1')).propUnitDN, 88);
     const off = await patch(`${base}/quotes`, { quoteLineId: qz.id, rfqLineId: la.id, remove: true }, cookie);
     assert.equal(off.status, 200, off.text);
     assert.equal((await prisma.rfqLine.findUnique({ where: { id: la.id } })).dnPrice, 88);
@@ -158,6 +185,11 @@ test('RFQ send, price, quote match, versions and pages', async (t) => {
     const off2 = await patch(`${base}/quotes`, { quoteLineId: qz.id, skip: true }, cookie);
     assert.equal(off2.status, 200, off2.text);
     assert.equal((await prisma.rfqLine.findUnique({ where: { id: lb.id } })).dnPrice, 61);
+    // Assign and approve in one pick, as Review prices does.
+    const assigned = await patch(`${base}/quotes`, { quoteLineId: qx.id, rfqLineId: lb.id, approve: true }, cookie);
+    assert.equal(assigned.status, 200, assigned.text);
+    assert.equal((await itemOf('B1')).propUnitDN, 61);
+    assert.ok((await prisma.rfqLine.findUnique({ where: { id: lb.id } })).approvedAt);
 
     // A revised quote replaces the first one on that line; it never adds on top.
     const rev = await post(`${base}/quotes`, {

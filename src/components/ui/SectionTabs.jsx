@@ -32,17 +32,21 @@ export default function SectionTabs({ tabs, active = null, className = 'mb-6 -mt
     <div ref={strip} className={`flex items-center gap-1 border-b border-slate-200 overflow-x-auto [scrollbar-width:none] ${className}`}>
       {tabs.map(tab => {
         const key = tab.key || tab.href;
+        const cls = `shrink-0 px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${
+          current === key
+            ? 'border-orange-500 text-orange-600'
+            : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
+        }`;
+        // A tab inside one screen (no page change) passes onClick instead of href.
+        if (tab.onClick) {
+          return (
+            <button key={key} type="button" onClick={tab.onClick} aria-current={current === key ? 'page' : undefined} className={`${cls} inline-flex items-center gap-1.5`}>
+              {tab.label}
+            </button>
+          );
+        }
         return (
-          <Link
-            key={key}
-            href={tab.href}
-            aria-current={current === key ? 'page' : undefined}
-            className={`shrink-0 px-4 py-2.5 text-sm font-semibold border-b-2 transition-colors whitespace-nowrap ${
-              current === key
-                ? 'border-orange-500 text-orange-600'
-                : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
-            }`}
-          >
+          <Link key={key} href={tab.href} aria-current={current === key ? 'page' : undefined} className={cls}>
             {tab.label}
           </Link>
         );

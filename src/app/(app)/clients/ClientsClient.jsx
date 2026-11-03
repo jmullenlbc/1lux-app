@@ -21,7 +21,7 @@ const BULK_FIELDS = [
   { key: 'state',        label: 'State',         kind: 'text' },
   { key: 'branchMarket', label: 'Branch market', kind: 'text' },
 ];
-import { CARD_PADDED, MODAL, BTN_PRIMARY, BTN_SECONDARY, H1, LABEL, INPUT, HELPER, NUM } from '@/components/ui/tokens';
+import { CARD, CARD_PADDED, MODAL, BTN_PRIMARY, BTN_SECONDARY, H1, LABEL, INPUT, HELPER, NUM, TH, TD } from '@/components/ui/tokens';
 
 const FILTER_FIELDS = [
   { key: 'tag', label: 'Tag', kind: 'pick' },
@@ -351,7 +351,7 @@ export default function ClientsClient({ clients: initial, user }) {
         <div className="mt-2"><BulkTools bulk={bulk} shown={shown.length} noun="companies" fields={BULK_FIELDS} /></div>
       </div>
 
-      {/* Clients grid / empty state */}
+      {/* Clients list / empty state. A list, not cards (Mike 11-2). */}
       {shown.length === 0 ? (
         <div className={`${CARD_PADDED} p-16 text-center`}>
           <div className="w-14 h-14 rounded-full bg-orange-50 flex items-center justify-center mx-auto mb-4">
@@ -376,121 +376,94 @@ export default function ClientsClient({ clients: initial, user }) {
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {shown.map(client => (
-            <div key={client.id} className={`${CARD_PADDED} hover:border-slate-300 transition-colors group`}>
-              <div className="flex items-start justify-between mb-3">
-                <input type="checkbox" checked={bulk.picked.has(client.id)} onChange={() => bulk.toggle(client.id)}
-                  aria-label={`Pick ${client.name}`} className="w-4 h-4 accent-orange-500 mt-1 mr-2 shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <Link
-                    href={`/clients/${client.id}`}
-                    className="font-semibold text-slate-900 hover:text-orange-600 transition-colors leading-snug block truncate"
-                  >
-                    {client.name}{client.branchMarket ? <span className="font-normal text-slate-500"> · {client.branchMarket}</span> : null}
-                  </Link>
-                  {(client.city || client.state || (client.locationType && client.locationType !== 'none')) && (
-                    <div className={`${HELPER} mt-0.5`}>
-                      {[
-                        [client.city, client.state].filter(Boolean).join(', '),
-                        client.locationType && client.locationType !== 'none'
-                          ? locationTypeLabel(client.locationType) : '',
-                      ].filter(Boolean).join(' · ')}
-                    </div>
-                  )}
-                </div>
-                <div className="flex items-center gap-1 ml-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button
-                    onClick={() => setModal(client)}
-                    title="Edit"
-                    className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors"
-                  >
-                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" />
-                    </svg>
-                  </button>
-                  <button
-                    onClick={() => setArchiveTarget({ id: client.id, name: client.name })}
-                    disabled={deletingId === client.id}
-                    title="Archive"
-                    className={`p-1.5 rounded-lg transition-colors ${
-                      deletingId === client.id
-                        ? 'text-slate-300 cursor-not-allowed opacity-50'
-                        : 'text-slate-600 hover:bg-slate-100'
-                    }`}
-                  >
-                    {deletingId === client.id ? (
-                      <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeOpacity="0.25" fill="none" />
-                        <path fill="currentColor" d="M4 12a8 8 0 018-8v.033a7.967 7.967 0 00-7.968 7.968A7.967 7.967 0 0012 20a7.967 7.967 0 007.968-7.968" />
-                      </svg>
-                    ) : (
-                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
-                      </svg>
-                    )}
-                  </button>
-                </div>
-              </div>
-
-              {clientTypeKeys(client).length > 0 && (
-                <div className="mb-3 flex flex-wrap gap-1">
-                  {clientTypeKeys(client).map(key => <ClientTypeTag key={key} type={key} />)}
-                </div>
-              )}
-
-              {(client.tagLinks || []).length > 0 && (
-                <div className="mb-3 flex flex-wrap gap-1">
-                  {client.tagLinks.map(link => (
-                    <span key={link.id || link.tagId}
-                      className="inline-block text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
-                      {link.tag?.name}
-                    </span>
-                  ))}
-                </div>
-              )}
-
-              {/* Deal counts, worked out live from this client's projects
-                  never a stored number that can drift. One project is one deal,
-                  even when it rides both pipelines. */}
-              {(() => {
+        <div className={`${CARD} overflow-x-auto`}>
+          <table className="w-full min-w-[880px]">
+            <thead className="bg-slate-50 border-b border-slate-200">
+              <tr>
+                <th className={`${TH} w-8`}><span className="sr-only">Pick</span></th>
+                <th className={TH}>Company</th>
+                <th className={TH}>Location</th>
+                <th className={TH}>Type and tags</th>
+                <th className={`${TH} text-right`}>Open</th>
+                <th className={`${TH} text-right`}>Won</th>
+                <th className={`${TH} text-right`}>Lost</th>
+                <th className={`${TH} text-right`}>Abandoned</th>
+                <th className={`${TH} text-right`}>Projects</th>
+                <th className={`${TH} text-right`}>People</th>
+                <th className={TH}><span className="sr-only">Edit or archive</span></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {shown.map(client => {
+                // Deal counts, worked out live from this client's projects, never a stored
+                // number that can drift. One project is one deal, even on both pipelines.
                 const counts = clientDealCounts(client.projects);
+                const where = [
+                  [client.city, client.state].filter(Boolean).join(', '),
+                  client.locationType && client.locationType !== 'none' ? locationTypeLabel(client.locationType) : '',
+                ].filter(Boolean).join(' · ');
                 return (
-                  <div className="grid grid-cols-4 gap-1 text-center">
-                    {[
-                      ['Open',      counts.open,      'text-slate-900'],
-                      ['Won',       counts.won,       'text-green-600'],
-                      ['Lost',      counts.lost,      'text-red-600'],
-                      ['Abandoned', counts.abandoned, 'text-amber-600'],
-                    ].map(([label, value, tone]) => (
-                      <div key={label} className="rounded-lg bg-slate-50 py-1.5">
-                        <div className={`text-sm font-bold tabular-nums ${tone}`}>{value}</div>
-                        <div className={LABEL}>{label}</div>
+                  <tr key={client.id} className="group align-top hover:bg-slate-50">
+                    <td className={TD}>
+                      <input type="checkbox" checked={bulk.picked.has(client.id)} onChange={() => bulk.toggle(client.id)}
+                        aria-label={`Pick ${client.name}`} className="w-4 h-4 accent-orange-500 mt-0.5" />
+                    </td>
+                    <td className={TD}>
+                      <Link href={`/clients/${client.id}`} className="font-semibold text-slate-900 hover:text-orange-600 transition-colors">
+                        {client.name}
+                      </Link>
+                      {client.branchMarket ? <span className="text-slate-500"> · {client.branchMarket}</span> : null}
+                      {client.notes && <p className={`${HELPER} mt-0.5 line-clamp-1 max-w-xs`}>{client.notes}</p>}
+                    </td>
+                    <td className={`${TD} text-slate-500`}>{where}</td>
+                    <td className={TD}>
+                      <div className="flex flex-wrap gap-1">
+                        {clientTypeKeys(client).map(key => <ClientTypeTag key={key} type={key} />)}
+                        {(client.tagLinks || []).map(link => (
+                          <span key={link.id || link.tagId} className="inline-block text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                            {link.tag?.name}
+                          </span>
+                        ))}
                       </div>
-                    ))}
-                  </div>
+                    </td>
+                    <td className={`${TD} text-right ${NUM} text-slate-900`}>{counts.open}</td>
+                    <td className={`${TD} text-right ${NUM} text-green-600`}>{counts.won}</td>
+                    <td className={`${TD} text-right ${NUM} text-red-600`}>{counts.lost}</td>
+                    <td className={`${TD} text-right ${NUM} text-amber-600`}>{counts.abandoned}</td>
+                    <td className={`${TD} text-right ${NUM}`}>{client._count?.projects || 0}</td>
+                    <td className={`${TD} text-right ${NUM}`}>{client._count?.contacts || 0}</td>
+                    <td className={`${TD} text-right whitespace-nowrap`}>
+                      <div className="inline-flex items-center gap-1 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={() => setModal(client)}
+                          title="Edit"
+                          className="p-1.5 rounded-lg text-slate-600 hover:bg-slate-100 transition-colors"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={() => setArchiveTarget({ id: client.id, name: client.name })}
+                          disabled={deletingId === client.id}
+                          title="Archive"
+                          className={`p-1.5 rounded-lg transition-colors ${
+                            deletingId === client.id
+                              ? 'text-slate-300 cursor-not-allowed opacity-50'
+                              : 'text-slate-600 hover:bg-slate-100'
+                          }`}
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
+                          </svg>
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
                 );
-              })()}
-
-              {client.notes && (
-                <p className={`${HELPER} mt-2 line-clamp-2`}>{client.notes}</p>
-              )}
-
-              <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
-                <span className={`${HELPER} ${NUM}`}>
-                  {client._count?.projects || 0} {client._count?.projects === 1 ? 'project' : 'projects'}
-                  {' · '}
-                  {client._count?.contacts || 0} {client._count?.contacts === 1 ? 'person' : 'people'}
-                </span>
-                <Link
-                  href={`/clients/${client.id}`}
-                  className="text-xs font-semibold text-orange-600 hover:text-orange-700 transition-colors"
-                >
-                  View →
-                </Link>
-              </div>
-            </div>
-          ))}
+              })}
+            </tbody>
+          </table>
         </div>
       )}
 

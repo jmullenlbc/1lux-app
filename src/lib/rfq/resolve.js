@@ -9,6 +9,7 @@
 //   otherwise the line asks "Pick a rep".
 // Line status: Draft (has a manufacturer, never sent), Sent, Received (priced).
 import { prisma } from '@/lib/db';
+import { getProjectRates } from '@/lib/changeOrderRates';
 import { LINE_STATUS, normName, rfqLabel, roundLabel } from './format';
 import { familyBefore, familyOf, revisionChanges, roundsFor } from './compare';
 
@@ -38,7 +39,7 @@ async function coItems(projectId, coId) {
   const items = co.optionGroups.flatMap((g) => g.lineItems)
     .filter((li) => !li.isFee && !li.isTaxLine && (li.fixtureType || li.manufacturer || li.description))
     .map((li) => ({
-      id: li.id, typeCode: li.fixtureType, description: li.description, propManufacturer: li.manufacturer, propModel: li.partNumber, qty: li.qty,
+      id: li.id, typeCode: li.fixtureType, description: li.description, propManufacturer: li.manufacturer, propModel: li.partNumber, qty: li.qty, propUnitDN: li.originalDN,
       notes: [li.notes, li.qty < 0 ? 'Credit: please quote the credit and any restocking fee.' : ''].filter(Boolean).join(' '),
     }));
   return { coNumber: co.coNumber, title: co.title, items };
@@ -56,7 +57,7 @@ export async function rfqState(projectId, { coId = null } = {}) {
   if (!project) return null;
   const onCo = coId ? await coItems(projectId, coId) : null;
   if (coId && !onCo) return null;
-  const [offices, items, manufacturers, picks, rfqRows, rounds] = await Promise.all([
+  const [offices, items, manufacturers, picks, rfqRows, rounds, rates] = await Promise.all([
     prisma.ourOffice.findMany({ where: { active: true }, orderBy: { sortOrder: 'asc' } }),
     onCo ? onCo.items : prisma.peerReviewItem.findMany({ where: { projectId }, orderBy: [{ section: 'asc' }, { sortOrder: 'asc' }, { createdAt: 'asc' }] }),
     prisma.manufacturer.findMany({
@@ -70,9 +71,13 @@ export async function rfqState(projectId, { coId = null } = {}) {
     prisma.rfq.findMany({
       where: { projectId, changeOrderId: coId },
       orderBy: { number: 'desc' },
-      include: { lines: { orderBy: { sortOrder: 'asc' } }, salesRep: { select: { id: true, name: true } }, manufacturer: { select: { id: true, name: true } } },
+      include: {
+        lines: { orderBy: { sortOrder: 'asc' }, include: { quoteLinks: { select: { quoteLine: { select: { quote: { select: { id: true, quoteNumber: true, fromName: true, fileName: true } } } } } } } },
+        salesRep: { select: { id: true, name: true } }, manufacturer: { select: { id: true, name: true } },
+      },
     }),
     prisma.rfqRound.findMany({ where: { projectId }, orderBy: { number: 'asc' } }),
+    getProjectRates(projectId),
   ]);
   const { office, guessed } = guessOffice(project, offices);
   const rfqs = coId ? rfqRows.map((r) => ({ ...r, lines: r.lines.map((l) => ({ ...l, peerReviewItemId: l.changeOrderLineItemId })) })) : rfqRows;
@@ -119,6 +124,11 @@ export async function rfqState(projectId, { coId = null } = {}) {
       id: it.id, typeCode: it.typeCode || '', description: it.description || '', manufacturer: m?.name || mfrName,
       manufacturerId: m?.id || null, partNumber: linePart(it), qty: it.qty, notes: it.notes || '',
       repName, how: who.how, status, rfqNumber: last?.rfq.number || null, rfqLabel: last ? rfqLabel(last.rfq) : '', dnPrice: last?.line.dnPrice ?? null,
+      // The rep price waits for a person's OK before it becomes the DN (0164).
+      rfqLineId: last?.line.id || null, approved: !!last?.line.approvedAt, approvedByName: last?.line.approvedByName || '',
+      nowDN: it.propUnitDN ?? null, priceSource: last?.line.priceSource || null, confidence: last?.line.confidence ?? null,
+      quoteFrom: last ? [...new Map(last.line.quoteLinks.map((k) => [k.quoteLine.quote.id, k.quoteLine.quote])).values()] : [],
+      sentTo: last?.rfq.toName || '',
     };
     lines.push(row);
     if (!mfrName) continue;
@@ -157,7 +167,7 @@ export async function rfqState(projectId, { coId = null } = {}) {
   return {
     project: { id: project.id, name: project.name, pm: project.preconManager?.name || '' },
     changeOrder: onCo ? { id: coId, coNumber: onCo.coNumber, title: onCo.title } : null,
-    office, officeGuessed: guessed, offices, lines, groups: out, rounds: roundsFor(rounds, sends),
+    office, officeGuessed: guessed, offices, lines, groups: out, rounds: roundsFor(rounds, sends), marginPct: rates.marginPct,
     rfqs: sends.map((r) => {
       const isLatest = newest.get(familyOf(r)).id === r.id;
       const ids = new Set(r.lines.map((l) => l.peerReviewItemId).filter(Boolean));

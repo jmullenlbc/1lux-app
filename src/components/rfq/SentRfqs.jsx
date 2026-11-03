@@ -115,7 +115,7 @@ function Detail({ projectId, summary, state, onSent, reload, coId }) {
 export default function SentRfqs({ projectId, state, onSent, reload, coId }) {
   const [open, setOpen] = useState(null);
   const rfqs = state.rfqs;
-  const families = rfqs.filter((r) => r.isLatest);
+  const families = rfqs.filter((r) => r.isLatest).sort((a, b) => Number(!!b.overdue) - Number(!!a.overdue));
   const versionsOf = (r) => rfqs.filter((x) => x.familyNumber === r.familyNumber).sort((a, b) => a.version - b.version);
   return (
     <WidgetFrame title="Sent RFQs" sub={`${families.length} rep${families.length === 1 ? '' : 's'} on this project, ${rfqs.length} sent in all`} flush>

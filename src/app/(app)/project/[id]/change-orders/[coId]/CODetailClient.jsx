@@ -1338,7 +1338,7 @@ export default function CODetailClient({ projectId, coId }) {
 
         {!viewOnly && (
           <div className="mt-4">
-            <CoRfqPanel projectId={projectId} coId={coId} stamp={(co.optionGroups || []).flatMap(g => (g.lineItems || []).map(li => `${li.id}:${li.qty}:${li.manufacturer}`)).join()} />
+            <CoRfqPanel onApproved={load} projectId={projectId} coId={coId} stamp={(co.optionGroups || []).flatMap(g => (g.lineItems || []).map(li => `${li.id}:${li.qty}:${li.manufacturer}`)).join()} />
           </div>
         )}
       </div>

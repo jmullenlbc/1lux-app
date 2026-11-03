@@ -1,9 +1,10 @@
 // RFQ writes (0144): send, price a line, mark received. Server only. Each one
-// keeps the matrix line's Sales Rep, RFQ Status and DN columns in step and
-// writes the RFQ's history.
+// keeps the matrix line's Sales Rep and RFQ Status columns in step and writes
+// the RFQ's history. A rep price reaches the matrix DN or a CO line only when a
+// person approves it (0164, Mike 11-2).
 import { prisma } from '@/lib/db';
 import { logHistory } from '@/lib/recordHistory';
-import { cents, sumCents } from '@/lib/money';
+import { cents, lineTotal, sumCents } from '@/lib/money';
 import { getProjectRates } from '@/lib/changeOrderRates';
 import { needByFrom, rfqLabel, roundLabel, LINE_STATUS } from './format';
 import { familyOf } from './compare';
@@ -107,34 +108,78 @@ export async function sendRfq({ projectId, group, lineIds, notes, officeId, user
   }
 }
 
-/** A rep's price lands on the CO line while the CO is a draft. A credit keeps the sell the client paid. */
+/** An approved price lands on the CO line while the CO is a draft. A credit keeps the sell the client paid. False once the CO left draft. */
 async function priceCoLine(tx, lineId, price) {
   const li = await tx.changeOrderLineItem.findUnique({
     where: { id: lineId },
     select: { qty: true, optionGroup: { select: { changeOrder: { select: { projectId: true, status: true } } } } },
   });
   const co = li?.optionGroup.changeOrder;
-  if (co?.status !== 'DRAFT') return;
+  if (co?.status !== 'DRAFT') return false;
   const { marginPct } = await getProjectRates(co.projectId, tx);
   await tx.changeOrderLineItem.update({
     where: { id: lineId },
     data: { originalDN: price, ...(li.qty >= 0 && { cnUnitPrice: cents(price / (1 - marginPct)) }) },
   });
+  return true;
 }
 
-/** Put a DN price on one RFQ line and its matrix or change order line. source AUTO | PICKED | TYPED. */
+const approveError = (code, msg) => Object.assign(new Error(`${msg} Nothing was changed. (${code})`), { code });
+
+/**
+ * A person's OK on one line's rep price. The matrix line gets it as DN, with the
+ * client sell and line total worked out the way typing a DN on the matrix does;
+ * a CO line gets it while the CO is a draft. Returns { line, landed }.
+ */
+export async function approveLine(tx, { rfqLineId, user }) {
+  const line = await tx.rfqLine.findUnique({ where: { id: rfqLineId }, include: { rfq: { select: { projectId: true } } } });
+  if (!line) throw approveError('RFQ_LINE_NOT_FOUND', 'That RFQ line is not on this job.');
+  if (line.dnPrice == null) throw approveError('RFQ_APPROVE_NO_PRICE', 'That line has no rep price yet, so there is nothing to approve.');
+  const price = line.dnPrice;
+  let landed = false;
+  if (line.peerReviewItemId) {
+    const item = await tx.peerReviewItem.findUnique({ where: { id: line.peerReviewItemId }, select: { qty: true } });
+    if (item) {
+      const { marginPct } = await getProjectRates(line.rfq.projectId, tx);
+      const sell = 1 - marginPct > 0 ? cents(price / (1 - marginPct)) : null;
+      await tx.peerReviewItem.update({
+        where: { id: line.peerReviewItemId },
+        data: { propUnitDN: price, rfqStatus: LINE_STATUS.RECEIVED, ...(sell != null && { propUnitPrice: sell, ...(item.qty != null && { totalSavings: lineTotal(item.qty, sell) }) }) },
+      });
+      landed = true;
+    }
+  }
+  if (line.changeOrderLineItemId) landed = await priceCoLine(tx, line.changeOrderLineItemId, price);
+  const out = await tx.rfqLine.update({
+    where: { id: rfqLineId },
+    data: { approvedAt: new Date(), approvedById: user?.id || null, approvedByName: user?.name || user?.email || null },
+  });
+  await logHistory({
+    entityType: 'RFQ', entityId: line.rfqId, action: 'APPROVE', user, db: tx,
+    changes: { [`${line.typeCode || 'Line'} DN on the ${line.changeOrderLineItemId ? 'change order' : 'matrix'}`]: [null, price] },
+    note: !landed ? 'Approved, but the line was not changed: the matrix line is gone or the change order is no longer a draft'
+      : line.changeOrderLineItemId ? 'Approved onto the change order' : 'Approved onto the bid matrix',
+  });
+  return { line: out, landed };
+}
+
+/** Put a rep's DN price on one RFQ line. It waits there for a person's OK; a new price undoes an earlier one. source AUTO | PICKED | TYPED. */
 export async function priceLine(tx, { rfqLineId, price, source, confidence = null, user }) {
+  const before = await tx.rfqLine.findUnique({ where: { id: rfqLineId }, select: { dnPrice: true } });
+  const same = before?.dnPrice != null && price != null && cents(before.dnPrice) === cents(price);
   const line = await tx.rfqLine.update({
     where: { id: rfqLineId },
-    data: { dnPrice: price, priceSource: price == null ? null : source, confidence, receivedAt: price == null ? null : new Date() },
+    data: {
+      dnPrice: price, priceSource: price == null ? null : source, confidence, receivedAt: price == null ? null : new Date(),
+      ...(!same && { approvedAt: null, approvedById: null, approvedByName: null }),
+    },
   });
   if (line.peerReviewItemId) {
     await tx.peerReviewItem.update({
       where: { id: line.peerReviewItemId },
-      data: { propUnitDN: price, rfqStatus: price == null ? LINE_STATUS.SENT : LINE_STATUS.RECEIVED },
+      data: { rfqStatus: price == null ? LINE_STATUS.SENT : LINE_STATUS.RECEIVED },
     }).catch(() => {}); // the matrix line may have been deleted since
   }
-  if (line.changeOrderLineItemId && price != null) await priceCoLine(tx, line.changeOrderLineItemId, price);
   await logHistory({
     entityType: 'RFQ', entityId: line.rfqId, action: 'RECEIVE', user, db: tx,
     changes: { [`${line.typeCode || 'Line'} DN price`]: [null, price] },
@@ -165,9 +210,10 @@ async function settleRow(tx, quoteLineId, status) {
 /**
  * Point rows of one quote at RFQ lines. links: [{ quoteLineId, rfqLineId }].
  * Rows add up only inside one quote: this quote replaces any other on those lines,
- * so a revised quote never adds on top of the first one.
+ * so a revised quote never adds on top of the first one. approve: a person
+ * picked the line, so the price goes on the matrix or CO line too.
  */
-export async function linkRows(tx, { quoteId, links, source, user }) {
+export async function linkRows(tx, { quoteId, links, source, user, approve = false }) {
   const lineIds = [...new Set(links.map((k) => k.rfqLineId))];
   const replaced = await tx.rfqQuoteLink.findMany({
     where: { rfqLineId: { in: lineIds }, quoteLine: { quoteId: { not: quoteId } } },
@@ -179,15 +225,20 @@ export async function linkRows(tx, { quoteId, links, source, user }) {
     await tx.rfqQuoteLink.upsert({ where: { quoteLineId_rfqLineId: k }, create: k, update: {} });
   }
   await tx.rfqQuoteLine.updateMany({ where: { id: { in: links.map((k) => k.quoteLineId) } }, data: { status: source } });
-  for (const rfqLineId of lineIds) await repriceLine(tx, { rfqLineId, source, user });
+  for (const rfqLineId of lineIds) {
+    const line = await repriceLine(tx, { rfqLineId, source, user });
+    if (approve && line.dnPrice != null) await approveLine(tx, { rfqLineId, user });
+  }
 }
 
-/** A typed price takes the line over from its quote rows. Clearing it sends them back to ask. */
+/** A typed price takes the line over from its quote rows, and a person typed it, so it is approved. Clearing it sends the rows back to ask. */
 export async function typePrice(tx, { rfqLineId, price, user }) {
   const links = await tx.rfqQuoteLink.findMany({ where: { rfqLineId }, select: { quoteLineId: true } });
   await tx.rfqQuoteLink.deleteMany({ where: { rfqLineId } });
   for (const { quoteLineId } of links) await settleRow(tx, quoteLineId, price == null ? 'OPEN' : 'REPLACED');
-  return priceLine(tx, { rfqLineId, price, source: 'TYPED', user });
+  const line = await priceLine(tx, { rfqLineId, price, source: 'TYPED', user });
+  if (price != null) await approveLine(tx, { rfqLineId, user });
+  return line;
 }
 
 /** This row stops pricing that RFQ line. */
