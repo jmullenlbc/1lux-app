@@ -5,14 +5,12 @@ import { NextResponse } from 'next/server';
 import { DEPARTMENTS_SELECT, departmentKeys, hasDepartment, SALES_MARKETING } from './departments';
 import { ROLE_LABEL } from './roles';
 import { actsAsAdmin, can, deniedMessage } from './permissions';
+import { jwtSecretKey } from './jwtSecret';
 
 // The permission table lives in ./permissions (no server-only code, so screens
 // can use it too). Re-exported so routes import every guard from one place.
 export { actsAsAdmin, can };
 
-const SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || 'ilc-studios-secret'
-);
 
 const COOKIE_NAME = 'ilc_session';
 
@@ -78,12 +76,12 @@ export async function signToken(payload) {
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime('7d')
-    .sign(SECRET);
+    .sign(jwtSecretKey());
 }
 
 export async function verifyToken(token) {
   try {
-    const { payload } = await jwtVerify(token, SECRET);
+    const { payload } = await jwtVerify(token, jwtSecretKey());
     return payload;
   } catch {
     return null;

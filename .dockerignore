@@ -1,0 +1,13 @@
+node_modules
+.next
+.git
+.env
+.env.*
+*.db
+*.db-journal
+/uploads
+.mcp-audit
+_tests
+PLANNING
+.tmp-proposals
+*.log

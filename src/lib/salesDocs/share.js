@@ -6,6 +6,7 @@ import { prisma } from '@/lib/db';
 import { clientIp } from '@/lib/rateLimit';
 import { readPass } from './cookie.js';
 import { shareAllowed } from './pricingScan.js';
+import { jwtSecretString } from '../jwtSecret';
 
 export const PASSWORD_FAIL_LIMIT = 10;
 export const PASSWORD_FAIL_WINDOW_MS = 15 * 60 * 1000;
@@ -18,7 +19,7 @@ const TOKEN_RE = /^[A-Za-z0-9_-]{16,64}$/;
 
 /** Who it was without keeping the address itself. */
 export function ipHashOf(request) {
-  const salt = process.env.JWT_SECRET || 'ilc-studios-secret';
+  const salt = jwtSecretString();
   return crypto.createHash('sha256').update(`${salt}:${clientIp(request)}`).digest('hex').slice(0, 32);
 }
 

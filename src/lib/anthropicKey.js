@@ -14,10 +14,10 @@
 import fs   from 'fs';
 import path from 'path';
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'crypto';
+import { jwtSecretString } from './jwtSecret';
 
 export const ANTHROPIC_KEY_SETTING = 'anthropic_api_key';
 const CACHE_MS = 60_000;
-const SECRET = process.env.JWT_SECRET || 'ilc-studios-secret';
 // Lazy, so modules that only sometimes call a model still load under plain Node (unit tests).
 const db = async () => (await import('@/lib/db')).prisma;
 
@@ -36,7 +36,7 @@ function envKey() {
   return null;
 }
 
-const aesKey = () => createHash('sha256').update(`anthropic-key:${SECRET}`).digest();
+const aesKey = () => createHash('sha256').update(`anthropic-key:${jwtSecretString()}`).digest();
 
 export function sealKey(plain) {
   const iv = randomBytes(12);

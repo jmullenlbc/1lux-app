@@ -132,4 +132,12 @@ const nextConfig = {
     },
 };
 
+// Container hosts (Render, 2026-11-10; see Dockerfile). Unlike Amplify Gen 1, a container has real run-time
+// environment variables, so nothing is baked into the bundle: the env block above is dropped (it would freeze
+// build-time values, or undefined, into the server code) and Next builds a standalone server.
+if (process.env.DEPLOY_MODE === 'container') {
+    delete nextConfig.env;
+    nextConfig.output = 'standalone';
+}
+
 export default nextConfig;

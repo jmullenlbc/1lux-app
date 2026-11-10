@@ -8,8 +8,9 @@
 import { SignJWT, jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
+import { jwtSecretString } from './jwtSecret';
 
-const SECRET      = new TextEncoder().encode(process.env.PORTAL_JWT_SECRET || process.env.JWT_SECRET || 'ilc-portal-secret');
+const SECRET      = () => new TextEncoder().encode(process.env.PORTAL_JWT_SECRET || jwtSecretString());
 const COOKIE_NAME = 'portal_token';
 
 export async function signPortalToken(payload) {
@@ -17,12 +18,12 @@ export async function signPortalToken(payload) {
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime('30d')
-    .sign(SECRET);
+    .sign(SECRET());
 }
 
 export async function verifyPortalToken(token) {
   try {
-    const { payload } = await jwtVerify(token, SECRET);
+    const { payload } = await jwtVerify(token, SECRET());
     return payload;
   } catch {
     return null;

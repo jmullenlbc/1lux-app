@@ -2,6 +2,10 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
+**2026-11-10** Jason's Claude - **New home for this code: Jason's GitHub + Render.** Jason: this app is now the 1LUX base; it lives in Jason's GitHub (jmullenlbc) and runs on Render (render.yaml + Dockerfile, own Postgres, starts empty with the 1LUX accounts). OperationsILC/ilc-lighting-app stays as the old copy; app.ilcstudios.com is untouched (amplify.yml kept but not connected here). From now on push here only.
+
+**2026-11-10** Jason's Claude - **Security fixes before going on a public URL** (no migration): (1) JWT_SECRET has no fallback any more: src/lib/jwtSecret.js is the one reader, throws when missing or under 32 chars; the six literal fallbacks (auth, portal auth, public access, Anthropic key AES, sales-doc cookie + share salt, intake visit salt) now call it. (2) prisma/seed.js no longer holds passwords: it creates the 1LUX accounts (jason@, maram@ super admins; andrew@, mike@logiqsupply.com, brian@, joel@, justin@ staff) only when SEED_ADMIN_PASSWORD (12+) is set, with mustChangePassword true and update: {} (never resets an existing account); the rest of the seed waits until a super admin exists. (3) next.config.mjs drops its Amplify env block and builds standalone when DEPLOY_MODE=container. Checked: all 162 migrations apply to an empty PostgreSQL (in-memory) and every schema table and column exists after; verify gates pass except one drawingExtract timing test that fails the same way on the unchanged code under Node 22.23.
+
 **2026-11-02** Mike's Claude - DEPLOYED 51744fe (0164), RFQ tabs, Review prices, price approval, Clients list view, live 327a0aef48b5.
 
 **2026-11-02** Mike's Claude - **Migration 0164_rfq_price_approval**: adds three nullable columns to RfqLine: approvedAt, approvedById, approvedByName. A rep price now reaches the bid matrix DN only when a person approves it (1 click, or assign then approve). Additive only.

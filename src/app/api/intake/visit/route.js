@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { rateLimit, clientIp } from '@/lib/rateLimit';
 import { hashToken } from '@/lib/intake/draftTokens';
+import { jwtSecretString } from '@/lib/jwtSecret';
 import {
   isBot, deviceKind, visitorKey, referrerHost, cleanTag, furthestStep,
 } from '@/lib/intake/visits';
@@ -88,7 +89,7 @@ export async function POST(req) {
     const step = furthestStep(null, body.stepId);
     const row = await prisma.conceptualVisit.create({
       data: {
-        visitorKey: visitorKey(ip, ua, process.env.VISIT_SALT || process.env.JWT_SECRET || 'ilc-visits'),
+        visitorKey: visitorKey(ip, ua, process.env.VISIT_SALT || jwtSecretString()),
         referrerHost: referrerHost(body.referrer, req.headers.get('host') || ''),
         utmSource: cleanTag(body.utm?.source),
         utmMedium: cleanTag(body.utm?.medium),

@@ -1,0 +1,46 @@
+# Render Blueprint (2026-11-10). Test copy of the 1LUX app (Mike's app as the base), in the same Render account as
+# the 1LUX ERP test, with its OWN database: nothing is shared with the ERP test or with app.ilcstudios.com.
+# In Render: New > Blueprint > pick this repository > review > Apply. Then fill the variables marked sync: false.
+#
+# First sign-in: the accounts in prisma/seed.js (jason@1lux.lighting, ...) with the SEED_ADMIN_PASSWORD typed below;
+# everyone must change it at first sign-in.
+
+databases:
+  - name: onelux-app-db
+    databaseName: onelux_app
+    user: onelux_app
+    region: oregon
+    postgresMajorVersion: "16"
+    plan: basic-256mb
+
+services:
+  - type: web
+    name: onelux-app
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    region: oregon
+    plan: standard            # 2 GB: PDF rendering (Chromium) and the AI readers need more than the 512 MB starter
+    branch: main
+    autoDeploy: true
+    healthCheckPath: /login
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: onelux-app-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: CRON_SECRET
+        generateValue: true
+      - key: MCP_API_TOKEN
+        generateValue: true
+      - key: NEXT_PUBLIC_APP_ENV
+        value: staging        # shows the "not the live app" banner
+      - key: NEXT_PUBLIC_APP_URL
+        sync: false           # the onrender.com address, after the first deploy (then redeploy: it is compiled in)
+      - key: SEED_ADMIN_PASSWORD
+        sync: false           # 12+ characters; the temporary password for every seeded account
+      - key: ANTHROPIC_API_KEY
+        sync: false           # optional: the AI readers stay off without it
+      # No S3 variables yet: uploaded files live on the container disk and are lost on each deploy (test only).
+      # No email settings: nothing is sent.

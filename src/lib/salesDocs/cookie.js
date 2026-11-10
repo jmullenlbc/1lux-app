@@ -2,8 +2,8 @@
 // signed, holding only which link and which visitor. Never the email itself.
 import { SignJWT, jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
+import { jwtSecretKey } from '../jwtSecret';
 
-const SECRET = new TextEncoder().encode(process.env.JWT_SECRET || 'ilc-studios-secret');
 const AUD = 'sales-docs';
 export const PASS_DAYS = 30;
 
@@ -15,13 +15,13 @@ export async function signPass({ linkId, visitorId }) {
     .setAudience(AUD)
     .setIssuedAt()
     .setExpirationTime(`${PASS_DAYS}d`)
-    .sign(SECRET);
+    .sign(jwtSecretKey());
 }
 
 export async function verifyPass(token, linkId) {
   if (!token) return null;
   try {
-    const { payload } = await jwtVerify(token, SECRET, { audience: AUD });
+    const { payload } = await jwtVerify(token, jwtSecretKey(), { audience: AUD });
     if (payload.linkId !== linkId || !payload.visitorId) return null;
     return { linkId: payload.linkId, visitorId: payload.visitorId };
   } catch {

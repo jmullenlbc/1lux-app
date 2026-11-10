@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { getSession } from '@/lib/auth';
+import { jwtSecretString } from './jwtSecret';
 
 /**
  * Password on the public /conceptual_budget tool (Mike 10-7: "password
@@ -17,7 +18,6 @@ import { getSession } from '@/lib/auth';
  */
 export const PUBLIC_BUDGET_PASSWORD_KEY = 'conceptual_budget_password';
 const COOKIE = 'cb_access';
-const SECRET = process.env.JWT_SECRET || 'ilc-studios-secret';
 
 // Fails closed: if the row is missing or the read fails, the starting password
 // (seeded by migration 0120) applies. Only an admin saving an empty value opens it.
@@ -42,7 +42,7 @@ export async function setPublicBudgetPassword(value, userId) {
 }
 
 export function accessTokenFor(password) {
-  return createHmac('sha256', SECRET).update(`cb:${password}`).digest('hex');
+  return createHmac('sha256', jwtSecretString()).update(`cb:${password}`).digest('hex');
 }
 
 /** True when the tool is open, the visitor holds a valid cookie, or staff are signed in. */

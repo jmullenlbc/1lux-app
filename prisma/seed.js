@@ -36,10 +36,18 @@ async function seedDashboards(prisma, createdById) {
 
 const prisma = new PrismaClient();
 
-const ADMINS = [
-  { email: 'admin@ilcstudios.com',      name: 'ILC Admin',    password: 'ILCadmin2024!'    },
-  { email: 'mike@ilcstudios.com',       name: 'Mike Kershner', password: 'ILCstudios2024!' },
-  { email: 'operations@ilcstudios.com', name: 'ILC Operations', password: 'TempChangeMe2026!' },
+// 1LUX accounts (erp-direction decision 9, 2026-11-10). No passwords in code: each account is created once with
+// SEED_ADMIN_PASSWORD (12+ characters) as a temporary password that must be changed at first sign-in. Existing
+// accounts are never touched (update: {}), so a later seed run cannot reset a password or a role. Without the
+// variable no accounts are created. Promote or add people in Admin → Users.
+const ACCOUNTS = [
+  { email: 'jason@1lux.lighting',    name: 'Jason',         role: 'SUPER_ADMIN' },
+  { email: 'maram@1lux.lighting',    name: 'Maram',         role: 'SUPER_ADMIN' },
+  { email: 'andrew@logiqsupply.com', name: 'Andrew',        role: 'USER' },
+  { email: 'mike@logiqsupply.com',   name: 'Mike Kershner', role: 'USER' },
+  { email: 'brian@1lux.lighting',    name: 'Brian',         role: 'USER' },
+  { email: 'joel@1lux.lighting',     name: 'Joel',          role: 'USER' },
+  { email: 'justin@1lux.lighting',   name: 'Justin',        role: 'USER' },
 ];
 
 // ── Knowledge Base categories ─────────────────────────────────────────────────
@@ -202,20 +210,20 @@ const ROADMAP_PRIORITIES = [
 
 async function main() {
   // ── Admin users ──────────────────────────────────────────────────────────────
-  for (const admin of ADMINS) {
-    const passwordHash = await bcrypt.hash(admin.password, 10);
-    const user = await prisma.user.upsert({
-      where:  { email: admin.email },
-      update: { role: 'ILC_ADMIN' },  // always ensure admin role is correct
-      create: {
-        email: admin.email,
-        name:  admin.name,
-        passwordHash,
-        role: 'ILC_ADMIN',
-        mustChangePassword: false,
-      },
-    });
-    console.log('✓ Admin user ready:', user.email);
+  const tempPassword = process.env.SEED_ADMIN_PASSWORD || '';
+  if (tempPassword.length >= 12) {
+    const passwordHash = await bcrypt.hash(tempPassword, 10);
+    for (const account of ACCOUNTS) {
+      const user = await prisma.user.upsert({
+        where:  { email: account.email },
+        update: {},
+        create: { email: account.email, name: account.name, passwordHash, role: account.role, mustChangePassword: true },
+      });
+      console.log('✓ Account ready:', user.email);
+    }
+  } else {
+    console.log(tempPassword ? '⚠ SEED_ADMIN_PASSWORD is shorter than 12 characters: no accounts created'
+                             : 'ℹ SEED_ADMIN_PASSWORD not set: no accounts created');
   }
 
   // ── Knowledge Base categories ────────────────────────────────────────────────
@@ -239,6 +247,10 @@ async function main() {
   const adminUser = await prisma.user.findFirst({
     where: { role: { in: ['ILC_ADMIN', 'SUPER_ADMIN'] } },
   });
+  if (!adminUser) {
+    console.log('ℹ No super admin yet: knowledge base, proposal and dashboard defaults wait for the next run');
+    return;
+  }
 
   if (adminUser && prisma.designStandard) {
     for (const entry of KB_ENTRIES) {
