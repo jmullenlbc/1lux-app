@@ -53,6 +53,7 @@ export function shipBoardRows(projects) {
         id: s.id,
         projectId: p.id,
         jobName: p.name,
+        businessUnitId: p.businessUnitId ?? null,
         mine: (p.assignees || []).length > 0,
         manufacturer: s.manufacturer,
         status: done ? 'DELIVERED' : status,

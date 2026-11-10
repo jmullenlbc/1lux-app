@@ -4,6 +4,7 @@ import { requireAuth, actsAsAdmin } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { DEPARTMENTS_SELECT, hasDepartment, SALES_MARKETING } from '@/lib/departments';
 import { redirect } from 'next/navigation';
+import { SPACES_SELECT, spaceKeys } from '@/lib/companySpaces';
 import CRMClient from './CRMClient';
 
 export const metadata = { title: 'Pipeline: ILC Studios' };
@@ -21,7 +22,7 @@ export default async function CRMPage() {
         orderBy: { updatedAt: 'desc' },
         select: {
           id: true, projectNumber: true, name: true, city: true, state: true,
-          buildingType: true, serviceType: true, projectType: true,
+          buildingType: true, serviceType: true, projectType: true, businessUnitId: true,
           contractValue: true, approvedCoTotal: true, designContractValue: true,
           procurementStage: true, designStage: true,
           pipelineProbability: true, probabilityToWin: true, probabilityToMoveForward: true, procurementStatus: true, designStatus: true, expectedOrderDate: true,
@@ -71,5 +72,13 @@ export default async function CRMPage() {
     console.error('[/crm] web request query failed (non-fatal):', err?.message ?? err);
   }
 
-  return <CRMClient initialProjects={projects} users={users} newRequests={newRequests} />;
+  // The companies this person sells for come first in the Company filter (0165).
+  let mySpaces = [];
+  try {
+    mySpaces = spaceKeys(await prisma.user.findUnique({ where: { id: user.id }, select: { businessUnits: SPACES_SELECT } }));
+  } catch (err) {
+    console.error('[/crm] company spaces query failed (non-fatal):', err?.message ?? err);
+  }
+
+  return <CRMClient initialProjects={projects} users={users} newRequests={newRequests} mySpaces={mySpaces} />;
 }

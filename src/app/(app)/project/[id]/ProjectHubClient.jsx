@@ -49,6 +49,7 @@ import ChangeOrdersTab from '@/components/changeOrders/ChangeOrdersTab';
 import ProposalTab from '@/components/proposals/ProposalTab';
 import { appendUpload } from '@/lib/uploadClient';
 import SurveyRunner from '@/components/unitSelections/SurveyRunner';
+import SpaceBadge from '@/components/ui/SpaceBadge';
 
 const BUDGET_TYPE_META = {
   conceptual:  { label: 'Conceptual Budget',    color: 'bg-slate-100 text-slate-600' },
@@ -835,6 +836,7 @@ export default function ProjectHubClient({ userId, userRole, canEditMoney = fals
                 ) : (
                   <div className="flex items-center gap-2 group">
                     <h1 className="text-xl md:text-2xl font-bold text-slate-900 leading-tight">{projectName}</h1>
+                    <SpaceBadge businessUnitId={project.businessUnitId} />
                     <button
                       onClick={() => { setNameInput(projectName); setEditingName(true); }}
                       title="Rename project"

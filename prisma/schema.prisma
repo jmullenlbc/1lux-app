@@ -18,6 +18,8 @@ model User {
   division                   String? // SALES | OPERATIONS | FINANCE | PRECONSTRUCTION | CONSTRUCTION
   deptRoles                  String                       @default("[]") // JSON: ["Operations","Design",...]
   departments                UserDepartment[]
+  // Company spaces this person sells for (0165); none = all. Orders their pipeline, never hides anything.
+  businessUnits              UserBusinessUnit[]
   // Roles: SUPER_ADMIN | COMPANY_ADMIN | USER | CLIENT_VIEWER
   // Legacy roles still supported: ILC_ADMIN (=SUPER_ADMIN), ADMIN (=COMPANY_ADMIN)
   permissions                String                       @default("{}") // JSON: { projects, clients, preCon, manufacturers, admin, knowledgeBase }
@@ -226,6 +228,17 @@ model BugReport {
 
 // One row per person per department (migration 0079). Keys and labels live in
 // src/lib/departments.js.
+// Which company spaces (LOGIQ | SAGE | SHIFT, src/lib/companySpaces.js) a person sells for (0165).
+model UserBusinessUnit {
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  space     String // LOGIQ | SAGE | SHIFT
+  createdAt DateTime @default(now())
+
+  @@id([userId, space])
+  @@index([space])
+}
+
 model UserDepartment {
   userId     String
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -680,6 +693,9 @@ model Project {
   // Which ILC office works this job (Mike 10-29). RFQs print its address and emails.
   ourOfficeId                   String?
   ourOffice                     OurOffice?     @relation(fields: [ourOfficeId], references: [id], onDelete: SetNull)
+  // Which 1LUX company this job belongs to (0165): LOGIQ, SAGE or Shift. Blank = not set yet.
+  businessUnitId                String?
+  businessUnit                  BusinessUnit?  @relation(fields: [businessUnitId], references: [id], onDelete: SetNull)
   contactEmail                  String?
   address                       String?
   date                          String?
@@ -842,6 +858,7 @@ model Project {
   @@index([interiorDesignerId])
   @@index([electricalEngineerId])
   @@index([architectId])
+  @@index([businessUnitId])
 }
 
 /// Every time a deal changes status on a board, one row lands here.
@@ -5093,6 +5110,27 @@ model RuleProposal {
 // project pick > buy direct > office default > the only rep at that office.
 
 // An ILC office (Denver, Long Beach, Florida). Everything printed on an RFQ.
+// The 1LUX company spaces (0165, Jason 2026-11-10): LOGIQ (distributor), SAGE and Shift (manufacturers), one NetSuite
+// subsidiary each. Fixed ids bu_logiq / bu_sage / bu_shift; codes and labels in src/lib/companySpaces.js.
+model BusinessUnit {
+  id                   String    @id @default(cuid())
+  code                 String    @unique // LOGIQ | SAGE | SHIFT
+  name                 String
+  kind                 String // DISTRIBUTOR | MANUFACTURER
+  legalName            String?
+  netsuiteSubsidiaryId String?
+  address              String?
+  phone                String?
+  ordersEmail          String?
+  website              String?
+  sortOrder            Int       @default(0)
+  archivedAt           DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  projects Project[]
+}
+
 model OurOffice {
   id           String            @id @default(cuid())
   name         String // Denver | Long Beach | Florida

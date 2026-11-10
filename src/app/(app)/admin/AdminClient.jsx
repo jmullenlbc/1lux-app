@@ -8,6 +8,8 @@ import RfqFreightCard from '@/components/admin/RfqFreightCard';
 import AiKeyCard from '@/components/admin/AiKeyCard';
 import CalendarUploadCard from '@/components/admin/CalendarUploadCard';
 import { DEPARTMENTS, DEPARTMENT_LABEL } from '@/lib/departments';
+import { SPACES } from '@/lib/companySpaces';
+import SpaceBadge from '@/components/ui/SpaceBadge';
 import { canAssignRole, canManageAccount } from '@/lib/roles';
 import { effectiveRole } from '@/lib/permissions';
 import { describeAccessEvent } from '@/lib/accessEvents';
@@ -28,6 +30,37 @@ const DEPARTMENT_COLORS = {
   DESIGN:            'bg-violet-50 text-violet-700 border-violet-300',
   FINANCE:            'bg-green-50 text-green-700 border-green-300',
 };
+
+// Which 1LUX companies this person sells for (0165): any number; none = all. It puts those companies first in
+// the Company filters and picks the company on a new project when there is only one. It never hides anything.
+function SellsForPicker({ value, onChange }) {
+  function toggle(code) {
+    onChange(value.includes(code) ? value.filter(k => k !== code) : [...value, code]);
+  }
+  return (
+    <div>
+      <label className="block text-xs font-semibold text-slate-600 mb-2">
+        Sells for
+        <span className="text-slate-500 font-normal ml-1">(none = all companies)</span>
+      </label>
+      <div className="flex flex-wrap gap-2">
+        {SPACES.map(sp => {
+          const active = value.includes(sp.code);
+          return (
+            <button key={sp.code} type="button" onClick={() => toggle(sp.code)} aria-pressed={active}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                active
+                  ? 'bg-slate-900 text-white border-slate-900'
+                  : 'bg-white text-slate-500 border-slate-300 hover:border-slate-400 hover:text-slate-700'
+              }`}>
+              {active && <span className="mr-1">✓</span>}{sp.label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 // Departments, pick any number (Mike, 2026-09-12). Being in Sales + marketing
 // is what puts someone in the Sales Owner dropdowns and the web request queue.
@@ -121,6 +154,7 @@ function CreateUserForm({ currentUserRole, onCreated }) {
     role:              'USER',
     mustChangePassword: true,
     departments:       [],
+    sellsFor:          [],
   });
   const [saving, setSaving] = useState(false);
   const [error,  setError]  = useState('');
@@ -145,7 +179,7 @@ function CreateUserForm({ currentUserRole, onCreated }) {
       const data = await res.json();
       if (!res.ok) { setError(data.error || 'Failed to create user'); return; }
       onCreated(data);
-      setForm({ name: '', email: '', password: '', role: 'USER', mustChangePassword: true, departments: [] });
+      setForm({ name: '', email: '', password: '', role: 'USER', mustChangePassword: true, departments: [], sellsFor: [] });
     } catch {
       setError('Network error');
     } finally {
@@ -199,6 +233,7 @@ function CreateUserForm({ currentUserRole, onCreated }) {
           </div>
 
           <DepartmentPicker value={form.departments} onChange={v => set('departments', v)} />
+          <SellsForPicker value={form.sellsFor} onChange={v => set('sellsFor', v)} />
 
           <label className="flex items-center gap-3 p-3 rounded-lg border border-slate-200 cursor-pointer hover:bg-slate-50">
             <input type="checkbox" checked={form.mustChangePassword} onChange={e => set('mustChangePassword', e.target.checked)}
@@ -378,6 +413,7 @@ function EditUserModal({ user, currentUserRole, projects, onSaved, onClose }) {
     homeState:         user.homeState || '',
     role:              user.role,
     departments:       user.departments || [],
+    sellsFor:          user.sellsFor || [],
     mustChangePassword: user.mustChangePassword,
     isActive:          user.isActive !== false,
     newPassword:       '',
@@ -409,6 +445,7 @@ function EditUserModal({ user, currentUserRole, projects, onSaved, onClose }) {
         homeState:         form.homeState,
         role:              form.role,
         departments:       form.departments,
+        sellsFor:          form.sellsFor,
         mustChangePassword: form.mustChangePassword,
         isActive:          form.isActive,
         permissions:       { knowledgeBase: form.permKnowledgeBase, clientStandards: form.permClientStandards, salesAdmin: form.permSalesAdmin },
@@ -494,6 +531,7 @@ function EditUserModal({ user, currentUserRole, projects, onSaved, onClose }) {
               <div className="space-y-4">
 
                 <DepartmentPicker value={form.departments} onChange={v => set('departments', v)} />
+                <SellsForPicker value={form.sellsFor} onChange={v => set('sellsFor', v)} />
 
                 {form.role === 'CLIENT_VIEWER' && (
                   <ClientViewerJobs
@@ -855,6 +893,11 @@ export default function AdminClient({ users: initialUsers, projects, currentUser
                         <Badge variant={badge.variant}>{badge.label}</Badge>
                       </td>
                       <td className="px-6 py-4">
+                        {(u.sellsFor || []).length > 0 && (
+                          <div className="flex flex-wrap gap-1 mb-1" title="Sells for">
+                            {u.sellsFor.map(code => <SpaceBadge key={code} businessUnitId={code} />)}
+                          </div>
+                        )}
                         {(u.departments || []).length > 0 ? (
                           <div className="flex flex-wrap gap-1">
                             {u.departments.map(key => (

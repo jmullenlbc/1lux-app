@@ -9,6 +9,7 @@ import { BUILDING_TYPES, PROJECT_PHASES, SERVICE_TYPES, LOCATION_TYPES, ORG_TYPE
 import MultiSelect from '@/components/ui/MultiSelect';
 import { SALES_TAX_BASIS_HINT } from '@/lib/salesTaxEstimate';
 import { useEstimatedSalesTax } from '@/components/useEstimatedSalesTax';
+import { SPACES } from '@/lib/companySpaces';
 
 const BUDGET_TYPES = [
   { value: 'conceptual',  label: 'Conceptual Budget' },
@@ -91,12 +92,13 @@ function NewClientModal({ onClose, onCreated }) {
   );
 }
 
-export default function NewProjectForm({ existingProjects = [], clients: initialClients = [], budgetType: initialBudgetType = 'conceptual' }) {
+export default function NewProjectForm({ existingProjects = [], clients: initialClients = [], budgetType: initialBudgetType = 'conceptual', defaultSpaceId = '' }) {
   const router = useRouter();
   const [clients,    setClients]    = useState(initialClients);
   const [showNewClient, setShowNewClient] = useState(false);
   const [form, setForm] = useState({
     name:         '',
+    businessUnitId: defaultSpaceId,
     clientId:     '',
     projectType:  '',
     buildingType: '',
@@ -191,6 +193,7 @@ export default function NewProjectForm({ existingProjects = [], clients: initial
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name:         form.name.trim(),
+          businessUnitId: form.businessUnitId || null,
           clientId:     form.clientId     || null,
           projectType:  form.projectType  || null,
           buildingType: form.buildingType || null,
@@ -334,6 +337,12 @@ export default function NewProjectForm({ existingProjects = [], clients: initial
 
             {/* Project Type, what kind of community this is. Building Type
                 below is the construction shape (garden, podium, high-rise…). */}
+            {/* Which 1LUX company this job is for (LOGIQ, SAGE or Shift). It can be set later on the job. */}
+            <Select label="Company" value={form.businessUnitId} onChange={set('businessUnitId')}>
+              <option value="">Not set yet</option>
+              {SPACES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
+            </Select>
+
             <Select label="Project Type" value={form.projectType} onChange={set('projectType')}>
               <option value="">Select project type...</option>
               {PROJECT_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}

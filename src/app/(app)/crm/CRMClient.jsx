@@ -15,6 +15,8 @@ import { FilterToolbar, FilterPanel, SearchBox, countFilters } from '@/component
 import SortHeader, { Th, sortRows } from '@/components/ui/SortHeader';
 import StatTile from '@/components/ui/StatTile';
 import { useUrlView } from '@/lib/useUrlView';
+import { inSpace, spaceFilterChoices } from '@/lib/companySpaces';
+import SpaceBadge from '@/components/ui/SpaceBadge';
 import { CARD, BTN_PRIMARY, BTN_SECONDARY, BTN_COMPACT, BTN_COMPACT_PRIMARY, H1, LABEL, INPUT, TD, NUM } from '@/components/ui/tokens';
 
 // Pipeline filters (Mike 10-8: "You still haven't added a filtering option to
@@ -30,6 +32,8 @@ const EXPECTED_OPTIONS = [
 ];
 const FILTER_FIELDS = [
   { key: 'search',       label: 'Search',        kind: 'text' },
+  // 1LUX company (LOGIQ / SAGE / Shift, 0165); "No company yet" finds jobs still to sort.
+  { key: 'space',        label: 'Company',       kind: 'pick' },
   { key: 'status',       label: 'Status',        kind: 'pick' },
   { key: 'serviceType',  label: 'Service type',  kind: 'pick' },
   { key: 'salesOwnerId', label: 'Sales owner',   kind: 'pick' },
@@ -190,6 +194,7 @@ function ProjectCard({ project, pipeline, onOpen, onDragStart, onDragEnd, isDrag
             {project.projectNumber ? `PRJ-${String(project.projectNumber).padStart(4, '0')}` : '—'}
           </span>
           <div className="flex items-center gap-1 flex-wrap justify-end">
+            <SpaceBadge businessUnitId={project.businessUnitId} />
             {isStale && (
               <span className="text-[11px] font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 border border-amber-200" title="No updates in 30+ days">
                 Stale
@@ -501,7 +506,7 @@ function ListView({ projects, pipeline, onOpen, onUpdate, sort, onSort }) {
 }
 
 // ── Main CRMClient ────────────────────────────────────────────────────────────
-export default function CRMClient({ initialProjects, users, newRequests = [] }) {
+export default function CRMClient({ initialProjects, users, newRequests = [], mySpaces = [] }) {
   const router = useRouter();
   const [projects, setProjects] = useState(initialProjects || []);
   const [pipeline, setPipeline] = useState('PROCUREMENT');
@@ -524,6 +529,7 @@ export default function CRMClient({ initialProjects, users, newRequests = [] }) 
 
   const filtered = useMemo(() => projects.filter(p => {
     if (!inBoard(p)) return false;
+    if (!inSpace(p, filters.space)) return false;
     if (filters.status && p[statusField] !== filters.status) return false;
     if (filters.serviceType    && p.serviceType    !== filters.serviceType)    return false;
     if (filters.salesOwnerId   && p.salesOwner?.id !== filters.salesOwnerId)   return false;
@@ -567,6 +573,7 @@ export default function CRMClient({ initialProjects, users, newRequests = [] }) 
   const labelOf = (list, v) => list.find(t => t.value === v)?.label || v;
   const filterCount = countFilters(filters, FILTER_FIELDS);
   const filterChoices = useMemo(() => ({
+    space:        spaceFilterChoices(mySpaces),
     status:       PIPELINE_STATUS.map(s => [s.key, s.label]),
     serviceType:  Object.entries(SERVICE_TYPE_LABELS),
     salesOwnerId: (users || []).map(u => [u.id, u.name || u.email]),
@@ -578,7 +585,7 @@ export default function CRMClient({ initialProjects, users, newRequests = [] }) 
     projectType:  filterOptions.projectTypes.map(t => [t, labelOf(PROJECT_TYPES, t)]),
     minProb:      [20, 50, 80, 90].map(n => [String(n), `Win % ${n} or more`]),
     expected:     EXPECTED_OPTIONS.map(o => [o.value, o.label]),
-  }), [users, stages, filterOptions]);
+  }), [users, stages, filterOptions, mySpaces]);
 
   const byStage = useMemo(() => {
     const map = {};

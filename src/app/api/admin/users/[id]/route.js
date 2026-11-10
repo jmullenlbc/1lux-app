@@ -6,6 +6,7 @@ import { ROLE_KEYS, isValidRole, canAssignRole, canManageAccount } from '@/lib/r
 import { effectiveRole } from '@/lib/permissions';
 import { DEPARTMENT_KEYS, cleanDepartments, departmentKeys } from '@/lib/departments';
 import { accessChanges } from '@/lib/accessEvents';
+import { SPACES, cleanSpaces, spaceKeys } from '@/lib/companySpaces';
 
 export async function PATCH(request, { params }) {
   const { user: actor, error } = await requireAdmin(request);
@@ -24,7 +25,7 @@ export async function PATCH(request, { params }) {
     return NextResponse.json({ error: 'Use account settings to modify your own account' }, { status: 400 });
   }
 
-  const { name, role, departments, permissions, mustChangePassword, isActive, newPassword, homeCity, homeState } = await request.json();
+  const { name, role, departments, sellsFor, permissions, mustChangePassword, isActive, newPassword, homeCity, homeState } = await request.json();
 
   // Only the four real role names can be saved, this used to store any text it
   // was sent. A Company Admin can make someone an admin (Mike, 2026-09-14);
@@ -45,6 +46,15 @@ export async function PATCH(request, { params }) {
     deptKeys = cleanDepartments(departments);
     if (!deptKeys) {
       return NextResponse.json({ error: `departments must be a list. Use any of: ${DEPARTMENT_KEYS.join(', ')}` }, { status: 400 });
+    }
+  }
+
+  // sellsFor: the company spaces this person sells for (0165), the full list; none = all.
+  let spaceCodes;
+  if (sellsFor !== undefined) {
+    spaceCodes = cleanSpaces(sellsFor);
+    if (!spaceCodes) {
+      return NextResponse.json({ error: `sellsFor must be a list. Use any of: ${SPACES.map(s => s.code).join(', ')}` }, { status: 400 });
     }
   }
 
@@ -80,11 +90,16 @@ export async function PATCH(request, { params }) {
       prisma.userDepartment.deleteMany({ where: { userId: params.id } }),
       prisma.userDepartment.createMany({ data: deptKeys.map(department => ({ userId: params.id, department })) }),
     ] : []),
+    ...(spaceCodes ? [
+      prisma.userBusinessUnit.deleteMany({ where: { userId: params.id } }),
+      prisma.userBusinessUnit.createMany({ data: spaceCodes.map(space => ({ userId: params.id, space })) }),
+    ] : []),
     ...(changes.length ? [
       prisma.userAccessEvent.createMany({ data: changes.map(c => ({ ...c, userId: params.id, changedById: actor.id })) }),
     ] : []),
   ]);
   const depts = await prisma.userDepartment.findMany({ where: { userId: params.id }, select: { department: true } });
+  const spaces = await prisma.userBusinessUnit.findMany({ where: { userId: params.id }, select: { space: true } });
 
   return NextResponse.json({
     id:                updated.id,
@@ -92,6 +107,7 @@ export async function PATCH(request, { params }) {
     name:              updated.name,
     role:              updated.role,
     departments:       departmentKeys({ departments: depts }),
+    sellsFor:          spaceKeys({ businessUnits: spaces }),
     permissions:       updated.permissions,
     mustChangePassword: updated.mustChangePassword,
     isActive:          updated.isActive,

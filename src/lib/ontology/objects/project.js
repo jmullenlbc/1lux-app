@@ -25,6 +25,7 @@ export const Project = {
     name:          { type: 'string',   sensitivity: 'client_ok' },
     buildingType:  { type: 'string',   sensitivity: 'client_ok' },
     projectType:   { type: 'string',   sensitivity: 'client_ok' },
+    businessUnitId:{ type: 'string',   sensitivity: 'client_ok', desc: '1LUX company space: bu_logiq | bu_sage | bu_shift (src/lib/companySpaces.js); null = not set' },
     projectSubtype:{ type: 'string',   sensitivity: 'client_ok', desc: 'BUILDING_TYPES key under Project Type: garden | wrap | podium …' },
     budgetType:    { type: 'string',   sensitivity: 'client_ok', desc: 'conceptual | design | peerReview' },
     serviceType:   { type: 'string',   sensitivity: 'client_ok', desc: 'fullDesign | designAssist | peerReview | bid' },

@@ -11,6 +11,7 @@ import { recordStatusChanges, describeStatusChange } from '@/lib/statusEvents';
 import { PROJECT_TEAM_ROLES, pickTeamUpdate } from '@/lib/projectTeam';
 import { parseLooseNumber, isUnreadableNumber, NUMBER_HELP } from '@/lib/numberInput';
 import { SETTABLE_SERVICE_TYPE_KEYS, serviceTypeLabel } from '@/lib/utils';
+import { SPACES, businessUnitIdFrom, spaceLabel } from '@/lib/companySpaces';
 
 // The six companies on a project's team, loaded by name so a screen can show
 // "Architect: Studio Nine" without a second round trip. Built from the shared
@@ -64,6 +65,12 @@ export async function PATCH(request, { params }) {
     procurementStatusReason, designStatusReason,
     // ── Weekly sales meeting fields ──
     proposalSentDate, nextActionType, nextActionOwnerId, nextActionDueDate } = body;
+
+  // Company space (0165): a known space id or code, or blank to clear. Anything else is refused.
+  const businessUnitIdIn = body.businessUnitId === undefined ? undefined : businessUnitIdFrom(body.businessUnitId);
+  if (body.businessUnitId !== undefined && businessUnitIdIn === undefined) {
+    return NextResponse.json({ error: `Company must be one of ${SPACES.map(s => s.label).join(', ')}, or blank` }, { status: 400 });
+  }
 
   // Contract dollars: Construction, Operations, Finance and admins only (Mike,
   // 2026-09-14). A screen may send the whole record back, so only a real change
@@ -199,6 +206,7 @@ export async function PATCH(request, { params }) {
       ...(peerReviewMatrixType !== undefined && ['PEER_REVIEW', 'DESIGN_BID'].includes(peerReviewMatrixType) && { peerReviewMatrixType }),
       // ── Pipeline / CRM fields (merged from Deal, a project IS the pipeline entity) ──
       ...(projectType         !== undefined && { projectType: projectType || null }),
+      ...(businessUnitIdIn    !== undefined && { businessUnitId: businessUnitIdIn }),
       ...(projectSubtype      !== undefined && { projectSubtype: String(projectSubtype || '').trim().slice(0, 120) || null }),
       ...(procurementStage    !== undefined && validProcurementStages.includes(procurementStage) && { procurementStage }),
       ...(designStageIn       !== undefined && validDesignStages.includes(designStageIn) && { designStage: designStageIn }),
@@ -271,6 +279,9 @@ export async function PATCH(request, { params }) {
     }
     if (clientId !== undefined && clientId !== project.clientId) {
       events.push('Updated assigned client');
+    }
+    if (businessUnitIdIn !== undefined && businessUnitIdIn !== project.businessUnitId) {
+      events.push(businessUnitIdIn ? `Moved to company **${spaceLabel(businessUnitIdIn)}**` : 'Cleared the company');
     }
     if (serviceType !== undefined && serviceType !== project.serviceType) {
       events.push(`Set service type to **${serviceType ? serviceTypeLabel(serviceType) : 'none'}**`);

@@ -5,6 +5,7 @@ import { buildingTypeLabel, PROJECT_TYPES, projectTypeLabel, BUILDING_TYPES, ALL
 import { useBuyoutDays } from '@/lib/useBuyoutDays';
 import { PIPELINE_STAGES, STAGE_LABEL, STATUS_LABEL, PIPELINE_STATUS, inDesignPipeline, stagesOutOfSync, WEIGHTED_PROBABILITY_LABEL, probabilityOptions } from '@/lib/pipeline';
 import { PROJECT_TEAM_ROLES } from '@/lib/projectTeam';
+import { spaceLabel, spaceOptions } from '@/lib/companySpaces';
 import { siteFeaturesToRows } from '@/lib/siteFeatures';
 import MissingInputsWarning from './MissingInputsWarning';
 import BudgetLadderCard from './BudgetLadderCard';
@@ -572,6 +573,7 @@ export default function ProjectDashboard({
         <div className="grid grid-cols-2 md:grid-cols-4 gap-x-4 md:gap-x-6 gap-y-4">
           {/* ── Stage & type (top) ── */}
           <Rule label="Pipeline" />
+          <EditableStat label="Company" displayValue={spaceLabel(project.businessUnitId) || null} rawValue={project.businessUnitId || ''} onSave={p('businessUnitId')} select options={spaceOptions({ blankLabel: 'Not set yet' })} />
           <EditableStat label="Procurement Stage" displayValue={STAGE_LABEL[project.procurementStage] || 'Qualified'} rawValue={project.procurementStage || 'QUALIFIED'} onSave={p('procurementStage')} select options={PROC_STAGE_OPTIONS} />
           {isDesignPipeline && (
             <EditableStat label="Design Stage" displayValue={STAGE_LABEL[project.designStage] || 'Qualified'} rawValue={project.designStage || 'QUALIFIED'} onSave={p('designStage')} select options={DESIGN_STAGE_OPTIONS} />

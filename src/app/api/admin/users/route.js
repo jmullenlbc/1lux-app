@@ -5,6 +5,7 @@ import { requireAdmin } from '@/lib/auth';
 import { ROLE_KEYS, isValidRole, canAssignRole } from '@/lib/roles';
 import { effectiveRole } from '@/lib/permissions';
 import { DEPARTMENT_KEYS, DEPARTMENTS_SELECT, cleanDepartments, departmentKeys } from '@/lib/departments';
+import { SPACES, SPACES_SELECT, cleanSpaces, spaceKeys } from '@/lib/companySpaces';
 import { creationEvents } from '@/lib/accessEvents';
 
 export async function GET(request) {
@@ -20,6 +21,7 @@ export async function GET(request) {
       homeState:         true,
       role:              true,
       departments:       DEPARTMENTS_SELECT,
+      businessUnits:     SPACES_SELECT,
       permissions:       true,
       mustChangePassword: true,
       isActive:          true,
@@ -36,6 +38,7 @@ export async function GET(request) {
     name:              u.name,
     role:              u.role,
     departments:       departmentKeys(u),
+    sellsFor:          spaceKeys(u),
     permissions:       u.permissions,
     mustChangePassword: u.mustChangePassword,
     isActive:          u.isActive,
@@ -49,12 +52,17 @@ export async function POST(request) {
   const { user: actor, error } = await requireAdmin(request);
   if (error) return error;
 
-  const { name, email, password, role, permissions, mustChangePassword, departments } = await request.json();
+  const { name, email, password, role, permissions, mustChangePassword, departments, sellsFor } = await request.json();
 
   if (!email || !password || !role) {
     return NextResponse.json({ error: 'email, password, and role are required' }, { status: 400 });
   }
   const deptKeys = departments === undefined ? [] : cleanDepartments(departments);
+  // Company spaces this person sells for (0165); none = all.
+  const spaceCodes = sellsFor === undefined ? [] : cleanSpaces(sellsFor);
+  if (!spaceCodes) {
+    return NextResponse.json({ error: `sellsFor must be a list. Use any of: ${SPACES.map(s => s.code).join(', ')}` }, { status: 400 });
+  }
   if (!deptKeys) {
     return NextResponse.json({ error: `departments must be a list. Use any of: ${DEPARTMENT_KEYS.join(', ')}` }, { status: 400 });
   }
@@ -89,6 +97,7 @@ export async function POST(request) {
       permissions:       permissions ? JSON.stringify(permissions) : JSON.stringify(defaultPermissions),
       mustChangePassword: mustChangePassword ?? true,
       departments:       deptKeys.length ? { create: deptKeys.map(department => ({ department })) } : undefined,
+      businessUnits:     spaceCodes.length ? { create: spaceCodes.map(space => ({ space })) } : undefined,
       // Access history (0086): created as this role, in these departments.
       accessEvents:      { create: creationEvents({ role, departments: deptKeys }).map(e => ({ ...e, changedById: actor.id })) },
     },
@@ -100,6 +109,7 @@ export async function POST(request) {
     name:              newUser.name,
     role:              newUser.role,
     departments:       deptKeys,
+    sellsFor:          spaceCodes,
     mustChangePassword: newUser.mustChangePassword,
   }, { status: 201 });
 }

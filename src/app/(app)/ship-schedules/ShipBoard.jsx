@@ -6,8 +6,11 @@ import { FilterToolbar, FilterPanel, countFilters } from '@/components/ui/Filter
 import { CARD, HELPER } from '@/components/ui/tokens';
 import { useUrlView } from '@/lib/useUrlView';
 import { shipStatusMeta } from '@/lib/shipBoard';
+import { inSpace, spaceFilterChoices } from '@/lib/companySpaces';
+import SpaceBadge from '@/components/ui/SpaceBadge';
 
 const FIELDS = [
+  { key: 'space',     label: 'Company',        kind: 'pick' },
   { key: 'job',       label: 'Job',            kind: 'pick' },
   { key: 'mfr',       label: 'Manufacturer',   kind: 'pick' },
   { key: 'status',    label: 'Status',         kind: 'pick' },
@@ -22,7 +25,7 @@ function fmtDay(d) {
   return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
 }
 
-export default function ShipBoard({ rows }) {
+export default function ShipBoard({ rows, mySpaces = [] }) {
   const { filters, setFilter, clearFilters } = useUrlView({ fields: FIELDS });
   const [open, setOpen] = useState(false);
 
@@ -31,17 +34,19 @@ export default function ShipBoard({ rows }) {
     [rows, filters.delivered],
   );
   const shown = useMemo(() => base.filter(r =>
-    (!filters.job || r.jobName === filters.job)
+    inSpace(r, filters.space)
+    && (!filters.job || r.jobName === filters.job)
     && (!filters.mfr || r.manufacturer === filters.mfr)
     && (!filters.status || shipStatusMeta(r.status).label === filters.status)
     && (filters.mine !== 'yes' || r.mine)
     && (filters.mine !== 'no' || !r.mine)), [base, filters]);
 
   const choices = useMemo(() => ({
+    space:  spaceFilterChoices(mySpaces),
     job:    uniqueSorted(base.map(r => r.jobName)),
     mfr:    uniqueSorted(base.map(r => r.manufacturer)),
     status: uniqueSorted(base.map(r => shipStatusMeta(r.status).label)),
-  }), [base]);
+  }), [base, mySpaces]);
 
   return (
     <>
@@ -67,7 +72,10 @@ export default function ShipBoard({ rows }) {
             return (
               <Link key={r.id} href={`/project/${r.projectId}?tab=ship-schedule`} className="block min-h-[48px] px-4 py-3 hover:bg-amber-50">
                 <div className="flex items-start justify-between gap-3">
-                  <span className="min-w-0 text-sm font-semibold text-slate-900 truncate">{r.jobName}</span>
+                  <span className="min-w-0 flex items-center gap-2">
+                    <span className="text-sm font-semibold text-slate-900 truncate">{r.jobName}</span>
+                    <SpaceBadge businessUnitId={r.businessUnitId} />
+                  </span>
                   <span className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-semibold ${meta.color}`}>{meta.label}</span>
                 </div>
                 <p className="mt-0.5 text-sm text-slate-600 truncate">{r.manufacturer}</p>

@@ -11,6 +11,7 @@ import { INCLUDE_ARCHIVED } from '@/lib/archive';
 import { loadPricing } from '@/lib/pricingLoader';
 import { recordProjectCreated } from '@/lib/statusEvents';
 import { SETTABLE_SERVICE_TYPE_KEYS } from '@/lib/utils';
+import { businessUnitIdFrom } from '@/lib/companySpaces';
 
 const VALID_PHASES        = ['sd', 'dd', 'cd', 'ifc', 'construction', 'closeout'];
 // Mike 2026-09-19: "Other" dropped. Derived so the picker and the validator
@@ -19,6 +20,8 @@ const VALID_SERVICE_TYPES = SETTABLE_SERVICE_TYPE_KEYS;
 
 export async function createProject(db, userId, fields) {
   const { name, buildingType, location, contactEmail, contactName, budgetType, clientId, city, state, zip, phase, serviceType, projectType, salesTaxPct } = fields;
+  // Company space (0165): a known space id or code; anything else is left unset rather than refused.
+  const businessUnitId = businessUnitIdFrom(fields.businessUnitId) ?? null;
   // Sales tax arrives as a typed percent ("8.25") from the New Project form;
   // stored as a fraction like everywhere else. Out of range or junk = unset.
   const taxPct = Number(String(salesTaxPct ?? '').replace(/[%\s]/g, ''));
@@ -60,6 +63,7 @@ export async function createProject(db, userId, fields) {
       name,
       buildingType:    buildingType || null,
       projectType:     projectType  || null,   // Multi-Family / Senior Living / …
+      businessUnitId,
       location:        locationStr,
       city:            city         || null,
       state:           state        || null,

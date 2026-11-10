@@ -210,6 +210,20 @@ const ROADMAP_PRIORITIES = [
 
 async function main() {
   // ── Admin users ──────────────────────────────────────────────────────────────
+  // ── Company spaces (0165) ──────────────────────────────────────────────────
+  // Migration 0165 inserts these on PostgreSQL. A local database made with `db push` has the table but not the
+  // rows, so the seed makes sure they exist. Never overwrites names an admin has changed.
+  if (prisma.businessUnit) {
+    for (const bu of [
+      { id: 'bu_logiq', code: 'LOGIQ', name: 'LOGIQ', kind: 'DISTRIBUTOR',  legalName: 'LOGIQ',             netsuiteSubsidiaryId: '3',  sortOrder: 1 },
+      { id: 'bu_sage',  code: 'SAGE',  name: 'SAGE',  kind: 'MANUFACTURER', legalName: 'SAGE Brands',       netsuiteSubsidiaryId: '13', sortOrder: 2 },
+      { id: 'bu_shift', code: 'SHIFT', name: 'Shift', kind: 'MANUFACTURER', legalName: 'SHIFT Innovations', netsuiteSubsidiaryId: '11', sortOrder: 3 },
+    ]) {
+      await prisma.businessUnit.upsert({ where: { id: bu.id }, update: {}, create: bu });
+    }
+    console.log('✓ Company spaces ready (LOGIQ, SAGE, Shift)');
+  }
+
   const tempPassword = process.env.SEED_ADMIN_PASSWORD || '';
   if (tempPassword.length >= 12) {
     const passwordHash = await bcrypt.hash(tempPassword, 10);

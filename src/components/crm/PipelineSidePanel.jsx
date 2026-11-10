@@ -22,6 +22,7 @@ import {
 import { PROJECT_TEAM_ROLES } from '@/lib/projectTeam';
 import { PROJECT_TYPES, projectTypeLabel, serviceTypeOptions, serviceTypeLabel, BUILDING_TYPES, buildingTypeLabel } from '@/lib/utils';
 import { useBuyoutDays } from '@/lib/useBuyoutDays';
+import { spaceLabel, spaceOptions } from '@/lib/companySpaces';
 import { LABEL, INPUT } from '@/components/ui/tokens';
 import { currentContract } from '@/lib/contractBalance';
 import { sumCents } from '@/lib/money';
@@ -380,6 +381,8 @@ export default function PipelineSidePanel({ project, onClose, onUpdate }) {
 
           {/* Maram 9-17: project type, sub-type, service type and the lead person, right here. */}
           <Rule label="Project" />
+          <Field label="Company" displayValue={spaceLabel(project.businessUnitId) || null}
+            rawValue={project.businessUnitId || ''} onSave={p('businessUnitId')} select options={spaceOptions({ blankLabel: 'Not set yet' })} />
           <Field label="Project Type" displayValue={project.projectType ? projectTypeLabel(project.projectType) : null}
             rawValue={project.projectType || ''} onSave={p('projectType')} select options={PROJECT_TYPE_OPTIONS} />
           <Field label="Project Subtype" displayValue={project.projectSubtype ? buildingTypeLabel(project.projectSubtype) : null}
