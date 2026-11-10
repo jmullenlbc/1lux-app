@@ -24,7 +24,7 @@ export const PORTAL_FIELDS = [
   { key: 'createdAt',    label: 'Started',       kind: 'date',  get: b => b.createdAt || '' },
   { key: 'changedBy',    label: 'Last changed by', kind: 'pick', get: b => b.changedBy || '' },
   { key: 'changedAt',    label: 'Last changed',  kind: 'date',  get: b => b.changedAt || '' },
-  { key: 'sentAt',       label: 'Sent to ILC',   kind: 'yesno', get: b => b.sentAt || '' },
+  { key: 'sentAt',       label: 'Sent to Logiq',   kind: 'yesno', get: b => b.sentAt || '' },
 ];
 
 const FIELD = Object.fromEntries(PORTAL_FIELDS.map(f => [f.key, f]));

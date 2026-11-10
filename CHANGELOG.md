@@ -5,6 +5,32 @@ Format: each session is a dated entry with features added, bugs fixed, and files
 
 ---
 
+## [Public conceptual budget tool is Logiq Supply] - November 10, 2026
+
+### Changed
+- The public conceptual budget tool is now Logiq Supply, not ILC: the page, the sign-in, the messages, the email and the PDF.
+- Page: the Logiq logo replaces the ILC name at the top (desktop and phone). The welcome line, the printed summary header, the footer note and the browser tab titles say Logiq Supply.
+- Sign-in: "the password Logiq Supply gave you".
+- My Company's Budgets: the stages read "Sent to Logiq" and "Being reviewed by Logiq".
+- Drawing upload messages on the public page now say to email mike@logiqsupply.com, and "Someone at Logiq".
+- The "link to your budget" email is signed Logiq Supply, with the subject "Your Logiq Supply budget for <project>".
+- PDF: new logo at the top, "Logiq Supply" in the header, the navy block and the review note. The bottom reads: Questions? Reach out to Mike Kershner at Logiq Supply, mike@logiqsupply.com, then Logiq Supply, 2727 W 2nd Ave, Denver, CO 80219. The download is named `Logiq-Conceptual-Budget-<project name>.pdf`. The logo is inline, so it needs no network and no runtime file.
+- One source for the name, address, email and logo: `src/lib/intake/brand.js`. Mike confirmed mike@logiqsupply.com on 11-10.
+- Not changed: the staff app and the staff budget PDF still say ILC Studios. A few upload error messages shared with the staff app still say precon@ilcstudios.com. The web address is still app.ilcstudios.com and the link email still comes from the ILC sender.
+
+### Tests
+- `intakePdf.test.mjs`: fails if the PDF, its file name, or any public page, sign-in, message or email file says ILC.
+- `portalFilter.test.mjs`, `portalGroups.test.mjs`: new stage wording.
+
+### Files
+- `src/lib/intake/brand.js` (new), `src/lib/intake/logiqLogo.js` (new), `public/logiq-logo.png` (new), `src/lib/intake/pdfHtml.js`, `src/lib/intake/portalFilter.js`, `src/lib/intake/portalGroups.js`, `src/lib/intake/stagedParse.js`
+- `src/app/conceptual_budget/IntakeClient.jsx`, `src/app/conceptual_budget/page.jsx`, `src/app/conceptual_budget/my-budgets/page.jsx`, `src/app/conceptual_budget/my-budgets/MyBudgetsClient.jsx`
+- `src/components/public/PasswordGate.jsx`, `src/components/intake/DrawingDropzone.jsx`
+- `src/app/api/intake/pdf/route.js`, `src/app/api/intake/parse/route.js`, `src/app/api/intake/draft/email/route.js`
+- `scripts/tests/intakePdf.test.mjs`, `scripts/tests/portalFilter.test.mjs`, `scripts/tests/portalGroups.test.mjs`
+
+---
+
 ## [RFQ tabs, Review prices, price approval] - November 2, 2026
 
 ### Added

@@ -160,8 +160,8 @@ export function groupBudgets(rows, decisions = []) {
 /** The stage words the portal shows for one budget row. */
 export function portalStage(row, stepIndexOf) {
   const r = row || {};
-  if (r.projectId) return { code: 'reviewed', label: 'Being reviewed by ILC' };
-  if (r.submissionId) return { code: 'sent', label: 'Sent to ILC' };
+  if (r.projectId) return { code: 'reviewed', label: 'Being reviewed by Logiq' };
+  if (r.submissionId) return { code: 'sent', label: 'Sent to Logiq' };
   const idx = typeof stepIndexOf === 'function' ? stepIndexOf(r) : null;
   return { code: 'working', label: idx ? `In progress, step ${idx.step} of ${idx.of}` : 'In progress' };
 }

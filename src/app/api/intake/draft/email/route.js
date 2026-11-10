@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db';
 import { rateLimit, clientIp } from '@/lib/rateLimit';
 import { hashToken } from '@/lib/intake/draftTokens';
 import { sendEmail, escapeHtml } from '@/lib/notify';
+import { PUBLIC_BRAND } from '@/lib/intake/brand';
 
 export const dynamic = 'force-dynamic';
 
@@ -54,10 +55,10 @@ export async function POST(req) {
     <p>Here is the link to pick up your lighting budget for <strong>${project}</strong> where you left off:</p>
     <p><a href="${link}">${link}</a></p>
     <p>Anyone with this link can open your budget, so keep it to yourself.</p>
-    <p>ILC Studios</p>`;
+    <p>${PUBLIC_BRAND}</p>`;
 
   try {
-    await sendEmail({ to: row.email, subject: `Your ILC Studios budget for ${row.projectName}`, html });
+    await sendEmail({ to: row.email, subject: `Your ${PUBLIC_BRAND} budget for ${row.projectName}`, html });
     await prisma.conceptualDraft.update({ where: { id: row.id }, data: { linkEmailedAt: new Date() } });
   } catch (e) {
     console.error('intake/draft/email failed:', e);

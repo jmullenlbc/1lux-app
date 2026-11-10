@@ -61,8 +61,8 @@ test('a Yes merges, a No keeps apart, neither is asked again', () => {
 });
 
 test('stage words', () => {
-  assert.equal(portalStage({ projectId: 'p' }).label, 'Being reviewed by ILC');
-  assert.equal(portalStage({ submissionId: 's' }).label, 'Sent to ILC');
+  assert.equal(portalStage({ projectId: 'p' }).label, 'Being reviewed by Logiq');
+  assert.equal(portalStage({ submissionId: 's' }).label, 'Sent to Logiq');
   assert.equal(portalStage({}, () => ({ step: 3, of: 9 })).label, 'In progress, step 3 of 9');
 });
 

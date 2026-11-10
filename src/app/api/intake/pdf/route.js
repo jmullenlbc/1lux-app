@@ -19,7 +19,7 @@ export const dynamic = 'force-dynamic';
  * and drawings, plus the project name and location. It never sends a
  * number: the budget is recomputed here with publicIntakeEstimate(), the
  * same function the live estimate uses, so a doctored request can't put a
- * made-up figure on an ILC-branded page.
+ * made-up figure on a Logiq branded page.
  *
  * What the PDF may show is decided in src/lib/intake/pdfHtml.js: only what
  * the on-screen summary already shows the visitor. The project name is the

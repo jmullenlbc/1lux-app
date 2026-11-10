@@ -54,7 +54,7 @@ export default function PasswordGate() {
       <form onSubmit={submit} className={`${CARD} w-full max-w-sm p-5`}>
         <h1 className={H1}>Conceptual Lighting Budget</h1>
         <p className="text-sm text-slate-500 mt-1 mb-5">
-          This tool is in a private preview. Sign in with your work email and the password ILC Studios gave you.
+          This tool is in a private preview. Sign in with your work email and the password Logiq Supply gave you.
         </p>
         <label className={`${LABEL} block mb-1`} htmlFor="cb-email">Work email</label>
         <input

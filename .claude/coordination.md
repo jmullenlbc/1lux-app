@@ -2,6 +2,10 @@
 
 Cross-session memory for the ILC platform. Read this at session start to see what the other user's Claude has been up to. Append (newest at top) after meaningful work. See project-root `CLAUDE.md` (section: Cross-Session Claude Coordination) for the rules.
 
+**2026-11-02** Mike's Claude - DEPLOYED 51744fe (0164), RFQ tabs, Review prices, price approval, Clients list view, live 327a0aef48b5.
+
+**2026-11-02** Mike's Claude - **Migration 0164_rfq_price_approval**: adds three nullable columns to RfqLine: approvedAt, approvedById, approvedByName. A rep price now reaches the bid matrix DN only when a person approves it (1 click, or assign then approve). Additive only.
+
 **2026-11-02** Mike's Claude - DEPLOYED ec56a8e (0163), Expenses Snap page, receipts, AI read, drop box, live 829268e8e516.
 
 **2026-11-02** Mike's Claude - **Migration 0163_expense_receipts**: adds SalesExpense.vendor (default empty) and a new ExpenseReceipt table for snapped or dropped receipts. The AI read stays on the receipt row, and a SalesExpense exists only after a person confirms the amount. Additive only, no existing data changed or removed. A user with receipts cannot be hard deleted.

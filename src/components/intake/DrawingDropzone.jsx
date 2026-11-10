@@ -4,6 +4,7 @@ import { combineReads, EARLIER_NAME } from '@/lib/intake/combineReads';
 import { uploadDirect, holdScreenAwake } from '@/lib/uploadClient';
 import { READING_TIME_HINT } from '@/components/ReadingWait';
 import { runStagedParse, STEP_WORDS } from '@/lib/intake/stagedParse';
+import { PUBLIC_BRAND_EMAIL } from '@/lib/intake/brand';
 import ReadingSteps from './ReadingSteps';
 import { BTN_SECONDARY, CARD } from '@/components/ui/tokens';
 // Words only, never '@/lib/siteFeatures', which carries the price defaults.
@@ -169,7 +170,7 @@ export default function DrawingDropzone({ onResults, restored = null }) {
         const next = prev.map(i => i.id === item.id
           // No instructions to a GC standing on a job site about how to split a
           // PDF. Say the number, say what to do, and give him a person.
-          ? { ...i, status: 'error', error: `This file is ${fmtBytes(item.file.size)}, which is past what we can take (${fmtBytes(MAX_UPLOAD_BYTES)}). Send it to us at precon@ilcstudios.com and we'll take it from there. (F1)` }
+          ? { ...i, status: 'error', error: `This file is ${fmtBytes(item.file.size)}, which is past what we can take (${fmtBytes(MAX_UPLOAD_BYTES)}). Send it to us at ${PUBLIC_BRAND_EMAIL} and we'll take it from there. (F1)` }
           : i);
         publish(next);
         return next;
@@ -303,7 +304,7 @@ export default function DrawingDropzone({ onResults, restored = null }) {
         ? err.message
         : slept
           ? `Your phone put this page to sleep while we were ${STEP_WORDS[atStep] ?? 'reading the file'}, and that cuts the line mid-read. Keep the screen on and this page in front until the read finishes, then try again. (R1/${atStep}/slept)`
-          : `We kept losing the connection while ${STEP_WORDS[atStep] ?? 'reading the file'}, even after retrying. Please try again, and if it happens twice, send the file to precon@ilcstudios.com. (R1/${atStep})` };
+          : `We kept losing the connection while ${STEP_WORDS[atStep] ?? 'reading the file'}, even after retrying. Please try again, and if it happens twice, send the file to ${PUBLIC_BRAND_EMAIL}. (R1/${atStep})` };
     }
 
     settle();
@@ -325,7 +326,7 @@ export default function DrawingDropzone({ onResults, restored = null }) {
     const accepted = incoming.slice(0, room);
     const turnedAway = incoming.length - accepted.length;
     setNotice(turnedAway > 0
-      ? `We can read ${MAX_FILES} files at a time, so ${turnedAway} ${turnedAway === 1 ? 'file was' : 'files were'} left out. Remove one below to make room, or send the rest to precon@ilcstudios.com.`
+      ? `We can read ${MAX_FILES} files at a time, so ${turnedAway} ${turnedAway === 1 ? 'file was' : 'files were'} left out. Remove one below to make room, or send the rest to ${PUBLIC_BRAND_EMAIL}.`
       : null);
     if (!accepted.length) return;
 
@@ -661,7 +662,7 @@ export default function DrawingDropzone({ onResults, restored = null }) {
                 </p>
                 <p className="text-[11px] text-slate-500 mt-0.5">
                   {fmt(diff)} unit{diff !== 1 ? 's are' : ' is'} {rowSum < stated ? 'missing from' : 'extra in'} the
-                  breakdown, a unit type may {rowSum < stated ? 'be missing' : 'be double-counted'}. Someone at ILC
+                  breakdown, a unit type may {rowSum < stated ? 'be missing' : 'be double-counted'}. Someone at Logiq
                   will reconcile this before anything is priced.
                 </p>
               </div>
@@ -693,7 +694,7 @@ export default function DrawingDropzone({ onResults, restored = null }) {
               </ul>
               <p className="text-[11px] text-slate-500 mt-1">
                 Where files disagree we keep the file the unit count came from, then the more confident read.
-                Someone at ILC will confirm these.
+                Someone at Logiq will confirm these.
               </p>
             </div>
           )}

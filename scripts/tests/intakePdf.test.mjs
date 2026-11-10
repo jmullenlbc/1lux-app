@@ -15,7 +15,7 @@ import fs from 'node:fs';
 import { computeIntakeEstimate, intakeEstimateGate, publicIntakeEstimate } from '../../src/lib/intake/estimate.js';
 import {
   buildIntakePdfHtml, intakePdfFilename, intakeProjectDataRows,
-  INTAKE_PDF_DISCLAIMER, INTAKE_PDF_CONTACT,
+  INTAKE_PDF_DISCLAIMER, INTAKE_PDF_CONTACT, INTAKE_PDF_COMPANY, INTAKE_PDF_ADDRESS, INTAKE_PDF_EMAIL,
 } from '../../src/lib/intake/pdfHtml.js';
 import { ILC_ONLY_FIELDS } from '../../src/lib/redact.js';
 import { formatCurrency } from '../../src/lib/format.js';
@@ -130,7 +130,9 @@ test('the pricing model never ships to the public page', () => {
   }
   const builder = fs.readFileSync(new URL('../../src/lib/intake/pdfHtml.js', import.meta.url), 'utf8');
   const imports = [...builder.matchAll(/^import .* from '([^']+)';/gm)].map(m => m[1]).sort();
-  assert.deepEqual(imports, ['../format.js', './controlsWords.js', './questionnaire.js']);
+  assert.deepEqual(imports, ['../format.js', './brand.js', './controlsWords.js', './logiqLogo.js', './questionnaire.js']);
+  const logo = fs.readFileSync(new URL('../../src/lib/intake/logiqLogo.js', import.meta.url), 'utf8');
+  assert.ok(!/^import /m.test(logo), 'logiqLogo.js must stay import-free');
   const words = fs.readFileSync(new URL('../../src/lib/intake/controlsWords.js', import.meta.url), 'utf8');
   assert.ok(!/^import /m.test(words), 'controlsWords.js must stay import-free');
 });
@@ -157,13 +159,13 @@ test('a building type that is not one of the options is dropped', () => {
   assert.ok(!render(budget, { buildingType: 'Castle' }).includes('Building type'));
 });
 
-test('filename: ILC-Conceptual-Budget-<project-name>.pdf, safe for a header', () => {
-  assert.equal(intakePdfFilename('Lincoln Avenue Phase 2'), 'ILC-Conceptual-Budget-Lincoln-Avenue-Phase-2.pdf');
-  assert.equal(intakePdfFilename('Ave. #2 / "Tower"'), 'ILC-Conceptual-Budget-Ave-2-Tower.pdf');
-  assert.equal(intakePdfFilename('Café Olé'), 'ILC-Conceptual-Budget-Cafe-Ole.pdf');
-  assert.equal(intakePdfFilename(''), 'ILC-Conceptual-Budget-Project.pdf');
-  assert.equal(intakePdfFilename('***'), 'ILC-Conceptual-Budget-Project.pdf');
-  assert.ok(intakePdfFilename('x'.repeat(500)).length <= 'ILC-Conceptual-Budget-.pdf'.length + 80);
+test('filename: Logiq-Conceptual-Budget-<project-name>.pdf, safe for a header', () => {
+  assert.equal(intakePdfFilename('Lincoln Avenue Phase 2'), 'Logiq-Conceptual-Budget-Lincoln-Avenue-Phase-2.pdf');
+  assert.equal(intakePdfFilename('Ave. #2 / "Tower"'), 'Logiq-Conceptual-Budget-Ave-2-Tower.pdf');
+  assert.equal(intakePdfFilename('Café Olé'), 'Logiq-Conceptual-Budget-Cafe-Ole.pdf');
+  assert.equal(intakePdfFilename(''), 'Logiq-Conceptual-Budget-Project.pdf');
+  assert.equal(intakePdfFilename('***'), 'Logiq-Conceptual-Budget-Project.pdf');
+  assert.ok(intakePdfFilename('x'.repeat(500)).length <= 'Logiq-Conceptual-Budget-.pdf'.length + 80);
 });
 
 test('Project Data rows match the review step: same labels and order, blanks dropped', () => {
@@ -174,4 +176,47 @@ test('Project Data rows match the review step: same labels and order, blanks dro
     { label: 'Stairwell Landings',     value: '15' },
     { label: 'Surface Parking Stalls', value: '1200' },
   ]);
+});
+
+test('the print out is Logiq Supply and never says ILC, in the page or the file name', () => {
+  const html = render(estimate().budget);
+  const text = visibleText(html);
+  for (const s of [INTAKE_PDF_COMPANY, INTAKE_PDF_ADDRESS, INTAKE_PDF_EMAIL, 'Mike Kershner']) {
+    assert.ok(text.includes(s), s);
+  }
+  assert.equal(INTAKE_PDF_EMAIL, 'mike@logiqsupply.com');
+  // The logo is inline picture data, which is not words: leave it out of the check.
+  const words = html.replace(/src="data:[^"]*"/g, '');
+  assert.ok(!/ilc/i.test(words), 'the PDF still says ILC somewhere');
+  assert.ok(/<img src="data:image\/png;base64,/.test(html), 'the Logiq logo is inline');
+  assert.ok(!/ilc/i.test(intakePdfFilename('Lincoln Avenue Phase 2')));
+});
+
+test('the public tool never says ILC: page, sign-in, messages and email', () => {
+  const brand = fs.readFileSync(new URL('../../src/lib/intake/brand.js', import.meta.url), 'utf8');
+  assert.ok(!/^import /m.test(brand), 'brand.js must stay import-free');
+  const files = [
+    'src/app/conceptual_budget/IntakeClient.jsx',
+    'src/app/conceptual_budget/page.jsx',
+    'src/app/conceptual_budget/my-budgets/page.jsx',
+    'src/app/conceptual_budget/my-budgets/MyBudgetsClient.jsx',
+    'src/components/public/PasswordGate.jsx',
+    'src/components/intake/DrawingDropzone.jsx',
+    'src/lib/intake/brand.js',
+    'src/lib/intake/portalFilter.js',
+    'src/lib/intake/portalGroups.js',
+    'src/lib/intake/stagedParse.js',
+    'src/app/api/intake/parse/route.js',
+    'src/app/api/intake/draft/email/route.js',
+  ];
+  for (const f of files) {
+    const src = fs.readFileSync(new URL(`../../${f}`, import.meta.url), 'utf8');
+    src.split(/\r?\n/).forEach((line, i) => {
+      const t = line.trim();
+      // Comments are for us, not the visitor.
+      if (t.startsWith('//') || t.startsWith('*') || t.startsWith('/*')) return;
+      assert.ok(!/\bILC\b/.test(line) && !/ilcstudios/i.test(line), `${f}:${i + 1} still says ILC: ${t.slice(0, 80)}`);
+    });
+  }
+  assert.ok(fs.existsSync(new URL('../../public/logiq-logo.png', import.meta.url)), 'the page logo file is missing');
 });

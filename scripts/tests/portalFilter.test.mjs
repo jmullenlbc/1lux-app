@@ -9,7 +9,7 @@ const row = (o) => ({ id: o.id, projectName: o.p, budgetName: o.d || 'Budget', c
 
 const groups = [
   { key: 'g1', name: 'Lone Tree', budgets: [row({ id: 1, p: 'Lone Tree', u: 100, e: 500000 }), row({ id: 2, p: 'Lone Tree', d: '100% DD', u: 100, e: 650000, c: 'Lone Tree' })] },
-  { key: 'g2', name: 'Pool Ladder', budgets: [row({ id: 3, p: 'Pool Ladder', city: 'Denver', t: 'Garden', u: 40, e: null, s: 'Sent to ILC', sent: '2026-10-05', by: 'b@x.com' })] },
+  { key: 'g2', name: 'Pool Ladder', budgets: [row({ id: 3, p: 'Pool Ladder', city: 'Denver', t: 'Garden', u: 40, e: null, s: 'Sent to Logiq', sent: '2026-10-05', by: 'b@x.com' })] },
 ];
 
 test('no filters keeps every group', () => {

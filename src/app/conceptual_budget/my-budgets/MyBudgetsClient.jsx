@@ -268,7 +268,7 @@ export default function MyBudgetsClient() {
                         <Field label="Copied from" value={b.copiedFrom?.projectName} sub={b.copiedFrom?.email} />
                         <Field label="Started" value={when(b.createdAt)} sub={b.createdBy} num />
                         <Field label="Last changed" value={b.changedAt && b.changedAt !== b.createdAt ? when(b.changedAt) : ''} sub={b.changedAt && b.changedAt !== b.createdAt ? b.changedBy : ''} num />
-                        <Field label="Sent to ILC" value={b.sentAt ? when(b.sentAt) : ''} num />
+                        <Field label="Sent to Logiq" value={b.sentAt ? when(b.sentAt) : ''} num />
                       </div>
                       <div className="mt-3 flex flex-wrap items-center gap-2">
                         {b.canOpen && (

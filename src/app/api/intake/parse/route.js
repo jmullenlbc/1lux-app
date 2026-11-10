@@ -22,6 +22,7 @@ import {
 import { rateLimit, clientIp } from '@/lib/rateLimit';
 import { wrapClient } from '@/lib/agent/client';
 import { combineIntakeResult, needsSiteRead, siteHasNumbers } from '@/lib/intake/combineResult';
+import { PUBLIC_BRAND_EMAIL } from '@/lib/intake/brand';
 
 export const dynamic = 'force-dynamic';
 
@@ -40,7 +41,7 @@ export const maxDuration = 300;
  * ProjectFile row, no Project. Two reasons:
  *
  *   1. A public form should not create durable records from anonymous input.
- *      Nothing persists until a human at ILC accepts the submission, which is
+ *      Nothing persists until a person on staff accepts the submission, which is
  *      exactly the review-queue model Mike asked for. An abandoned form leaves
  *      no trace to clean up.
  *   2. The client holds parsed results in memory and sends them along at submit.
@@ -521,7 +522,7 @@ async function anthropicClient() {
 }
 
 const unavailable = () =>
-  bad('unavailable', 'Our file reader is switched off right now. This is on our side, not your file. Please email the set to precon@ilcstudios.com and we will run it for you.', 503);
+  bad('unavailable', `Our file reader is switched off right now. This is on our side, not your file. Please email the set to ${PUBLIC_BRAND_EMAIL} and we will run it for you.`, 503);
 
 /** One place for "a throw reached the top", so every stage fails the same way. */
 function unexpected(e, name) {

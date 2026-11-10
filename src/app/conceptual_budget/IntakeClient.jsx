@@ -17,6 +17,7 @@ import { useEstimatedSalesTax } from '@/components/useEstimatedSalesTax';
 import { cn } from '@/lib/utils';
 import AlertMark from '@/components/ui/AlertMark';
 import { PublicBugLink } from '@/components/public/PublicBugButton';
+import { PUBLIC_BRAND, PUBLIC_BRAND_LOGO } from '@/lib/intake/brand';
 import { CARD, CARD_PADDED, CARD_TITLE, BTN_PRIMARY, BTN_SECONDARY, BTN_GHOST, BTN_COMPACT, H1, INPUT, LABEL, HELPER } from '@/components/ui/tokens';
 
 /**
@@ -34,7 +35,7 @@ import { CARD, CARD_PADDED, CARD_TITLE, BTN_PRIMARY, BTN_SECONDARY, BTN_GHOST, B
  *
  * The one deliberate difference is WHERE the math runs: the internal wizard
  * prices client-side with the full PRICING model in the bundle, but that
- * model is ILC's cost book and must not ship to a public visitor's browser.
+ * model is our cost book and must not ship to a public visitor's browser.
  * Answers are debounced up to /api/intake/estimate and only the computed
  * budget object comes back, which is why the public QuestionCards show
  * descriptive subtext instead of per-option dollar adders.
@@ -42,7 +43,7 @@ import { CARD, CARD_PADDED, CARD_TITLE, BTN_PRIMARY, BTN_SECONDARY, BTN_GHOST, B
  * Duplicate project-name checking is intentionally NOT done live here. Doing
  * so against all projects from an unauthenticated page would let anyone
  * enumerate the client project list by guessing names. It belongs either in
- * the ILC review queue, or scoped to the submitter's own resolved client once
+ * the staff review queue, or scoped to the submitter's own resolved client once
  * email->client mapping exists. See `findDuplicateProjects` in lib/intake.js.
  */
 
@@ -60,7 +61,7 @@ const CONFIRM_NOTE = 'We will confirm all numbers are correct and send you a bud
 // A resume LINK that works across devices needs a server-side copy and an
 // email to send it in. Both are built: once the contact details pass About
 // You, the same inputs are also saved to /api/intake/draft (a ConceptualDraft
-// row, inputs only, never a price) so ILC staff can see unfinished budgets as
+// row, inputs only, never a price) so our staff can see unfinished budgets as
 // leads, and ?resume=<token> reopens one on any device. The two buttons that
 // hand the link to the visitor stay hidden behind this flag until Microsoft
 // email is hooked up (Mike, 2026-09-15: "The link we should build but can't
@@ -361,7 +362,7 @@ function optionLabel(q, opt) {
 /**
  * Left rail, the public twin of the internal wizard's SectionNav: same
  * width, same numbered circles, same active/completed treatment. The header
- * carries ILC branding (and the project name once entered) where the
+ * carries the Logiq Supply logo (and the project name once entered) where the
  * internal one shows the editable project block.
  */
 // Link to the company portal from inside the wizard (Mike 10-16). Carries the
@@ -376,13 +377,9 @@ function PublicSectionNav({ steps = STEPS, currentStep, completedSteps, canNavig
     <aside className="hidden lg:flex w-56 bg-white border-r border-slate-100 flex-col shrink-0 overflow-y-auto">
       <div className="px-4 py-4 border-b border-slate-100">
         <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-slate-900 flex items-center justify-center shrink-0">
-            <svg className="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-            </svg>
-          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={PUBLIC_BRAND_LOGO} alt={PUBLIC_BRAND} className="h-9 w-auto shrink-0" />
           <div className="min-w-0">
-            <div className="text-sm font-semibold text-slate-900 leading-tight">ILC Studios</div>
             <div className="text-xs text-slate-500">Conceptual Budget</div>
           </div>
         </div>
@@ -1130,7 +1127,7 @@ export default function IntakeClient() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = named ? named[1] : 'ILC-Conceptual-Budget.pdf';
+      a.download = named ? named[1] : 'Logiq-Conceptual-Budget.pdf';
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -1299,13 +1296,9 @@ export default function IntakeClient() {
       {/* Mobile header, the desktop layout carries branding in the left rail */}
       <header className="lg:hidden bg-white border-b border-slate-200">
         <div className="px-5 py-4 flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-slate-900 flex items-center justify-center shrink-0">
-            <svg className="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-            </svg>
-          </div>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={PUBLIC_BRAND_LOGO} alt={PUBLIC_BRAND} className="h-10 w-auto shrink-0" />
           <div className="flex-1">
-            <div className="text-base font-semibold text-slate-900 leading-tight">ILC Studios</div>
             <div className="text-xs text-slate-500">Conceptual Lighting Budget</div>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
               <Link href={portalHref(email)} className="text-xs font-semibold text-orange-600 hover:text-orange-700">My company&apos;s budgets</Link>
@@ -1458,7 +1451,7 @@ export default function IntakeClient() {
                         how long, and what happens after. Kept light. */}
                     <div className="mb-6 max-w-xl">
                       <p className="text-sm text-slate-600">
-                        Get a quick ballpark lighting budget for your project from ILC Studios. It takes a few minutes.
+                        Get a quick ballpark lighting budget for your project from {PUBLIC_BRAND}. It takes a few minutes.
                       </p>
                       <h2 className={`${LABEL} mt-4 mb-2`}>How this works</h2>
                       <ol className="space-y-2">
@@ -1912,7 +1905,7 @@ export default function IntakeClient() {
                         <div className="flex items-start justify-between gap-4">
                           <div>
                             <div className="text-xs font-medium mb-1 text-slate-400">
-                              ILC Studios, Conceptual Lighting &amp; Controls Budget
+                              {PUBLIC_BRAND}, Conceptual Lighting &amp; Controls Budget
                             </div>
                             <div className="text-3xl font-bold tabular-nums mb-2">
                               {formatCurrency(budget.totalWithControls)}
@@ -2050,7 +2043,7 @@ export default function IntakeClient() {
             )}
 
             <p className="text-xs text-slate-500 text-center pt-6 pb-6">
-              Conceptual budget only. An ILC Studios team member reviews every submission before a budget is issued.
+              Conceptual budget only. A {PUBLIC_BRAND} team member reviews every submission before a budget is issued.
             </p>
           </div>
         </div>

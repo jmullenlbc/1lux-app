@@ -23,6 +23,7 @@
  * @see src/components/intake/ReadingSteps.jsx, what the visitor sees
  */
 import { combineIntakeResult, siteHasNumbers } from './combineResult.js';
+import { PUBLIC_BRAND_EMAIL } from './brand.js';
 
 /**
  * The steps, in the order they run, in words a contractor would use.
@@ -283,7 +284,7 @@ async function runShardedScan(scan, signal, onStep) {
     }
     const err = new Error(
       'This set is taking longer to read than we can hold a line open for. '
-      + "Send it to precon@ilcstudios.com and we'll take it from there. (R4)");
+      + `Send it to ${PUBLIC_BRAND_EMAIL} and we'll take it from there. (R4)`);
     err.shown = true;
     throw err;
   };
@@ -320,7 +321,7 @@ export async function runStagedParse({ s3Key, file, fileName, onStep = () => {},
   const tooLong = () => {
     const err = new Error(
       'This set is taking longer to read than we can hold a line open for. '
-      + "Send it to precon@ilcstudios.com and we'll take it from there. (R4)");
+      + `Send it to ${PUBLIC_BRAND_EMAIL} and we'll take it from there. (R4)`);
     err.shown = true;
     return err;
   };

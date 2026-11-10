@@ -17,12 +17,19 @@
 import { formatCurrency } from '../format.js';
 import { INTAKE_QUESTIONS, designChoices } from './questionnaire.js';
 import { controlsMathWords } from './controlsWords.js';
+import { LOGIQ_LOGO_DATA_URI } from './logiqLogo.js';
+import { PUBLIC_BRAND, PUBLIC_BRAND_ADDRESS, PUBLIC_BRAND_EMAIL } from './brand.js';
 
 export const INTAKE_PDF_DISCLAIMER = 'Conceptual estimate, for budgeting only, not a quote.';
-// The same wording the public page's footer uses.
-const REVIEW_NOTE = 'An ILC Studios team member reviews every submission before a budget is issued.';
-// The one address every public screen gives out (Mike 2026-09-12: precon@, not budgets@).
-export const INTAKE_PDF_CONTACT = 'Questions? Email precon@ilcstudios.com';
+// Who this print out is from (Mike 2026-11-10): Logiq Supply. It never says ILC,
+// and scripts/tests/intakePdf.test.mjs fails if it does. The values live in
+// brand.js, shared with the public page and its email.
+export const INTAKE_PDF_COMPANY = PUBLIC_BRAND;
+export const INTAKE_PDF_ADDRESS = PUBLIC_BRAND_ADDRESS;
+export const INTAKE_PDF_EMAIL = PUBLIC_BRAND_EMAIL;
+export const INTAKE_PDF_CONTACT = `Questions? Reach out to Mike Kershner at ${INTAKE_PDF_COMPANY}, ${INTAKE_PDF_EMAIL}`;
+// The public page's footer wording, under the Logiq name.
+const REVIEW_NOTE = `A ${INTAKE_PDF_COMPANY} team member reviews every submission before a budget is issued.`;
 
 const PROJECT_TYPES = INTAKE_QUESTIONS.find(q => q.key === 'projectType')?.options || [];
 
@@ -33,7 +40,7 @@ function esc(s) {
 const fmt = n => formatCurrency(Number(n) || 0);
 
 /**
- * `ILC-Conceptual-Budget-<project-name>.pdf`, with the name cut down to
+ * `Logiq-Conceptual-Budget-<project-name>.pdf`, with the name cut down to
  * plain letters, digits and dashes so it is safe in a Content-Disposition
  * header and on every file system.
  */
@@ -45,7 +52,7 @@ export function intakePdfFilename(projectName) {
     .replace(/[\s-]+/g, '-')
     .slice(0, 80)
     .replace(/^-+|-+$/g, '');
-  return `ILC-Conceptual-Budget-${safe || 'Project'}.pdf`;
+  return `Logiq-Conceptual-Budget-${safe || 'Project'}.pdf`;
 }
 
 /** The review step's Project Data rows, same labels, same order, blanks dropped. */
@@ -190,9 +197,9 @@ export function buildIntakePdfHtml({ projectName, location, buildingType, budget
 <body>
 
 <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
-  <img src="https://app.ilcstudios.com/ilc-studios-logo.jpg" alt="ILC Studios" style="height:36px"/>
+  <img src="${LOGIQ_LOGO_DATA_URI}" alt="${esc(INTAKE_PDF_COMPANY)}" style="height:46px"/>
   <div style="text-align:right;font-size:7.5pt;color:#64748b;line-height:1.6">
-    ILC Studios, Conceptual Lighting &amp; Controls Budget<br/>
+    ${esc(INTAKE_PDF_COMPANY)}, Conceptual Lighting &amp; Controls Budget<br/>
     ${esc(name)}${location ? ' · ' + esc(location) : ''}<br/>
     ${esc(dateLabel)}
   </div>
@@ -200,7 +207,7 @@ export function buildIntakePdfHtml({ projectName, location, buildingType, budget
 
 <!-- Hero, the review step's navy block -->
 <div style="background:#0f172a;color:white;padding:18px 22px;border-radius:6px;margin-bottom:10px;-webkit-print-color-adjust:exact;print-color-adjust:exact">
-  <div style="font-size:7.5pt;color:#94a3b8;margin-bottom:4px">ILC Studios, Conceptual Lighting &amp; Controls Budget</div>
+  <div style="font-size:7.5pt;color:#94a3b8;margin-bottom:4px">${esc(INTAKE_PDF_COMPANY)}, Conceptual Lighting &amp; Controls Budget</div>
   <div style="font-size:22pt;font-weight:700;font-family:monospace;margin-bottom:6px">${esc(fmt(b.totalWithControls))}</div>
   <div style="display:flex;flex-wrap:wrap;gap:16px;font-size:8pt">
     <div><span style="color:#94a3b8">Lighting Only: </span><span style="font-weight:600">${esc(fmt(b.subtotalLightingOnly))}</span></div>
@@ -240,7 +247,8 @@ ${ctrlNote}
 ${choicesBlock}
 
 <p style="font-size:8pt;color:#475569;margin-top:14px;padding-top:8px;border-top:1px solid #e2e8f0">
-  ${esc(INTAKE_PDF_CONTACT)} · ILC Studios
+  ${esc(INTAKE_PDF_CONTACT)}<br/>
+  ${esc(INTAKE_PDF_COMPANY)} · ${esc(INTAKE_PDF_ADDRESS)}
 </p>
 
 </body>
