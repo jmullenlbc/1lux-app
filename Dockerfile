@@ -72,6 +72,11 @@ COPY --from=build --chown=node:node /app/prisma ./prisma
 COPY --from=build --chown=node:node /app/scripts/docker-entrypoint.sh ./scripts/docker-entrypoint.sh
 COPY --from=build --chown=node:node /app/eng.traineddata ./eng.traineddata
 COPY --from=build --chown=node:node /opt/prisma-cli /opt/prisma-cli
+# WORKDIR made /app as root, so the app (user node) could not create its own folders: without S3, uploads go to
+# /app/uploads and failed with "EACCES: permission denied, mkdir '/app/uploads'" (Job Loader on staging, 2026-11-11).
+# Same for the other local stores (.intake-dev, .salesdocs-dev, .agent-runs, .mcp-audit). Still lost on every deploy.
+RUN mkdir -p /app/uploads /app/.intake-dev /app/.salesdocs-dev /app/.agent-runs /app/.mcp-audit \
+    && chown node:node /app /app/uploads /app/.intake-dev /app/.salesdocs-dev /app/.agent-runs /app/.mcp-audit
 USER node
 EXPOSE 3000
 # Run through sh so the script needs no executable bit (Windows checkouts do not keep it).
