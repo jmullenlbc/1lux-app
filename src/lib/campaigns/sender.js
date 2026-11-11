@@ -20,7 +20,7 @@ export function senderStatus() {
 
 export function fromAddress() {
   return {
-    name: process.env.CAMPAIGN_FROM_NAME || 'ILC Studios',
+    name: process.env.CAMPAIGN_FROM_NAME || '1LUX',
     email: process.env.CAMPAIGN_FROM_EMAIL || null,
   };
 }

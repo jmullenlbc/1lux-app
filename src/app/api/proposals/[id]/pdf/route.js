@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { brandForProject } from '@/lib/brandServer';
+import { brandNameHtml } from '@/lib/brandHtml';
+import { docName } from '@/lib/brand';
 
 function fmtMoney(v) {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(v);
@@ -25,6 +28,7 @@ export async function GET(req, { params }) {
     },
   });
   if (!proposal) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+  const brand = await brandForProject(proposal.projectId);
 
   const activeFee = proposal.overrideActive && proposal.overrideFee != null
     ? proposal.overrideFee
@@ -42,7 +46,7 @@ export async function GET(req, { params }) {
     .replace(/\{location\}/g,        proposal.location        || [proposal.project?.city, proposal.project?.state].filter(Boolean).join(', ') || '—')
     .replace(/\{effectiveDate\}/g,   fmtDate(proposal.effectiveDate))
     .replace(/\{fee\}/g,             fmtMoney(activeFee))
-    .replace(/\{ilcSigner\}/g,       'Jason Mullen, ILC CEO');
+    .replace(/\{ilcSigner\}/g,       `Jason Mullen, CEO, ${docName(brand)}`);
 
   const milestoneRows = milestones.map(m => `
     <tr>
@@ -96,7 +100,7 @@ export async function GET(req, { params }) {
 <body>
 <div class="header">
   <div>
-    <div class="logo">ILC<span> STUDIOS</span></div>
+    <div class="logo">${brandNameHtml(brand)}</div>
     <div style="font-size:11px;color:#64748b;margin-top:4px">Architectural Lighting Design</div>
   </div>
   <div style="text-align:right;font-size:11px;color:#64748b">
@@ -119,7 +123,7 @@ ${resolved}
 ${feeSection}
 
 <div class="sig-block">
-  <div class="sig-line">Jason Mullen, CEO · ILC Studios</div>
+  <div class="sig-line">Jason Mullen, CEO · ${brandNameHtml(brand)}</div>
   <div style="margin-top:32px" class="sig-line">${proposal.clientName || 'Client'} · Authorized Signatory</div>
 </div>
 

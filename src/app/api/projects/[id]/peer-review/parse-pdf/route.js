@@ -16,7 +16,7 @@ import { runParkedJob, readJobRequest, jobError, uploadToJobArgs, loadJobUpload 
 // The first request only writes the job down; the polls run it and collect it.
 export const maxDuration = 300;
 
-const SYSTEM_PROMPT = `You are a lighting fixture schedule parser for an electrical engineering firm (ILC Studios). You will receive raw text extracted from a PDF electrical drawing sheet.
+const SYSTEM_PROMPT = `You are a lighting fixture schedule parser for a lighting company (1LUX). You will receive raw text extracted from a PDF electrical drawing sheet.
 
 IMPORTANT: The document may contain MULTIPLE sections: controls schematics, panel schedules, wiring diagrams, sequence of operations, AND a lighting fixture schedule all on the same sheet. You MUST search the ENTIRE text for any section labeled "LIGHT FIXTURE SCHEDULE", "LUMINAIRE SCHEDULE", "LIGHTING FIXTURE SCHEDULE", or similar, and extract fixtures from that section even if the rest of the document contains unrelated electrical content.
 

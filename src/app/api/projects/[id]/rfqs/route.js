@@ -5,6 +5,7 @@ import { changesFor, rfqState } from '@/lib/rfq/resolve';
 import { approveLine, renameRound, sendRfq, startRound } from '@/lib/rfq/actions';
 import { emailBody, emailSubject } from '@/lib/rfq/format';
 import { linkHistory } from '@/lib/salesReps/links';
+import { brandForProject } from '@/lib/brandServer';
 
 const NO_PROJECT = () => NextResponse.json({ error: 'That project is not in the app any more. Nothing was changed. (RFQ_NO_PROJECT)' }, { status: 404 });
 
@@ -111,6 +112,7 @@ export async function POST(request, { params }) {
     const info = {
       number: res.rfq.number, familyNumber: res.rfq.familyNumber, version: res.rfq.version, projectName: state.project.name,
       needBy: res.rfq.needBy, notes: res.rfq.notes, office: state.office, changes: await changesFor(res.rfq),
+      brand: await brandForProject(projectId),
     };
     return NextResponse.json({
       rfq: res.rfq,

@@ -9,6 +9,8 @@ import ShareViewTracker from './ShareViewTracker';
 import { CARD, LABEL, NUM } from '@/components/ui/tokens';
 import SummaryBudgetBreakdown from '@/app/(app)/project/[id]/summary/SummaryBudgetBreakdown';
 import { SITE_FEATURE_INCLUDE, engineProjectData } from '@/lib/siteFeatureRows';
+import { brandForProject } from '@/lib/brandServer';
+import { docName } from '@/lib/brand';
 
 export default async function SharePage({ params }) {
   const share = await prisma.projectShare.findUnique({
@@ -23,6 +25,8 @@ export default async function SharePage({ params }) {
   if (!share) notFound();
 
   const project    = share.project;
+  // Whose name is on the page (2026-11-10): the job's company, else 1LUX.
+  const brand      = await brandForProject(project);
   const pricing    = pricingForProject(project.pricingSnapshot, await loadPricing());
   const sections   = responsesToSections(project.responses);
   const projectData = engineProjectData(project);
@@ -81,7 +85,7 @@ export default async function SharePage({ params }) {
               <path d="M9 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H9v1zm3-19C8.14 2 5 5.14 5 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.86-3.14-7-7-7z"/>
             </svg>
           </div>
-          <span className="text-white font-semibold text-sm">ILC Studios</span>
+          <span className="text-white font-semibold text-sm">{brand.name}</span>
         </div>
         <span className="text-navy-400 text-xs">{today}</span>
       </div>
@@ -95,7 +99,7 @@ export default async function SharePage({ params }) {
           className="rounded-xl p-5 mb-6 text-white bg-navy-950 shadow-sm"
         >
           <div className="text-xs font-medium mb-1 text-slate-400">
-            ILC Studios: Conceptual Lighting &amp; Controls Budget
+            {docName(brand)}: Conceptual Lighting &amp; Controls Budget
           </div>
           <div className="text-3xl font-bold tabular-nums mb-1">{formatCurrency(budget.totalWithControls)}</div>
           <div className="text-lg font-semibold mb-3 text-slate-200">{project.name}</div>
@@ -157,12 +161,14 @@ export default async function SharePage({ params }) {
         {/* Footer */}
         <div className="mt-8 text-center">
           <p className="text-xs text-slate-500 mb-3">
-            This is a conceptual budget prepared by ILC Studios for planning purposes only. Actual costs will vary.
+            This is a conceptual budget prepared by {docName(brand)} for planning purposes only. Actual costs will vary.
           </p>
-          <p className="text-sm text-slate-500">
-            Questions? Contact{' '}
-            <a href="mailto:precon@ilcstudios.com" className="text-orange-600 hover:underline">precon@ilcstudios.com</a>
-          </p>
+          {brand.email && (
+            <p className="text-sm text-slate-500">
+              Questions? Contact{' '}
+              <a href={`mailto:${brand.email}`} className="text-orange-600 hover:underline">{brand.email}</a>
+            </p>
+          )}
         </div>
       </div>
     </div>

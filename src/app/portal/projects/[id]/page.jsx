@@ -67,7 +67,7 @@ function ReleaseModal({ shipment, onCancel, onConfirm }) {
         <h3 className="text-base font-bold text-slate-800 mb-2">Confirm Release</h3>
         <p className="text-sm text-slate-500 mb-6 leading-relaxed">
           Release <strong className="text-slate-700">{shipment.manufacturer}</strong> fixtures from
-          ILC warehouse to job site? This notifies ILC to arrange delivery.
+          the warehouse to the job site? This notifies your project team to arrange delivery.
         </p>
         <div className="flex gap-3 justify-end">
           <button onClick={onCancel} className={BTN_SECONDARY}>
@@ -149,7 +149,7 @@ function ShipScheduleView({ projectId }) {
         setRelError(d.error || `The request did not go through on our side. Nothing was requested. Try again or call your rep. (Code ${res.status})`);
       }
     } catch {
-      setRelError('We could not reach ILC Studios. Nothing was requested. Check your connection and try again.');
+      setRelError('We could not reach the server. Nothing was requested. Check your connection and try again.');
     } finally { setSubmitting(false); }
   }
 
@@ -304,7 +304,7 @@ function ConceptualBudgetView({ budget }) {
         className="rounded-xl p-6 mb-5 text-white bg-navy-950 shadow-sm"
       >
         <p className="text-xs font-medium mb-1 text-slate-400">
-          ILC Studios, Conceptual Lighting & Controls Budget
+          Conceptual Lighting & Controls Budget
         </p>
         <p className="text-3xl font-bold tabular-nums mb-2">
           {fmtCurrency(budget.totalWithControls)}
@@ -535,7 +535,7 @@ function BudgetView({ projectId }) {
       </div>
 
       <p className={HELPER}>
-        Pricing shown is your contracted sell rate (CN) · ILC buy price not disclosed · Contact your rep for questions
+        Pricing shown is your contracted sell rate (CN) · our buy price not disclosed · Contact your rep for questions
       </p>
     </div>
   );
@@ -566,7 +566,7 @@ function ChangeOrdersView({ projectId, onChanged }) {
     setApproving(false);
     if (!res?.ok) {
       const body = await res?.json().catch(() => ({}));
-      setErr(body?.error || `We could not approve ${co.coNumber}. Nothing was changed. Try again or contact your ILC rep.`);
+      setErr(body?.error || `We could not approve ${co.coNumber}. Nothing was changed. Try again or contact your rep.`);
       return;
     }
     setConfirming(null);
@@ -627,7 +627,7 @@ function ChangeOrdersView({ projectId, onChanged }) {
                 {co.chosenOption && <span className="ml-2 text-xs font-normal text-slate-500">{co.chosenOption}</span>}
               </p>
             ) : (
-              <p className="text-sm text-slate-600 mb-1">Your ILC rep still needs to confirm the option on this change order. The PDF shows the options.</p>
+              <p className="text-sm text-slate-600 mb-1">Your rep still needs to confirm the option on this change order. The PDF shows the options.</p>
             )}
             {co.notes && <p className="text-xs text-slate-500 leading-relaxed">{co.notes}</p>}
             {co.status === 'APPROVED' && (co.approvedByName || co.approvedAt) && (
@@ -648,7 +648,7 @@ function ChangeOrdersView({ projectId, onChanged }) {
               </a>
               {co.status === 'SENT' && (
                 <a
-                  href="mailto:orders@ilcstudios.com"
+                  href={`mailto:?subject=${encodeURIComponent(`Change order ${co.coNumber}`)}`}
                   className={`${BTN_COMPACT} ml-auto gap-1.5`}
                 >
                   Contact rep
@@ -678,7 +678,7 @@ function ChangeOrdersView({ projectId, onChanged }) {
         ))}
       </div>
       <p className={`${HELPER} mt-3`}>
-        Contact your ILC rep to discuss pending CO's · Approved CO's are binding per contract terms
+        Contact your rep to discuss pending CO's · Approved CO's are binding per contract terms
       </p>
     </div>
   );
@@ -726,7 +726,7 @@ function MeetingNotesView({ projectId }) {
           )}
         </div>
       ))}
-      <p className={HELPER}>Only notes marked shared by ILC Studios are visible here</p>
+      <p className={HELPER}>Only notes shared with you are visible here</p>
     </div>
   );
 }
@@ -879,7 +879,7 @@ function ConstructionScheduleView({ projectId }) {
       )}
 
       <p className={`${HELPER} mt-4`}>
-        Lighting milestones only · Managed by ILC Studios · Dates subject to change
+        Lighting milestones only · Managed by your project team · Dates subject to change
       </p>
     </div>
   );
@@ -1022,7 +1022,7 @@ export default function PortalProjectPage({ params }) {
       {/* ── Desktop sidebar ── */}
       <aside className="hidden md:flex w-52 shrink-0 flex-col bg-white border-r border-slate-200 h-full">
         <div className="px-4 py-3 border-b border-slate-200">
-          <p className="text-[11px] font-semibold text-orange-600 mb-1">ILC Studios</p>
+          <p className="text-[11px] font-semibold text-orange-600 mb-1">{project.brand?.name || '1LUX'}</p>
           <p className="font-bold text-slate-800 text-sm leading-tight">{project.name}</p>
           {(project.city || project.state) && (
             <p className="text-xs text-slate-500 mt-0.5">{[project.city, project.state].filter(Boolean).join(', ')}</p>
@@ -1085,7 +1085,7 @@ export default function PortalProjectPage({ params }) {
         {/* Content area */}
         <div className="flex-1 overflow-y-auto px-4 md:px-6 py-4 pb-24 md:pb-6">
           {!active ? (
-            <Empty text="No sections have been shared with you yet. Contact your ILC project manager." />
+            <Empty text="No sections have been shared with you yet. Contact your project manager." />
           ) : (
             <>
               {active.id === 'ship'         && <ShipScheduleView         projectId={params.id} />}

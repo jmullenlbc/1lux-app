@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { requirePermission } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { getProjectRates, calcCOTotal, ratesForCO, freezeRates } from '@/lib/changeOrderRates';
+import { brandForProject } from '@/lib/brandServer';
+import { docName } from '@/lib/brand';
 
 const CO_INCLUDE = {
   optionGroups: {
@@ -11,7 +13,7 @@ const CO_INCLUDE = {
   createdBy: { select: { name: true, email: true } },
 };
 
-function coEmail({ co, projectName, total, notes, shareUrl, portalUrl, senderName }) {
+function coEmail({ co, projectName, total, notes, shareUrl, portalUrl, senderName, companyName }) {
   const money = total.toLocaleString('en-US', { style: 'currency', currency: 'USD' });
   return [
     `Please find attached change order ${co.coNumber}: ${co.title}${projectName ? ` on ${projectName}` : ''}.`,
@@ -19,11 +21,11 @@ function coEmail({ co, projectName, total, notes, shareUrl, portalUrl, senderNam
     `Total: ${money}`,
     ...(notes ? ['', notes] : []),
     ...(shareUrl ? ['', `View it online: ${shareUrl}`] : []),
-    ...(portalUrl ? ['', `Approve it in your ILC portal: ${portalUrl}`] : []),
+    ...(portalUrl ? ['', `Approve it in your project portal: ${portalUrl}`] : []),
     '',
     'Thanks,',
     senderName,
-    'ILC Studios',
+    companyName,
   ].join('\n');
 }
 
@@ -34,6 +36,7 @@ function coEmail({ co, projectName, total, notes, shareUrl, portalUrl, senderNam
 export async function POST(req, { params }) {
   const { user, error } = await requirePermission(req, 'editJobMoney'); // Construction, Operations, Finance, admins
   if (error) return error;
+  const brand = await brandForProject(params.id);
 
   const co = await prisma.changeOrder.findUnique({
     where:   { id: params.coId },
@@ -103,6 +106,7 @@ export async function POST(req, { params }) {
         shareUrl:   share ? `${baseUrl}/share/co/${share.token}` : null,
         portalUrl:  signers ? `${baseUrl}/portal/projects/${params.id}` : null,
         senderName: user.name || user.email,
+        companyName: docName(brand),
       }),
     },
   });

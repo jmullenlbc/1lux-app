@@ -5,6 +5,9 @@ import { htmlToPdf } from '@/lib/pdf';
 import { lineTotal, sumCents } from '@/lib/money';
 import { matrixFooter, feeLabel } from '@/lib/bidMatrixTotals';
 import { PM_SELECT, pmPrint } from '@/lib/projectManagers';
+import { brandForProject } from '@/lib/brandServer';
+import { brandMarkHtml, brandNameHtml, contactBlockHtml, confidentialHtml } from '@/lib/brandHtml';
+import { docName } from '@/lib/brand';
 
 const ORANGE = '#F7941D';
 const BLACK  = '#231F20';
@@ -48,6 +51,7 @@ const PHASE_LABELS = { sd: 'Schematic Design', dd: 'Design Development', cd: 'Co
 export async function GET(request, { params }) {
   const { user, error } = await requireAuth(request);
   if (error) return error;
+  const brand = await brandForProject(params.id);
 
   const project = await prisma.project.findUnique({
     where: { id: params.id },
@@ -190,10 +194,9 @@ export async function GET(request, { params }) {
 
 <!-- Header -->
 <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px">
-  <img src="https://app.ilcstudios.com/ilc-studios-logo.jpg" alt="ILC Studios" style="height:40px"/>
+  ${brandMarkHtml(brand, { height: 40 })}
   <div style="text-align:right;font-size:8pt;color:${GREY};line-height:1.6">
-    <div>2301 Blake Street, Ste 100 &nbsp;|&nbsp; Denver, CO 80205</div>
-    <div>720-248-8208 &nbsp;|&nbsp; orders@ilcstudios.com</div>
+    <div>${contactBlockHtml(brand, '</div><div>')}</div>
   </div>
 </div>
 
@@ -226,8 +229,8 @@ export async function GET(request, { params }) {
           <td style="font-size:7pt;color:#999;font-weight:600;text-transform:uppercase;letter-spacing:0.03em">PM Email</td>
         </tr>
         <tr>
-          <td style="padding:0 24px 6px 0">${esc(pms.names || 'ILC Studios')}</td>
-          <td style="padding:0 0 6px 0">${esc(pms.emails || 'orders@ilcstudios.com')}</td>
+          <td style="padding:0 24px 6px 0">${esc(pms.names || docName(brand))}</td>
+          <td style="padding:0 0 6px 0">${esc(pms.emails || brand.email || 'your project manager')}</td>
         </tr>
         ${locationInfo ? `<tr>
           <td style="padding:0 24px 0 0;font-size:7pt;color:#999;font-weight:600;text-transform:uppercase;letter-spacing:0.03em">Location</td>
@@ -257,8 +260,8 @@ export async function GET(request, { params }) {
       <th style="width:${isDesignBid ? '24%' : '18%'}">Description</th>
       ${!isDesignBid ? `<th style="width:9%">Spec Mfr</th>` : ''}
       ${!isDesignBid ? `<th style="width:10%">Spec Catalog #</th>` : ''}
-      <th style="width:${isDesignBid ? '15%' : '10%'};color:${ORANGE}">${isDesignBid ? 'Manufacturer' : 'ILC Proposed Mfr'}</th>
-      <th style="width:${isDesignBid ? '16%' : '11%'};color:${ORANGE}">${isDesignBid ? 'Part #' : 'ILC Catalog #'}</th>
+      <th style="width:${isDesignBid ? '15%' : '10%'};color:${ORANGE}">${isDesignBid ? 'Manufacturer' : 'Proposed Mfr'}</th>
+      <th style="width:${isDesignBid ? '16%' : '11%'};color:${ORANGE}">${isDesignBid ? 'Part #' : 'Proposed Catalog #'}</th>
       <th style="width:4%;text-align:right">Qty</th>
       <th style="width:3%">Unit</th>
       <th style="width:7%;text-align:right">Unit $</th>
@@ -279,7 +282,7 @@ ${rawTotal > 0 ? `
 
 <!-- Footer -->
 <div style="margin-top:14px;padding-top:5px;border-top:1px solid #d0d0d0;display:flex;justify-content:space-between;font-size:6.5pt;color:#999">
-  <span>Confidential: ILC Studios LLC &nbsp;|&nbsp; 2301 Blake Street, Ste 100, Denver, CO 80205 &nbsp;|&nbsp; 720-248-8208</span>
+  <span>${confidentialHtml(brand)}</span>
   <span>Printed: ${esc(printDate)}</span>
 </div>
 
@@ -287,11 +290,10 @@ ${rawTotal > 0 ? `
 <div style="page-break-before:always;font-size:9pt">
 
   <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px">
-    <img src="https://app.ilcstudios.com/ilc-studios-logo.jpg" alt="ILC Studios" style="height:40px"/>
+    ${brandMarkHtml(brand, { height: 40 })}
     <div style="text-align:right;font-size:7.5pt;color:${GREY};line-height:1.5">
-      ILC Studios<br/>
-      2301 Blake Street, Ste 100 | Denver, CO 80205<br/>
-      720-248-8208 | orders@ilcstudios.com
+      ${brandNameHtml(brand)}<br/>
+      ${contactBlockHtml(brand, '<br/>')}
     </div>
   </div>
   <hr style="border:none;border-top:1.5px solid ${ORANGE};margin-bottom:22px;-webkit-print-color-adjust:exact;print-color-adjust:exact"/>
@@ -311,28 +313,28 @@ ${rawTotal > 0 ? `
       <div style="line-height:1.7">Contractor is to break out the lighting fixture and lighting control product package prices from labor and materials. Show the total amount for lighting fixtures as one line item and lighting controls as a separate line item.</div>
     </div>
     <div style="margin-bottom:12px"><div style="font-weight:700;margin-bottom:4px">LIGHTING CONTROLS</div>
-      <div style="line-height:1.7">Bid price is provided by ILC, but formal submittals, drawings and one-lines will be provided after 100% CD.</div>
+      <div style="line-height:1.7">Bid price is provided by ${brandNameHtml(brand)}, but formal submittals, drawings and one-lines will be provided after 100% CD.</div>
     </div>
     <div style="margin-bottom:12px"><div style="font-weight:700;margin-bottom:4px">LOW VOLTAGE &amp; LINEAR FIXTURES</div>
-      <div style="line-height:1.7">Bid price is provided by ILC, but lengths and power supply takeoffs will be verified during the ordering phase by the contractor.</div>
+      <div style="line-height:1.7">Bid price is provided by ${brandNameHtml(brand)}, but lengths and power supply takeoffs will be verified during the ordering phase by the contractor.</div>
     </div>
     <div style="margin-bottom:12px"><div style="font-weight:700;margin-bottom:4px">EGRESS/EMERGENCY LIGHTING</div>
-      <div style="line-height:1.7">When emergency lighting is required and a generator is not present, ILC will provide pricing for an inverter or integral battery backups.</div>
+      <div style="line-height:1.7">When emergency lighting is required and a generator is not present, ${brandNameHtml(brand)} will provide pricing for an inverter or integral battery backups.</div>
     </div>
     <div style="margin-bottom:12px"><div style="font-weight:700;margin-bottom:4px">SALES TAX</div>
-      <div style="line-height:1.7">ILC will provide a best estimate for sales tax per our physical office locations, but the bidding contractor is to adjust for any missing sales tax.</div>
+      <div style="line-height:1.7">${brandNameHtml(brand)} will provide a best estimate for sales tax per our physical office locations, but the bidding contractor is to adjust for any missing sales tax.</div>
     </div>
   </div>
 
   <div style="margin-bottom:24px">
     <div style="font-size:11pt;font-weight:700;color:${BLACK};border-bottom:1.5px solid ${ORANGE};padding-bottom:4px;margin-bottom:10px;-webkit-print-color-adjust:exact;print-color-adjust:exact">Questions</div>
     <ul style="margin:0;padding-left:18px;line-height:1.9;color:${BLACK}">
-      <li>Any questions regarding this quote should be directed to ${esc(pms.emails || 'orders@ilcstudios.com')}</li>
+      <li>Any questions regarding this quote should be directed to ${esc(pms.emails || brand.email || 'your project manager')}</li>
     </ul>
   </div>
 
   <div style="padding-top:5px;border-top:1px solid #d0d0d0;display:flex;justify-content:space-between;font-size:6.5pt;color:#999">
-    <span>Confidential: ILC Studios LLC &nbsp;|&nbsp; 2301 Blake Street, Ste 100, Denver, CO 80205 &nbsp;|&nbsp; 720-248-8208</span>
+    <span>${confidentialHtml(brand)}</span>
     <span>Printed: ${esc(printDate)}</span>
   </div>
 

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { publicFixtureItem, cleanShareEdit } from '@/lib/share/fixtureShare';
+import { brandForProject } from '@/lib/brandServer';
 
 // Public endpoint, no auth required
 // GET /api/share/fixture/[token]
@@ -34,6 +35,7 @@ export async function GET(req, { params }) {
   return NextResponse.json({
     permission: share.permission,
     project:   share.project,
+    brand:     await brandForProject(share.projectId),
     schedule:  { items: (schedule?.items ?? []).map(publicFixtureItem) },
   });
 }

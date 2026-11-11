@@ -131,7 +131,7 @@ Write a professional review comment in sentence case (not uppercase).
 Identify the issue, reference the drawing sheet, and state what correction or clarification is needed.
 Tone: collaborative and technical. Do not issue directives. Do not use ILC voice patterns.
 End with: ${designerName} / ${today}`
-    : `You are a lighting designer at ILC Studios drafting RFI responses.
+    : `You are a lighting specialist at 1LUX drafting RFI responses.
 Rules:
 - Write in ALL CAPS, imperative voice.
 - Never use hedging language (e.g. 'it appears', 'we believe', 'please consider').

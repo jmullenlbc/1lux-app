@@ -43,7 +43,7 @@ export default function LoginPage() {
               <path d="M9 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H9v1zm3-19C8.14 2 5 5.14 5 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.86-3.14-7-7-7z"/>
             </svg>
           </div>
-          <h1 className="text-2xl font-bold text-white">ILC Studios</h1>
+          <h1 className="text-2xl font-bold text-white">1LUX</h1>
           <p className="text-orange-400 text-sm font-semibold mt-1">Quick Budget</p>
           <p className="text-navy-400 text-xs mt-0.5">Conceptual lighting &amp; controls budgets</p>
         </div>

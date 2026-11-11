@@ -42,7 +42,8 @@ test('RFQ numbers and need by', () => {
   assert.ok(isHoliday(new Date('2027-12-24T18:00:00Z')), 'Christmas on a Saturday is taken Friday');
   assert.ok(isHoliday(new Date('2027-12-31T18:00:00Z')), "New Year's 2028 on a Saturday is taken Dec 31");
   assert.ok(!isHoliday(new Date('2026-11-25T18:00:00Z')));
-  assert.equal(emailSubject({ number: 7, projectName: 'Sun Valley' }), 'ILC RFQ RFQ0007 | Sun Valley');
+  assert.equal(emailSubject({ number: 7, projectName: 'Sun Valley' }), '1LUX RFQ RFQ0007 | Sun Valley');
+  assert.equal(emailSubject({ number: 7, projectName: 'Sun Valley', brand: { name: 'LOGIQ' } }), 'LOGIQ RFQ RFQ0007 | Sun Valley');
 });
 
 const RFQ = [

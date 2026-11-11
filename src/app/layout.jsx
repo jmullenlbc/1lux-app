@@ -2,8 +2,8 @@ import './globals.css';
 import EnvironmentBar from '@/components/layout/EnvironmentBar';
 
 export const metadata = {
-  title: 'ILC Studios | Quick Budget',
-  description: 'Quick Budget: conceptual lighting & controls budgets for multifamily projects',
+  title: '1LUX',
+  description: '1LUX: LOGIQ, SAGE and Shift',
 };
 
 export default function RootLayout({ children }) {

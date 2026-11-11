@@ -10,9 +10,12 @@
  * ILC has a legal paper trail showing when the email was opened.
  */
 
-const ILC_FROM_NAME = 'ILC Studios';
+// Whose name is on the email (2026-11-10): the job's company, from src/lib/brand.js (brandName below). Callers
+// pass it; without one an email says 1LUX.
+const DEFAULT_BRAND_NAME = '1LUX';
+const escName = (s) => String(s || DEFAULT_BRAND_NAME).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-function baseHtml({ title, projectName, body, pixelUrl, ctaUrl, ctaLabel }) {
+function baseHtml({ title, projectName, body, pixelUrl, ctaUrl, ctaLabel, brandName }) {
   return `<!DOCTYPE html>
 <html>
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
@@ -22,7 +25,7 @@ function baseHtml({ title, projectName, body, pixelUrl, ctaUrl, ctaLabel }) {
       <table width="600" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
         <!-- Header -->
         <tr><td style="background:#0a1929;padding:20px 32px;">
-          <span style="color:#f97316;font-size:18px;font-weight:700;letter-spacing:-0.5px;">ILC Studios</span>
+          <span style="color:#f97316;font-size:18px;font-weight:700;letter-spacing:-0.5px;">${escName(brandName)}</span>
         </td></tr>
         <!-- Body -->
         <tr><td style="padding:32px;color:#1e293b;">
@@ -37,7 +40,7 @@ function baseHtml({ title, projectName, body, pixelUrl, ctaUrl, ctaLabel }) {
         <!-- Footer -->
         <tr><td style="padding:16px 32px;border-top:1px solid #f1f5f9;background:#f8fafc;">
           <p style="margin:0;font-size:11px;color:#94a3b8;">
-            This notification was sent by ILC Studios. Reply to this email or contact your ILC project manager with any questions.
+            This notification was sent by ${escName(brandName)}. Reply to this email or contact your project manager with any questions.
           </p>
         </td></tr>
       </table>
@@ -51,10 +54,10 @@ function baseHtml({ title, projectName, body, pixelUrl, ctaUrl, ctaLabel }) {
 
 // ── Ship Schedule ─────────────────────────────────────────────────────────────
 
-export function shipShipped({ projectName, manufacturer, trackingNumber, pixelUrl }) {
+export function shipShipped({ projectName, manufacturer, trackingNumber, pixelUrl, brandName = DEFAULT_BRAND_NAME }) {
   return {
-    subject: `[ILC Studios] ${manufacturer} shipment is on its way`,
-    html: baseHtml({
+    subject: `[${brandName}] ${manufacturer} shipment is on its way`,
+    html: baseHtml({ brandName,
       title: 'Shipment Shipped',
       projectName,
       pixelUrl,
@@ -65,11 +68,11 @@ export function shipShipped({ projectName, manufacturer, trackingNumber, pixelUr
   };
 }
 
-export function shipDelivered({ projectName, manufacturer, deliveredDate, pixelUrl }) {
+export function shipDelivered({ projectName, manufacturer, deliveredDate, pixelUrl, brandName = DEFAULT_BRAND_NAME }) {
   const fmt = deliveredDate ? new Date(deliveredDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : '';
   return {
-    subject: `[ILC Studios] ${manufacturer} delivery confirmed`,
-    html: baseHtml({
+    subject: `[${brandName}] ${manufacturer} delivery confirmed`,
+    html: baseHtml({ brandName,
       title: 'Shipment Delivered',
       projectName,
       pixelUrl,
@@ -78,11 +81,11 @@ export function shipDelivered({ projectName, manufacturer, deliveredDate, pixelU
   };
 }
 
-export function shipEsdDigest({ projectName, events, pixelUrl }) {
+export function shipEsdDigest({ projectName, events, pixelUrl, brandName = DEFAULT_BRAND_NAME }) {
   const rows = events.map(e => `<li>${e.manufacturer}: ESD updated to ${e.esdDate ? new Date(e.esdDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : 'TBD'}</li>`).join('');
   return {
-    subject: `[ILC Studios] Ship schedule update : ${projectName}`,
-    html: baseHtml({
+    subject: `[${brandName}] Ship schedule update : ${projectName}`,
+    html: baseHtml({ brandName,
       title: 'Weekly Ship Schedule Digest',
       projectName,
       pixelUrl,
@@ -93,10 +96,10 @@ export function shipEsdDigest({ projectName, events, pixelUrl }) {
 
 // ── Submittals ────────────────────────────────────────────────────────────────
 
-export function submittalUploaded({ projectName, submissionName, pixelUrl }) {
+export function submittalUploaded({ projectName, submissionName, pixelUrl, brandName = DEFAULT_BRAND_NAME }) {
   return {
-    subject: `[ILC Studios] New submittal : ${projectName}`,
-    html: baseHtml({
+    subject: `[${brandName}] New submittal : ${projectName}`,
+    html: baseHtml({ brandName,
       title: 'New Submittal Uploaded',
       projectName,
       pixelUrl,
@@ -106,10 +109,10 @@ export function submittalUploaded({ projectName, submissionName, pixelUrl }) {
   };
 }
 
-export function submittalWithComments({ projectName, submissionName, pixelUrl }) {
+export function submittalWithComments({ projectName, submissionName, pixelUrl, brandName = DEFAULT_BRAND_NAME }) {
   return {
-    subject: `[ILC Studios] Submittal with comments : ${projectName}`,
-    html: baseHtml({
+    subject: `[${brandName}] Submittal with comments : ${projectName}`,
+    html: baseHtml({ brandName,
       title: 'Submittal Uploaded with Comments',
       projectName,
       pixelUrl,
@@ -121,11 +124,11 @@ export function submittalWithComments({ projectName, submissionName, pixelUrl })
 
 // ── Budgets ───────────────────────────────────────────────────────────────────
 
-export function budgetSent({ projectName, budgetType, pixelUrl }) {
+export function budgetSent({ projectName, budgetType, pixelUrl, brandName = DEFAULT_BRAND_NAME }) {
   const label = budgetType === 'design' ? 'Full Design Budget' : budgetType === 'peer_review' ? 'Peer Review' : 'Conceptual Budget';
   return {
-    subject: `[ILC Studios] ${label} sent : ${projectName}`,
-    html: baseHtml({
+    subject: `[${brandName}] ${label} sent : ${projectName}`,
+    html: baseHtml({ brandName,
       title: `${label} Sent`,
       projectName,
       pixelUrl,
@@ -134,10 +137,10 @@ export function budgetSent({ projectName, budgetType, pixelUrl }) {
   };
 }
 
-export function budgetUpdated({ projectName, pixelUrl }) {
+export function budgetUpdated({ projectName, pixelUrl, brandName = DEFAULT_BRAND_NAME }) {
   return {
-    subject: `[ILC Studios] Budget updated : ${projectName}`,
-    html: baseHtml({
+    subject: `[${brandName}] Budget updated : ${projectName}`,
+    html: baseHtml({ brandName,
       title: 'Budget Updated',
       projectName,
       pixelUrl,
@@ -148,10 +151,10 @@ export function budgetUpdated({ projectName, pixelUrl }) {
 
 // ── Contracts ─────────────────────────────────────────────────────────────────
 
-export function contractUploaded({ projectName, pixelUrl }) {
+export function contractUploaded({ projectName, pixelUrl, brandName = DEFAULT_BRAND_NAME }) {
   return {
-    subject: `[ILC Studios] Contract document uploaded : ${projectName}`,
-    html: baseHtml({
+    subject: `[${brandName}] Contract document uploaded : ${projectName}`,
+    html: baseHtml({ brandName,
       title: 'Contract Uploaded',
       projectName,
       pixelUrl,
@@ -160,10 +163,10 @@ export function contractUploaded({ projectName, pixelUrl }) {
   };
 }
 
-export function contractSigned({ projectName, pixelUrl }) {
+export function contractSigned({ projectName, pixelUrl, brandName = DEFAULT_BRAND_NAME }) {
   return {
-    subject: `[ILC Studios] Contract signed : ${projectName}`,
-    html: baseHtml({
+    subject: `[${brandName}] Contract signed : ${projectName}`,
+    html: baseHtml({ brandName,
       title: 'Contract Signed',
       projectName,
       pixelUrl,
@@ -174,11 +177,11 @@ export function contractSigned({ projectName, pixelUrl }) {
 
 // ── Meetings ──────────────────────────────────────────────────────────────────
 
-export function meetingNote({ projectName, noteTitle, meetingDate, pixelUrl }) {
+export function meetingNote({ projectName, noteTitle, meetingDate, pixelUrl, brandName = DEFAULT_BRAND_NAME }) {
   const fmt = meetingDate ? new Date(meetingDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : '';
   return {
-    subject: `[ILC Studios] Meeting notes${fmt ? ` from ${fmt}` : ''} : ${projectName}`,
-    html: baseHtml({
+    subject: `[${brandName}] Meeting notes${fmt ? ` from ${fmt}` : ''} : ${projectName}`,
+    html: baseHtml({ brandName,
       title: 'New Meeting Notes Posted',
       projectName,
       pixelUrl,
@@ -190,10 +193,10 @@ export function meetingNote({ projectName, noteTitle, meetingDate, pixelUrl }) {
 
 // ── Change Orders ─────────────────────────────────────────────────────────────
 
-export function changeOrderNew({ projectName, fileName, pixelUrl }) {
+export function changeOrderNew({ projectName, fileName, pixelUrl, brandName = DEFAULT_BRAND_NAME }) {
   return {
-    subject: `[ILC Studios] New change order : ${projectName}`,
-    html: baseHtml({
+    subject: `[${brandName}] New change order : ${projectName}`,
+    html: baseHtml({ brandName,
       title: 'New Change Order',
       projectName,
       pixelUrl,
@@ -204,11 +207,11 @@ export function changeOrderNew({ projectName, fileName, pixelUrl }) {
 
 // ── COI Expiry ────────────────────────────────────────────────────────────────
 
-export function coiExpiring({ projectName, expiryDate, daysOut, pixelUrl }) {
+export function coiExpiring({ projectName, expiryDate, daysOut, pixelUrl, brandName = DEFAULT_BRAND_NAME }) {
   const fmt = expiryDate ? new Date(expiryDate + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : '';
   return {
-    subject: `[ILC Studios] COI expiring soon : ${projectName}`,
-    html: baseHtml({
+    subject: `[${brandName}] COI expiring soon : ${projectName}`,
+    html: baseHtml({ brandName,
       title: 'Certificate of Insurance Expiring',
       projectName,
       pixelUrl,
@@ -220,12 +223,12 @@ export function coiExpiring({ projectName, expiryDate, daysOut, pixelUrl }) {
 
 // ── Construction Schedule Alert ───────────────────────────────────────────────
 
-export function constructionDeadline({ projectName, milestone, date, daysOut, pixelUrl }) {
+export function constructionDeadline({ projectName, milestone, date, daysOut, pixelUrl, brandName = DEFAULT_BRAND_NAME }) {
   const fmt = date ? new Date(date + 'T12:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : '';
   const urgency = daysOut <= 14 ? '⚠️ ' : '';
   return {
-    subject: `[ILC Studios] ${urgency}${milestone} in ${daysOut} day${daysOut !== 1 ? 's' : ''} : ${projectName}`,
-    html: baseHtml({
+    subject: `[${brandName}] ${urgency}${milestone} in ${daysOut} day${daysOut !== 1 ? 's' : ''} : ${projectName}`,
+    html: baseHtml({ brandName,
       title: `${urgency}${milestone} Upcoming`,
       projectName,
       pixelUrl,
@@ -239,13 +242,13 @@ export function constructionDeadline({ projectName, milestone, date, daysOut, pi
 
 // ── Annual client review reminder ─────────────────────────────────────────────
 
-export function clientAnnualReview({ ownerName, clientName, clientUrl, lastUpdated }) {
+export function clientAnnualReview({ ownerName, clientName, clientUrl, lastUpdated, brandName = DEFAULT_BRAND_NAME }) {
   const lastFmt = lastUpdated
     ? new Date(lastUpdated).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
     : 'over a year ago';
   return {
-    subject: `[ILC Studios] Annual review reminder : ${clientName}`,
-    html: baseHtml({
+    subject: `[${brandName}] Annual review reminder : ${clientName}`,
+    html: baseHtml({ brandName,
       title: `Annual Standards & Playbook Review`,
       pixelUrl: null,
       ctaUrl: clientUrl,
@@ -257,7 +260,7 @@ export function clientAnnualReview({ ownerName, clientName, clientUrl, lastUpdat
           <li>Playbook: key contacts, approval process, GC routing</li>
           <li>Standards: fixture selections, CCT preferences, control preferences</li>
         </ul>
-        <p style="font-size:13px;color:#64748b;">Keeping this information up to date ensures every ILC team member is working from the right playbook.</p>
+        <p style="font-size:13px;color:#64748b;">Keeping this information up to date ensures every team member is working from the right playbook.</p>
       `,
     }),
   };
@@ -285,26 +288,26 @@ function formatEventRow(e) {
 
 // ── Portal Invite ─────────────────────────────────────────────────────────────
 
-export function portalInvite({ projectName, inviteUrl, contactName }) {
+export function portalInvite({ projectName, inviteUrl, contactName, brandName = DEFAULT_BRAND_NAME }) {
   return {
-    subject: `[ILC Studios] You've been invited to view ${projectName}`,
-    html: baseHtml({
+    subject: `[${brandName}] You've been invited to view ${projectName}`,
+    html: baseHtml({ brandName,
       title: 'Project Portal Invitation',
       projectName,
       body: `<p>Hi${contactName ? ` ${contactName}` : ''},</p>
-             <p>ILC Studios has invited you to view real-time updates for <strong>${projectName}</strong> through the ILC Studios Project Portal.</p>
-             <p>You'll have access to the information your ILC project manager has shared with you, including ship schedules, meeting notes, submittals, and more.</p>`,
+             <p>${escName(brandName)} has invited you to view real-time updates for <strong>${projectName}</strong> through the project portal.</p>
+             <p>You'll have access to the information your project manager has shared with you, including ship schedules, meeting notes, submittals, and more.</p>`,
       ctaUrl:   inviteUrl,
       ctaLabel: 'Accept Invitation & Create Account',
     }),
   };
 }
 
-export function weeklyDigest({ projectName, events, pixelUrl }) {
+export function weeklyDigest({ projectName, events, pixelUrl, brandName = DEFAULT_BRAND_NAME }) {
   const rows = events.map(e => `<li style="margin-bottom:6px;">${formatEventRow(e)}</li>`).join('');
   return {
-    subject: `[ILC Studios] Weekly project update : ${projectName}`,
-    html: baseHtml({
+    subject: `[${brandName}] Weekly project update : ${projectName}`,
+    html: baseHtml({ brandName,
       title: 'Weekly Project Update',
       projectName,
       pixelUrl,

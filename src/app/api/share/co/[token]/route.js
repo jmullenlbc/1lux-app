@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db';
 import { getProjectRates, calcGroupFooter, ratesForCO } from '@/lib/changeOrderRates';
 import { redact, AUDIENCE } from '@/lib/redact';
 import { coLineTotal } from '@/lib/changeOrderTotals';
+import { brandForProject } from '@/lib/brandServer';
 
 // Public endpoint, no auth required
 // GET /api/share/co/[token]
@@ -58,5 +59,7 @@ export async function GET(req, { params }) {
       optionGroups: groups,
     },
     rates,
+    // Whose name is on the page (2026-11-10): the job's company.
+    brand: await brandForProject(co.projectId),
   }, AUDIENCE.PUBLIC));
 }

@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { CARD, TH } from '@/components/ui/tokens';
 import { WidgetLoading } from '@/components/ui/WidgetFrame';
+import { docName } from '@/lib/brand';
 
 const COLUMNS = [
   { key: 'type',          label: 'Type'        },
@@ -129,7 +130,7 @@ export default function SharedFixtureSchedule({ token }) {
           }`}>
             {canEdit ? '✎ Edit access' : '👁 View only'}
           </span>
-          <span className="text-xs text-slate-500">Shared by ILC Studios</span>
+          <span className="text-xs text-slate-500">Shared by {docName(data?.brand)}</span>
         </div>
       </div>
 
@@ -191,7 +192,7 @@ export default function SharedFixtureSchedule({ token }) {
             </div>
 
             <p className="text-xs text-slate-500 text-center mt-6">
-              Shared via ILC Studios Budget Platform · {canEdit ? 'Changes save automatically' : 'Read-only view'}
+              Shared by {docName(data?.brand)} · {canEdit ? 'Changes save automatically' : 'Read-only view'}
             </p>
           </>
         )}

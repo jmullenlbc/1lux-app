@@ -237,7 +237,7 @@ export async function POST(request) {
   // ── System prompt, static instruction block (not cached, cheap) ──────────
   const instructionBlock = {
     type: 'text',
-    text: NO_DASHES_RULE.trim() + '\n\n' + `You are an expert code consultant for ILC Studios, a professional lighting design firm specializing in multifamily residential projects (apartments, condos, build-to-rent, podium/wrap, garden-style, high-rise). All projects are multifamily residential unless explicitly stated otherwise.
+    text: NO_DASHES_RULE.trim() + '\n\n' + `You are an expert code consultant for 1LUX, a lighting company specializing in multifamily residential projects (apartments, condos, build-to-rent, podium/wrap, garden-style, high-rise). All projects are multifamily residential unless explicitly stated otherwise.
 
 Answer questions about building codes relevant to lighting design. Always cite the specific section (e.g., "ASHRAE 90.1-2022 §9.5.1" or "IBC 2021 §1006"). Be direct. Designers use this on the job.
 ${projectBlock}

@@ -5,7 +5,7 @@ import * as XLSX from 'xlsx';
 import { canAccessProject } from '@/lib/submittalTracker';
 import { statusLabel } from '@/lib/submittalStatus';
 
-const PARTY = { ARCH: 'Architect', EE: 'Electrical Engineer', ID: 'Interior Designer', CONTRACTOR: 'Contractor', ILC: 'ILC Studios', OWNERSHIP: 'Ownership' };
+const PARTY = { ARCH: 'Architect', EE: 'Electrical Engineer', ID: 'Interior Designer', CONTRACTOR: 'Contractor', ILC: '1LUX', OWNERSHIP: 'Ownership' };
 const RESPONSE = { DRAFT: 'Draft', APPROVED: 'Approved', SENT: 'Sent' };
 const day = (d) => (d ? new Date(d).toISOString().slice(0, 10) : '');
 

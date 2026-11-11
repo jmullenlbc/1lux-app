@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requirePortalAuth } from '@/lib/portalAuth';
 import { prisma } from '@/lib/db';
+import { brandForProject } from '@/lib/brandServer';
 
 async function getContact(projectId, portalUserId) {
   return prisma.projectExternalContact.findFirst({
@@ -30,7 +31,8 @@ export async function GET(req, { params }) {
   if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 });
 
   return NextResponse.json({
-    project,
+    // Whose name the portal shows for this job (2026-11-10): its company, else 1LUX.
+    project: { ...project, brand: await brandForProject(params.id) },
     permissions: {
       canViewShipSchedule:      contact.canViewShipSchedule,
       canViewSubmittals:        contact.canViewSubmittals,

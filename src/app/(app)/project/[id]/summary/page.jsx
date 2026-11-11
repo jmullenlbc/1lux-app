@@ -20,6 +20,8 @@ import WidgetFrame from '@/components/ui/WidgetFrame';
 import StatTile from '@/components/ui/StatTile';
 import { SITE_FEATURE_INCLUDE, engineProjectData } from '@/lib/siteFeatureRows';
 import { takeAreaBaseline } from '@/lib/calibration/areaNormsLoad';
+import { brandForProject } from '@/lib/brandServer';
+import { docName } from '@/lib/brand';
 
 function formatActivityTime(dateStr) {
   return new Date(dateStr).toLocaleString('en-US', {
@@ -52,6 +54,8 @@ export default async function SummaryPage({ params }) {
   }
 
   if (!project) notFound();
+  // The job's company names the budget (2026-11-10), else 1LUX.
+  const brand = await brandForProject(project);
   if (!(await canOpenProject(prisma, session, project))) notFound();
 
   // The snapshot frozen at project creation, with later-added lines filled from
@@ -284,7 +288,7 @@ export default async function SummaryPage({ params }) {
       {/* Budget hero */}
       <WidgetFrame
         className="mb-6 print:mb-5 print:rounded-none print:shadow-none print:border-0"
-        title={`ILC Studios ${project.budgetType === 'design' ? 'Design' : 'Conceptual'} Lighting & Controls Budget`}
+        title={`${docName(brand)} ${project.budgetType === 'design' ? 'Design' : 'Conceptual'} Lighting & Controls Budget`}
         sub={`${project.budgetType === 'design' ? 'Design budget' : 'Conceptual budget'}. ${salesTaxNote}`}
         actions={(
           <div className="text-right hidden print:block">
@@ -331,7 +335,7 @@ export default async function SummaryPage({ params }) {
       {/* ── Design disclaimer, small, above Project Data ──────────── */}
       {project.budgetType === 'design' && (
         <p className="text-xs text-slate-500 leading-relaxed mb-3 print:mb-2">
-          This is a design phase budget prepared by ILC Studios for early design and pre-con purposes only.
+          This is a design phase budget prepared by {docName(brand)} for early design and pre-con purposes only.
           Actual costs will vary based on final design, product selections, and market conditions.
           Not a formal bid or contract.
         </p>

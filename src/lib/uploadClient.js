@@ -1,3 +1,4 @@
+import { PUBLIC_BRAND_EMAIL } from './intake/brand.js';
 // Browser side of the direct-to-S3 upload flow. Client-safe: no server-only
 // imports, no AWS SDK, the browser just PUTs bytes to a presigned URL.
 //
@@ -256,7 +257,7 @@ export function describeDrop(stats, stops) {
   const part  = stats.parts > 1 ? `, part ${stats.part} of ${stats.parts}` : '';
   const verdict = stoppedAtTheSamePlace(stops)
     ? `It stopped at the same point all ${stops.length} times, so this is a limit somewhere `
-      + `on the way, not a weak signal. Send the file to precon@ilcstudios.com and we'll take it from there.`
+      + `on the way, not a weak signal. Send the file to ${PUBLIC_BRAND_EMAIL} and we'll take it from there.`
     : 'Please try again on a stronger connection.';
   return `The connection dropped ${where}${part}: ${mb(stats.sentBytes)} sent over ${secs}s, `
        + `across ${stops.length} tries. ${verdict} (U3)`;

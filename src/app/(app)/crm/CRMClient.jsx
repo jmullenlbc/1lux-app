@@ -690,7 +690,7 @@ export default function CRMClient({ initialProjects, users, newRequests = [], my
         <SectionTabs tabs={PIPELINE_TABS} className="mb-4 -mt-1" />
         <div className="flex items-center justify-between gap-4">
           <div>
-            <span className={`${LABEL} text-orange-500`}>ILC Studios</span>
+            <span className={`${LABEL} text-orange-500`}>1LUX</span>
             <h1 className={H1}>Pipeline</h1>
           </div>
 

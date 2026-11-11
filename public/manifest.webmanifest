@@ -1,7 +1,7 @@
 {
-  "name": "ILC Studios",
-  "short_name": "ILC",
-  "description": "ILC Studios sales and budgets",
+  "name": "1LUX",
+  "short_name": "1LUX",
+  "description": "1LUX: LOGIQ, SAGE and Shift",
   "start_url": "/open",
   "scope": "/",
   "display": "standalone",

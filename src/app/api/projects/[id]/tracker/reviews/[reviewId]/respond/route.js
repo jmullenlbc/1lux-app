@@ -68,7 +68,7 @@ export async function POST(req, { params }) {
   const catContext   = CATEGORY_CONTEXT[review.noteCategory] || 'reviewer comment';
 
   // Build Claude Haiku prompt
-  const prompt = `You are ILC Studios, a professional lighting design and engineering firm, drafting a response to a submittal reviewer comment.
+  const prompt = `You are 1LUX, a lighting company, drafting a response to a submittal reviewer comment.
 
 Project: ${project.name}
 Submission: ${submission || 'R1'}
@@ -80,7 +80,7 @@ Comment Type: ${catContext}
 
 The reviewer's comment itself follows below, inside the marked block.
 
-Write a concise, professional ILC Studios response to that reviewer comment (1-3 sentences).
+Write a concise, professional 1LUX response to that reviewer comment (1-3 sentences).
 
 Rules:
 - Directly address the specific concern raised

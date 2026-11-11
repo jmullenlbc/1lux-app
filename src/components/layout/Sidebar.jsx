@@ -503,7 +503,7 @@ export default function Sidebar({ user }) {
                           startsWith('/admin/tasks') || startsWith('/admin/tech-stack') ||
                           startsWith('/admin/usage') || startsWith('/admin/agent-runs') ||
                           startsWith('/admin/mcp-keys') || startsWith('/admin/crm-import') ||
-                          startsWith('/admin/sales-reps-import') || startsWith('/admin/offices') ||
+                          startsWith('/admin/sales-reps-import') || startsWith('/admin/offices') || startsWith('/admin/companies') ||
                           startsWith('/admin/calendar-import') || startsWith('/admin/job-loader') || startsWith('/admin/conference-load');
   const adminRelated    = at('/admin') || startsWith('/admin/intake');
 
@@ -563,8 +563,8 @@ export default function Sidebar({ user }) {
           </div>
           {expanded && (
             <div className="min-w-0">
-              <div className="text-white font-semibold text-sm leading-tight whitespace-nowrap">ILC Studios</div>
-              <div className="text-[11px] leading-tight whitespace-nowrap" style={{ color: '#4a6fa5' }}>Budget Platform</div>
+              <div className="text-white font-semibold text-sm leading-tight whitespace-nowrap">1LUX</div>
+              <div className="text-[11px] leading-tight whitespace-nowrap" style={{ color: '#4a6fa5' }}>LOGIQ · SAGE · Shift</div>
             </div>
           )}
         </Link>
@@ -700,6 +700,7 @@ export default function Sidebar({ user }) {
                 {isIlcAdmin && <SubNavItem href="/admin/job-loader" icon={<IconFolderSm />} label="Job Loader" expanded={expanded} active={startsWith('/admin/job-loader')} />}
                   {isIlcAdmin && <SubNavItem href="/admin/conference-load" icon={<IconCalendarSm />} label="Conference Load" expanded={expanded} active={startsWith('/admin/conference-load')} />}
                 {isIlcAdmin && <SubNavItem href="/admin/offices" icon={<IconUsers />} label="Our Offices" expanded={expanded} active={startsWith('/admin/offices')} />}
+                {isIlcAdmin && <SubNavItem href="/admin/companies" icon={<IconUsers />} label="Companies" expanded={expanded} active={startsWith('/admin/companies')} />}
               </div>
             )}
           </div>

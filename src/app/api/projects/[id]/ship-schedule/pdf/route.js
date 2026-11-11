@@ -1,6 +1,8 @@
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { PM_SELECT, pmPrint } from '@/lib/projectManagers';
+import { brandForProject } from '@/lib/brandServer';
+import { brandMarkHtml, contactBlockHtml, confidentialHtml } from '@/lib/brandHtml';
 
 function fmtDate(d) {
   if (!d) return '—';
@@ -23,6 +25,7 @@ const STATUS_LABELS = {
 export async function GET(req, { params }) {
   const { error } = await requireAuth();
   if (error) return new Response('Unauthorized', { status: 401 });
+  const brand = await brandForProject(params.id);
 
   const [project, shipments, releases] = await Promise.all([
     prisma.project.findUnique({
@@ -135,12 +138,10 @@ td { padding:4px 6px; border-bottom:1px solid #f0f0f0; vertical-align:top; }
   <!-- ILC Header -->
   <div class="header">
     <div>
-      <div class="logo"><span class="logo-ilc">ILC</span>STUDIOS</div>
-      <div class="logo-tag">Lighting Design + Procurement</div>
+      <div class="logo">${brandMarkHtml(brand, { height: 30 })}</div>
     </div>
     <div class="contact-block">
-      2301 Blake Street, Ste 100 | Denver, CO 80205<br>
-      720-248-8208 | orders@ilcstudios.com
+      ${contactBlockHtml(brand)}
     </div>
   </div>
 
@@ -188,7 +189,7 @@ td { padding:4px 6px; border-bottom:1px solid #f0f0f0; vertical-align:top; }
 
   <!-- Page footer -->
   <div class="page-footer">
-    <span>Confidential: ILC Studios LLC | 2301 Blake Street, Ste 100, Denver, CO 80205 | 720-248-8208</span>
+    <span>${confidentialHtml(brand)}</span>
     <span>Printed: ${today}</span>
   </div>
 </div>

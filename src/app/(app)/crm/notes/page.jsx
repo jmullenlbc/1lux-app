@@ -6,7 +6,7 @@ import { NOTE_CONTACTS_INCLUDE } from '@/lib/noteLinks';
 import { redirect } from 'next/navigation';
 import NotesClient from './NotesClient';
 
-export const metadata = { title: 'Sales Notes: ILC Studios' };
+export const metadata = { title: 'Sales Notes: 1LUX' };
 
 const STATUSES = ['all', 'draft', 'published', 'mine'];
 

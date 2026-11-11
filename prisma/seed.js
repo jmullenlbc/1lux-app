@@ -215,7 +215,7 @@ async function main() {
   // rows, so the seed makes sure they exist. Never overwrites names an admin has changed.
   if (prisma.businessUnit) {
     for (const bu of [
-      { id: 'bu_logiq', code: 'LOGIQ', name: 'LOGIQ', kind: 'DISTRIBUTOR',  legalName: 'LOGIQ',             netsuiteSubsidiaryId: '3',  sortOrder: 1 },
+      { id: 'bu_logiq', code: 'LOGIQ', name: 'LOGIQ', kind: 'DISTRIBUTOR',  legalName: 'Logiq Supply',      netsuiteSubsidiaryId: '3',  sortOrder: 1, address: '2727 W 2nd Ave, Denver, CO 80219', ordersEmail: 'mike@logiqsupply.com', website: 'logiqsupply.com' },
       { id: 'bu_sage',  code: 'SAGE',  name: 'SAGE',  kind: 'MANUFACTURER', legalName: 'SAGE Brands',       netsuiteSubsidiaryId: '13', sortOrder: 2 },
       { id: 'bu_shift', code: 'SHIFT', name: 'Shift', kind: 'MANUFACTURER', legalName: 'SHIFT Innovations', netsuiteSubsidiaryId: '11', sortOrder: 3 },
     ]) {

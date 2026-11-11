@@ -519,7 +519,7 @@ function ShareModal({ projectId, onClose }) {
                       {sent ? '✓ Sent!' : sending ? 'Sending…' : 'Send Email'}
                     </button>
                   </div>
-                  <p className="text-[11px] text-slate-500">Or use your email client: <a href={`mailto:${emailTo}?subject=Fixture Schedule&body=${encodeURIComponent(`Hi,\n\n${emailMsg}\n\nView the fixture schedule here: ${shareUrl()}\n\nShared via ILC Studios Budget Platform`)}`} className="text-orange-600 underline" target="_blank" rel="noopener noreferrer">Open in Mail app ↗</a></p>
+                  <p className="text-[11px] text-slate-500">Or use your email client: <a href={`mailto:${emailTo}?subject=Fixture Schedule&body=${encodeURIComponent(`Hi,\n\n${emailMsg}\n\nView the fixture schedule here: ${shareUrl()}`)}`} className="text-orange-600 underline" target="_blank" rel="noopener noreferrer">Open in Mail app ↗</a></p>
                 </div>
               )}
 

@@ -129,7 +129,7 @@ async function reviewContent({ textContent, pdfBase64, fileName, savedFileId }, 
     }
   }
 
-  const INSTRUCTIONS = 'Review this contract against ILC Studios standard positions. Return only the JSON. Flag every meaningful deviation, missing clause, and risk. Flag anything better than ILC standard as GREEN.';
+  const INSTRUCTIONS = 'Review this contract against 1LUX standard positions. Return only the JSON. Flag every meaningful deviation, missing clause, and risk. Flag anything better than ILC standard as GREEN.';
 
   // A contract is written by the other side. It is the single most likely
   // document in this app to contain language aimed at whoever reads it, and the
@@ -162,7 +162,7 @@ async function reviewContent({ textContent, pdfBase64, fileName, savedFileId }, 
         },
         {
           type: 'text',
-          text: 'Review this contract against ILC Studios standard positions. Return only the JSON. Flag every meaningful deviation, missing clause, and risk. Flag anything better than ILC standard as GREEN.',
+          text: 'Review this contract against 1LUX standard positions. Return only the JSON. Flag every meaningful deviation, missing clause, and risk. Flag anything better than ILC standard as GREEN.',
         },
       ];
 

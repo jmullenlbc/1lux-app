@@ -23,7 +23,7 @@ const plain = s => (s == null ? s : String(s).replace(/\s*(—|–|--)\s*/g, ', 
 
 function promptFor(question, win) {
   const [a, b, c] = win.years;
-  return `You research the US construction and real estate market for ILC Studios, a lighting design and supply company that sells to multifamily, affordable, student, senior and hospitality developers and their general contractors.
+  return `You research the US construction and real estate market for 1LUX, a lighting supply company that sells to multifamily, affordable, student, senior and hospitality developers and their general contractors.
 
 Question from the sales team: ${question}
 

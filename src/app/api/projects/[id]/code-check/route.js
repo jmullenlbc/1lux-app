@@ -184,7 +184,7 @@ async function reviewSchedule({ projectId, user }) {
   // Run deterministic checks first to include context
   const detChecks = runAllChecks(items, projectData, takeoffRaw);
 
-  const systemPrompt = `You are a senior lighting design code consultant performing a QC review of a fixture schedule for ILC Studios.
+  const systemPrompt = `You are a senior lighting design code consultant performing a QC review of a fixture schedule for 1LUX.
 
 Your job: identify code compliance issues, missing data, and design concerns. Be direct and specific. Cite the exact code section for every flag.
 

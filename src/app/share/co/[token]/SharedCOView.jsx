@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { CARD, LABEL, NUM, TH, TD } from '@/components/ui/tokens';
 import { WidgetLoading } from '@/components/ui/WidgetFrame';
 import { lineNote } from '@/lib/changeOrderLineKind';
+import { APP_NAME, docName } from '@/lib/brand';
 
 function fmt(n, showSign = false) {
   if (n == null || isNaN(n)) return '—';
@@ -43,11 +44,11 @@ export default function SharedCOView({ token }) {
       {/* Header */}
       <div className="bg-navy-950 text-white px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <span className="text-lg font-black tracking-tight">ILC<span className="text-orange-400">.</span>Studios</span>
+          <span className="text-lg font-black tracking-tight">{data?.brand?.name || APP_NAME}</span>
           <span className="text-slate-400 text-xs">Change Order</span>
         </div>
         <span className="text-xs bg-slate-700 px-3 py-1 rounded-full text-slate-300 font-semibold">
-          View-only: pricing shown net of ILC costs
+          View-only
         </span>
       </div>
 
@@ -145,7 +146,7 @@ export default function SharedCOView({ token }) {
             </div>
 
             <p className="text-xs text-slate-500 text-center mt-8">
-              Shared by ILC Studios · View-only · {new Date().getFullYear()}
+              Shared by {docName(data?.brand)} · View-only · {new Date().getFullYear()}
             </p>
           </>
         )}

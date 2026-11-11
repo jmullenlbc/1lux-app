@@ -63,7 +63,7 @@ export async function handleMessage(message, caller) {
         capabilities: { tools: { listChanged: false } },
         serverInfo: { name: 'ilc-librarian', version: '1.0.0' },
         instructions:
-          'Read-only access to ILC Studios project data. Call list_models first; the names it ' +
+          'Read-only access to 1LUX project data. Call list_models first; the names it ' +
           'returns are the only valid `model` arguments. Fields you are not cleared to read are ' +
           'absent from responses rather than nulled. Do not infer that a missing field is empty.',
       });

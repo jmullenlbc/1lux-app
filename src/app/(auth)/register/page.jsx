@@ -54,7 +54,7 @@ function RegisterForm() {
           </div>
           <h1 className="text-2xl font-bold text-white">Set Up Your Account</h1>
           <p className="text-orange-400 text-sm font-semibold mt-1">Quick Budget</p>
-          <p className="text-navy-400 text-xs mt-0.5">ILC Studios: Conceptual lighting &amp; controls budgets</p>
+          <p className="text-navy-400 text-xs mt-0.5">1LUX: LOGIQ, SAGE and Shift</p>
         </div>
 
         <div className={`${CARD} p-8`}>

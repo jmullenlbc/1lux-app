@@ -210,7 +210,7 @@ function ResponseBlock({ review, projectId }) {
 }
 
 const ROLE_LABELS = {
-  ILC: 'ILC Studios', Developer: 'Developer', Architect: 'Architect',
+  ILC: '1LUX', Developer: 'Developer', Architect: 'Architect',
   LA: 'Landscape Architect', ID: 'Interior Designer', EE: 'Electrical Engineer',
   GC: 'General Contractor', EC: 'Electrical Contractor',
 };

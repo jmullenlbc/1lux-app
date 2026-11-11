@@ -11,7 +11,7 @@ import { postParked } from '@/lib/parkedFetch';
 import { WidgetLoading } from '@/components/ui/WidgetFrame';
 
 const ALL_ROLES = [
-  { key: 'ILC',       label: 'ILC Studios' },
+  { key: 'ILC',       label: '1LUX' },
   { key: 'Developer', label: 'Developer' },
   { key: 'Architect', label: 'Architect' },
   { key: 'LA',        label: 'Landscape Architect' },
@@ -359,7 +359,7 @@ export default function SubmittalTrackerClient({ projectId, projectName }) {
             {['ARCH','EE','ID','CONTRACTOR','ILC','OWNERSHIP'].map(party => {
               const items = openItems.filter(i => i.responsibleParty === party);
               if (!items.length) return null;
-              const partyLabel = { ARCH:'Architect', EE:'Electrical Engineer', ID:'Interior Designer', CONTRACTOR:'Contractor', ILC:'ILC Studios', OWNERSHIP:'Ownership' }[party] ?? party;
+              const partyLabel = { ARCH:'Architect', EE:'Electrical Engineer', ID:'Interior Designer', CONTRACTOR:'Contractor', ILC:'1LUX', OWNERSHIP:'Ownership' }[party] ?? party;
               const hasRepeats = items.some(i => i.isRepeat);
               return (
                 <div key={party} className={`rounded-xl border p-3 ${hasRepeats ? 'border-orange-200 bg-orange-50' : 'border-slate-200 bg-slate-50'}`}>

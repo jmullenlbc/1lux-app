@@ -53,7 +53,7 @@ export const PLAYBOOK_CONTENT = {
         text: 'Project-specific process',
         children: [
           {
-            text: 'Engage ILC Studios at concept or the beginning of SDs',
+            text: 'Engage 1LUX at concept or the beginning of SDs',
             children: [
               { text: 'Create a conceptual budget' },
               { text: 'Design any required site photometrics for municipality approvals' },

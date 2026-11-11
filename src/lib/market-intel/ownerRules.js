@@ -41,7 +41,7 @@ export function ownerPrompt(signal = {}) {
     signal.title          ? `Permit title: ${signal.title}`                 : null,
   ].filter(Boolean).join('\n');
 
-  return `You research building permits for ILC Studios, a lighting design and supply company that sells to multifamily, affordable, student, senior and hospitality developers and their general contractors.
+  return `You research building permits for 1LUX, a lighting supply company that sells to multifamily, affordable, student, senior and hospitality developers and their general contractors.
 
 A city issued this building permit. The permit names the contractor but not the owner or developer. Find out who is behind the project.
 

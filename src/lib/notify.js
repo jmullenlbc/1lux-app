@@ -25,6 +25,7 @@
 import { prisma } from '@/lib/db';
 import { notifyProjectOwners } from '@/lib/alerts';
 import { NOTIFICATION_TYPES } from '@/lib/notificationTypes';
+import { brandForProject } from '@/lib/brandServer';
 import {
   shipShipped, shipDelivered,
   submittalUploaded, submittalWithComments,
@@ -61,38 +62,38 @@ export async function sendEmail({ to, subject, html }) {
 
 // ── Template builder ──────────────────────────────────────────────────────────
 
-function buildEmailFromType(type, payload, projectName, pixelUrl) {
+function buildEmailFromType(type, payload, projectName, pixelUrl, brandName) {
   switch (type) {
     case 'SHIP_SHIPPED':
-      return shipShipped({ projectName, manufacturer: payload.manufacturer, trackingNumber: payload.trackingNumber, pixelUrl });
+      return shipShipped({ projectName, manufacturer: payload.manufacturer, trackingNumber: payload.trackingNumber, pixelUrl, brandName });
     case 'SHIP_DELIVERED':
-      return shipDelivered({ projectName, manufacturer: payload.manufacturer, deliveredDate: payload.deliveredDate, pixelUrl });
+      return shipDelivered({ projectName, manufacturer: payload.manufacturer, deliveredDate: payload.deliveredDate, pixelUrl, brandName });
     case 'SUBMITTAL_UPLOADED':
-      return submittalUploaded({ projectName, submissionName: payload.submissionName, pixelUrl });
+      return submittalUploaded({ projectName, submissionName: payload.submissionName, pixelUrl, brandName });
     case 'SUBMITTAL_WITH_COMMENTS':
-      return submittalWithComments({ projectName, submissionName: payload.submissionName, pixelUrl });
+      return submittalWithComments({ projectName, submissionName: payload.submissionName, pixelUrl, brandName });
     case 'BUDGET_SENT':
-      return budgetSent({ projectName, budgetType: payload.budgetType, pixelUrl });
+      return budgetSent({ projectName, budgetType: payload.budgetType, pixelUrl, brandName });
     case 'BUDGET_UPDATED':
-      return budgetUpdated({ projectName, pixelUrl });
+      return budgetUpdated({ projectName, pixelUrl, brandName });
     case 'CONTRACT_UPLOADED':
-      return contractUploaded({ projectName, pixelUrl });
+      return contractUploaded({ projectName, pixelUrl, brandName });
     case 'CONTRACT_SIGNED':
-      return contractSigned({ projectName, pixelUrl });
+      return contractSigned({ projectName, pixelUrl, brandName });
     case 'MEETING_NOTE':
-      return meetingNote({ projectName, noteTitle: payload.title, meetingDate: payload.meetingDate, pixelUrl });
+      return meetingNote({ projectName, noteTitle: payload.title, meetingDate: payload.meetingDate, pixelUrl, brandName });
     case 'CHANGE_ORDER_NEW':
-      return changeOrderNew({ projectName, fileName: payload.fileName, pixelUrl });
+      return changeOrderNew({ projectName, fileName: payload.fileName, pixelUrl, brandName });
     case 'COI_EXPIRING':
-      return coiExpiring({ projectName, expiryDate: payload.expiryDate, daysOut: payload.daysOut, pixelUrl });
+      return coiExpiring({ projectName, expiryDate: payload.expiryDate, daysOut: payload.daysOut, pixelUrl, brandName });
     case 'CONSCHED_3M':
     case 'CONSCHED_2M':
     case 'CONSCHED_1M':
     case 'CONSCHED_2W':
-      return constructionDeadline({ projectName, milestone: payload.milestone, date: payload.date, daysOut: payload.daysOut, pixelUrl });
+      return constructionDeadline({ projectName, milestone: payload.milestone, date: payload.date, daysOut: payload.daysOut, pixelUrl, brandName });
     default:
       return {
-        subject: `[ILC Studios] Update: ${projectName}`,
+        subject: `[${brandName || '1LUX'}] Update: ${projectName}`,
         html: `<p>${type.replace(/_/g, ' ')}</p>`,
       };
   }
@@ -122,10 +123,12 @@ export async function sendNotification(projectId, notificationType, payload = {}
   try {
     const [config, project] = await Promise.all([
       getConfig(projectId, notificationType),
-      prisma.project.findUnique({ where: { id: projectId }, select: { name: true } }),
+      prisma.project.findUnique({ where: { id: projectId }, select: { name: true, businessUnitId: true } }),
     ]);
 
     const projectName = project?.name || 'Your Project';
+    // The job's company names the email (2026-11-10); none = 1LUX.
+    const brandName   = (await brandForProject(project || projectId)).name;
     const emails      = config?.enabled ? parseEmails(config.externalEmails) : [];
     const payloadStr  = JSON.stringify(payload);
     const appUrl      = process.env.APP_URL || '';
@@ -141,7 +144,7 @@ export async function sendNotification(projectId, notificationType, payload = {}
         },
       });
       const pixelUrl      = `${appUrl}/api/notifications/opened/${log.openToken}`;
-      const { subject, html } = buildEmailFromType(notificationType, payload, projectName, pixelUrl);
+      const { subject, html } = buildEmailFromType(notificationType, payload, projectName, pixelUrl, brandName);
       await sendEmail({ to: email, subject, html });
     }
 

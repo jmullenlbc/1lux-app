@@ -6,6 +6,9 @@ import { redact, audienceForRole, AUDIENCE } from '@/lib/redact';
 import { coLineTotal } from '@/lib/changeOrderTotals';
 import { lineNote as noteFor } from '@/lib/changeOrderLineKind';
 import { PM_SELECT, pmPrint } from '@/lib/projectManagers';
+import { brandForProject } from '@/lib/brandServer';
+import { brandMarkHtml, contactBlockHtml, confidentialHtml } from '@/lib/brandHtml';
+import { brandNameHtml } from '@/lib/brandHtml';
 
 function fmt(n, showSign = false) {
   if (n == null || isNaN(n)) return '—';
@@ -68,6 +71,7 @@ export async function GET(req, { params }) {
     getProjectRates(params.id),
   ]);
   const pms = pmPrint(project?.assignees);
+  const brand = await brandForProject(params.id);
 
   if (!co || co.projectId !== params.id || (portalView && co.status === 'DRAFT')) {
     return new Response('<h1>Not Found</h1>', { status: 404, headers: { 'Content-Type': 'text/html' } });
@@ -217,12 +221,10 @@ td { padding:5px 6px; border-bottom:1px solid #f0f0f0; vertical-align:top; font-
   <!-- Header -->
   <div class="header">
     <div>
-      <div class="logo"><span class="logo-ilc">ILC</span>STUDIOS</div>
-      <div class="logo-tag">Lighting Design + Procurement</div>
+      <div class="logo">${brandMarkHtml(brand, { height: 30 })}</div>
     </div>
     <div class="contact-block">
-      2301 Blake Street, Ste 100 | Denver, CO 80205<br>
-      720-248-8208 | orders@ilcstudios.com
+      ${contactBlockHtml(brand)}
     </div>
   </div>
 
@@ -254,8 +256,8 @@ td { padding:5px 6px; border-bottom:1px solid #f0f0f0; vertical-align:top; font-
         <th>Type</th>
         <th colspan="2">Description</th>
         <th style="text-align:right">Qty</th>
-        <th>ILC Proposed Mfr</th>
-        <th>ILC Catalog #</th>
+        <th>Proposed Mfr</th>
+        <th>Proposed Catalog #</th>
         ${!hideInternalDN ? '<th style="text-align:right">Orig DN</th>' : ''}
         <th style="text-align:right">Unit $</th>
         <th style="text-align:right">Total</th>
@@ -281,7 +283,7 @@ td { padding:5px 6px; border-bottom:1px solid #f0f0f0; vertical-align:top; font-
   </table>
 
   <div class="page-footer">
-    <span>Confidential: ILC Studios LLC | 2301 Blake Street, Ste 100, Denver, CO 80205 | 720-248-8208</span>
+    <span>${confidentialHtml(brand)}</span>
     <span>Printed: ${today}</span>
   </div>
 </div>
@@ -292,12 +294,10 @@ td { padding:5px 6px; border-bottom:1px solid #f0f0f0; vertical-align:top; font-
   <!-- Header -->
   <div class="header">
     <div>
-      <div class="logo"><span class="logo-ilc">ILC</span>STUDIOS</div>
-      <div class="logo-tag">Lighting Design + Procurement</div>
+      <div class="logo">${brandMarkHtml(brand, { height: 30 })}</div>
     </div>
     <div class="contact-block">
-      2301 Blake Street, Ste 100 | Denver, CO 80205<br>
-      720-248-8208 | orders@ilcstudios.com
+      ${contactBlockHtml(brand)}
     </div>
   </div>
 
@@ -316,28 +316,28 @@ td { padding:5px 6px; border-bottom:1px solid #f0f0f0; vertical-align:top; font-
     <h2>Change Order Guidelines</h2>
 
     <h3>Pricing Basis</h3>
-    <p>All unit prices are ILC's net client pricing, inclusive of applicable freight, warehousing, and sales tax as shown in the footer above. Pricing reflects current manufacturer pricing at time of submittal and is subject to change if the order is not placed within 90 days.</p>
+    <p>All unit prices are ${brandNameHtml(brand)}'s net client pricing, inclusive of applicable freight, warehousing, and sales tax as shown in the footer above. Pricing reflects current manufacturer pricing at time of submittal and is subject to change if the order is not placed within 90 days.</p>
 
     <h3>Bid Breakout Structure</h3>
     <p>Contractor is to break out the lighting fixture and lighting control product package prices from labor and materials. Show the total amount for lighting fixtures as one line item and lighting controls as a separate line item.</p>
 
     <h3>Low Voltage &amp; Linear Fixtures</h3>
-    <p>Bid price is provided by ILC, but lengths and power supply takeoffs will be verified during the ordering phase by the contractor.</p>
+    <p>Bid price is provided by ${brandNameHtml(brand)}, but lengths and power supply takeoffs will be verified during the ordering phase by the contractor.</p>
 
     <h3>Egress / Emergency Lighting</h3>
-    <p>When emergency lighting is required and a generator is not present, ILC will provide pricing for an inverter or integral battery backups.</p>
+    <p>When emergency lighting is required and a generator is not present, ${brandNameHtml(brand)} will provide pricing for an inverter or integral battery backups.</p>
 
     <h3>Sales Tax</h3>
-    <p>ILC will provide a best estimate for sales tax per our physical office locations, but the bidding contractor is to adjust for any missing sales tax.</p>
+    <p>${brandNameHtml(brand)} will provide a best estimate for sales tax per our physical office locations, but the bidding contractor is to adjust for any missing sales tax.</p>
   </div>
 
   <div class="terms-section">
     <h2>Questions</h2>
-    <p>Any questions regarding this change order should be directed to ${pms.emails || 'orders@ilcstudios.com'}</p>
+    <p>Any questions regarding this change order should be directed to ${pms.emails || brand.email || 'your project manager'}</p>
   </div>
 
   <div class="page-footer">
-    <span>Confidential: ILC Studios LLC | 2301 Blake Street, Ste 100, Denver, CO 80205 | 720-248-8208</span>
+    <span>${confidentialHtml(brand)}</span>
     <span>Printed: ${today}</span>
   </div>
 </div>

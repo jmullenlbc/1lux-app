@@ -1,6 +1,6 @@
 // RFQ PDF page, laid out like the Trackvia RFQ (Mike 10-29). Server side;
 // turned into a PDF by htmlToPdf in /api/projects/[id]/rfqs/[rfqId]/pdf.
-import { DEFAULT_COMPANY, officeAddress, rfqLabel, rfqNotesFor, showDate, showDateTime } from './format';
+import { rfqCompany, rfqEmail, rfqPhone, officeAddress, rfqLabel, rfqNotesFor, showDate, showDateTime } from './format';
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const qtyText = (q) => (q == null ? '' : Number.isInteger(q) ? String(q) : String(Math.round(q * 100) / 100));
@@ -10,9 +10,9 @@ export function rfqFooter(rfq) {
     <span>Request for Quote ${rfqLabel(rfq)}</span><span>Page <span class="pageNumber"></span> of <span class="totalPages"></span></span></div>`;
 }
 
-export function rfqPdfHtml({ rfq, project, office, pmName, changes = [] }) {
-  const phone = office?.phone || '720-248-8208';
-  const mail = office?.ordersEmail || 'orders@ilcstudios.com';
+export function rfqPdfHtml({ rfq, project, office, pmName, brand, changes = [] }) {
+  const phone = rfqPhone(office, brand);
+  const mail = rfqEmail(office, brand);
   const field = (label, value) => `<tr><th>${esc(label)}</th><td>${esc(value)}</td></tr>`;
   const rows = rfq.lines.map((l) => `<tr>
       <td class="type">${esc(l.typeCode)}</td><td>${esc(l.manufacturer)}</td><td class="mono">${esc(l.partNumber)}</td>
@@ -38,9 +38,9 @@ export function rfqPdfHtml({ rfq, project, office, pmName, changes = [] }) {
     .notes { margin-top: 16px; border: 1px solid #ddd; padding: 8px; min-height: 40px; white-space: pre-wrap; }
   </style></head><body>
   <div class="top">
-    <div><div class="co">${esc(office?.companyName || DEFAULT_COMPANY)}</div>
-      <div class="muted">${esc(officeAddress(office))}</div>
-      <div class="muted">${esc(phone)} | ${esc(mail)}</div></div>
+    <div><div class="co">${esc(rfqCompany(office, brand))}</div>
+      <div class="muted">${esc(officeAddress(office) || brand?.address || '')}</div>
+      <div class="muted">${esc([phone, mail].filter(Boolean).join(' | '))}</div></div>
     <div style="text-align:right"><h1>REQUEST FOR QUOTE</h1><div style="font-size:14px;font-weight:bold">${rfqLabel(rfq)}</div></div>
   </div>
   <table class="meta">

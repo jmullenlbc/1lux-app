@@ -30,7 +30,13 @@ export function holidaysOf(y) {
 // Next year too: New Year's on a Saturday is taken Dec 31.
 export const isHoliday = (d) => { const s = ymdIn.format(d); const y = Number(s.slice(0, 4)); return holidaysOf(y).includes(s) || holidaysOf(y + 1).includes(s); };
 
-export const DEFAULT_COMPANY = 'Innovative Lighting Consultants dba ILC Studios';
+// Who an RFQ is from (2026-11-10): the office's own company name when it has one, else the job's company
+// (LOGIQ, SAGE or Shift; `brand` from src/lib/brandServer.js), else 1LUX. Phone and email the same way.
+export const DEFAULT_COMPANY = '1LUX';
+export const rfqCompany = (office, brand) => office?.companyName || brand?.legalName || brand?.name || DEFAULT_COMPANY;
+export const rfqPhone = (office, brand) => office?.phone || brand?.phone || '';
+export const rfqEmail = (office, brand) => office?.ordersEmail || office?.pricingEmail || brand?.email || '';
+const shortName = (brand) => brand?.name || DEFAULT_COMPANY;
 
 export const DEFAULT_RFQ_NOTES = [
   'Please provide unit pricing for each item.',
@@ -89,25 +95,26 @@ export function officeAddress(office) {
   return [office.street, cityLine].filter(Boolean).join(', ');
 }
 
-export function emailSubject({ number, familyNumber, version, projectName }) {
-  return `ILC RFQ ${rfqLabel({ number, familyNumber, version })} | ${projectName || 'Project'}`;
+export function emailSubject({ number, familyNumber, version, projectName, brand }) {
+  return `${shortName(brand)} RFQ ${rfqLabel({ number, familyNumber, version })} | ${projectName || 'Project'}`;
 }
 
-export function pdfFileName({ number, familyNumber, version, projectName }) {
+export function pdfFileName({ number, familyNumber, version, projectName, brand }) {
   const safe = String(projectName || 'Project').replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim();
-  return `ILC Studios RFQ ${rfqLabel({ number, familyNumber, version })} ${safe}.pdf`;
+  return `${shortName(brand)} RFQ ${rfqLabel({ number, familyNumber, version })} ${safe}.pdf`;
 }
 
 /** Plain text email body, same words as Trackvia's template. */
-export function emailBody({ number, familyNumber, version, projectName, needBy, notes, office, changes = [] }) {
-  const phone = office?.phone || '720-248-8208';
-  const mail = office?.ordersEmail || office?.pricingEmail || 'orders@ilcstudios.com';
+export function emailBody({ number, familyNumber, version, projectName, needBy, notes, office, brand, changes = [] }) {
+  const phone = rfqPhone(office, brand);
+  const mail = rfqEmail(office, brand);
+  const company = rfqCompany(office, brand);
   const lines = [
     'Hello,',
     '',
     `Attached is an RFQ request (${rfqLabel({ number, familyNumber, version })}) for ${projectName || 'this project'}. Please respond within 1 business day to confirm you received it. We need pricing within ${NEED_BY_BUSINESS_DAYS} business days${needBy ? `, by ${showDateTime(needBy)}` : ''}.`,
     '',
-    'Register this project with ILC as the Designer and Distributor.',
+    `Register this project with ${company} as the Distributor.`,
     '',
     ...rfqNotesFor(office).map((n) => `* ${n}`),
     '',
@@ -115,7 +122,7 @@ export function emailBody({ number, familyNumber, version, projectName, needBy, 
   ];
   if (changes.length) lines.push('', 'Changes since the last version:', ...changes.map((c) => `* ${c.text}`));
   if (String(notes || '').trim()) lines.push('', 'Project Manager Comments:', String(notes).trim());
-  lines.push('', 'Thank you!', 'ILC Studios', `${mail} | ${phone}`);
+  lines.push('', 'Thank you!', company, ...([mail, phone].filter(Boolean).length ? [[mail, phone].filter(Boolean).join(' | ')] : []));
   return lines.join('\n');
 }
 

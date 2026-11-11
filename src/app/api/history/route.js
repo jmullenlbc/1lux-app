@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireStaff } from '@/lib/auth';
 import { historyFor } from '@/lib/recordHistory';
 
-const TYPES = ['SALES_REP', 'MANUFACTURER', 'OUR_OFFICE', 'RFQ'];
+const TYPES = ['SALES_REP', 'MANUFACTURER', 'OUR_OFFICE', 'RFQ', 'BUSINESS_UNIT'];
 
 // GET /api/history?type=SALES_REP&id=... the History card at the bottom of a record.
 export async function GET(request) {

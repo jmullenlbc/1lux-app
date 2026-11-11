@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/db';
 import { weeklyDigest } from '@/lib/emailTemplates';
+import { brandForProject } from '@/lib/brandServer';
 
 /**
  * GET /api/cron/digest
@@ -79,7 +80,7 @@ export async function GET(req) {
       });
 
       const pixelUrl          = `${appUrl}/api/notifications/opened/${log.openToken}`;
-      const { subject, html } = weeklyDigest({ projectName, events, pixelUrl });
+      const { subject, html } = weeklyDigest({ projectName, events, pixelUrl, brandName: (await brandForProject(projectId)).name });
 
       await sendEmail({ to: email, subject, html });
       logData.push({ projectId, email, eventCount: events.length });

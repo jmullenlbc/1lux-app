@@ -41,7 +41,7 @@ export default function BriefClient({ stale, procSnapshot, designSnapshot, recen
       <div className={embedded ? 'mb-5' : 'bg-white border-b border-slate-200 px-6 py-4 shrink-0'}>
         <div className="flex items-center justify-between gap-4">
           <div>
-            {!embedded && <span className={`${LABEL} text-orange-500`}>ILC Studios</span>}
+            {!embedded && <span className={`${LABEL} text-orange-500`}>1LUX</span>}
             <h1 className={H1}>Morning Brief</h1>
             {embedded && <p className="text-sm text-slate-500 mt-0.5">Stale open projects, the pipeline by stage, and what was won in the last 30 days.</p>}
           </div>

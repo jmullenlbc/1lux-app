@@ -7,7 +7,7 @@ import { redirect } from 'next/navigation';
 import { SPACES_SELECT, spaceKeys } from '@/lib/companySpaces';
 import CRMClient from './CRMClient';
 
-export const metadata = { title: 'Pipeline: ILC Studios' };
+export const metadata = { title: 'Pipeline: 1LUX' };
 
 export default async function CRMPage() {
   const { user, error } = await requireAuth();

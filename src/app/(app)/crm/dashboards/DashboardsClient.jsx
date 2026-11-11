@@ -727,7 +727,7 @@ export default function DashboardsClient({ dashboards: initialDashboards, user }
         <div className="flex items-center justify-between">
           <div>
             <div className="flex items-center gap-2 mb-0.5">
-              <span className={`${LABEL} text-orange-500`}>ILC Studios</span>
+              <span className={`${LABEL} text-orange-500`}>1LUX</span>
             </div>
             <h1 className={H1}>Dashboards</h1>
           </div>

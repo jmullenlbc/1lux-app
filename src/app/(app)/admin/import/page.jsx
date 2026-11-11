@@ -129,7 +129,7 @@ export default function ImportPage() {
         </div>
         <h1 className="text-2xl font-bold text-slate-900">Import Past Budgets</h1>
         <p className="text-slate-500 text-sm mt-1">
-          Upload one or more ILC Studios conceptual budget Excel files. Project data and selections are extracted automatically.
+          Upload one or more ILC-format conceptual budget Excel files (the old ILC Studios template). Project data and selections are extracted automatically.
         </p>
       </div>
 

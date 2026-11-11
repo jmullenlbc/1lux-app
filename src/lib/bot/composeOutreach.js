@@ -172,7 +172,7 @@ Helpful, never pushy or guilt-inducing. Do not say "reminder" or mention how lon
     : `It is the recap after our meeting and must cover ALL of these items in one email, with one greeting and one sign-off:
 ${ours.length ? `Things ${me} will do or is asking for:\n${ours.map(line).join('\n')}\n` : ''}${theirs.length ? `Things they offered to do. Thank them and confirm, never demand:\n${theirs.map(line).join('\n')}\n` : ''}`;
 
-  const prompt = `Write ONE short email from ${me} at ILC Studios (lighting) to ${group.contactName}${group.company ? ` (${group.company})` : ''}.
+  const prompt = `Write ONE short email from ${me} at 1LUX (lighting) to ${group.contactName}${group.company ? ` (${group.company})` : ''}.
 
 ${items}
 ${await personalPromptFor(group.contactId, firstName(group.contactName))}${knowledgeSection(await knowledgeFor(group))}${await templateFor(group)}${toneSection(sender?.toneProfile, sender?.name)}${voiceExamplesSection(sender?.samples, sender?.name)}${await lessonsFor(emailKind, sender, group.ownerUserId)}
@@ -216,7 +216,7 @@ async function composeAppendParagraphs(group, newAsks) {
   const askList = newAsks.map(a => `- ${a.label}: ${a.detail}${a.targetName ? ` (re ${a.targetName})` : ''}`).join('\n');
   const sender = await senderFor(group);
   const me = firstName(sender?.name) || 'Mike';
-  const prompt = `Write a short lead-in line and then ${newAsks.length === 1 ? 'ONE bullet' : `${newAsks.length} bullets (one per item)`} starting with "• " to ADD to an existing email to ${group.contactName} from ${me} at ILC Studios. Cover:
+  const prompt = `Write a short lead-in line and then ${newAsks.length === 1 ? 'ONE bullet' : `${newAsks.length} bullets (one per item)`} starting with "• " to ADD to an existing email to ${group.contactName} from ${me} at 1LUX. Cover:
 ${askList}
 ${knowledgeSection(await knowledgeFor({ ...group, actions: newAsks }))}${toneSection(sender?.toneProfile, sender?.name)}${voiceExamplesSection(sender?.samples, sender?.name)}
 ${PLAIN_VOICE_RULES}

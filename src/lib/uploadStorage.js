@@ -27,6 +27,7 @@ import {
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { s3Client } from './qcStorage.js';
+import { PUBLIC_BRAND_EMAIL } from './intake/brand.js';
 
 // What the PUBLIC intake drop zone accepts. Mike, 2026-08-21, after a GC's
 // 246 MB set was refused on the live site: "Raise the cap to handle up to
@@ -316,7 +317,7 @@ export async function getUploadedObject(key, { limit = MAX_INTAKE_UPLOAD_BYTES }
   }
   if (!presignAvailable()) {
     if (!devStoreOn()) {
-      return { ok: false, code: 'unavailable', message: 'Uploads are switched off right now. This is on our side, not your file. Please try again later, or email the file to precon@ilcstudios.com.' };
+      return { ok: false, code: 'unavailable', message: 'Uploads are switched off right now. This is on our side, not your file. Please try again later, or email the file to ' + PUBLIC_BRAND_EMAIL + '.' };
     }
     try {
       return { ok: true, buffer: await devGet(key) };
@@ -375,7 +376,7 @@ export async function headUploadedObject(key) {
   }
   if (!presignAvailable()) {
     if (!devStoreOn()) {
-      return { ok: false, code: 'unavailable', message: 'Uploads are switched off right now. This is on our side, not your file. Please try again later, or email the file to precon@ilcstudios.com.' };
+      return { ok: false, code: 'unavailable', message: 'Uploads are switched off right now. This is on our side, not your file. Please try again later, or email the file to ' + PUBLIC_BRAND_EMAIL + '.' };
     }
     try {
       return { ok: true, size: (await fs.stat(devPath(key))).size, contentType: null };
@@ -704,7 +705,7 @@ export async function getScanState(key, { quiet = false } = {}) {
     return { ok: false, code: 'bad_key', message: 'We lost track of this upload, so nothing was read. Please upload the file again.' };
   }
   if (!presignAvailable() && !devStoreOn()) {
-    return { ok: false, code: 'unavailable', message: 'Uploads are switched off right now. This is on our side, not your file. Please try again later, or email the file to precon@ilcstudios.com.' };
+    return { ok: false, code: 'unavailable', message: 'Uploads are switched off right now. This is on our side, not your file. Please try again later, or email the file to ' + PUBLIC_BRAND_EMAIL + '.' };
   }
   try {
     const raw = await gunzip(presignAvailable()

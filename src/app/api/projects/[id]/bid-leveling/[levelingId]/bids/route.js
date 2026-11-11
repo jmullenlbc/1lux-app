@@ -4,6 +4,8 @@ import { guardLeveling } from '@/lib/bidLeveling/guard';
 import { bidLinesFromMatrix, bidLinesFromPeerReview, parsePastedLines } from '@/lib/bidLeveling/fromSources';
 import { cleanCheckedLines } from '@/lib/bidLeveling/readQuote';
 import { cents } from '@/lib/money';
+import { brandForProject } from '@/lib/brandServer';
+import { docName } from '@/lib/brand';
 
 const MAX_LINES = 3000;
 const tooMany = (n) => `That quote has ${n.toLocaleString('en-US')} lines, more than the ${MAX_LINES.toLocaleString('en-US')} we can take, so nothing was saved. Split it into two quotes.`;
@@ -40,12 +42,12 @@ export async function POST(request, { params }) {
     if (!Array.isArray(b.lines) || !b.lines.length) return NextResponse.json({ error: 'We found no fixture lines in that file, so nothing was saved. Check it is the peer review matrix.' }, { status: 400 });
     if (b.lines.length > MAX_LINES) return NextResponse.json({ error: tooMany(b.lines.length) }, { status: 400 });
     lines = bidLinesFromMatrix(b.lines);
-    bid = { bidderName: 'ILC Studios', bidderType: 'ILC', isIlc: true, sourceKind: 'XLSX', sourceFileName: String(b.fileName || '').slice(0, 200) || null };
+    bid = { bidderName: docName(await brandForProject(params.id)), bidderType: 'ILC', isIlc: true, sourceKind: 'XLSX', sourceFileName: String(b.fileName || '').slice(0, 200) || null };
   } else if (b.source === 'PEER_REVIEW') {
     const items = await prisma.peerReviewItem.findMany({ where: { projectId: params.id }, orderBy: [{ section: 'asc' }, { sortOrder: 'asc' }] });
     lines = bidLinesFromPeerReview(items);
     if (!lines.length) return NextResponse.json({ error: 'This project has no Peer Review rows with a fixture type yet, so nothing was added. Fill in Peer Review first.' }, { status: 400 });
-    bid = { bidderName: 'ILC Studios', bidderType: 'ILC', isIlc: true, sourceKind: 'ILC_MATRIX', sourceMatrixId: params.id };
+    bid = { bidderName: docName(await brandForProject(params.id)), bidderType: 'ILC', isIlc: true, sourceKind: 'ILC_MATRIX', sourceMatrixId: params.id };
   } else if (b.source === 'PASTE' || b.source === 'LINES') {
     const name = String(b.bidderName || '').trim().slice(0, 120);
     if (!name) return NextResponse.json({ error: "Type the bidder's company name so we know whose quote this is. Nothing was saved." }, { status: 400 });

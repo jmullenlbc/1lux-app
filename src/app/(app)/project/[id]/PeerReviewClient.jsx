@@ -13,6 +13,7 @@ import { cents as r2, lineTotal, sumCents } from '@/lib/money';
 import { matrixFooter, feeLabel } from '@/lib/bidMatrixTotals';
 import ConfirmArchiveModal, { setArchived, ArchiveBoxIcon, KEPT_ON_ARCHIVE_PAGE } from '@/components/salesAutomation/ConfirmArchiveModal';
 import { pmPrint } from '@/lib/projectManagers';
+import { brandFor, docName, confidentialLine } from '@/lib/brand';
 
 // ── Location Tags ─────────────────────────────────────────────────────────────
 
@@ -906,7 +907,7 @@ Please find attached our lighting budget for ${project.name}.
 This bid reflects our proposed fixtures and pricing based on the current scope. Please review and let us know if you have any questions or would like to discuss alternates.
 
 Best regards,
-ILC Studios`,
+${docName(brandFor(project.businessUnit))}`,
   },
   followup: {
     label: 'Follow-Up',
@@ -919,7 +920,7 @@ I wanted to follow up on the lighting budget we submitted for ${project.name}. H
 We're happy to walk through the pricing or discuss any value-engineering options.
 
 Best regards,
-ILC Studios`,
+${docName(brandFor(project.businessUnit))}`,
   },
   revised: {
     label: 'Revised Bid',
@@ -932,7 +933,7 @@ Please find attached a revised lighting budget for ${project.name} reflecting th
 Key changes from the previous submission are noted in the document. Please don't hesitate to reach out with any questions.
 
 Best regards,
-ILC Studios`,
+${docName(brandFor(project.businessUnit))}`,
   },
 };
 
@@ -2631,8 +2632,12 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
           pushSection(LOCATION_TAGS.find(t => t.id === 'controls'), true);
         }
 
+        // The job's company (2026-11-10): its logo when there is one, else its name; its own address and contact.
+        const brand = brandFor(project.businessUnit);
         const LogoSVG = (
-          <img src="/ilc-studios-logo.jpg" alt="ILC Studios" style={{ height: '40px', width: 'auto' }} />
+          brand.code === 'LOGIQ'
+            ? <img src="/logiq-logo.png" alt={docName(brand)} style={{ height: '40px', width: 'auto' }} />
+            : <span style={{ fontSize: '24px', fontWeight: 800, letterSpacing: '-0.5px', lineHeight: '40px' }}>{brand.name}</span>
         );
 
         return (
@@ -2642,8 +2647,8 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '18px' }}>
               <div>{LogoSVG}</div>
               <div style={{ textAlign: 'right', fontSize: '8pt', color: GREY, lineHeight: 1.6 }}>
-                <div>2301 Blake Street, Ste 100 &nbsp;|&nbsp; Denver, CO 80205</div>
-                <div>720-248-8208 &nbsp;|&nbsp; orders@ilcstudios.com</div>
+                {brand.address && <div>{brand.address}</div>}
+                {(brand.phone || brand.email) && <div>{[brand.phone, brand.email].filter(Boolean).join(' | ')}</div>}
               </div>
             </div>
 
@@ -2674,8 +2679,8 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
                     </tr>
                     <tr><td className="lbl" style={{ paddingTop: '6px' }}>Project Manager</td><td className="lbl" style={{ paddingTop: '6px' }}>PM Email</td></tr>
                     <tr>
-                      <td style={{ paddingRight: '24px', fontWeight: 400 }}>{pmPrint(project.assignees).names || 'ILC Studios'}</td>
-                      <td style={{ fontWeight: 400 }}>{pmPrint(project.assignees).emails || 'orders@ilcstudios.com'}</td>
+                      <td style={{ paddingRight: '24px', fontWeight: 400 }}>{pmPrint(project.assignees).names || docName(brand)}</td>
+                      <td style={{ fontWeight: 400 }}>{pmPrint(project.assignees).emails || brand.email || 'your project manager'}</td>
                     </tr>
                     {(project.city || project.state) && (
                       <>
@@ -2707,8 +2712,8 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
                   <th style={{ width: '20%' }}>Description</th>
                   {!isDesignBid && <th style={{ width: '9%'  }}>Spec Mfr</th>}
                   {!isDesignBid && <th style={{ width: '10%' }}>Spec Catalog #</th>}
-                  <th style={{ width: isDesignBid ? '13%' : '9%', color: ORANGE }}>{isDesignBid ? 'Manufacturer' : 'ILC Proposed Mfr'}</th>
-                  <th style={{ width: isDesignBid ? '14%' : '10%', color: ORANGE }}>{isDesignBid ? 'Part #' : 'ILC Catalog #'}</th>
+                  <th style={{ width: isDesignBid ? '13%' : '9%', color: ORANGE }}>{isDesignBid ? 'Manufacturer' : 'Proposed Mfr'}</th>
+                  <th style={{ width: isDesignBid ? '14%' : '10%', color: ORANGE }}>{isDesignBid ? 'Part #' : 'Proposed Catalog #'}</th>
                   <th style={{ width: '4%', textAlign: 'right' }}>Qty</th>
                   <th style={{ width: '4%'  }}>Unit</th>
                   <th style={{ width: '7%', textAlign: 'right' }}>Unit $</th>
@@ -2792,7 +2797,7 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
 
             {/* ── FOOTER ── */}
             <div style={{ marginTop: '14px', paddingTop: '5px', borderTop: `1px solid ${BDRCLR}`, display: 'flex', justifyContent: 'space-between', fontSize: '6.5pt', color: '#999' }}>
-              <span>Confidential, ILC Studios LLC &nbsp;|&nbsp; 2301 Blake Street, Ste 100, Denver, CO 80205 &nbsp;|&nbsp; 720-248-8208</span>
+              <span>{confidentialLine(brand)}</span>
               <span>Printed: {printDate}</span>
             </div>
 
@@ -2803,9 +2808,9 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '18px' }}>
               <div>{LogoSVG}</div>
               <div style={{ textAlign: 'right', fontSize: '7.5pt', color: GREY, lineHeight: 1.5 }}>
-                ILC Studios<br />
-                2301 Blake Street, Ste 100 | Denver, CO 80205<br />
-                720-248-8208 | orders@ilcstudios.com
+                {docName(brand)}<br />
+                {brand.address && <>{brand.address}<br /></>}
+                {[brand.phone, brand.email].filter(Boolean).join(' | ')}
               </div>
             </div>
             <hr style={{ border: 'none', borderTop: `1.5px solid ${ORANGE}`, marginBottom: '22px' }} />
@@ -2835,19 +2840,19 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
               </div>
               <div style={{ marginBottom: '12px' }}>
                 <div style={{ fontWeight: 700, marginBottom: '4px' }}>LIGHTING CONTROLS</div>
-                <div style={{ lineHeight: 1.7 }}>Bid price is provided by ILC, but formal submittals, drawings and one-lines will be provided after 100% CD.</div>
+                <div style={{ lineHeight: 1.7 }}>Bid price is provided by {docName(brand)}, but formal submittals, drawings and one-lines will be provided after 100% CD.</div>
               </div>
               <div style={{ marginBottom: '12px' }}>
                 <div style={{ fontWeight: 700, marginBottom: '4px' }}>LOW VOLTAGE &amp; LINEAR FIXTURES</div>
-                <div style={{ lineHeight: 1.7 }}>Bid price is provided by ILC, but lengths and power supply takeoffs will be verified during the ordering phase by the contractor.</div>
+                <div style={{ lineHeight: 1.7 }}>Bid price is provided by {docName(brand)}, but lengths and power supply takeoffs will be verified during the ordering phase by the contractor.</div>
               </div>
               <div style={{ marginBottom: '12px' }}>
                 <div style={{ fontWeight: 700, marginBottom: '4px' }}>EGRESS/EMERGENCY LIGHTING</div>
-                <div style={{ lineHeight: 1.7 }}>When emergency lighting is required and a generator is not present, ILC will provide pricing for an inverter or integral battery backups.</div>
+                <div style={{ lineHeight: 1.7 }}>When emergency lighting is required and a generator is not present, {docName(brand)} will provide pricing for an inverter or integral battery backups.</div>
               </div>
               <div style={{ marginBottom: '12px' }}>
                 <div style={{ fontWeight: 700, marginBottom: '4px' }}>SALES TAX</div>
-                <div style={{ lineHeight: 1.7 }}>ILC will provide a best estimate for sales tax per our physical office locations, but the bidding contractor is to adjust for any missing sales tax.</div>
+                <div style={{ lineHeight: 1.7 }}>{docName(brand)} will provide a best estimate for sales tax per our physical office locations, but the bidding contractor is to adjust for any missing sales tax.</div>
               </div>
             </div>
 
@@ -2857,13 +2862,13 @@ export default function PeerReviewClient({ project, initialItems, currentUser, a
                 Questions
               </div>
               <ul style={{ margin: 0, paddingLeft: '18px', lineHeight: 1.9, color: BLACK }}>
-                <li>Any questions regarding this quote should be directed to {pmPrint(project.assignees).emails || 'orders@ilcstudios.com'}</li>
+                <li>Any questions regarding this quote should be directed to {pmPrint(project.assignees).emails || brand.email || 'your project manager'}</li>
               </ul>
             </div>
 
             {/* Footer */}
             <div style={{ paddingTop: '5px', borderTop: `1px solid ${BDRCLR}`, display: 'flex', justifyContent: 'space-between', fontSize: '6.5pt', color: '#999' }}>
-              <span>Confidential, ILC Studios LLC &nbsp;|&nbsp; 2301 Blake Street, Ste 100, Denver, CO 80205 &nbsp;|&nbsp; 720-248-8208</span>
+              <span>{confidentialLine(brand)}</span>
               <span>Printed: {printDate}</span>
             </div>
 

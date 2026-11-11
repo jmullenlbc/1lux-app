@@ -14,6 +14,7 @@ import PeerReviewClient from '../PeerReviewClient';
 import { SITE_FEATURE_INCLUDE, engineProjectData } from '@/lib/siteFeatureRows';
 import { fillOldBlanks } from '@/lib/figures/fillOldBlanks';
 import { PM_SELECT } from '@/lib/projectManagers';
+import { BRAND_UNIT_SELECT } from '@/lib/brandServer';
 
 export default async function ProjectWizardPage({ params }) {
   const session = await getSession();
@@ -29,6 +30,8 @@ export default async function ProjectWizardPage({ params }) {
       client:         true,
       createdBy:      { select: { id: true, name: true, email: true } },
       assignees:      PM_SELECT,
+      // The job's company prints on the peer review (2026-11-10).
+      businessUnit:   { select: BRAND_UNIT_SELECT },
     },
   });
 

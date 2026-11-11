@@ -5,7 +5,7 @@ import { getSession, isClientViewer } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import SalesRepsClient from './SalesRepsClient';
 
-export const metadata = { title: 'Sales Reps: ILC Studios' };
+export const metadata = { title: 'Sales Reps: 1LUX' };
 
 // Sales Reps (Mike 10-29, 0144): its own table, built like Manufacturers.
 export default async function SalesRepsPage() {

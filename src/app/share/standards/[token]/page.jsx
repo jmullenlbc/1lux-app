@@ -69,7 +69,7 @@ export default async function StandardsSharePage({ params }) {
               <path d="M9 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H9v1zm3-19C8.14 2 5 5.14 5 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.86-3.14-7-7-7z"/>
             </svg>
           </div>
-          <span className="text-white font-semibold text-sm">ILC Studios</span>
+          <span className="text-white font-semibold text-sm">1LUX</span>
         </div>
         <PrintButton />
       </div>
@@ -80,7 +80,7 @@ export default async function StandardsSharePage({ params }) {
         {/* Hero */}
         <div className="rounded-xl p-5 mb-6 text-white bg-navy-950 shadow-sm">
           <div className="text-xs font-medium mb-1 text-slate-400">
-            ILC Studios: Lighting Standards
+            1LUX: Lighting Standards
           </div>
           <div className="text-3xl font-bold mb-1">{client.name}</div>
           <p className="text-xs mt-2 text-slate-400">
@@ -162,11 +162,7 @@ export default async function StandardsSharePage({ params }) {
         {/* Footer */}
         <div className="mt-8 text-center">
           <p className="text-xs text-slate-500 mb-3">
-            Prepared by ILC Studios. These are standard preferences and may be tailored per project.
-          </p>
-          <p className="text-sm text-slate-500">
-            Questions? Contact{' '}
-            <a href="mailto:design@ilcstudios.com" className="text-orange-600 hover:underline">design@ilcstudios.com</a>
+            Prepared by 1LUX. These are standard preferences and may be tailored per project.
           </p>
         </div>
       </div>

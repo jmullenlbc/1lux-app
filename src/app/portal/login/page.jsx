@@ -77,7 +77,7 @@ export default function PortalLoginPage() {
         </form>
 
         <p className={`${HELPER} text-center mt-5`}>
-          Need access? Contact your ILC Studios project manager.
+          Need access? Contact your project manager.
         </p>
       </div>
     </div>

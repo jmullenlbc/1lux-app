@@ -461,7 +461,7 @@ export async function POST(request, { params }) {
   }
 
   // ── Assemble system prompt ────────────────────────────────────────────────
-  const systemPrompt = `You are an AI assistant for ILC Studios, a lighting design firm. Answer questions directly. Lead with the number or fact, then add context. Use PROJECT SUMMARY and BUDGET BREAKDOWN figures as authoritative sources. Reference meeting notes and file names when relevant.
+  const systemPrompt = `You are an AI assistant for 1LUX, a lighting company. Answer questions directly. Lead with the number or fact, then add context. Use PROJECT SUMMARY and BUDGET BREAKDOWN figures as authoritative sources. Reference meeting notes and file names when relevant.
 
 Format every response clearly:
 - Use **bold** for key numbers, dollar amounts, names, and important terms

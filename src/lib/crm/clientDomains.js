@@ -12,7 +12,7 @@ import { FREE_EMAIL_DOMAINS, parseEmailDomain } from '../intake.js';
 export { FREE_EMAIL_DOMAINS, parseEmailDomain };
 
 /** Our own domains. People here are staff, never introductions or contacts. */
-export const OUR_DOMAINS = new Set(['ilcstudios.com']);
+export const OUR_DOMAINS = new Set(['ilcstudios.com', '1lux.lighting', 'logiqsupply.com']);
 
 export function hostOfWebsite(url) {
   return String(url ?? '').trim().toLowerCase()

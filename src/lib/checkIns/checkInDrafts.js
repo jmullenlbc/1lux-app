@@ -81,7 +81,7 @@ export async function composeCheckInEmail(contact, ownerUserId, lastNote = null)
   let lessons = '';
   try { lessons = editExamplesSection(await editExamples(prisma, emailKind, 4, ownerUserId), sender?.name); } catch { /* draft without them */ }
 
-  const prompt = `Write ONE short email from ${me} at ILC Studios (lighting) to ${contact.name}${company ? ` (${company})` : ''}.
+  const prompt = `Write ONE short email from ${me} at 1LUX (lighting) to ${contact.name}${company ? ` (${company})` : ''}.
 
 Nothing is wrong and nothing is owed. It is a friendly keep-in-touch note because we have not talked in a while.${last}
 Offer one easy next step, like coffee, lunch or a quick call. Warm, never pushy.

@@ -309,7 +309,7 @@ export async function loadRfis(db, user, projectId, rows) {
               sentAt: received, createdAt: received, attachments: { create: asked.map(att) },
             },
             ...(r.response ? [{
-              direction: 'OUTBOUND', authoredBy: r.responseBy || 'ILC Studios', bodyText: r.response,
+              direction: 'OUTBOUND', authoredBy: r.responseBy || '1LUX', bodyText: r.response,
               sentAt: answered, createdAt: answered, attachments: { create: replied.map(att) },
             }] : []),
           ],

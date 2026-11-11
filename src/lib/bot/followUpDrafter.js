@@ -107,7 +107,7 @@ export async function generateFollowUpDraft(project, rule, { senderUserId } = {}
   // Who it is from: the person who asked for it, else the project's salesperson.
   const sender  = await senderVoice(senderUserId || project.salesOwner?.id);
   const owner   = sender || project.salesOwner;
-  const me      = firstName(owner?.name) || 'ILC Studios';
+  const me      = firstName(owner?.name) || '1LUX';
   const toEmail = contact?.email || owner?.email || null;
   const toName  = contact?.preferredName || contact?.name?.split(' ')[0] || contact?.name || null;
 
@@ -130,7 +130,7 @@ itself, and never force a fact in just because it is here:\n${knowledgeText}`
     : '';
   const templateText = templateSection(template);
 
-  const prompt = `You are drafting a follow-up email on behalf of ${owner?.name || 'ILC Studios'} at ILC Studios, a professional lighting design firm.
+  const prompt = `You are drafting a follow-up email on behalf of ${owner?.name || '1LUX'} at 1LUX, a lighting company.
 
 Project context:
 - Project: ${project.name}

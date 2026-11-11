@@ -696,7 +696,7 @@ export default function HomeClient({ initialConfig, user, stats }) {
       <div className="bg-white border-b border-slate-200 px-6 py-5 shrink-0">
         <div className="flex items-center justify-between gap-4">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-orange-600 mb-0.5">ILC Studios</p>
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-orange-600 mb-0.5">1LUX</p>
             <h1 className={H1}>{timeGreeting(user.name)}</h1>
             <p className={`${HELPER} mt-0.5`}>
               {new Date().toLocaleDateString('en-US', {

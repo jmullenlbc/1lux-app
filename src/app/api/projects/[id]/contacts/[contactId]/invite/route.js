@@ -3,6 +3,7 @@ import { requireAuth, canSeeAllData } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { randomUUID } from 'crypto';
 import { portalInvite } from '@/lib/emailTemplates';
+import { brandForProject } from '@/lib/brandServer';
 
 /**
  * POST /api/projects/[id]/contacts/[contactId]/invite
@@ -40,7 +41,7 @@ export async function POST(req, { params }) {
     console.log(`[INVITE DRY RUN] Resent to=${contact.email} token=${inviteToken}`);
   } else {
     const inviteUrl         = `${process.env.APP_URL || ''}/portal/invite/${inviteToken}`;
-    const { subject, html } = portalInvite({ projectName: project.name, inviteUrl, contactName: contact.name });
+    const { subject, html } = portalInvite({ projectName: project.name, inviteUrl, contactName: contact.name, brandName: (await brandForProject(params.id)).name });
     console.log(`[INVITE] Resending to=${contact.email} subject="${subject}"`);
     // TODO: Microsoft Graph API sendMail
   }

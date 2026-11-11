@@ -1,12 +1,15 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth';
 import { prisma } from '@/lib/db';
+import { brandForProject } from '@/lib/brandServer';
+import { docName } from '@/lib/brand';
 
 // POST /api/projects/[id]/ship-schedule/email
 // Body: { to, message? }
 export async function POST(req, { params }) {
   const { user, error } = await requireAuth();
   if (error) return error;
+  const brand = await brandForProject(params.id);
 
   const body = await req.json().catch(() => ({}));
   const { to, message } = body;
@@ -39,7 +42,7 @@ export async function POST(req, { params }) {
           </p>
           <hr style="margin:20px 0;border:none;border-top:1px solid #e2e8f0"/>
           <p style="color:#94a3b8;font-size:12px">
-            Sent by ${user.name || user.email} · ILC Studios
+            Sent by ${escapeHtml(user.name || user.email)} · ${escapeHtml(docName(brand))}
           </p>
         `,
       }).catch(() => {});

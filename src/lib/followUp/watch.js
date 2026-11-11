@@ -25,7 +25,7 @@ export const WAIT_EXECUTORS = {
 export const isWaitExecutor = executor => Object.hasOwn(WAIT_EXECUTORS, executor || '');
 
 /** Our own addresses never count as "the third party" in an intro. */
-export const ILC_DOMAINS = ['ilcstudios.com'];
+export const ILC_DOMAINS = ['ilcstudios.com', '1lux.lighting', 'logiqsupply.com'];
 
 const DAY_MS = 86_400_000;
 const lower = s => String(s || '').trim().toLowerCase();

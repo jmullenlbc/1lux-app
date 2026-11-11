@@ -5,6 +5,8 @@ import { NOT_CO_VERSION } from '@/lib/budgetVersions';
 import { htmlToPdf } from '@/lib/pdf';
 import { lineTotal, sumCents } from '@/lib/money';
 import { PM_SELECT, pmPrint } from '@/lib/projectManagers';
+import { brandForProject } from '@/lib/brandServer';
+import { brandMarkHtml, brandNameHtml, contactBlockHtml } from '@/lib/brandHtml';
 
 function fmtCurrency(n) {
   if (n == null || n === 0) return '—';
@@ -23,6 +25,7 @@ function fmtDate(d) {
 export async function GET(request, { params }) {
   const { user, error } = await requireAuth();
   if (error) return error;
+  const brand = await brandForProject(params.id);
 
   const { searchParams } = new URL(request.url);
   const version = searchParams.get('version') ? Number(searchParams.get('version')) : undefined;
@@ -272,11 +275,10 @@ export async function GET(request, { params }) {
 <body>
 
   <div class="page-header">
-    <img src="${origin}/ilc-studios-logo.jpg" alt="ILC Studios" />
+    ${brandMarkHtml(brand, { height: 36 })}
     <div class="company-info">
-      ILC Studios<br>
-      2301 Blake Street, Ste 100 | Denver, CO 80205<br>
-      720-248-8208 | orders@ilcstudios.com
+      ${brandNameHtml(brand)}<br>
+      ${contactBlockHtml(brand)}
     </div>
   </div>
 
@@ -381,11 +383,11 @@ export async function GET(request, { params }) {
         <div class="terms-item"><strong>BID BREAKOUT STRUCTURE</strong><br>
           Contractor is to break out the lighting fixture and lighting control product package prices from labor and materials. Show the total amount for lighting fixtures as one line item and lighting controls as a separate line item.</div>
         <div class="terms-item"><strong>LIGHTING CONTROLS</strong><br>
-          Bid price is provided by ILC, but formal submittals, drawings and one-lines will be provided after 100% CD.</div>
+          Bid price is provided by ${brandNameHtml(brand)}, but formal submittals, drawings and one-lines will be provided after 100% CD.</div>
         <div class="terms-item"><strong>LOW VOLTAGE &amp; LINEAR FIXTURES</strong><br>
-          Bid price is provided by ILC, but lengths and power supply takeoffs will be verified during the ordering phase by the contractor.</div>
+          Bid price is provided by ${brandNameHtml(brand)}, but lengths and power supply takeoffs will be verified during the ordering phase by the contractor.</div>
         <div class="terms-item"><strong>SALES TAX</strong><br>
-          ILC will provide a best estimate for sales tax per our physical office locations, but the bidding contractor is to adjust for any missing sales tax.</div>
+          ${brandNameHtml(brand)} will provide a best estimate for sales tax per our physical office locations, but the bidding contractor is to adjust for any missing sales tax.</div>
       </div>
     </div>
 

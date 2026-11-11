@@ -1,3 +1,4 @@
+import { PUBLIC_BRAND_EMAIL } from './intake/brand.js';
 /**
  * One plain sentence for a failed AI call on a drawing (Mike 10-26: "every
  * error needs to be in plain terms and explain what happens").
@@ -11,7 +12,7 @@
  * Pure, no SDK import, so the tests can feed it fake errors.
  */
 
-const EMAIL = 'precon@ilcstudios.com';
+const EMAIL = PUBLIC_BRAND_EMAIL;
 const SEND_IT = `Please email the set to ${EMAIL} and we will run it for you.`;
 const THEN_SEND = `email the set to ${EMAIL} and we will run it for you.`;
 

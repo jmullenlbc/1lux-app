@@ -3,6 +3,7 @@ import { requireAuth, canSeeAllData } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { randomUUID } from 'crypto';
 import { portalInvite } from '@/lib/emailTemplates';
+import { brandForProject } from '@/lib/brandServer';
 
 async function canAccess(projectId, user) {
   const p = await prisma.project.findUnique({ where: { id: projectId } });
@@ -11,13 +12,13 @@ async function canAccess(projectId, user) {
   return p;
 }
 
-async function sendInviteEmail({ to, contactName, projectName, token }) {
+async function sendInviteEmail({ to, contactName, projectName, token, projectId }) {
   if (process.env.NOTIFY_DRY_RUN !== 'false') {
     console.log(`[INVITE DRY RUN] to=${to} token=${token}`);
     return;
   }
   const inviteUrl        = `${process.env.APP_URL || ''}/portal/invite/${token}`;
-  const { subject, html } = portalInvite({ projectName, inviteUrl, contactName });
+  const { subject, html } = portalInvite({ projectName, inviteUrl, contactName, brandName: (await brandForProject(projectId)).name });
   console.log(`[INVITE] Sending to=${to} subject="${subject}"`);
   // TODO: Microsoft Graph API sendMail
 }
@@ -95,7 +96,7 @@ export async function POST(req, { params }) {
   });
 
   // Fire invite email (dry-run safe)
-  await sendInviteEmail({ to: email, contactName: name, projectName: project.name, token: inviteToken });
+  await sendInviteEmail({ to: email, contactName: name, projectName: project.name, token: inviteToken, projectId: params.id });
 
   return NextResponse.json({ contact }, { status: 201 });
 }

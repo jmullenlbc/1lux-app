@@ -5,7 +5,7 @@ import { getSession, canSeeAllData, isClientViewer } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import ArchiveClient from './ArchiveClient';
 
-export const metadata = { title: 'Archive: ILC Studios' };
+export const metadata = { title: 'Archive: 1LUX' };
 
 // Everything that was archived instead of deleted (Mike, 2026-09-11:
 // "archive only for everything"): companies, projects, people and notes

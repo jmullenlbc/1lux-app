@@ -8,6 +8,8 @@ import { loadPricing, pricingForProject } from '@/lib/pricingLoader';
 import { htmlToPdf } from '@/lib/pdf';
 import { feeLabel } from '@/lib/bidMatrixTotals';
 import { SITE_FEATURE_INCLUDE, engineProjectData } from '@/lib/siteFeatureRows';
+import { brandForProject } from '@/lib/brandServer';
+import { brandMarkHtml, brandNameHtml } from '@/lib/brandHtml';
 
 function esc(s) {
   if (s == null) return '';
@@ -26,6 +28,7 @@ function fmtDate(d) {
 export async function GET(request, { params }) {
   const { user, error } = await requireAuth(request);
   if (error) return error;
+  const brand = await brandForProject(params.id);
 
   const project = await prisma.project.findUnique({
     where: { id: params.id },
@@ -81,7 +84,7 @@ export async function GET(request, { params }) {
     closetControl:      { switch: 'Standard Switch', occSensor: 'Occupancy Sensor' },
     halfHotReceptacles: { no: 'No', yes: 'Yes' },
     buyHold:            { buyHold: 'Buy and hold, long-term ownership', buildSell: 'Build and sell, exit at or near CO' },
-    switchesDimmers:    { ourScope: 'ILC / lighting budget', ecScope: "Electrical contractor's scope", tbd: 'TBD' },
+    switchesDimmers:    { ourScope: 'Our lighting budget', ecScope: "Electrical contractor's scope", tbd: 'TBD' },
     contingency:        { none: 'No contingency', '5pct': '5% contingency', '10pct': '10% contingency' },
     controlsSystem:     { standalone: 'Standalone / Independent', bms: 'BMS Integrated', none: 'None' },
     decorativeDimming:  { no: 'No', yes: 'Yes' },
@@ -264,7 +267,7 @@ export async function GET(request, { params }) {
 
   const designDisclaimer = isDesign
     ? `<p style="font-size:7.5pt;color:#94a3b8;line-height:1.5;margin:8px 0 0 0">
-        This is a design phase budget prepared by ILC Studios for early design and pre-con purposes only.
+        This is a design phase budget prepared by ${brandNameHtml(brand)} for early design and pre-con purposes only.
         Actual costs will vary based on final design, product selections, and market conditions.
         Not a formal bid or contract.
       </p>` : '';
@@ -289,9 +292,9 @@ export async function GET(request, { params }) {
 
 <!-- ── PAGE 1 ── -->
 <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
-  <img src="https://app.ilcstudios.com/ilc-studios-logo.jpg" alt="ILC Studios" style="height:36px"/>
+  ${brandMarkHtml(brand, { height: 36 })}
   <div style="text-align:right;font-size:7.5pt;color:#64748b;line-height:1.6">
-    ILC Studios: ${esc(typeLabel)} Lighting &amp; Controls Budget<br/>
+    ${brandNameHtml(brand)}: ${esc(typeLabel)} Lighting &amp; Controls Budget<br/>
     ${esc(project.name)}${project.location ? ' · ' + esc(project.location) : ''}<br/>
     ${esc(new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }))}
   </div>
@@ -299,7 +302,7 @@ export async function GET(request, { params }) {
 
 <!-- Hero -->
 <div style="background:#0f172a;color:white;padding:18px 22px;border-radius:6px;margin-bottom:10px;-webkit-print-color-adjust:exact;print-color-adjust:exact">
-  <div style="font-size:7.5pt;color:#94a3b8;margin-bottom:4px">ILC Studios: ${esc(typeLabel)} Lighting &amp; Controls Budget</div>
+  <div style="font-size:7.5pt;color:#94a3b8;margin-bottom:4px">${brandNameHtml(brand)}: ${esc(typeLabel)} Lighting &amp; Controls Budget</div>
   <div style="font-size:22pt;font-weight:700;font-family:monospace;margin-bottom:6px">${esc(fmt(budget.totalWithControls))}</div>
   <div style="display:flex;flex-wrap:wrap;gap:16px;font-size:8pt">
     <div><span style="color:#94a3b8">Lighting Only: </span><span style="font-weight:600">${esc(fmt(budget.subtotalLightingOnly))}</span></div>

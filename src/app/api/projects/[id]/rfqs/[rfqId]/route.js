@@ -6,6 +6,7 @@ import { emailBody, emailSubject } from '@/lib/rfq/format';
 import { changesFor } from '@/lib/rfq/resolve';
 import { looseNumberOrNull } from '@/lib/numberInput';
 import { historyFor } from '@/lib/recordHistory';
+import { brandForProject } from '@/lib/brandServer';
 
 const NOT_FOUND = () => NextResponse.json({ error: 'That RFQ is not in the app any more. Nothing was changed. Reload the page. (RFQ_NOT_FOUND)' }, { status: 404 });
 
@@ -25,6 +26,7 @@ export async function GET(request, { params }) {
   const info = {
     number: rfq.number, familyNumber: rfq.familyNumber, version: rfq.version, projectName: rfq.project.name,
     needBy: rfq.needBy, notes: rfq.notes, office: rfq.office, changes: await changesFor(rfq),
+    brand: await brandForProject(params.id),
   };
   return NextResponse.json({
     rfq,

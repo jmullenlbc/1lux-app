@@ -17,9 +17,11 @@ import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses';
 import { computeQuantities } from './quantities.js';
 import { loadPricing } from '../pricingLoader.js';
 import { loadAdoptedGuesses } from '../calibration/figureNormsLoad.js';
+import { PUBLIC_BRAND_EMAIL } from './brand.js';
 
-const TO   = process.env.INTAKE_NOTIFY_TO   || 'precon@ilcstudios.com';
-const FROM = process.env.INTAKE_NOTIFY_FROM || 'noreply@ilcstudios.com';
+const TO   = process.env.INTAKE_NOTIFY_TO   || PUBLIC_BRAND_EMAIL;
+const FROM = process.env.INTAKE_NOTIFY_FROM || PUBLIC_BRAND_EMAIL;
+const APP  = (process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || '').replace(/\/$/, '');
 
 function fmt(n) { return n == null ? '-' : Number(n).toLocaleString('en-US'); }
 
@@ -58,7 +60,7 @@ export async function notifyPrecon({ submission, answers, flags, drawings }) {
     + (submission.zip ? ` ${submission.zip}` : '');
 
   const parts = [
-    `A new conceptual budget request just came in on app.ilcstudios.com/conceptual_budget.`,
+    `A new conceptual budget request just came in on the public budget page${APP ? ` (${APP}/conceptual_budget)` : ''}.`,
     ``,
     `PROJECT:   ${submission.proposedName}`,
     `LOCATION:  ${where.trim() || '-'}`,
@@ -102,7 +104,7 @@ export async function notifyPrecon({ submission, answers, flags, drawings }) {
     }
   }
 
-  parts.push('', `Review it: https://app.ilcstudios.com/admin/intake`);
+  parts.push('', `Review it: ${APP || ''}/admin/intake`);
 
   try {
     // Same credential convention as qcStorage: S3_ACCESS_KEY_ID / S3_SECRET_

@@ -3,6 +3,7 @@ import { requireAdmin } from '@/lib/auth';
 import { prisma } from '@/lib/db';
 import { randomUUID } from 'crypto';
 import { portalInvite } from '@/lib/emailTemplates';
+import { brandForProject } from '@/lib/brandServer';
 
 export const dynamic = 'force-dynamic';
 
@@ -60,7 +61,7 @@ export async function POST(req, { params }) {
     });
   }
 
-  const appUrl    = process.env.APP_URL || 'https://app.ilcstudios.com';
+  const appUrl    = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || '';
   const inviteUrl = alreadyAccepted ? null : `${appUrl}/portal/invite/${contact.inviteToken}`;
 
   if (!alreadyAccepted) {
@@ -71,6 +72,7 @@ export async function POST(req, { params }) {
         projectName: project.name,
         inviteUrl,
         contactName: submission.submitterName,
+        brandName:   (await brandForProject(project)).name,
       });
       console.log(`[INVITE] Sending to=${submission.submitterEmail} subject="${subject}"`);
       // TODO: Microsoft Graph API sendMail

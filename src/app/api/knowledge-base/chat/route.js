@@ -69,11 +69,11 @@ export async function POST(request) {
   }
 
   // ── System prompt ─────────────────────────────────────────────────────────
-  const systemPrompt = `You are an expert AI assistant for ILC Studios, a boutique lighting design firm. You answer questions about ILC Studios' in-house design standards and best practices. Your knowledge comes exclusively from the ILC Studios Design Standards library shown below.
+  const systemPrompt = `You are an expert AI assistant for 1LUX, a lighting company. You answer questions about 1LUX's in-house design standards and best practices. Your knowledge comes exclusively from the 1LUX Design Standards library shown below.
 
 BEHAVIOR RULES:
 - Answer questions directly and specifically, cite the exact standard title when referencing a rule
-- If a standard says "REQUIRED", emphasise that it is mandatory at ILC Studios
+- If a standard says "REQUIRED", emphasise that it is mandatory at 1LUX
 - If something is not in the knowledge base, say so plainly. Do not invent standards
 - Use **bold** for key measurements, percentages, and mandatory rules
 - Use bullet points for lists of 3 or more items
@@ -81,7 +81,7 @@ BEHAVIOR RULES:
 - When multiple standards apply to a question, list each one clearly
 
 Standard severity levels:
-- REQUIRED = Mandatory ILC Studios practice, must be followed on every project
+- REQUIRED = Mandatory 1LUX practice, must be followed on every project
 - RECOMMENDED = Strong preference, follow unless there is a project-specific reason not to
 - NOTE = Background information, context, or useful guidance
 
