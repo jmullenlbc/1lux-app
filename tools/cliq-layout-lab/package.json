@@ -1,0 +1,12 @@
+{
+  "name": "cliq-layout-lab",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "SHIFT CLIQ layout and takeoff prototype (read-only NetSuite).",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test/engine.test.mjs"
+  }
+}
