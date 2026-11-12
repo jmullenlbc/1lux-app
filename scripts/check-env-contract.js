@@ -37,6 +37,8 @@ const REQUIRED = [
   ['S3_REGION',            'the S3 client cannot resolve a region'],
   ['S3_ACCESS_KEY_ID',     'the AWS SDK throws CredentialsProviderError'],
   ['S3_SECRET_ACCESS_KEY', 'the AWS SDK throws CredentialsProviderError'],
+  ['S3_ENDPOINT',          'an R2 / B2 / other S3-compatible bucket is addressed as AWS and every upload fails'],
+  ['S3_FORCE_PATH_STYLE',  'stores that need bucket-in-path addressing (MinIO) cannot be reached'],
   ['MCP_API_TOKEN',        'the /api/mcp Librarian refuses every bearer request with 503'],
 ];
 

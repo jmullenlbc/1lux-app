@@ -42,5 +42,16 @@ services:
         sync: false           # 12+ characters; the temporary password for every seeded account
       - key: ANTHROPIC_API_KEY
         sync: false           # optional: the AI readers stay off without it
-      # No S3 variables yet: uploaded files live on the container disk and are lost on each deploy (test only).
+      # File storage (docs/hosting/storage.md). Until S3_BUCKET is filled in, uploaded files live on the container
+      # disk and are lost on each deploy. The same bucket and values move to Replit unchanged.
+      - key: S3_BUCKET
+        sync: false
+      - key: S3_ACCESS_KEY_ID
+        sync: false
+      - key: S3_SECRET_ACCESS_KEY
+        sync: false
+      - key: S3_REGION
+        sync: false           # AWS region, or "auto" for Cloudflare R2
+      - key: S3_ENDPOINT
+        sync: false           # blank for AWS S3; the R2 / B2 endpoint URL otherwise
       # No email settings: nothing is sent.

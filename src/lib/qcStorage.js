@@ -23,13 +23,14 @@ import path from 'path';
 // via require() at runtime, not bundled, but importing them statically
 // at the top of this file is more reliable than dynamic await import(),
 // which has bitten us on Amplify SSR.
-import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { objectStoreOn, s3Client as sharedS3Client } from './objectStore.js';
 
 // Evaluated per call (not at module-load) so a stale bundler-inlined value
 // can't pin us to the wrong branch for the lifetime of a Lambda warm pool.
 function isProd() {
-  return !!process.env.S3_BUCKET;
+  return objectStoreOn();
 }
 
 // ── Dev: local filesystem ────────────────────────────────────────────────────
@@ -65,28 +66,12 @@ function getLocalUrl(key) {
 // If both env vars are absent, we fall back to the default chain, that's
 // the path that works once a proper SSR compute role is set up (planned
 // for the security pass).
-// Exported for uploadStorage.js (direct-to-S3 uploads), one place owns the
-// credential fallback logic, so a future switch to an SSR compute role is a
-// one-file change.
+// Kept as an export for uploadStorage.js and salesDocs/storage.js. Since
+// 2026-11-12 the client itself (credentials, region, dualstack for IPv6-only
+// phones, and S3_ENDPOINT for R2 / B2 / other S3-compatible stores) is built
+// in objectStore.js, the one place that knows where files live.
 export function s3Client() {
-  const region = process.env.S3_REGION || 'us-east-2';
-  const id     = process.env.S3_ACCESS_KEY_ID;
-  const secret = process.env.S3_SECRET_ACCESS_KEY;
-  // Dualstack matters for the PRESIGNED urls this client mints: the standard
-  // bucket hostname has no IPv6 address (checked 2026-08-29, no AAAA
-  // record), so a phone on an IPv6-only carrier network loads the site fine
-  // and then can't reach the bucket at all. The upload dies before the first
-  // byte (the U3 error) while the same page works on office wifi. The
-  // dualstack hostname answers on both protocols; server-side reads through
-  // this client are unaffected either way.
-  if (id && secret) {
-    return new S3Client({
-      region,
-      useDualstackEndpoint: true,
-      credentials: { accessKeyId: id, secretAccessKey: secret },
-    });
-  }
-  return new S3Client({ region, useDualstackEndpoint: true });
+  return sharedS3Client();
 }
 
 async function putS3(buffer, { ext = 'png', contentType = 'image/png' } = {}) {

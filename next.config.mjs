@@ -56,6 +56,10 @@ const nextConfig = {
           // compute role during the security pass and delete this block.
           S3_ACCESS_KEY_ID:     process.env.S3_ACCESS_KEY_ID,
           S3_SECRET_ACCESS_KEY: process.env.S3_SECRET_ACCESS_KEY,
+          // S3_ENDPOINT / S3_FORCE_PATH_STYLE (2026-11-12): any S3-compatible
+          // store (Cloudflare R2, Backblaze B2, MinIO). Read by src/lib/objectStore.js.
+          S3_ENDPOINT:          process.env.S3_ENDPOINT,
+          S3_FORCE_PATH_STYLE:  process.env.S3_FORCE_PATH_STYLE,
           ANTHROPIC_API_KEY:    process.env.ANTHROPIC_API_KEY,
           // MCP_API_TOKEN: the bearer token for /api/mcp (the Librarian read
           // server). Same Gen 1 trap, fourth case. src/lib/mcp/auth.js reads it

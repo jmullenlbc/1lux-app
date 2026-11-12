@@ -7,8 +7,9 @@
 # Run-time variables (set in Render, never in this file):
 #   required  DATABASE_URL (postgresql://...), JWT_SECRET (32+ characters)
 #   usual     CRON_SECRET, SEED_ADMIN_PASSWORD (creates the 1LUX accounts once; 12+ characters), ANTHROPIC_API_KEY
-#   files     S3_BUCKET, S3_REGION, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY (without them uploads go to the container's
-#             disk and are lost on every deploy)
+#   files     S3_BUCKET, S3_REGION, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY, plus S3_ENDPOINT (and S3_FORCE_PATH_STYLE)
+#             for a non-AWS S3-compatible bucket such as Cloudflare R2 (without a bucket, uploads go to the container's
+#             disk and are lost on every deploy). See docs/hosting/storage.md.
 # Build-time variables (Render passes them as build args): NEXT_PUBLIC_APP_URL, NEXT_PUBLIC_APP_ENV. NEXT_PUBLIC_*
 # values are compiled into the code, so changing one needs a new build.
 # On start the container applies migrations, runs the seed, and starts on $PORT (default 3000).

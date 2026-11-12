@@ -7,24 +7,18 @@
 
 import path from 'path';
 import { mkdir, writeFile, readFile, unlink } from 'fs/promises';
-import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { objectStoreOn, s3Client } from '../objectStore.js';
 
 const PREFIX = 'bot-knowledge/';
 
 function isProd() {
-  return !!process.env.S3_BUCKET;
+  return objectStoreOn();
 }
 
-function s3() {
-  const region = process.env.S3_REGION || 'us-east-2';
-  const id     = process.env.S3_ACCESS_KEY_ID;
-  const secret = process.env.S3_SECRET_ACCESS_KEY;
-  // Dualstack because the presigned links go to browsers, and a phone on an
-  // IPv6-only carrier cannot resolve the plain bucket hostname.
-  if (id && secret) return new S3Client({ region, useDualstackEndpoint: true, credentials: { accessKeyId: id, secretAccessKey: secret } });
-  return new S3Client({ region, useDualstackEndpoint: true });
-}
+// The shared client (objectStore.js): AWS S3 or any S3-compatible store.
+const s3 = () => s3Client();
 
 // Keep the original name recognisable in the key, but strip anything that could
 // walk out of the prefix or upset S3.

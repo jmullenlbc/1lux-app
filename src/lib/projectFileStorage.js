@@ -16,23 +16,16 @@
 
 import path from 'path';
 import { mkdir, writeFile, readFile, unlink, open } from 'fs/promises';
-import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand, CopyObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
+import { PutObjectCommand, GetObjectCommand, DeleteObjectCommand, CopyObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { objectStoreOn, s3Client } from './objectStore.js';
 
 function isProd() {
-  return !!process.env.S3_BUCKET;
+  return objectStoreOn();
 }
 
-function s3() {
-  const region = process.env.S3_REGION || 'us-east-2';
-  const id     = process.env.S3_ACCESS_KEY_ID;
-  const secret = process.env.S3_SECRET_ACCESS_KEY;
-  // Dualstack for the same reason as qcStorage.s3Client: the presigned GET
-  // links this module hands to browsers must resolve on IPv6-only phone
-  // networks (the standard bucket hostname has no IPv6 address).
-  if (id && secret) return new S3Client({ region, useDualstackEndpoint: true, credentials: { accessKeyId: id, secretAccessKey: secret } });
-  return new S3Client({ region, useDualstackEndpoint: true });
-}
+// The shared client (objectStore.js): AWS S3 or any S3-compatible store.
+const s3 = () => s3Client();
 
 // Write a file and return the storedPath key to persist in the DB.
 export async function putProjectFile(buffer, { projectId, tab, stored, contentType = 'application/octet-stream' }) {

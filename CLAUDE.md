@@ -232,6 +232,10 @@ Pricing data lives in `public/pricing.json` (or loaded via `pricingLoader.js`). 
 
 `scripts/generate-deploy-log.js` runs at every Amplify build and local dev start. It reads `git log -n 200` and writes `deploy-log.json` (gitignored). The admin changelog page at `/admin/changelog` reads this file and displays a timeline. `Co-Authored-By:` lines with `anthropic` in the email get an "AI-assisted" badge.
 
+## Hosting: Render now, Replit later (Jason, 2026-11-12)
+
+This copy runs on Render from `Dockerfile` + `render.yaml` (container mode, `DEPLOY_MODE=container`, run-time env vars). The Amplify notes in this file describe the old ILC deployment. Jason plans to move to Replit later, so keep the app host-neutral: no Render-only features (disks, `RENDER_*` variables, Render job runner); new settings are run-time env vars; scheduled work is an `/api/cron/*` route with the `x-cron-secret` check; files go through the storage modules, which all connect through `src/lib/objectStore.js` (any S3-compatible bucket; never build a second S3 client; setup in `docs/hosting/storage.md`); new system packages are noted with their Nix name. Checklist and reasons: `docs/hosting/replit-move.md`.
+
 ## Amplify Build Pipeline (`amplify.yml`)
 
 ```
