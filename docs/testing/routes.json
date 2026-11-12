@@ -1,0 +1,8839 @@
+{
+ "pages": [
+  {
+   "url": "/",
+   "zone": "root",
+   "module": "Other",
+   "file": "src/app/page.jsx",
+   "dynamic": false,
+   "forceDynamic": false,
+   "client": false
+  },
+  {
+   "url": "/admin",
+   "zone": "staff",
+   "module": "Admin and platform",
+   "file": "src/app/(app)/admin/page.jsx",
+   "dynamic": false,
+   "forceDynamic": true,
+   "client": false
+  },
+  {
+   "url": "/admin/agent-runs",
+   "zone": "staff",
+   "module": "Admin and platform",
+   "file": "src/app/(app)/admin/agent-runs/page.jsx",
+   "dynamic": false,
+   "forceDynamic": true,
+   "client": false
+  },
+  {
+   "url": "/admin/calendar-import",
+   "zone": "staff",
+   "module": "Email and calendar",
+   "file": "src/app/(app)/admin/calendar-import/page.jsx",
+   "dynamic": false,
+   "forceDynamic": true,
+   "client": false
+  },
+  {
+   "url": "/admin/changelog",
+   "zone": "staff",
+   "module": "Admin and platform",
+   "file": "src/app/(app)/admin/changelog/page.jsx",
+   "dynamic": false,
+   "forceDynamic": true,
+   "client": false
+  },
+  {
+   "url": "/admin/companies",
+   "zone": "staff",
+   "module": "Admin and platform",
+   "file": "src/app/(app)/admin/companies/page.jsx",
+   "dynamic": false,
+   "forceDynamic": true,
+   "client": false
+  },
+  {
+   "url": "/admin/conference-load",
+   "zone": "staff",
+   "module": "Conferences and memberships",
+   "file": "src/app/(app)/admin/conference-load/page.jsx",
+   "dynamic": false,
+   "forceDynamic": true,
+   "client": false
+  },
+  {
+   "url": "/admin/crm-import",
+   "zone": "staff",
+   "module": "Admin and platform",
+   "file": "src/app/(app)/admin/crm-import/page.jsx",
+   "dynamic": false,
+   "forceDynamic": true,
+   "client": false
+  },
+  {
+   "url": "/admin/import",
+   "zone": "staff",
+   "module": "Admin and platform",
+   "file": "src/app/(app)/admin/import/page.jsx",
+   "dynamic": false,
+   "forceDynamic": false,
+   "client": true
+  },
+  {
+   "url": "/admin/intake",
+   "zone": "staff",
+   "module": "Public conceptual budget and intake",
+   "file": "src/app/(app)/admin/intake/page.jsx",
+   "dynamic": false,
+   "forceDynamic": true,
+   "client": false
+  },
+  {
+   "url": "/admin/job-loader",
+   "zone": "staff",
+   "module": "Admin and platform",
+   "file": "src/app/(app)/admin/job-loader/page.jsx",
+   "dynamic": false,
+   "forceDynamic": true,
+   "client": false
+  },
+  {
+   "url": "/admin/mcp-keys",
+   "zone": "staff",
+   "module": "Admin and platform",
+   "file": "src/app/(app)/admin/mcp-keys/page.jsx",
+   "dynamic": false,
+   "forceDynamic": true,
+   "client": false
+  },
+  {
+   "url": "/admin/offices",
+   "zone": "staff",
+   "module": "RFQs and sales reps",
+   "file": "src/app/(app)/admin/offices/page.jsx",
+   "dynamic": false,
+   "forceDynamic": true,
+   "client": false
+  },
+  {
+   "url": "/admin/pricing",
+   "zone": "staff",
+   "module": "Pricing, QC, verification",
+   "file": "src/app/(app)/admin/pricing/page.jsx",
+   "dynamic": false,
+   "forceDynamic": true,
+   "client": false
+  },
+  {
+   "url": "/admin/profile",
+   "zone": "staff",
+   "module": "Admin and platform",
+   "file": "src/app/(app)/admin/profile/page.jsx",
+   "dynamic": false,
+   "forceDynamic": true,
+   "client": false
+  },
+  {
+   "url": "/admin/qc",
+   "zone": "staff",
+   "module": "Pricing, QC, verification",
+   "file": "src/app/(app)/admin/qc/page.jsx",
+   "dynamic": false,
+   "forceDynamic": true,
+   "client": false
+  },
+  {
+   "url": "/admin/roadmap",
+   "zone": "staff",
+   "module": "Admin and platform",
+   "file": "src/app/(app)/admin/roadmap/page.jsx",
+   "dynamic": false,
+   "forceDynamic": true,
+   "client": false
+  },
+  {
+   "url": "/admin/sales-reps-import",
+   "zone": "staff",
+   "module": "RFQs and sales reps",
+   "file": "src/app/(app)/admin/sales-reps-import/page.jsx",
+   "dynamic": false,
+   "forceDynamic": true,
+   "client": false
+  },
+  {
+   "url": "/admin/tasks",
+   "zone": "staff",
+   "module": "My Desk and tasks",
+   "file": "src/app/(app)/admin/tasks/page.jsx",
+   "dynamic": false,
+   "forceDynamic": true,
+   "client": false
+  },
+  {
+   "url": "/admin/tech-stack",
+   "zone": "staff",
+   "module": "Admin and platform",
+   "file": "src/app/(app)/admin/tech-stack/page.jsx",
+   "dynamic": false,
+   "forceDynamic": true,
+   "client": false
+  },
+  {
+   "url": "/admin/usage",
+   "zone": "staff",
+   "module": "Admin and platform",
+   "file": "src/app/(app)/admin/usage/page.jsx",
+   "dynamic": false,
+   "forceDynamic": true,
+   "client": false
+  },
+  {
+   "url": "/archive",
+   "zone": "staff",
+   "module": "Search, archive, knowledge base",
+   "file": "src/app/(app)/archive/page.jsx",
+   "dynamic": false,
+   "forceDynamic": true,
+   "client": false
+  },
+  {
+   "url": "/change-password",
+   "zone": "auth",
+   "module": "Admin and platform",
+   "file": "src/app/(auth)/change-password/page.jsx",
+   "dynamic": false,
+   "forceDynamic": false,
+   "client": true
+  },
+  {
+   "url": "/clients",
+   "zone": "staff",
+   "module": "CRM",
+   "file": "src/app/(app)/clients/page.jsx",
+   "dynamic": false,
+   "forceDynamic": true,
+   "client": false
+  },
+  {
+   "url": "/clients/[id]",
+   "zone": "staff",
+   "module": "CRM",
+   "file": "src/app/(app)/clients/[id]/page.jsx",
+   "dynamic": true,
+   "forceDynamic": true,
+   "client": false
+  },
+  {
+   "url": "/clients/new",
+   "zone": "staff",
+   "module": "CRM",
+   "file": "src/app/(app)/clients/new/page.jsx",
+   "dynamic": false,
+   "forceDynamic": false,
+   "client": true
+  },
+  {
+   "url": "/conceptual_budget",
+   "zone": "public",
+   "module": "Public conceptual budget and intake",
+   "file": "src/app/conceptual_budget/page.jsx",
+   "dynamic": false,
+   "forceDynamic": true,
+   "client": false
+  },
+  {
+   "url": "/conceptual_budget/my-budgets",
+   "zone": "public",
+   "module": "Public conceptual budget and intake",
+   "file": "src/app/conceptual_budget/my-budgets/page.jsx",
+   "dynamic": false,
+   "forceDynamic": true,
+   "client": false
+  },
+  {
+   "url": "/crm",
+   "zone": "staff",
+   "module": "CRM",
+   "file": "src/app/(app)/crm/page.jsx",
+   "dynamic": false,
+   "forceDynamic": true,
+   "client": false
+  },
+  {
+   "url": "/crm/brief",
+   "zone": "staff",
+   "module": "CRM",
+   "file": "src/app/(app)/crm/brief/page.jsx",
+   "dynamic": false,
+   "forceDynamic": true,
+   "client": false
+  },
+  {
+   "url": "/crm/contacts",
+   "zone": "staff",
+   "module": "CRM",
+   "file": "src/app/(app)/crm/contacts/page.jsx",
+   "dynamic": false,
+   "forceDynamic": true,
+   "client": false
+  },
+  {
+   "url": "/crm/dashboards",
+   "zone": "staff",
+   "module": "Dashboards",
+   "file": "src/app/(app)/crm/dashboards/page.jsx",
+   "dynamic": false,
+   "forceDynamic": true,
+   "client": false
+  },
+  {
+   "url": "/crm/intel",
+   "zone": "staff",
+   "module": "CRM",
+   "file": "src/app/(app)/crm/intel/page.jsx",
+   "dynamic": false,
+   "forceDynamic": true,
+   "client": false
+  },
+  {
+   "url": "/crm/notes",
+   "zone": "staff",
+   "module": "Notes",
+   "file": "src/app/(app)/crm/notes/page.jsx",
+   "dynamic": false,
+   "forceDynamic": true,
+   "client": false
+  },
+  {
+   "url": "/dashboard",
+   "zone": "staff",
+   "module": "Dashboards",
+   "file": "src/app/(app)/dashboard/page.jsx",
+   "dynamic": false,
+   "forceDynamic": true,
+   "client": false
+  },
+  {
+   "url": "/dashboards/[section]",
+   "zone": "staff",
+   "module": "Dashboards",
+   "file": "src/app/(app)/dashboards/[section]/page.jsx",
+   "dynamic": true,
+   "forceDynamic": true,
+   "client": false
+  },
+  {
+   "url": "/e/u/[token]",
+   "zone": "token",
+   "module": "Public conceptual budget and intake",
+   "file": "src/app/e/u/[token]/page.jsx",
+   "dynamic": true,
+   "forceDynamic": true,
+   "client": false
+  },
+  {
+   "url": "/fixture-library",
+   "zone": "staff",
+   "module": "Products and fixture library",
+   "file": "src/app/(app)/fixture-library/page.jsx",
+   "dynamic": false,
+   "forceDynamic": true,
+   "client": false
+  },
+  {
+   "url": "/home",
+   "zone": "staff",
+   "module": "Dashboards",
+   "file": "src/app/(app)/home/page.jsx",
+   "dynamic": false,
+   "forceDynamic": true,
+   "client": false
+  },
+  {
+   "url": "/knowledge-base",
+   "zone": "staff",
+   "module": "Search, archive, knowledge base",
+   "file": "src/app/(app)/knowledge-base/page.jsx",
+   "dynamic": false,
+   "forceDynamic": true,
+   "client": false
+  },
+  {
+   "url": "/knowledge-base/[category]",
+   "zone": "staff",
+   "module": "Search, archive, knowledge base",
+   "file": "src/app/(app)/knowledge-base/[category]/page.jsx",
+   "dynamic": true,
+   "forceDynamic": true,
+   "client": false
+  },
+  {
+   "url": "/knowledge-base/code-search",
+   "zone": "staff",
+   "module": "Search, archive, knowledge base",
+   "file": "src/app/(app)/knowledge-base/code-search/page.jsx",
+   "dynamic": false,
+   "forceDynamic": true,
+   "client": false
+  },
+  {
+   "url": "/knowledge-base/lpd-check",
+   "zone": "staff",
+   "module": "Drawings, fixture schedule, compliance",
+   "file": "src/app/(app)/knowledge-base/lpd-check/page.jsx",
+   "dynamic": false,
+   "forceDynamic": true,
+   "client": false
+  },
+  {
+   "url": "/login",
+   "zone": "auth",
+   "module": "Admin and platform",
+   "file": "src/app/(auth)/login/page.jsx",
+   "dynamic": false,
+   "forceDynamic": false,
+   "client": true
+  },
+  {
+   "url": "/manufacturers",
+   "zone": "staff",
+   "module": "Products and fixture library",
+   "file": "src/app/(app)/manufacturers/page.jsx",
+   "dynamic": false,
+   "forceDynamic": true,
+   "client": false
+  },
+  {
+   "url": "/manufacturers/[id]",
+   "zone": "staff",
+   "module": "Products and fixture library",
+   "file": "src/app/(app)/manufacturers/[id]/page.jsx",
+   "dynamic": true,
+   "forceDynamic": true,
+   "client": false
+  },
+  {
+   "url": "/market-intel",
+   "zone": "staff",
+   "module": "Market Intel",
+   "file": "src/app/(app)/market-intel/page.jsx",
+   "dynamic": false,
+   "forceDynamic": false,
+   "client": true
+  },
+  {
+   "url": "/market-intel/forecast",
+   "zone": "staff",
+   "module": "Market Intel",
+   "file": "src/app/(app)/market-intel/forecast/page.jsx",
+   "dynamic": false,
+   "forceDynamic": false,
+   "client": true
+  },
+  {
+   "url": "/market-intel/permits",
+   "zone": "staff",
+   "module": "Market Intel",
+   "file": "src/app/(app)/market-intel/permits/page.jsx",
+   "dynamic": false,
+   "forceDynamic": false,
+   "client": true
+  },
+  {
+   "url": "/market-intel/sources",
+   "zone": "staff",
+   "module": "Market Intel",
+   "file": "src/app/(app)/market-intel/sources/page.jsx",
+   "dynamic": false,
+   "forceDynamic": false,
+   "client": true
+  },
+  {
+   "url": "/my-jobs",
+   "zone": "staff",
+   "module": "Project hub, bid matrix, budgets",
+   "file": "src/app/(app)/my-jobs/page.jsx",
+   "dynamic": false,
+   "forceDynamic": true,
+   "client": false
+  },
+  {
+   "url": "/open",
+   "zone": "staff",
+   "module": "Project hub, bid matrix, budgets",
+   "file": "src/app/(app)/open/page.jsx",
+   "dynamic": false,
+   "forceDynamic": true,
+   "client": false
+  },
+  {
+   "url": "/portal/invite/[token]",
+   "zone": "portal",
+   "module": "Company portal",
+   "file": "src/app/portal/invite/[token]/page.jsx",
+   "dynamic": true,
+   "forceDynamic": false,
+   "client": true
+  },
+  {
+   "url": "/portal/login",
+   "zone": "portal",
+   "module": "Company portal",
+   "file": "src/app/portal/login/page.jsx",
+   "dynamic": false,
+   "forceDynamic": false,
+   "client": true
+  },
+  {
+   "url": "/portal/projects",
+   "zone": "portal",
+   "module": "Company portal",
+   "file": "src/app/portal/projects/page.jsx",
+   "dynamic": false,
+   "forceDynamic": false,
+   "client": true
+  },
+  {
+   "url": "/portal/projects/[id]",
+   "zone": "portal",
+   "module": "Company portal",
+   "file": "src/app/portal/projects/[id]/page.jsx",
+   "dynamic": true,
+   "forceDynamic": false,
+   "client": true
+  },
+  {
+   "url": "/pre-con",
+   "zone": "staff",
+   "module": "Project hub, bid matrix, budgets",
+   "file": "src/app/(app)/pre-con/page.jsx",
+   "dynamic": false,
+   "forceDynamic": true,
+   "client": false
+  },
+  {
+   "url": "/products",
+   "zone": "staff",
+   "module": "Products and fixture library",
+   "file": "src/app/(app)/products/page.jsx",
+   "dynamic": false,
+   "forceDynamic": true,
+   "client": false
+  },
+  {
+   "url": "/products/[id]",
+   "zone": "staff",
+   "module": "Products and fixture library",
+   "file": "src/app/(app)/products/[id]/page.jsx",
+   "dynamic": true,
+   "forceDynamic": true,
+   "client": false
+  },
+  {
+   "url": "/products/decorative-options",
+   "zone": "staff",
+   "module": "Unit selections",
+   "file": "src/app/(app)/products/decorative-options/page.jsx",
+   "dynamic": false,
+   "forceDynamic": true,
+   "client": false
+  },
+  {
+   "url": "/project/[id]",
+   "zone": "staff",
+   "module": "Project hub, bid matrix, budgets",
+   "file": "src/app/(app)/project/[id]/page.jsx",
+   "dynamic": true,
+   "forceDynamic": true,
+   "client": false
+  },
+  {
+   "url": "/project/[id]/change-orders/[coId]",
+   "zone": "staff",
+   "module": "Change orders",
+   "file": "src/app/(app)/project/[id]/change-orders/[coId]/page.jsx",
+   "dynamic": true,
+   "forceDynamic": true,
+   "client": false
+  },
+  {
+   "url": "/project/[id]/summary",
+   "zone": "staff",
+   "module": "Project hub, bid matrix, budgets",
+   "file": "src/app/(app)/project/[id]/summary/page.jsx",
+   "dynamic": true,
+   "forceDynamic": true,
+   "client": false
+  },
+  {
+   "url": "/project/[id]/tracker",
+   "zone": "staff",
+   "module": "Project hub, bid matrix, budgets",
+   "file": "src/app/(app)/project/[id]/tracker/page.jsx",
+   "dynamic": true,
+   "forceDynamic": true,
+   "client": false
+  },
+  {
+   "url": "/project/[id]/wizard",
+   "zone": "staff",
+   "module": "Project hub, bid matrix, budgets",
+   "file": "src/app/(app)/project/[id]/wizard/page.jsx",
+   "dynamic": true,
+   "forceDynamic": true,
+   "client": false
+  },
+  {
+   "url": "/project/new",
+   "zone": "staff",
+   "module": "Project hub, bid matrix, budgets",
+   "file": "src/app/(app)/project/new/page.jsx",
+   "dynamic": false,
+   "forceDynamic": true,
+   "client": false
+  },
+  {
+   "url": "/register",
+   "zone": "auth",
+   "module": "Admin and platform",
+   "file": "src/app/(auth)/register/page.jsx",
+   "dynamic": false,
+   "forceDynamic": false,
+   "client": true
+  },
+  {
+   "url": "/sales-reps",
+   "zone": "staff",
+   "module": "RFQs and sales reps",
+   "file": "src/app/(app)/sales-reps/page.jsx",
+   "dynamic": false,
+   "forceDynamic": true,
+   "client": false
+  },
+  {
+   "url": "/sales-reps/[id]",
+   "zone": "staff",
+   "module": "RFQs and sales reps",
+   "file": "src/app/(app)/sales-reps/[id]/page.jsx",
+   "dynamic": true,
+   "forceDynamic": true,
+   "client": false
+  },
+  {
+   "url": "/sales/activity",
+   "zone": "staff",
+   "module": "CRM",
+   "file": "src/app/(app)/sales/activity/page.jsx",
+   "dynamic": false,
+   "forceDynamic": false,
+   "client": true
+  },
+  {
+   "url": "/sales/activity/expenses",
+   "zone": "staff",
+   "module": "Expenses",
+   "file": "src/app/(app)/sales/activity/expenses/page.jsx",
+   "dynamic": false,
+   "forceDynamic": false,
+   "client": true
+  },
+  {
+   "url": "/sales/activity/expenses/snap",
+   "zone": "staff",
+   "module": "Expenses",
+   "file": "src/app/(app)/sales/activity/expenses/snap/page.jsx",
+   "dynamic": false,
+   "forceDynamic": false,
+   "client": true
+  },
+  {
+   "url": "/sales/automation",
+   "zone": "staff",
+   "module": "Automation and bot",
+   "file": "src/app/(app)/sales/automation/page.jsx",
+   "dynamic": false,
+   "forceDynamic": true,
+   "client": false
+  },
+  {
+   "url": "/sales/automation/actions",
+   "zone": "staff",
+   "module": "Automation and bot",
+   "file": "src/app/(app)/sales/automation/actions/page.jsx",
+   "dynamic": false,
+   "forceDynamic": true,
+   "client": false
+  },
+  {
+   "url": "/sales/automation/knowledge",
+   "zone": "staff",
+   "module": "Automation and bot",
+   "file": "src/app/(app)/sales/automation/knowledge/page.jsx",
+   "dynamic": false,
+   "forceDynamic": false,
+   "client": true
+  },
+  {
+   "url": "/sales/automation/rules",
+   "zone": "staff",
+   "module": "Automation and bot",
+   "file": "src/app/(app)/sales/automation/rules/page.jsx",
+   "dynamic": false,
+   "forceDynamic": false,
+   "client": true
+  },
+  {
+   "url": "/sales/automation/scheduling",
+   "zone": "staff",
+   "module": "Automation and bot",
+   "file": "src/app/(app)/sales/automation/scheduling/page.jsx",
+   "dynamic": false,
+   "forceDynamic": true,
+   "client": false
+  },
+  {
+   "url": "/sales/automation/signature",
+   "zone": "staff",
+   "module": "Automation and bot",
+   "file": "src/app/(app)/sales/automation/signature/page.jsx",
+   "dynamic": false,
+   "forceDynamic": true,
+   "client": false
+  },
+  {
+   "url": "/sales/automation/templates",
+   "zone": "staff",
+   "module": "Automation and bot",
+   "file": "src/app/(app)/sales/automation/templates/page.jsx",
+   "dynamic": false,
+   "forceDynamic": false,
+   "client": true
+  },
+  {
+   "url": "/sales/automation/timeline",
+   "zone": "staff",
+   "module": "Automation and bot",
+   "file": "src/app/(app)/sales/automation/timeline/page.jsx",
+   "dynamic": false,
+   "forceDynamic": true,
+   "client": false
+  },
+  {
+   "url": "/sales/automation/triggers",
+   "zone": "staff",
+   "module": "Automation and bot",
+   "file": "src/app/(app)/sales/automation/triggers/page.jsx",
+   "dynamic": false,
+   "forceDynamic": true,
+   "client": false
+  },
+  {
+   "url": "/sales/automation/voice",
+   "zone": "staff",
+   "module": "Automation and bot",
+   "file": "src/app/(app)/sales/automation/voice/page.jsx",
+   "dynamic": false,
+   "forceDynamic": true,
+   "client": false
+  },
+  {
+   "url": "/sales/bot-queue",
+   "zone": "staff",
+   "module": "Automation and bot",
+   "file": "src/app/(app)/sales/bot-queue/page.jsx",
+   "dynamic": false,
+   "forceDynamic": false,
+   "client": true
+  },
+  {
+   "url": "/sales/check-ins",
+   "zone": "staff",
+   "module": "CRM",
+   "file": "src/app/(app)/sales/check-ins/page.jsx",
+   "dynamic": false,
+   "forceDynamic": false,
+   "client": true
+  },
+  {
+   "url": "/sales/desk",
+   "zone": "staff",
+   "module": "My Desk and tasks",
+   "file": "src/app/(app)/sales/desk/page.jsx",
+   "dynamic": false,
+   "forceDynamic": false,
+   "client": true
+  },
+  {
+   "url": "/sales/docs",
+   "zone": "staff",
+   "module": "Sales Docs and campaigns",
+   "file": "src/app/(app)/sales/docs/page.jsx",
+   "dynamic": false,
+   "forceDynamic": false,
+   "client": true
+  },
+  {
+   "url": "/sales/docs/[docId]",
+   "zone": "staff",
+   "module": "Sales Docs and campaigns",
+   "file": "src/app/(app)/sales/docs/[docId]/page.jsx",
+   "dynamic": true,
+   "forceDynamic": false,
+   "client": true
+  },
+  {
+   "url": "/sales/docs/campaigns",
+   "zone": "staff",
+   "module": "Sales Docs and campaigns",
+   "file": "src/app/(app)/sales/docs/campaigns/page.jsx",
+   "dynamic": false,
+   "forceDynamic": false,
+   "client": true
+  },
+  {
+   "url": "/sales/docs/campaigns/[id]",
+   "zone": "staff",
+   "module": "Sales Docs and campaigns",
+   "file": "src/app/(app)/sales/docs/campaigns/[id]/page.jsx",
+   "dynamic": true,
+   "forceDynamic": false,
+   "client": true
+  },
+  {
+   "url": "/sales/docs/engagement",
+   "zone": "staff",
+   "module": "Sales Docs and campaigns",
+   "file": "src/app/(app)/sales/docs/engagement/page.jsx",
+   "dynamic": false,
+   "forceDynamic": true,
+   "client": false
+  },
+  {
+   "url": "/sales/docs/links",
+   "zone": "staff",
+   "module": "Sales Docs and campaigns",
+   "file": "src/app/(app)/sales/docs/links/page.jsx",
+   "dynamic": false,
+   "forceDynamic": false,
+   "client": true
+  },
+  {
+   "url": "/sales/docs/lists",
+   "zone": "staff",
+   "module": "Sales Docs and campaigns",
+   "file": "src/app/(app)/sales/docs/lists/page.jsx",
+   "dynamic": false,
+   "forceDynamic": false,
+   "client": true
+  },
+  {
+   "url": "/sales/docs/lists/[id]",
+   "zone": "staff",
+   "module": "Sales Docs and campaigns",
+   "file": "src/app/(app)/sales/docs/lists/[id]/page.jsx",
+   "dynamic": true,
+   "forceDynamic": false,
+   "client": true
+  },
+  {
+   "url": "/sales/docs/spaces",
+   "zone": "staff",
+   "module": "Sales Docs and campaigns",
+   "file": "src/app/(app)/sales/docs/spaces/page.jsx",
+   "dynamic": false,
+   "forceDynamic": false,
+   "client": true
+  },
+  {
+   "url": "/sales/docs/spaces/[spaceId]",
+   "zone": "staff",
+   "module": "Sales Docs and campaigns",
+   "file": "src/app/(app)/sales/docs/spaces/[spaceId]/page.jsx",
+   "dynamic": true,
+   "forceDynamic": false,
+   "client": true
+  },
+  {
+   "url": "/sales/events",
+   "zone": "staff",
+   "module": "Conferences and memberships",
+   "file": "src/app/(app)/sales/events/page.jsx",
+   "dynamic": false,
+   "forceDynamic": true,
+   "client": false
+  },
+  {
+   "url": "/sales/events/[id]",
+   "zone": "staff",
+   "module": "Conferences and memberships",
+   "file": "src/app/(app)/sales/events/[id]/page.jsx",
+   "dynamic": true,
+   "forceDynamic": true,
+   "client": false
+  },
+  {
+   "url": "/sales/events/budget",
+   "zone": "staff",
+   "module": "Conferences and memberships",
+   "file": "src/app/(app)/sales/events/budget/page.jsx",
+   "dynamic": false,
+   "forceDynamic": true,
+   "client": false
+  },
+  {
+   "url": "/sales/events/memberships",
+   "zone": "staff",
+   "module": "Conferences and memberships",
+   "file": "src/app/(app)/sales/events/memberships/page.jsx",
+   "dynamic": false,
+   "forceDynamic": true,
+   "client": false
+  },
+  {
+   "url": "/sales/events/plan",
+   "zone": "staff",
+   "module": "Conferences and memberships",
+   "file": "src/app/(app)/sales/events/plan/page.jsx",
+   "dynamic": false,
+   "forceDynamic": true,
+   "client": false
+  },
+  {
+   "url": "/sales/proposals",
+   "zone": "staff",
+   "module": "Proposals",
+   "file": "src/app/(app)/sales/proposals/page.jsx",
+   "dynamic": false,
+   "forceDynamic": true,
+   "client": false
+  },
+  {
+   "url": "/sales/proposals/templates",
+   "zone": "staff",
+   "module": "Proposals",
+   "file": "src/app/(app)/sales/proposals/templates/page.jsx",
+   "dynamic": false,
+   "forceDynamic": true,
+   "client": false
+  },
+  {
+   "url": "/sales/visitors",
+   "zone": "staff",
+   "module": "CRM",
+   "file": "src/app/(app)/sales/visitors/page.jsx",
+   "dynamic": false,
+   "forceDynamic": true,
+   "client": false
+  },
+  {
+   "url": "/search",
+   "zone": "staff",
+   "module": "Search, archive, knowledge base",
+   "file": "src/app/(app)/search/page.jsx",
+   "dynamic": false,
+   "forceDynamic": false,
+   "client": true
+  },
+  {
+   "url": "/share/[token]",
+   "zone": "token",
+   "module": "Other",
+   "file": "src/app/share/[token]/page.jsx",
+   "dynamic": true,
+   "forceDynamic": false,
+   "client": false
+  },
+  {
+   "url": "/share/co/[token]",
+   "zone": "token",
+   "module": "Change orders",
+   "file": "src/app/share/co/[token]/page.jsx",
+   "dynamic": true,
+   "forceDynamic": true,
+   "client": false
+  },
+  {
+   "url": "/share/docs/[token]",
+   "zone": "token",
+   "module": "Sales Docs and campaigns",
+   "file": "src/app/share/docs/[token]/page.jsx",
+   "dynamic": true,
+   "forceDynamic": true,
+   "client": false
+  },
+  {
+   "url": "/share/fixture/[token]",
+   "zone": "token",
+   "module": "Drawings, fixture schedule, compliance",
+   "file": "src/app/share/fixture/[token]/page.jsx",
+   "dynamic": true,
+   "forceDynamic": true,
+   "client": false
+  },
+  {
+   "url": "/share/standards/[token]",
+   "zone": "token",
+   "module": "Drawings, fixture schedule, compliance",
+   "file": "src/app/share/standards/[token]/page.jsx",
+   "dynamic": true,
+   "forceDynamic": true,
+   "client": false
+  },
+  {
+   "url": "/ship-schedules",
+   "zone": "staff",
+   "module": "Ship schedule",
+   "file": "src/app/(app)/ship-schedules/page.jsx",
+   "dynamic": false,
+   "forceDynamic": true,
+   "client": false
+  }
+ ],
+ "apis": [
+  {
+   "url": "/api/admin/agent-runs",
+   "module": "Admin and platform",
+   "file": "src/app/api/admin/agent-runs/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/admin/agent-runs/[id]/verdict",
+   "module": "Admin and platform",
+   "file": "src/app/api/admin/agent-runs/[id]/verdict/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/admin/ai-key",
+   "module": "Admin and platform",
+   "file": "src/app/api/admin/ai-key/route.js",
+   "methods": [
+    "GET",
+    "PUT"
+   ],
+   "guards": [
+    "requireSuperAdmin"
+   ],
+   "gates": [
+    "ai"
+   ],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/admin/alert-feedback",
+   "module": "Notifications and scheduled jobs",
+   "file": "src/app/api/admin/alert-feedback/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAdmin"
+   ],
+   "gates": [
+    "email"
+   ],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/admin/bid-comparison",
+   "module": "Bid leveling and comparison",
+   "file": "src/app/api/admin/bid-comparison/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requireStaff",
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/admin/calendar-import",
+   "module": "Email and calendar",
+   "file": "src/app/api/admin/calendar-import/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/admin/conferences/load",
+   "module": "Conferences and memberships",
+   "file": "src/app/api/admin/conferences/load/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/admin/crm-import",
+   "module": "Admin and platform",
+   "file": "src/app/api/admin/crm-import/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requireSuperAdmin"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/admin/decorative-options",
+   "module": "Unit selections",
+   "file": "src/app/api/admin/decorative-options/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requirePermission",
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/admin/decorative-options/[id]",
+   "module": "Unit selections",
+   "file": "src/app/api/admin/decorative-options/[id]/route.js",
+   "methods": [
+    "GET",
+    "PATCH",
+    "DELETE"
+   ],
+   "guards": [
+    "requirePermission",
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/admin/decorative-options/image",
+   "module": "Unit selections",
+   "file": "src/app/api/admin/decorative-options/image/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requirePermission"
+   ],
+   "gates": [
+    "s3"
+   ],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/admin/import",
+   "module": "Admin and platform",
+   "file": "src/app/api/admin/import/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/admin/intake/[id]",
+   "module": "Public conceptual budget and intake",
+   "file": "src/app/api/admin/intake/[id]/route.js",
+   "methods": [
+    "PATCH"
+   ],
+   "guards": [
+    "requireIntakeReviewer"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/admin/intake/[id]/create-project",
+   "module": "Public conceptual budget and intake",
+   "file": "src/app/api/admin/intake/[id]/create-project/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireIntakeReviewer"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/admin/intake/[id]/invite",
+   "module": "Public conceptual budget and intake",
+   "file": "src/app/api/admin/intake/[id]/invite/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAdmin"
+   ],
+   "gates": [
+    "email"
+   ],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/admin/intake/[id]/link",
+   "module": "Public conceptual budget and intake",
+   "file": "src/app/api/admin/intake/[id]/link/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requireIntakeReviewer"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/admin/intake/access",
+   "module": "Public conceptual budget and intake",
+   "file": "src/app/api/admin/intake/access/route.js",
+   "methods": [
+    "GET",
+    "PUT"
+   ],
+   "guards": [
+    "requireAdmin"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/admin/intake/drafts/[id]",
+   "module": "Public conceptual budget and intake",
+   "file": "src/app/api/admin/intake/drafts/[id]/route.js",
+   "methods": [
+    "PATCH"
+   ],
+   "guards": [
+    "requireIntakeReviewer"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/admin/invite",
+   "module": "Admin and platform",
+   "file": "src/app/api/admin/invite/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requireAdmin"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/admin/job-loader",
+   "module": "Admin and platform",
+   "file": "src/app/api/admin/job-loader/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requireSuperAdmin"
+   ],
+   "gates": [
+    "s3"
+   ],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/admin/job-loader/complete",
+   "module": "Admin and platform",
+   "file": "src/app/api/admin/job-loader/complete/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireSuperAdmin"
+   ],
+   "gates": [
+    "s3"
+   ],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/admin/job-loader/presign",
+   "module": "Admin and platform",
+   "file": "src/app/api/admin/job-loader/presign/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireSuperAdmin"
+   ],
+   "gates": [
+    "s3"
+   ],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/admin/mcp-keys",
+   "module": "Admin and platform",
+   "file": "src/app/api/admin/mcp-keys/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requireSuperAdmin"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/admin/mcp-keys/[id]",
+   "module": "Admin and platform",
+   "file": "src/app/api/admin/mcp-keys/[id]/route.js",
+   "methods": [
+    "PATCH",
+    "DELETE"
+   ],
+   "guards": [
+    "requireSuperAdmin"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/admin/metrics",
+   "module": "Admin and platform",
+   "file": "src/app/api/admin/metrics/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/admin/pricing",
+   "module": "Pricing, QC, verification",
+   "file": "src/app/api/admin/pricing/route.js",
+   "methods": [
+    "GET",
+    "PUT"
+   ],
+   "guards": [
+    "requirePermission"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/admin/projects/[id]/export",
+   "module": "Admin and platform",
+   "file": "src/app/api/admin/projects/[id]/export/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/admin/rfq-freight",
+   "module": "RFQs and sales reps",
+   "file": "src/app/api/admin/rfq-freight/route.js",
+   "methods": [
+    "GET",
+    "PUT"
+   ],
+   "guards": [
+    "requireAdmin"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/admin/sales-reps-import",
+   "module": "RFQs and sales reps",
+   "file": "src/app/api/admin/sales-reps-import/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requireAdmin"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": true,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/admin/sheets",
+   "module": "Admin and platform",
+   "file": "src/app/api/admin/sheets/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAdmin"
+   ],
+   "gates": [
+    "s3"
+   ],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/admin/spec-swaps",
+   "module": "Bid leveling and comparison",
+   "file": "src/app/api/admin/spec-swaps/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requireAdmin"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/admin/users",
+   "module": "Admin and platform",
+   "file": "src/app/api/admin/users/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requireAdmin"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/admin/users/[id]",
+   "module": "Admin and platform",
+   "file": "src/app/api/admin/users/[id]/route.js",
+   "methods": [
+    "PATCH",
+    "DELETE"
+   ],
+   "guards": [
+    "requireAdmin"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": true,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/admin/users/[id]/history",
+   "module": "Search, archive, knowledge base",
+   "file": "src/app/api/admin/users/[id]/history/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAdmin"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/admin/users/[id]/projects",
+   "module": "Admin and platform",
+   "file": "src/app/api/admin/users/[id]/projects/route.js",
+   "methods": [
+    "GET",
+    "PUT"
+   ],
+   "guards": [
+    "requireAdmin"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/alerts",
+   "module": "Notifications and scheduled jobs",
+   "file": "src/app/api/alerts/route.js",
+   "methods": [
+    "GET",
+    "PATCH",
+    "DELETE"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": true,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/alerts/feedback",
+   "module": "Notifications and scheduled jobs",
+   "file": "src/app/api/alerts/feedback/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [
+    "email"
+   ],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/alerts/mute",
+   "module": "Notifications and scheduled jobs",
+   "file": "src/app/api/alerts/mute/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": true,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/annotations/[id]",
+   "module": "Drawings, fixture schedule, compliance",
+   "file": "src/app/api/annotations/[id]/route.js",
+   "methods": [
+    "PATCH",
+    "DELETE"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": true,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/anthropic-models",
+   "module": "Admin and platform",
+   "file": "src/app/api/anthropic-models/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [
+    "ai"
+   ],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/auth/change-password",
+   "module": "Admin and platform",
+   "file": "src/app/api/auth/change-password/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/auth/login",
+   "module": "Admin and platform",
+   "file": "src/app/api/auth/login/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/auth/logout",
+   "module": "Admin and platform",
+   "file": "src/app/api/auth/logout/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/auth/me",
+   "module": "Admin and platform",
+   "file": "src/app/api/auth/me/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "getSession"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/auth/register",
+   "module": "Admin and platform",
+   "file": "src/app/api/auth/register/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/automation/activity",
+   "module": "Automation and bot",
+   "file": "src/app/api/automation/activity/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/automation/bot-rules",
+   "module": "Automation and bot",
+   "file": "src/app/api/automation/bot-rules/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/automation/bot-rules/[id]",
+   "module": "Automation and bot",
+   "file": "src/app/api/automation/bot-rules/[id]/route.js",
+   "methods": [
+    "PATCH",
+    "DELETE"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": true,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/automation/classification-rules",
+   "module": "Automation and bot",
+   "file": "src/app/api/automation/classification-rules/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [
+    "ai"
+   ],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/automation/classification-rules/[id]",
+   "module": "Automation and bot",
+   "file": "src/app/api/automation/classification-rules/[id]/route.js",
+   "methods": [
+    "PATCH",
+    "DELETE"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [
+    "ai"
+   ],
+   "dynamic": true,
+   "hardDelete": true,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/automation/exclusion-rules",
+   "module": "Automation and bot",
+   "file": "src/app/api/automation/exclusion-rules/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [
+    "email"
+   ],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/automation/exclusion-rules/[id]",
+   "module": "Automation and bot",
+   "file": "src/app/api/automation/exclusion-rules/[id]/route.js",
+   "methods": [
+    "PATCH",
+    "DELETE"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [
+    "email"
+   ],
+   "dynamic": true,
+   "hardDelete": true,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/automation/intake/calendar",
+   "module": "Public conceptual budget and intake",
+   "file": "src/app/api/automation/intake/calendar/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireSalesAdmin"
+   ],
+   "gates": [
+    "cron"
+   ],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/automation/intake/email",
+   "module": "Public conceptual budget and intake",
+   "file": "src/app/api/automation/intake/email/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireSalesAdmin"
+   ],
+   "gates": [
+    "cron"
+   ],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/automation/knowledge",
+   "module": "Automation and bot",
+   "file": "src/app/api/automation/knowledge/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/automation/knowledge/[id]",
+   "module": "Automation and bot",
+   "file": "src/app/api/automation/knowledge/[id]/route.js",
+   "methods": [
+    "PATCH",
+    "DELETE"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/automation/knowledge/docs",
+   "module": "Automation and bot",
+   "file": "src/app/api/automation/knowledge/docs/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [
+    "ai",
+    "s3"
+   ],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/automation/knowledge/docs/[id]",
+   "module": "Automation and bot",
+   "file": "src/app/api/automation/knowledge/docs/[id]/route.js",
+   "methods": [
+    "GET",
+    "PATCH",
+    "DELETE"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/automation/knowledge/docs/[id]/file",
+   "module": "Automation and bot",
+   "file": "src/app/api/automation/knowledge/docs/[id]/file/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [
+    "s3"
+   ],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/automation/knowledge/docs/[id]/reread",
+   "module": "Automation and bot",
+   "file": "src/app/api/automation/knowledge/docs/[id]/reread/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [
+    "s3"
+   ],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/automation/knowledge/import",
+   "module": "Automation and bot",
+   "file": "src/app/api/automation/knowledge/import/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/automation/knowledge/reach",
+   "module": "Automation and bot",
+   "file": "src/app/api/automation/knowledge/reach/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/automation/rule-meta",
+   "module": "Automation and bot",
+   "file": "src/app/api/automation/rule-meta/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/automation/templates",
+   "module": "Automation and bot",
+   "file": "src/app/api/automation/templates/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/automation/templates/[id]",
+   "module": "Automation and bot",
+   "file": "src/app/api/automation/templates/[id]/route.js",
+   "methods": [
+    "PATCH",
+    "DELETE"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/automation/templates/options",
+   "module": "Automation and bot",
+   "file": "src/app/api/automation/templates/options/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/automation/templates/seed",
+   "module": "Automation and bot",
+   "file": "src/app/api/automation/templates/seed/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/automation/test",
+   "module": "Automation and bot",
+   "file": "src/app/api/automation/test/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireSalesAdmin"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/bot/check-followup",
+   "module": "Automation and bot",
+   "file": "src/app/api/bot/check-followup/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [
+    "ai",
+    "cron"
+   ],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/bot/config",
+   "module": "Automation and bot",
+   "file": "src/app/api/bot/config/route.js",
+   "methods": [
+    "GET",
+    "PUT"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/bot/draft-follow-up",
+   "module": "Automation and bot",
+   "file": "src/app/api/bot/draft-follow-up/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [
+    "ai"
+   ],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/bot/drafts/[id]",
+   "module": "Automation and bot",
+   "file": "src/app/api/bot/drafts/[id]/route.js",
+   "methods": [
+    "GET",
+    "PATCH"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/bot/drafts/[id]/cancel",
+   "module": "Automation and bot",
+   "file": "src/app/api/bot/drafts/[id]/cancel/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/bot/drafts/[id]/send",
+   "module": "Automation and bot",
+   "file": "src/app/api/bot/drafts/[id]/send/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/bot/drafts/[id]/sender",
+   "module": "Automation and bot",
+   "file": "src/app/api/bot/drafts/[id]/sender/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/bot/process-note-actions",
+   "module": "Automation and bot",
+   "file": "src/app/api/bot/process-note-actions/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [
+    "cron"
+   ],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/bot/process-queue",
+   "module": "Automation and bot",
+   "file": "src/app/api/bot/process-queue/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [],
+   "gates": [
+    "cron"
+   ],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/bot/queue",
+   "module": "Automation and bot",
+   "file": "src/app/api/bot/queue/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/bot/rules/scheduling",
+   "module": "Automation and bot",
+   "file": "src/app/api/bot/rules/scheduling/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/bot/rules/scheduling/[id]",
+   "module": "Automation and bot",
+   "file": "src/app/api/bot/rules/scheduling/[id]/route.js",
+   "methods": [
+    "PATCH",
+    "DELETE"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": true,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/business-units/[id]",
+   "module": "Admin and platform",
+   "file": "src/app/api/business-units/[id]/route.js",
+   "methods": [
+    "PATCH"
+   ],
+   "guards": [
+    "requireAdmin"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/calibration/actuals",
+   "module": "Pricing, QC, verification",
+   "file": "src/app/api/calibration/actuals/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": true,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/calibration/apply-rate",
+   "module": "Pricing, QC, verification",
+   "file": "src/app/api/calibration/apply-rate/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/calibration/backfill",
+   "module": "Pricing, QC, verification",
+   "file": "src/app/api/calibration/backfill/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/calibration/confirm-guess",
+   "module": "Pricing, QC, verification",
+   "file": "src/app/api/calibration/confirm-guess/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/campaign-lists",
+   "module": "Sales Docs and campaigns",
+   "file": "src/app/api/campaign-lists/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requireSalesDocsUser"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/campaign-lists/[id]",
+   "module": "Sales Docs and campaigns",
+   "file": "src/app/api/campaign-lists/[id]/route.js",
+   "methods": [
+    "GET",
+    "PATCH"
+   ],
+   "guards": [
+    "requireSalesDocsUser"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/campaign-lists/[id]/members",
+   "module": "Sales Docs and campaigns",
+   "file": "src/app/api/campaign-lists/[id]/members/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireSalesDocsUser"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/campaign-lists/options",
+   "module": "Sales Docs and campaigns",
+   "file": "src/app/api/campaign-lists/options/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireSalesDocsUser"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/campaign-suppressions",
+   "module": "Sales Docs and campaigns",
+   "file": "src/app/api/campaign-suppressions/route.js",
+   "methods": [
+    "GET",
+    "POST",
+    "PATCH"
+   ],
+   "guards": [
+    "requireSalesDocsUser"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/campaigns",
+   "module": "Sales Docs and campaigns",
+   "file": "src/app/api/campaigns/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requireSalesDocsUser"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/campaigns/[id]",
+   "module": "Sales Docs and campaigns",
+   "file": "src/app/api/campaigns/[id]/route.js",
+   "methods": [
+    "GET",
+    "PATCH"
+   ],
+   "guards": [
+    "requireSalesDocsUser"
+   ],
+   "gates": [
+    "email"
+   ],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/campaigns/[id]/blocks",
+   "module": "Sales Docs and campaigns",
+   "file": "src/app/api/campaigns/[id]/blocks/route.js",
+   "methods": [
+    "PUT"
+   ],
+   "guards": [
+    "requireSalesDocsUser"
+   ],
+   "gates": [
+    "email"
+   ],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/campaigns/[id]/preview",
+   "module": "Sales Docs and campaigns",
+   "file": "src/app/api/campaigns/[id]/preview/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireSalesDocsUser"
+   ],
+   "gates": [
+    "email"
+   ],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/campaigns/[id]/results",
+   "module": "Sales Docs and campaigns",
+   "file": "src/app/api/campaigns/[id]/results/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireSalesDocsUser"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/campaigns/[id]/send",
+   "module": "Sales Docs and campaigns",
+   "file": "src/app/api/campaigns/[id]/send/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireSalesDocsUser"
+   ],
+   "gates": [
+    "email"
+   ],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/campaigns/settings",
+   "module": "Sales Docs and campaigns",
+   "file": "src/app/api/campaigns/settings/route.js",
+   "methods": [
+    "GET",
+    "PATCH"
+   ],
+   "guards": [
+    "requireSalesDocsUser"
+   ],
+   "gates": [
+    "email"
+   ],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/clients",
+   "module": "CRM",
+   "file": "src/app/api/clients/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/clients/[id]",
+   "module": "CRM",
+   "file": "src/app/api/clients/[id]/route.js",
+   "methods": [
+    "GET",
+    "POST",
+    "PATCH",
+    "DELETE"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/clients/[id]/contacts",
+   "module": "CRM",
+   "file": "src/app/api/clients/[id]/contacts/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/clients/[id]/contacts/[contactId]",
+   "module": "CRM",
+   "file": "src/app/api/clients/[id]/contacts/[contactId]/route.js",
+   "methods": [
+    "POST",
+    "PATCH",
+    "DELETE"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": true,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/clients/[id]/contacts/[contactId]/work-history",
+   "module": "CRM",
+   "file": "src/app/api/clients/[id]/contacts/[contactId]/work-history/route.js",
+   "methods": [
+    "GET",
+    "POST",
+    "PATCH",
+    "DELETE"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [
+    "ai"
+   ],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/clients/[id]/export",
+   "module": "CRM",
+   "file": "src/app/api/clients/[id]/export/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/clients/[id]/first-project-cost",
+   "module": "Dashboards",
+   "file": "src/app/api/clients/[id]/first-project-cost/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/clients/[id]/kb",
+   "module": "CRM",
+   "file": "src/app/api/clients/[id]/kb/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/clients/[id]/kb/[sectionId]",
+   "module": "CRM",
+   "file": "src/app/api/clients/[id]/kb/[sectionId]/route.js",
+   "methods": [
+    "PATCH",
+    "DELETE"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": true,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/clients/[id]/kb/[sectionId]/attachments",
+   "module": "CRM",
+   "file": "src/app/api/clients/[id]/kb/[sectionId]/attachments/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/clients/[id]/kb/attachments/[attachmentId]",
+   "module": "CRM",
+   "file": "src/app/api/clients/[id]/kb/attachments/[attachmentId]/route.js",
+   "methods": [
+    "DELETE"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": true,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/clients/[id]/pipeline",
+   "module": "CRM",
+   "file": "src/app/api/clients/[id]/pipeline/route.js",
+   "methods": [
+    "GET",
+    "POST",
+    "PATCH"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [
+    "s3"
+   ],
+   "dynamic": true,
+   "hardDelete": true,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/clients/[id]/playbook",
+   "module": "CRM",
+   "file": "src/app/api/clients/[id]/playbook/route.js",
+   "methods": [
+    "GET",
+    "PUT"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": true,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/clients/[id]/product-options",
+   "module": "CRM",
+   "file": "src/app/api/clients/[id]/product-options/route.js",
+   "methods": [
+    "GET",
+    "POST",
+    "PATCH",
+    "DELETE"
+   ],
+   "guards": [
+    "getSession"
+   ],
+   "gates": [
+    "s3"
+   ],
+   "dynamic": true,
+   "hardDelete": true,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/clients/[id]/project-stats",
+   "module": "CRM",
+   "file": "src/app/api/clients/[id]/project-stats/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/clients/[id]/standard-fixtures",
+   "module": "CRM",
+   "file": "src/app/api/clients/[id]/standard-fixtures/route.js",
+   "methods": [
+    "GET",
+    "POST",
+    "PATCH",
+    "DELETE"
+   ],
+   "guards": [
+    "getSession"
+   ],
+   "gates": [
+    "s3"
+   ],
+   "dynamic": true,
+   "hardDelete": true,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/clients/[id]/standards",
+   "module": "CRM",
+   "file": "src/app/api/clients/[id]/standards/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/clients/[id]/standards/concepts",
+   "module": "CRM",
+   "file": "src/app/api/clients/[id]/standards/concepts/route.js",
+   "methods": [
+    "GET",
+    "POST",
+    "PATCH",
+    "DELETE"
+   ],
+   "guards": [
+    "getSession"
+   ],
+   "gates": [
+    "s3"
+   ],
+   "dynamic": true,
+   "hardDelete": true,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/clients/[id]/standards/share",
+   "module": "CRM",
+   "file": "src/app/api/clients/[id]/standards/share/route.js",
+   "methods": [
+    "GET",
+    "POST",
+    "DELETE"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": true,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/clients/bulk",
+   "module": "CRM",
+   "file": "src/app/api/clients/bulk/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/conferences",
+   "module": "Conferences and memberships",
+   "file": "src/app/api/conferences/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/conferences/editions/[id]",
+   "module": "Conferences and memberships",
+   "file": "src/app/api/conferences/editions/[id]/route.js",
+   "methods": [
+    "GET",
+    "PATCH"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": true,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/conferences/export",
+   "module": "Conferences and memberships",
+   "file": "src/app/api/conferences/export/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/conferences/memberships",
+   "module": "Conferences and memberships",
+   "file": "src/app/api/conferences/memberships/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/conferences/memberships/[id]",
+   "module": "Conferences and memberships",
+   "file": "src/app/api/conferences/memberships/[id]/route.js",
+   "methods": [
+    "PATCH"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/conferences/plan",
+   "module": "Conferences and memberships",
+   "file": "src/app/api/conferences/plan/route.js",
+   "methods": [
+    "PATCH"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": true,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/contact-tags",
+   "module": "CRM",
+   "file": "src/app/api/contact-tags/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/contact-tags/[id]",
+   "module": "CRM",
+   "file": "src/app/api/contact-tags/[id]/route.js",
+   "methods": [
+    "PATCH",
+    "DELETE"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": true,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/contact-tags/[id]/links",
+   "module": "CRM",
+   "file": "src/app/api/contact-tags/[id]/links/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": true,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/crm/cadence-rules",
+   "module": "CRM",
+   "file": "src/app/api/crm/cadence-rules/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/crm/cadence-rules/[id]",
+   "module": "CRM",
+   "file": "src/app/api/crm/cadence-rules/[id]/route.js",
+   "methods": [
+    "PATCH",
+    "DELETE"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": true,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/crm/contacts",
+   "module": "CRM",
+   "file": "src/app/api/crm/contacts/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/crm/contacts/[id]/cadence",
+   "module": "CRM",
+   "file": "src/app/api/crm/contacts/[id]/cadence/route.js",
+   "methods": [
+    "PATCH"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [
+    "ai"
+   ],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/crm/contacts/[id]/personal",
+   "module": "CRM",
+   "file": "src/app/api/crm/contacts/[id]/personal/route.js",
+   "methods": [
+    "GET",
+    "POST",
+    "PATCH"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/crm/contacts/bulk",
+   "module": "CRM",
+   "file": "src/app/api/crm/contacts/bulk/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/crm/contacts/check-ins-due",
+   "module": "CRM",
+   "file": "src/app/api/crm/contacts/check-ins-due/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/crm/contacts/created-by-month",
+   "module": "CRM",
+   "file": "src/app/api/crm/contacts/created-by-month/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/crm/contacts/quick",
+   "module": "CRM",
+   "file": "src/app/api/crm/contacts/quick/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/crm/dashboards",
+   "module": "Dashboards",
+   "file": "src/app/api/crm/dashboards/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/crm/dashboards/[id]",
+   "module": "Dashboards",
+   "file": "src/app/api/crm/dashboards/[id]/route.js",
+   "methods": [
+    "PATCH",
+    "DELETE"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": true,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/crm/dashboards/[id]/run",
+   "module": "Dashboards",
+   "file": "src/app/api/crm/dashboards/[id]/run/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/crm/dashboards/[id]/widgets",
+   "module": "Dashboards",
+   "file": "src/app/api/crm/dashboards/[id]/widgets/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/crm/dashboards/[id]/widgets/[widgetId]",
+   "module": "Dashboards",
+   "file": "src/app/api/crm/dashboards/[id]/widgets/[widgetId]/route.js",
+   "methods": [
+    "POST",
+    "PATCH",
+    "DELETE"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": true,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/crm/duplicates",
+   "module": "CRM",
+   "file": "src/app/api/crm/duplicates/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/crm/intel",
+   "module": "CRM",
+   "file": "src/app/api/crm/intel/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/crm/note-action-types",
+   "module": "Notes",
+   "file": "src/app/api/crm/note-action-types/route.js",
+   "methods": [
+    "GET",
+    "POST",
+    "PATCH",
+    "DELETE"
+   ],
+   "guards": [
+    "requireSalesAdmin",
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": true,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/crm/notes",
+   "module": "Notes",
+   "file": "src/app/api/crm/notes/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/crm/notes/[id]",
+   "module": "Notes",
+   "file": "src/app/api/crm/notes/[id]/route.js",
+   "methods": [
+    "GET",
+    "POST",
+    "PATCH",
+    "DELETE"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": true,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/crm/notes/[id]/actions",
+   "module": "Notes",
+   "file": "src/app/api/crm/notes/[id]/actions/route.js",
+   "methods": [
+    "GET",
+    "POST",
+    "PATCH"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [
+    "ai"
+   ],
+   "dynamic": true,
+   "hardDelete": true,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/crm/notes/[id]/draft-outreach",
+   "module": "Notes",
+   "file": "src/app/api/crm/notes/[id]/draft-outreach/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [
+    "ai"
+   ],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/crm/notes/[id]/history",
+   "module": "Notes",
+   "file": "src/app/api/crm/notes/[id]/history/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/crm/notes/[id]/meeting-prep",
+   "module": "Notes",
+   "file": "src/app/api/crm/notes/[id]/meeting-prep/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/crm/notes/bulk",
+   "module": "Notes",
+   "file": "src/app/api/crm/notes/bulk/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/crm/notes/drafts-reminder",
+   "module": "Notes",
+   "file": "src/app/api/crm/notes/drafts-reminder/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/crm/notes/upcoming",
+   "module": "Notes",
+   "file": "src/app/api/crm/notes/upcoming/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/cron/client-review-check",
+   "module": "Notifications and scheduled jobs",
+   "file": "src/app/api/cron/client-review-check/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [],
+   "gates": [
+    "cron"
+   ],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/cron/digest",
+   "module": "Notifications and scheduled jobs",
+   "file": "src/app/api/cron/digest/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [],
+   "gates": [
+    "email",
+    "cron"
+   ],
+   "dynamic": false,
+   "hardDelete": true,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/cron/market-intel",
+   "module": "Market Intel",
+   "file": "src/app/api/cron/market-intel/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [
+    "cron"
+   ],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/cron/market-owner-lookup",
+   "module": "Notifications and scheduled jobs",
+   "file": "src/app/api/cron/market-owner-lookup/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [
+    "ai",
+    "cron"
+   ],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/cron/meeting-prep",
+   "module": "Notifications and scheduled jobs",
+   "file": "src/app/api/cron/meeting-prep/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [
+    "cron"
+   ],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/cron/note-reminders",
+   "module": "Notifications and scheduled jobs",
+   "file": "src/app/api/cron/note-reminders/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [
+    "ai",
+    "email",
+    "cron"
+   ],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/cron/threshold",
+   "module": "Notifications and scheduled jobs",
+   "file": "src/app/api/cron/threshold/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [],
+   "gates": [
+    "email",
+    "cron"
+   ],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/cron/unfinished-drafts",
+   "module": "Notifications and scheduled jobs",
+   "file": "src/app/api/cron/unfinished-drafts/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [
+    "cron"
+   ],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/cron/usage-rollup",
+   "module": "Notifications and scheduled jobs",
+   "file": "src/app/api/cron/usage-rollup/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [],
+   "gates": [
+    "cron"
+   ],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/cron/weekly-roundup",
+   "module": "Notifications and scheduled jobs",
+   "file": "src/app/api/cron/weekly-roundup/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [
+    "cron"
+   ],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/dashboards",
+   "module": "Dashboards",
+   "file": "src/app/api/dashboards/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/dashboards/[id]",
+   "module": "Dashboards",
+   "file": "src/app/api/dashboards/[id]/route.js",
+   "methods": [
+    "PATCH",
+    "DELETE"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": true,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/dashboards/[id]/fork",
+   "module": "Dashboards",
+   "file": "src/app/api/dashboards/[id]/fork/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/dashboards/[id]/hidden",
+   "module": "Dashboards",
+   "file": "src/app/api/dashboards/[id]/hidden/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": true,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/dashboards/[id]/share",
+   "module": "Dashboards",
+   "file": "src/app/api/dashboards/[id]/share/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/dashboards/[id]/widgets",
+   "module": "Dashboards",
+   "file": "src/app/api/dashboards/[id]/widgets/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/dashboards/[id]/widgets/[widgetId]",
+   "module": "Dashboards",
+   "file": "src/app/api/dashboards/[id]/widgets/[widgetId]/route.js",
+   "methods": [
+    "PATCH",
+    "DELETE"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": true,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/dashboards/render",
+   "module": "Dashboards",
+   "file": "src/app/api/dashboards/render/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/decorative-images/[name]",
+   "module": "Unit selections",
+   "file": "src/app/api/decorative-images/[name]/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [
+    "s3"
+   ],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/drawing-files/[id]",
+   "module": "Drawings, fixture schedule, compliance",
+   "file": "src/app/api/drawing-files/[id]/route.js",
+   "methods": [
+    "PATCH"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/e/c/[token]/[blockId]",
+   "module": "Public conceptual budget and intake",
+   "file": "src/app/api/e/c/[token]/[blockId]/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [],
+   "gates": [
+    "email"
+   ],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/e/o/[token]",
+   "module": "Public conceptual budget and intake",
+   "file": "src/app/api/e/o/[token]/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/e/u/[token]",
+   "module": "Public conceptual budget and intake",
+   "file": "src/app/api/e/u/[token]/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/email/ingest",
+   "module": "Email and calendar",
+   "file": "src/app/api/email/ingest/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAdmin"
+   ],
+   "gates": [
+    "email"
+   ],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/email/messages/[id]/tags",
+   "module": "Email and calendar",
+   "file": "src/app/api/email/messages/[id]/tags/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/email/messages/[id]/tags/[tagKey]",
+   "module": "Email and calendar",
+   "file": "src/app/api/email/messages/[id]/tags/[tagKey]/route.js",
+   "methods": [
+    "DELETE"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": true,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/email/tags",
+   "module": "Email and calendar",
+   "file": "src/app/api/email/tags/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/fixture-library/fixture-types",
+   "module": "Products and fixture library",
+   "file": "src/app/api/fixture-library/fixture-types/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/fixture-library/fixture-types/[code]",
+   "module": "Products and fixture library",
+   "file": "src/app/api/fixture-library/fixture-types/[code]/route.js",
+   "methods": [
+    "PATCH"
+   ],
+   "guards": [
+    "requirePermission"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/fixture-library/fixture-types/import",
+   "module": "Products and fixture library",
+   "file": "src/app/api/fixture-library/fixture-types/import/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requirePermission"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/fixture-library/master-types/[code]",
+   "module": "Products and fixture library",
+   "file": "src/app/api/fixture-library/master-types/[code]/route.js",
+   "methods": [
+    "PATCH"
+   ],
+   "guards": [
+    "requirePermission"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/fixture-library/specs/[id]",
+   "module": "Products and fixture library",
+   "file": "src/app/api/fixture-library/specs/[id]/route.js",
+   "methods": [
+    "PATCH"
+   ],
+   "guards": [
+    "requirePermission"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/history",
+   "module": "Search, archive, knowledge base",
+   "file": "src/app/api/history/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireStaff"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/intake/access",
+   "module": "Public conceptual budget and intake",
+   "file": "src/app/api/intake/access/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/intake/bug-report",
+   "module": "Public conceptual budget and intake",
+   "file": "src/app/api/intake/bug-report/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [],
+   "gates": [
+    "s3"
+   ],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/intake/draft",
+   "module": "Public conceptual budget and intake",
+   "file": "src/app/api/intake/draft/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requirePublicBudgetAccess"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/intake/draft/email",
+   "module": "Public conceptual budget and intake",
+   "file": "src/app/api/intake/draft/email/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requirePublicBudgetAccess"
+   ],
+   "gates": [
+    "email"
+   ],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/intake/estimate",
+   "module": "Public conceptual budget and intake",
+   "file": "src/app/api/intake/estimate/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requirePublicBudgetAccess"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/intake/parse",
+   "module": "Public conceptual budget and intake",
+   "file": "src/app/api/intake/parse/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requirePublicBudgetAccess"
+   ],
+   "gates": [
+    "ai",
+    "s3"
+   ],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/intake/pdf",
+   "module": "Public conceptual budget and intake",
+   "file": "src/app/api/intake/pdf/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requirePublicBudgetAccess"
+   ],
+   "gates": [
+    "pdf"
+   ],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/intake/portal/compare",
+   "module": "Public conceptual budget and intake",
+   "file": "src/app/api/intake/portal/compare/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requirePublicBudgetAccess"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/intake/portal/copy",
+   "module": "Public conceptual budget and intake",
+   "file": "src/app/api/intake/portal/copy/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requirePublicBudgetAccess"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/intake/portal/history",
+   "module": "Public conceptual budget and intake",
+   "file": "src/app/api/intake/portal/history/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requirePublicBudgetAccess"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/intake/portal/list",
+   "module": "Public conceptual budget and intake",
+   "file": "src/app/api/intake/portal/list/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requirePublicBudgetAccess"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/intake/portal/match",
+   "module": "Public conceptual budget and intake",
+   "file": "src/app/api/intake/portal/match/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requirePublicBudgetAccess"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/intake/portal/names",
+   "module": "Public conceptual budget and intake",
+   "file": "src/app/api/intake/portal/names/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requirePublicBudgetAccess"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/intake/submit",
+   "module": "Public conceptual budget and intake",
+   "file": "src/app/api/intake/submit/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requirePublicBudgetAccess"
+   ],
+   "gates": [
+    "email",
+    "s3"
+   ],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/intake/visit",
+   "module": "Public conceptual budget and intake",
+   "file": "src/app/api/intake/visit/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/knowledge-base",
+   "module": "Search, archive, knowledge base",
+   "file": "src/app/api/knowledge-base/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/knowledge-base/[id]",
+   "module": "Search, archive, knowledge base",
+   "file": "src/app/api/knowledge-base/[id]/route.js",
+   "methods": [
+    "PATCH",
+    "DELETE"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/knowledge-base/categories",
+   "module": "Search, archive, knowledge base",
+   "file": "src/app/api/knowledge-base/categories/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/knowledge-base/categories/[id]",
+   "module": "Search, archive, knowledge base",
+   "file": "src/app/api/knowledge-base/categories/[id]/route.js",
+   "methods": [
+    "PATCH",
+    "DELETE"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": true,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/knowledge-base/chat",
+   "module": "Search, archive, knowledge base",
+   "file": "src/app/api/knowledge-base/chat/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [
+    "ai"
+   ],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/knowledge/code-search",
+   "module": "Search, archive, knowledge base",
+   "file": "src/app/api/knowledge/code-search/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [
+    "ai"
+   ],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/link-preview",
+   "module": "Admin and platform",
+   "file": "src/app/api/link-preview/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [
+    "s3"
+   ],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/lpd-check",
+   "module": "Drawings, fixture schedule, compliance",
+   "file": "src/app/api/lpd-check/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/manufacturer-reps",
+   "module": "RFQs and sales reps",
+   "file": "src/app/api/manufacturer-reps/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireStaff"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/manufacturer-reps/[id]",
+   "module": "RFQs and sales reps",
+   "file": "src/app/api/manufacturer-reps/[id]/route.js",
+   "methods": [
+    "PATCH",
+    "DELETE"
+   ],
+   "guards": [
+    "requireStaff"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": true,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/manufacturers",
+   "module": "Products and fixture library",
+   "file": "src/app/api/manufacturers/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requirePermission",
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/manufacturers/[id]",
+   "module": "Products and fixture library",
+   "file": "src/app/api/manufacturers/[id]/route.js",
+   "methods": [
+    "GET",
+    "PATCH",
+    "DELETE"
+   ],
+   "guards": [
+    "requireStaff",
+    "requirePermission",
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": true,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/manufacturers/[id]/products",
+   "module": "Products and fixture library",
+   "file": "src/app/api/manufacturers/[id]/products/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requirePermission",
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/manufacturers/[id]/products/[productId]",
+   "module": "Products and fixture library",
+   "file": "src/app/api/manufacturers/[id]/products/[productId]/route.js",
+   "methods": [
+    "GET",
+    "POST",
+    "PATCH",
+    "DELETE"
+   ],
+   "guards": [
+    "requirePermission",
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/manufacturers/bulk",
+   "module": "Products and fixture library",
+   "file": "src/app/api/manufacturers/bulk/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireStaff",
+    "requirePermission"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/market-intel/ask",
+   "module": "Market Intel",
+   "file": "src/app/api/market-intel/ask/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [
+    "ai"
+   ],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/market-intel/ask/[id]",
+   "module": "Market Intel",
+   "file": "src/app/api/market-intel/ask/[id]/route.js",
+   "methods": [
+    "PATCH"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/market-intel/ask/rows/[id]",
+   "module": "Market Intel",
+   "file": "src/app/api/market-intel/ask/rows/[id]/route.js",
+   "methods": [
+    "PATCH"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/market-intel/clients",
+   "module": "Market Intel",
+   "file": "src/app/api/market-intel/clients/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/market-intel/forecast",
+   "module": "Market Intel",
+   "file": "src/app/api/market-intel/forecast/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/market-intel/macro",
+   "module": "Market Intel",
+   "file": "src/app/api/market-intel/macro/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/market-intel/owner-lookup",
+   "module": "Market Intel",
+   "file": "src/app/api/market-intel/owner-lookup/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [
+    "ai"
+   ],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/market-intel/permits/poll",
+   "module": "Market Intel",
+   "file": "src/app/api/market-intel/permits/poll/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "getSession"
+   ],
+   "gates": [
+    "cron"
+   ],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/market-intel/poll",
+   "module": "Market Intel",
+   "file": "src/app/api/market-intel/poll/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "getSession"
+   ],
+   "gates": [
+    "cron"
+   ],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/market-intel/retag",
+   "module": "Market Intel",
+   "file": "src/app/api/market-intel/retag/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/market-intel/rules",
+   "module": "Market Intel",
+   "file": "src/app/api/market-intel/rules/route.js",
+   "methods": [
+    "GET",
+    "PATCH"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/market-intel/signals",
+   "module": "Market Intel",
+   "file": "src/app/api/market-intel/signals/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/market-intel/signals/[id]",
+   "module": "Market Intel",
+   "file": "src/app/api/market-intel/signals/[id]/route.js",
+   "methods": [
+    "PATCH"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/market-intel/signals/[id]/add-to-crm",
+   "module": "Market Intel",
+   "file": "src/app/api/market-intel/signals/[id]/add-to-crm/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/market-intel/signals/[id]/feedback",
+   "module": "Market Intel",
+   "file": "src/app/api/market-intel/signals/[id]/feedback/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/market-intel/sources",
+   "module": "Market Intel",
+   "file": "src/app/api/market-intel/sources/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requireAuth",
+    "getSession"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/market-intel/sources/[id]",
+   "module": "Market Intel",
+   "file": "src/app/api/market-intel/sources/[id]/route.js",
+   "methods": [
+    "PATCH",
+    "DELETE"
+   ],
+   "guards": [
+    "requireSourceAdmin",
+    "requireAuth",
+    "getSession"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": true,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/market-intel/sources/seed",
+   "module": "Market Intel",
+   "file": "src/app/api/market-intel/sources/seed/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/market-intel/tags",
+   "module": "Market Intel",
+   "file": "src/app/api/market-intel/tags/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/master-types",
+   "module": "Products and fixture library",
+   "file": "src/app/api/master-types/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/mcp",
+   "module": "Admin and platform",
+   "file": "src/app/api/mcp/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/notes/search",
+   "module": "Notes",
+   "file": "src/app/api/notes/search/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/notifications/opened/[token]",
+   "module": "Notifications and scheduled jobs",
+   "file": "src/app/api/notifications/opened/[token]/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/offices",
+   "module": "RFQs and sales reps",
+   "file": "src/app/api/offices/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireStaff"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/offices/[id]",
+   "module": "RFQs and sales reps",
+   "file": "src/app/api/offices/[id]/route.js",
+   "methods": [
+    "PATCH"
+   ],
+   "guards": [
+    "requireStaff"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/pipeline",
+   "module": "CRM",
+   "file": "src/app/api/pipeline/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/placed-fixtures/[id]",
+   "module": "Drawings, fixture schedule, compliance",
+   "file": "src/app/api/placed-fixtures/[id]/route.js",
+   "methods": [
+    "PATCH",
+    "DELETE"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": true,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/portal/auth/login",
+   "module": "Company portal",
+   "file": "src/app/api/portal/auth/login/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/portal/auth/logout",
+   "module": "Company portal",
+   "file": "src/app/api/portal/auth/logout/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/portal/auth/me",
+   "module": "Company portal",
+   "file": "src/app/api/portal/auth/me/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requirePortalAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/portal/invite/[token]",
+   "module": "Company portal",
+   "file": "src/app/api/portal/invite/[token]/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/portal/projects/[id]",
+   "module": "Company portal",
+   "file": "src/app/api/portal/projects/[id]/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requirePortalAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/portal/projects/[id]/budget",
+   "module": "Company portal",
+   "file": "src/app/api/portal/projects/[id]/budget/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requirePortalAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/portal/projects/[id]/change-orders",
+   "module": "Change orders",
+   "file": "src/app/api/portal/projects/[id]/change-orders/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requirePortalAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/portal/projects/[id]/change-orders/[coId]/approve",
+   "module": "Change orders",
+   "file": "src/app/api/portal/projects/[id]/change-orders/[coId]/approve/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requirePortalAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/portal/projects/[id]/conceptual-budget",
+   "module": "Company portal",
+   "file": "src/app/api/portal/projects/[id]/conceptual-budget/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requirePortalAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/portal/projects/[id]/construction",
+   "module": "Company portal",
+   "file": "src/app/api/portal/projects/[id]/construction/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requirePortalAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/portal/projects/[id]/files",
+   "module": "Company portal",
+   "file": "src/app/api/portal/projects/[id]/files/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requirePortalAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/portal/projects/[id]/files/[fileId]",
+   "module": "Company portal",
+   "file": "src/app/api/portal/projects/[id]/files/[fileId]/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requirePortalAuth"
+   ],
+   "gates": [
+    "s3"
+   ],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/portal/projects/[id]/meeting-notes",
+   "module": "Company portal",
+   "file": "src/app/api/portal/projects/[id]/meeting-notes/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requirePortalAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/portal/projects/[id]/release-requests",
+   "module": "Company portal",
+   "file": "src/app/api/portal/projects/[id]/release-requests/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requirePortalAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/portal/projects/[id]/shipments",
+   "module": "Ship schedule",
+   "file": "src/app/api/portal/projects/[id]/shipments/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requirePortalAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/pricing/price-check",
+   "module": "Pricing, QC, verification",
+   "file": "src/app/api/pricing/price-check/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/pricing/price-history",
+   "module": "Pricing, QC, verification",
+   "file": "src/app/api/pricing/price-history/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/pricing/retail-cache",
+   "module": "Pricing, QC, verification",
+   "file": "src/app/api/pricing/retail-cache/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/pricing/retail-lookup",
+   "module": "Pricing, QC, verification",
+   "file": "src/app/api/pricing/retail-lookup/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/products",
+   "module": "Products and fixture library",
+   "file": "src/app/api/products/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/products/[id]",
+   "module": "Products and fixture library",
+   "file": "src/app/api/products/[id]/route.js",
+   "methods": [
+    "GET",
+    "POST",
+    "PATCH",
+    "DELETE"
+   ],
+   "guards": [
+    "requirePermission",
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/products/bulk",
+   "module": "Products and fixture library",
+   "file": "src/app/api/products/bulk/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requirePermission"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/projects",
+   "module": "Project hub, bid matrix, budgets",
+   "file": "src/app/api/projects/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/projects/[id]",
+   "module": "Project hub, bid matrix, budgets",
+   "file": "src/app/api/projects/[id]/route.js",
+   "methods": [
+    "GET",
+    "POST",
+    "PATCH",
+    "DELETE"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [
+    "email"
+   ],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/projects/[id]/activity",
+   "module": "Project hub, bid matrix, budgets",
+   "file": "src/app/api/projects/[id]/activity/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/projects/[id]/analyze-contract",
+   "module": "Project hub, bid matrix, budgets",
+   "file": "src/app/api/projects/[id]/analyze-contract/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [
+    "ai",
+    "s3"
+   ],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/projects/[id]/annotations",
+   "module": "Drawings, fixture schedule, compliance",
+   "file": "src/app/api/projects/[id]/annotations/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/projects/[id]/areas",
+   "module": "Drawings, fixture schedule, compliance",
+   "file": "src/app/api/projects/[id]/areas/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/projects/[id]/assignees",
+   "module": "Project hub, bid matrix, budgets",
+   "file": "src/app/api/projects/[id]/assignees/route.js",
+   "methods": [
+    "GET",
+    "POST",
+    "DELETE"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": true,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/projects/[id]/bid-leveling",
+   "module": "Bid leveling and comparison",
+   "file": "src/app/api/projects/[id]/bid-leveling/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "guardLeveling"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/projects/[id]/bid-leveling/[levelingId]",
+   "module": "Bid leveling and comparison",
+   "file": "src/app/api/projects/[id]/bid-leveling/[levelingId]/route.js",
+   "methods": [
+    "GET",
+    "PATCH"
+   ],
+   "guards": [
+    "guardLeveling"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/projects/[id]/bid-leveling/[levelingId]/bids",
+   "module": "Bid leveling and comparison",
+   "file": "src/app/api/projects/[id]/bid-leveling/[levelingId]/bids/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "guardLeveling"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/projects/[id]/bid-leveling/[levelingId]/bids/[bidId]",
+   "module": "Bid leveling and comparison",
+   "file": "src/app/api/projects/[id]/bid-leveling/[levelingId]/bids/[bidId]/route.js",
+   "methods": [
+    "PATCH"
+   ],
+   "guards": [
+    "guardLeveling"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": true,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/projects/[id]/bid-leveling/[levelingId]/export",
+   "module": "Bid leveling and comparison",
+   "file": "src/app/api/projects/[id]/bid-leveling/[levelingId]/export/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "guardLeveling"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/projects/[id]/budget",
+   "module": "Project hub, bid matrix, budgets",
+   "file": "src/app/api/projects/[id]/budget/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/projects/[id]/budget-amounts",
+   "module": "Project hub, bid matrix, budgets",
+   "file": "src/app/api/projects/[id]/budget-amounts/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/projects/[id]/budget-qc",
+   "module": "Pricing, QC, verification",
+   "file": "src/app/api/projects/[id]/budget-qc/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/projects/[id]/budget-qc/assign",
+   "module": "Pricing, QC, verification",
+   "file": "src/app/api/projects/[id]/budget-qc/assign/route.js",
+   "methods": [
+    "PATCH"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/projects/[id]/budget-qc/items/[itemKey]",
+   "module": "Pricing, QC, verification",
+   "file": "src/app/api/projects/[id]/budget-qc/items/[itemKey]/route.js",
+   "methods": [
+    "PATCH"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/projects/[id]/budget/pdf",
+   "module": "Project hub, bid matrix, budgets",
+   "file": "src/app/api/projects/[id]/budget/pdf/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [
+    "pdf"
+   ],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/projects/[id]/change-orders",
+   "module": "Change orders",
+   "file": "src/app/api/projects/[id]/change-orders/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requirePermission",
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/projects/[id]/change-orders/[coId]",
+   "module": "Change orders",
+   "file": "src/app/api/projects/[id]/change-orders/[coId]/route.js",
+   "methods": [
+    "GET",
+    "PATCH",
+    "DELETE"
+   ],
+   "guards": [
+    "requirePermission",
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": true,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/projects/[id]/change-orders/[coId]/approve",
+   "module": "Change orders",
+   "file": "src/app/api/projects/[id]/change-orders/[coId]/approve/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requirePermission"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/projects/[id]/change-orders/[coId]/option-groups",
+   "module": "Change orders",
+   "file": "src/app/api/projects/[id]/change-orders/[coId]/option-groups/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requirePermission"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/projects/[id]/change-orders/[coId]/option-groups/[groupId]",
+   "module": "Change orders",
+   "file": "src/app/api/projects/[id]/change-orders/[coId]/option-groups/[groupId]/route.js",
+   "methods": [
+    "PATCH",
+    "DELETE"
+   ],
+   "guards": [
+    "requirePermission"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": true,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/projects/[id]/change-orders/[coId]/option-groups/[groupId]/line-items",
+   "module": "Change orders",
+   "file": "src/app/api/projects/[id]/change-orders/[coId]/option-groups/[groupId]/line-items/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requirePermission"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/projects/[id]/change-orders/[coId]/option-groups/[groupId]/line-items/[itemId]",
+   "module": "Change orders",
+   "file": "src/app/api/projects/[id]/change-orders/[coId]/option-groups/[groupId]/line-items/[itemId]/route.js",
+   "methods": [
+    "PATCH",
+    "DELETE"
+   ],
+   "guards": [
+    "requirePermission"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": true,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/projects/[id]/change-orders/[coId]/option-groups/[groupId]/line-items/[itemId]/select",
+   "module": "Change orders",
+   "file": "src/app/api/projects/[id]/change-orders/[coId]/option-groups/[groupId]/line-items/[itemId]/select/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requirePermission"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/projects/[id]/change-orders/[coId]/option-groups/[groupId]/line-items/reorder",
+   "module": "Change orders",
+   "file": "src/app/api/projects/[id]/change-orders/[coId]/option-groups/[groupId]/line-items/reorder/route.js",
+   "methods": [
+    "PATCH"
+   ],
+   "guards": [
+    "requirePermission"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/projects/[id]/change-orders/[coId]/pdf",
+   "module": "Change orders",
+   "file": "src/app/api/projects/[id]/change-orders/[coId]/pdf/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAuth",
+    "requirePortalAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/projects/[id]/change-orders/[coId]/push-to-budget",
+   "module": "Change orders",
+   "file": "src/app/api/projects/[id]/change-orders/[coId]/push-to-budget/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requirePermission"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/projects/[id]/change-orders/[coId]/send",
+   "module": "Change orders",
+   "file": "src/app/api/projects/[id]/change-orders/[coId]/send/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requirePermission"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/projects/[id]/change-orders/[coId]/share",
+   "module": "Change orders",
+   "file": "src/app/api/projects/[id]/change-orders/[coId]/share/route.js",
+   "methods": [
+    "GET",
+    "POST",
+    "DELETE"
+   ],
+   "guards": [
+    "requirePermission",
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": true,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/projects/[id]/change-orders/products",
+   "module": "Change orders",
+   "file": "src/app/api/projects/[id]/change-orders/products/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/projects/[id]/change-orders/tax-change",
+   "module": "Change orders",
+   "file": "src/app/api/projects/[id]/change-orders/tax-change/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requirePermission",
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/projects/[id]/chat",
+   "module": "Project hub, bid matrix, budgets",
+   "file": "src/app/api/projects/[id]/chat/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [
+    "ai"
+   ],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/projects/[id]/chat/conversations",
+   "module": "Project hub, bid matrix, budgets",
+   "file": "src/app/api/projects/[id]/chat/conversations/route.js",
+   "methods": [
+    "GET",
+    "DELETE"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": true,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/projects/[id]/chat/conversations/[convId]",
+   "module": "Project hub, bid matrix, budgets",
+   "file": "src/app/api/projects/[id]/chat/conversations/[convId]/route.js",
+   "methods": [
+    "GET",
+    "DELETE"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": true,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/projects/[id]/code-check",
+   "module": "Drawings, fixture schedule, compliance",
+   "file": "src/app/api/projects/[id]/code-check/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [
+    "ai"
+   ],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/projects/[id]/contacts",
+   "module": "Project hub, bid matrix, budgets",
+   "file": "src/app/api/projects/[id]/contacts/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [
+    "email"
+   ],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/projects/[id]/contacts/[contactId]",
+   "module": "Project hub, bid matrix, budgets",
+   "file": "src/app/api/projects/[id]/contacts/[contactId]/route.js",
+   "methods": [
+    "PATCH",
+    "DELETE"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": true,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/projects/[id]/contacts/[contactId]/invite",
+   "module": "Project hub, bid matrix, budgets",
+   "file": "src/app/api/projects/[id]/contacts/[contactId]/invite/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [
+    "email"
+   ],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/projects/[id]/correspondence/threads",
+   "module": "Email and calendar",
+   "file": "src/app/api/projects/[id]/correspondence/threads/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/projects/[id]/correspondence/threads/[conversationId]",
+   "module": "Email and calendar",
+   "file": "src/app/api/projects/[id]/correspondence/threads/[conversationId]/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/projects/[id]/correspondence/threads/[conversationId]/read",
+   "module": "Email and calendar",
+   "file": "src/app/api/projects/[id]/correspondence/threads/[conversationId]/read/route.js",
+   "methods": [
+    "PATCH"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/projects/[id]/data",
+   "module": "Project hub, bid matrix, budgets",
+   "file": "src/app/api/projects/[id]/data/route.js",
+   "methods": [
+    "PUT",
+    "PATCH"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/projects/[id]/design-bid-matrix",
+   "module": "Project hub, bid matrix, budgets",
+   "file": "src/app/api/projects/[id]/design-bid-matrix/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/projects/[id]/design-bid-matrix/[matrixId]",
+   "module": "Project hub, bid matrix, budgets",
+   "file": "src/app/api/projects/[id]/design-bid-matrix/[matrixId]/route.js",
+   "methods": [
+    "POST",
+    "PATCH",
+    "DELETE"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/projects/[id]/design-bid-matrix/duplicate",
+   "module": "Project hub, bid matrix, budgets",
+   "file": "src/app/api/projects/[id]/design-bid-matrix/duplicate/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/projects/[id]/design-bid-matrix/export",
+   "module": "Project hub, bid matrix, budgets",
+   "file": "src/app/api/projects/[id]/design-bid-matrix/export/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/projects/[id]/design-bid-matrix/items/[itemId]",
+   "module": "Project hub, bid matrix, budgets",
+   "file": "src/app/api/projects/[id]/design-bid-matrix/items/[itemId]/route.js",
+   "methods": [
+    "PATCH"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/projects/[id]/design-bid-matrix/pdf",
+   "module": "Project hub, bid matrix, budgets",
+   "file": "src/app/api/projects/[id]/design-bid-matrix/pdf/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [
+    "pdf"
+   ],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/projects/[id]/drawing-submissions",
+   "module": "Drawings, fixture schedule, compliance",
+   "file": "src/app/api/projects/[id]/drawing-submissions/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [
+    "s3"
+   ],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/projects/[id]/drawing-submissions/[submissionId]",
+   "module": "Drawings, fixture schedule, compliance",
+   "file": "src/app/api/projects/[id]/drawing-submissions/[submissionId]/route.js",
+   "methods": [
+    "POST",
+    "PATCH",
+    "DELETE"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/projects/[id]/drawing-submissions/[submissionId]/files/[fileId]",
+   "module": "Drawings, fixture schedule, compliance",
+   "file": "src/app/api/projects/[id]/drawing-submissions/[submissionId]/files/[fileId]/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [
+    "s3"
+   ],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/projects/[id]/duplicate",
+   "module": "Project hub, bid matrix, budgets",
+   "file": "src/app/api/projects/[id]/duplicate/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/projects/[id]/error-radar",
+   "module": "Project hub, bid matrix, budgets",
+   "file": "src/app/api/projects/[id]/error-radar/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/projects/[id]/estimate",
+   "module": "Project hub, bid matrix, budgets",
+   "file": "src/app/api/projects/[id]/estimate/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/projects/[id]/figures",
+   "module": "Dashboards",
+   "file": "src/app/api/projects/[id]/figures/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/projects/[id]/files",
+   "module": "Project hub, bid matrix, budgets",
+   "file": "src/app/api/projects/[id]/files/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [
+    "email",
+    "s3"
+   ],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/projects/[id]/files/[fileId]",
+   "module": "Project hub, bid matrix, budgets",
+   "file": "src/app/api/projects/[id]/files/[fileId]/route.js",
+   "methods": [
+    "GET",
+    "POST",
+    "PATCH",
+    "DELETE"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [
+    "s3"
+   ],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/projects/[id]/files/[fileId]/reparse",
+   "module": "Project hub, bid matrix, budgets",
+   "file": "src/app/api/projects/[id]/files/[fileId]/reparse/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [
+    "ai",
+    "s3"
+   ],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/projects/[id]/fixture-schedule",
+   "module": "Drawings, fixture schedule, compliance",
+   "file": "src/app/api/projects/[id]/fixture-schedule/route.js",
+   "methods": [
+    "GET",
+    "POST",
+    "PATCH"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/projects/[id]/fixture-schedule/export",
+   "module": "Drawings, fixture schedule, compliance",
+   "file": "src/app/api/projects/[id]/fixture-schedule/export/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/projects/[id]/fixture-schedule/import",
+   "module": "Drawings, fixture schedule, compliance",
+   "file": "src/app/api/projects/[id]/fixture-schedule/import/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": true,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/projects/[id]/fixture-schedule/items/[itemId]",
+   "module": "Drawings, fixture schedule, compliance",
+   "file": "src/app/api/projects/[id]/fixture-schedule/items/[itemId]/route.js",
+   "methods": [
+    "PATCH",
+    "DELETE"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": true,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/projects/[id]/fixture-schedule/parse",
+   "module": "Drawings, fixture schedule, compliance",
+   "file": "src/app/api/projects/[id]/fixture-schedule/parse/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [
+    "ai"
+   ],
+   "dynamic": true,
+   "hardDelete": true,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/projects/[id]/fixture-schedule/publish",
+   "module": "Drawings, fixture schedule, compliance",
+   "file": "src/app/api/projects/[id]/fixture-schedule/publish/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": true,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/projects/[id]/fixture-schedule/share",
+   "module": "Drawings, fixture schedule, compliance",
+   "file": "src/app/api/projects/[id]/fixture-schedule/share/route.js",
+   "methods": [
+    "GET",
+    "POST",
+    "DELETE"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": true,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/projects/[id]/fixture-schedule/versions/[versionId]",
+   "module": "Drawings, fixture schedule, compliance",
+   "file": "src/app/api/projects/[id]/fixture-schedule/versions/[versionId]/route.js",
+   "methods": [
+    "PATCH",
+    "DELETE"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": true,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/projects/[id]/lpd-summary",
+   "module": "Drawings, fixture schedule, compliance",
+   "file": "src/app/api/projects/[id]/lpd-summary/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/projects/[id]/meeting-notes",
+   "module": "Notes",
+   "file": "src/app/api/projects/[id]/meeting-notes/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [
+    "email"
+   ],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/projects/[id]/meeting-notes/[noteId]",
+   "module": "Notes",
+   "file": "src/app/api/projects/[id]/meeting-notes/[noteId]/route.js",
+   "methods": [
+    "POST",
+    "PATCH",
+    "DELETE"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [
+    "email"
+   ],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/projects/[id]/notification-logs",
+   "module": "Notifications and scheduled jobs",
+   "file": "src/app/api/projects/[id]/notification-logs/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/projects/[id]/notifications",
+   "module": "Notifications and scheduled jobs",
+   "file": "src/app/api/projects/[id]/notifications/route.js",
+   "methods": [
+    "GET",
+    "PATCH"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/projects/[id]/peer-review",
+   "module": "Bid leveling and comparison",
+   "file": "src/app/api/projects/[id]/peer-review/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/projects/[id]/peer-review/[itemId]",
+   "module": "Bid leveling and comparison",
+   "file": "src/app/api/projects/[id]/peer-review/[itemId]/route.js",
+   "methods": [
+    "PATCH",
+    "DELETE"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": true,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/projects/[id]/peer-review/import",
+   "module": "Bid leveling and comparison",
+   "file": "src/app/api/projects/[id]/peer-review/import/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/projects/[id]/peer-review/parse-pdf",
+   "module": "Bid leveling and comparison",
+   "file": "src/app/api/projects/[id]/peer-review/parse-pdf/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [
+    "ai"
+   ],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/projects/[id]/peer-review/pdf",
+   "module": "Bid leveling and comparison",
+   "file": "src/app/api/projects/[id]/peer-review/pdf/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [
+    "pdf"
+   ],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/projects/[id]/people",
+   "module": "Project hub, bid matrix, budgets",
+   "file": "src/app/api/projects/[id]/people/route.js",
+   "methods": [
+    "GET",
+    "POST",
+    "DELETE"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": true,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/projects/[id]/placed-fixtures",
+   "module": "Drawings, fixture schedule, compliance",
+   "file": "src/app/api/projects/[id]/placed-fixtures/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/projects/[id]/responses",
+   "module": "Project hub, bid matrix, budgets",
+   "file": "src/app/api/projects/[id]/responses/route.js",
+   "methods": [
+    "GET",
+    "PUT"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/projects/[id]/rfi-extract",
+   "module": "Drawings, fixture schedule, compliance",
+   "file": "src/app/api/projects/[id]/rfi-extract/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [
+    "ai"
+   ],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/projects/[id]/rfis",
+   "module": "Drawings, fixture schedule, compliance",
+   "file": "src/app/api/projects/[id]/rfis/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/projects/[id]/rfis/[rfiId]",
+   "module": "Drawings, fixture schedule, compliance",
+   "file": "src/app/api/projects/[id]/rfis/[rfiId]/route.js",
+   "methods": [
+    "GET",
+    "PATCH"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/projects/[id]/rfis/[rfiId]/approve-draft",
+   "module": "Drawings, fixture schedule, compliance",
+   "file": "src/app/api/projects/[id]/rfis/[rfiId]/approve-draft/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/projects/[id]/rfis/[rfiId]/generate-draft",
+   "module": "Drawings, fixture schedule, compliance",
+   "file": "src/app/api/projects/[id]/rfis/[rfiId]/generate-draft/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [
+    "ai"
+   ],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/projects/[id]/rfis/summary",
+   "module": "Drawings, fixture schedule, compliance",
+   "file": "src/app/api/projects/[id]/rfis/summary/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/projects/[id]/rfqs",
+   "module": "RFQs and sales reps",
+   "file": "src/app/api/projects/[id]/rfqs/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requireStaff"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": true,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/projects/[id]/rfqs/[rfqId]",
+   "module": "RFQs and sales reps",
+   "file": "src/app/api/projects/[id]/rfqs/[rfqId]/route.js",
+   "methods": [
+    "GET",
+    "PATCH"
+   ],
+   "guards": [
+    "requireStaff"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/projects/[id]/rfqs/[rfqId]/pdf",
+   "module": "RFQs and sales reps",
+   "file": "src/app/api/projects/[id]/rfqs/[rfqId]/pdf/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireStaff"
+   ],
+   "gates": [
+    "pdf"
+   ],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/projects/[id]/rfqs/quotes",
+   "module": "RFQs and sales reps",
+   "file": "src/app/api/projects/[id]/rfqs/quotes/route.js",
+   "methods": [
+    "GET",
+    "POST",
+    "PATCH"
+   ],
+   "guards": [
+    "requireStaff"
+   ],
+   "gates": [
+    "ai",
+    "s3"
+   ],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/projects/[id]/rfqs/quotes/read",
+   "module": "RFQs and sales reps",
+   "file": "src/app/api/projects/[id]/rfqs/quotes/read/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireStaff"
+   ],
+   "gates": [
+    "ai",
+    "s3"
+   ],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/projects/[id]/search",
+   "module": "Search, archive, knowledge base",
+   "file": "src/app/api/projects/[id]/search/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/projects/[id]/share",
+   "module": "Project hub, bid matrix, budgets",
+   "file": "src/app/api/projects/[id]/share/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/projects/[id]/ship-schedule/email",
+   "module": "Ship schedule",
+   "file": "src/app/api/projects/[id]/ship-schedule/email/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [
+    "email"
+   ],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/projects/[id]/ship-schedule/items/[itemId]/release",
+   "module": "Ship schedule",
+   "file": "src/app/api/projects/[id]/ship-schedule/items/[itemId]/release/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/projects/[id]/ship-schedule/pdf",
+   "module": "Ship schedule",
+   "file": "src/app/api/projects/[id]/ship-schedule/pdf/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/projects/[id]/ship-schedule/publish",
+   "module": "Ship schedule",
+   "file": "src/app/api/projects/[id]/ship-schedule/publish/route.js",
+   "methods": [
+    "GET",
+    "POST",
+    "PATCH"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/projects/[id]/ship-schedule/push",
+   "module": "Ship schedule",
+   "file": "src/app/api/projects/[id]/ship-schedule/push/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/projects/[id]/shipments",
+   "module": "Ship schedule",
+   "file": "src/app/api/projects/[id]/shipments/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/projects/[id]/shipments/[shipmentId]",
+   "module": "Ship schedule",
+   "file": "src/app/api/projects/[id]/shipments/[shipmentId]/route.js",
+   "methods": [
+    "GET",
+    "PATCH",
+    "DELETE"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [
+    "email"
+   ],
+   "dynamic": true,
+   "hardDelete": true,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/projects/[id]/shipments/[shipmentId]/line-items",
+   "module": "Ship schedule",
+   "file": "src/app/api/projects/[id]/shipments/[shipmentId]/line-items/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/projects/[id]/shipments/import",
+   "module": "Ship schedule",
+   "file": "src/app/api/projects/[id]/shipments/import/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/projects/[id]/shipments/line-items/[itemId]",
+   "module": "Ship schedule",
+   "file": "src/app/api/projects/[id]/shipments/line-items/[itemId]/route.js",
+   "methods": [
+    "PATCH",
+    "DELETE"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": true,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/projects/[id]/shipments/line-items/[itemId]/deliveries",
+   "module": "Ship schedule",
+   "file": "src/app/api/projects/[id]/shipments/line-items/[itemId]/deliveries/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/projects/[id]/shipments/release-requests/[releaseId]",
+   "module": "Ship schedule",
+   "file": "src/app/api/projects/[id]/shipments/release-requests/[releaseId]/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/projects/[id]/site/commit",
+   "module": "Drawings, fixture schedule, compliance",
+   "file": "src/app/api/projects/[id]/site/commit/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/projects/[id]/site/parse",
+   "module": "Drawings, fixture schedule, compliance",
+   "file": "src/app/api/projects/[id]/site/parse/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [
+    "ai",
+    "s3"
+   ],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/projects/[id]/tracker",
+   "module": "Project hub, bid matrix, budgets",
+   "file": "src/app/api/projects/[id]/tracker/route.js",
+   "methods": [
+    "GET",
+    "POST",
+    "PATCH"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/projects/[id]/tracker/export",
+   "module": "Project hub, bid matrix, budgets",
+   "file": "src/app/api/projects/[id]/tracker/export/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/projects/[id]/tracker/extract",
+   "module": "Project hub, bid matrix, budgets",
+   "file": "src/app/api/projects/[id]/tracker/extract/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [
+    "ai",
+    "s3"
+   ],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/projects/[id]/tracker/import-toc",
+   "module": "Project hub, bid matrix, budgets",
+   "file": "src/app/api/projects/[id]/tracker/import-toc/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [
+    "ai",
+    "s3"
+   ],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/projects/[id]/tracker/items",
+   "module": "Project hub, bid matrix, budgets",
+   "file": "src/app/api/projects/[id]/tracker/items/route.js",
+   "methods": [
+    "POST",
+    "DELETE"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/projects/[id]/tracker/items/[itemId]",
+   "module": "Project hub, bid matrix, budgets",
+   "file": "src/app/api/projects/[id]/tracker/items/[itemId]/route.js",
+   "methods": [
+    "PATCH",
+    "DELETE"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/projects/[id]/tracker/open-items",
+   "module": "Project hub, bid matrix, budgets",
+   "file": "src/app/api/projects/[id]/tracker/open-items/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/projects/[id]/tracker/reviews",
+   "module": "Project hub, bid matrix, budgets",
+   "file": "src/app/api/projects/[id]/tracker/reviews/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/projects/[id]/tracker/reviews/[reviewId]",
+   "module": "Project hub, bid matrix, budgets",
+   "file": "src/app/api/projects/[id]/tracker/reviews/[reviewId]/route.js",
+   "methods": [
+    "PATCH",
+    "DELETE"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/projects/[id]/tracker/reviews/[reviewId]/respond",
+   "module": "Project hub, bid matrix, budgets",
+   "file": "src/app/api/projects/[id]/tracker/reviews/[reviewId]/respond/route.js",
+   "methods": [
+    "POST",
+    "PATCH"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [
+    "ai"
+   ],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/projects/[id]/tracker/submissions",
+   "module": "Project hub, bid matrix, budgets",
+   "file": "src/app/api/projects/[id]/tracker/submissions/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [
+    "email"
+   ],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/projects/[id]/tracker/submissions/[submissionId]",
+   "module": "Project hub, bid matrix, budgets",
+   "file": "src/app/api/projects/[id]/tracker/submissions/[submissionId]/route.js",
+   "methods": [
+    "PATCH",
+    "DELETE"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/projects/[id]/unit-matrix",
+   "module": "Drawings, fixture schedule, compliance",
+   "file": "src/app/api/projects/[id]/unit-matrix/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/projects/[id]/unit-matrix/commit",
+   "module": "Drawings, fixture schedule, compliance",
+   "file": "src/app/api/projects/[id]/unit-matrix/commit/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": true,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/projects/[id]/unit-matrix/parse",
+   "module": "Drawings, fixture schedule, compliance",
+   "file": "src/app/api/projects/[id]/unit-matrix/parse/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [
+    "ai",
+    "s3"
+   ],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/projects/[id]/unit-selections",
+   "module": "Unit selections",
+   "file": "src/app/api/projects/[id]/unit-selections/route.js",
+   "methods": [
+    "GET",
+    "POST",
+    "PATCH"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/proposal-rates",
+   "module": "Proposals",
+   "file": "src/app/api/proposal-rates/route.js",
+   "methods": [
+    "GET",
+    "PUT"
+   ],
+   "guards": [
+    "requireAdmin"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/proposal-templates",
+   "module": "Proposals",
+   "file": "src/app/api/proposal-templates/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/proposal-templates/[id]",
+   "module": "Proposals",
+   "file": "src/app/api/proposal-templates/[id]/route.js",
+   "methods": [
+    "GET",
+    "PUT",
+    "DELETE"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": true,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/proposal-templates/[id]/duplicate",
+   "module": "Proposals",
+   "file": "src/app/api/proposal-templates/[id]/duplicate/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/proposals",
+   "module": "Proposals",
+   "file": "src/app/api/proposals/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/proposals/[id]",
+   "module": "Proposals",
+   "file": "src/app/api/proposals/[id]/route.js",
+   "methods": [
+    "GET",
+    "PUT"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/proposals/[id]/accept",
+   "module": "Proposals",
+   "file": "src/app/api/proposals/[id]/accept/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAdmin"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/proposals/[id]/decline",
+   "module": "Proposals",
+   "file": "src/app/api/proposals/[id]/decline/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/proposals/[id]/line-items",
+   "module": "Proposals",
+   "file": "src/app/api/proposals/[id]/line-items/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": true,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/proposals/[id]/pdf",
+   "module": "Proposals",
+   "file": "src/app/api/proposals/[id]/pdf/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/proposals/[id]/send",
+   "module": "Proposals",
+   "file": "src/app/api/proposals/[id]/send/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/qc/media",
+   "module": "Pricing, QC, verification",
+   "file": "src/app/api/qc/media/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/qc/reports",
+   "module": "Pricing, QC, verification",
+   "file": "src/app/api/qc/reports/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [
+    "s3"
+   ],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/qc/reports/[id]",
+   "module": "Pricing, QC, verification",
+   "file": "src/app/api/qc/reports/[id]/route.js",
+   "methods": [
+    "GET",
+    "POST",
+    "PATCH",
+    "DELETE"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [
+    "s3"
+   ],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/roadmap-priorities",
+   "module": "Admin and platform",
+   "file": "src/app/api/roadmap-priorities/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requireAdmin",
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/roadmap-priorities/[id]",
+   "module": "Admin and platform",
+   "file": "src/app/api/roadmap-priorities/[id]/route.js",
+   "methods": [
+    "PATCH",
+    "DELETE"
+   ],
+   "guards": [
+    "requireAdmin"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": true,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/roadmap-priorities/reorder",
+   "module": "Admin and platform",
+   "file": "src/app/api/roadmap-priorities/reorder/route.js",
+   "methods": [
+    "PATCH"
+   ],
+   "guards": [
+    "requireAdmin"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/sales-docs",
+   "module": "Sales Docs and campaigns",
+   "file": "src/app/api/sales-docs/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requireSalesDocsUser"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": true,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/sales-docs/[docId]",
+   "module": "Sales Docs and campaigns",
+   "file": "src/app/api/sales-docs/[docId]/route.js",
+   "methods": [
+    "GET",
+    "PATCH"
+   ],
+   "guards": [
+    "requireSalesDocsUser"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/sales-docs/[docId]/versions",
+   "module": "Sales Docs and campaigns",
+   "file": "src/app/api/sales-docs/[docId]/versions/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireSalesDocsUser"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": true,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/sales-docs/engagement",
+   "module": "Sales Docs and campaigns",
+   "file": "src/app/api/sales-docs/engagement/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireSalesDocsUser"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/sales-docs/folders",
+   "module": "Sales Docs and campaigns",
+   "file": "src/app/api/sales-docs/folders/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requireSalesDocsUser"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/sales-docs/folders/[folderId]",
+   "module": "Sales Docs and campaigns",
+   "file": "src/app/api/sales-docs/folders/[folderId]/route.js",
+   "methods": [
+    "PATCH"
+   ],
+   "guards": [
+    "requireSalesDocsUser"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/sales-docs/links",
+   "module": "Sales Docs and campaigns",
+   "file": "src/app/api/sales-docs/links/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requireSalesDocsUser"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/sales-docs/links/[linkId]",
+   "module": "Sales Docs and campaigns",
+   "file": "src/app/api/sales-docs/links/[linkId]/route.js",
+   "methods": [
+    "PATCH"
+   ],
+   "guards": [
+    "requireSalesDocsUser"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/sales-docs/spaces",
+   "module": "Sales Docs and campaigns",
+   "file": "src/app/api/sales-docs/spaces/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requireSalesDocsUser"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/sales-docs/spaces/[spaceId]",
+   "module": "Sales Docs and campaigns",
+   "file": "src/app/api/sales-docs/spaces/[spaceId]/route.js",
+   "methods": [
+    "GET",
+    "PATCH"
+   ],
+   "guards": [
+    "requireSalesDocsUser"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": true,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/sales-docs/versions/[versionId]/file",
+   "module": "Sales Docs and campaigns",
+   "file": "src/app/api/sales-docs/versions/[versionId]/file/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireSalesDocsUser"
+   ],
+   "gates": [
+    "s3"
+   ],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/sales-docs/versions/[versionId]/override",
+   "module": "Sales Docs and campaigns",
+   "file": "src/app/api/sales-docs/versions/[versionId]/override/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireSalesDocsUser"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/sales-docs/versions/[versionId]/process",
+   "module": "Sales Docs and campaigns",
+   "file": "src/app/api/sales-docs/versions/[versionId]/process/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requireSalesDocsUser"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/sales-docs/versions/[versionId]/sheets/[index]",
+   "module": "Sales Docs and campaigns",
+   "file": "src/app/api/sales-docs/versions/[versionId]/sheets/[index]/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireSalesDocsUser"
+   ],
+   "gates": [
+    "s3"
+   ],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/sales-docs/views/[viewId]",
+   "module": "Sales Docs and campaigns",
+   "file": "src/app/api/sales-docs/views/[viewId]/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireSalesDocsUser"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/sales-reps",
+   "module": "RFQs and sales reps",
+   "file": "src/app/api/sales-reps/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requireStaff"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/sales-reps/[id]",
+   "module": "RFQs and sales reps",
+   "file": "src/app/api/sales-reps/[id]/route.js",
+   "methods": [
+    "GET",
+    "PATCH"
+   ],
+   "guards": [
+    "requireStaff"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/sales-reps/bulk",
+   "module": "RFQs and sales reps",
+   "file": "src/app/api/sales-reps/bulk/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireStaff"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/sales-tax",
+   "module": "Admin and platform",
+   "file": "src/app/api/sales-tax/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requirePublicBudgetAccess"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/sales/annual-budgets",
+   "module": "Expenses",
+   "file": "src/app/api/sales/annual-budgets/route.js",
+   "methods": [
+    "PATCH"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/sales/desk",
+   "module": "My Desk and tasks",
+   "file": "src/app/api/sales/desk/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/sales/desk/[id]",
+   "module": "My Desk and tasks",
+   "file": "src/app/api/sales/desk/[id]/route.js",
+   "methods": [
+    "PATCH"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/sales/desk/briefing",
+   "module": "My Desk and tasks",
+   "file": "src/app/api/sales/desk/briefing/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [
+    "ai"
+   ],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/sales/desk/check-in/[contactId]",
+   "module": "My Desk and tasks",
+   "file": "src/app/api/sales/desk/check-in/[contactId]/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [
+    "ai"
+   ],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/sales/desk/meeting/[noteId]",
+   "module": "My Desk and tasks",
+   "file": "src/app/api/sales/desk/meeting/[noteId]/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/sales/desk/pool/[projectId]",
+   "module": "My Desk and tasks",
+   "file": "src/app/api/sales/desk/pool/[projectId]/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/sales/desk/pool/compare",
+   "module": "My Desk and tasks",
+   "file": "src/app/api/sales/desk/pool/compare/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/sales/desk/review",
+   "module": "My Desk and tasks",
+   "file": "src/app/api/sales/desk/review/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/sales/desk/review/[id]",
+   "module": "My Desk and tasks",
+   "file": "src/app/api/sales/desk/review/[id]/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/sales/desk/take/[contactId]",
+   "module": "My Desk and tasks",
+   "file": "src/app/api/sales/desk/take/[contactId]/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [
+    "ai"
+   ],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/sales/expenses",
+   "module": "Expenses",
+   "file": "src/app/api/sales/expenses/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/sales/expenses/[id]",
+   "module": "Expenses",
+   "file": "src/app/api/sales/expenses/[id]/route.js",
+   "methods": [
+    "POST",
+    "PATCH",
+    "DELETE"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/sales/expenses/receipts",
+   "module": "Expenses",
+   "file": "src/app/api/sales/expenses/receipts/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requireStaff"
+   ],
+   "gates": [
+    "s3"
+   ],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/sales/expenses/receipts/[id]",
+   "module": "Expenses",
+   "file": "src/app/api/sales/expenses/receipts/[id]/route.js",
+   "methods": [
+    "POST",
+    "DELETE"
+   ],
+   "guards": [
+    "requireStaff"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/sales/expenses/receipts/[id]/confirm",
+   "module": "Expenses",
+   "file": "src/app/api/sales/expenses/receipts/[id]/confirm/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireStaff"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/sales/expenses/receipts/[id]/file",
+   "module": "Expenses",
+   "file": "src/app/api/sales/expenses/receipts/[id]/file/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireStaff"
+   ],
+   "gates": [
+    "s3"
+   ],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/sales/expenses/receipts/[id]/read",
+   "module": "Expenses",
+   "file": "src/app/api/sales/expenses/receipts/[id]/read/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireStaff"
+   ],
+   "gates": [
+    "ai"
+   ],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/sales/expenses/summary",
+   "module": "Expenses",
+   "file": "src/app/api/sales/expenses/summary/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/sales/field-suggestions",
+   "module": "CRM",
+   "file": "src/app/api/sales/field-suggestions/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/sales/field-suggestions/[id]",
+   "module": "CRM",
+   "file": "src/app/api/sales/field-suggestions/[id]/route.js",
+   "methods": [
+    "PATCH"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [
+    "email"
+   ],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/sales/first-project-cost",
+   "module": "Dashboards",
+   "file": "src/app/api/sales/first-project-cost/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/sales/introductions",
+   "module": "CRM",
+   "file": "src/app/api/sales/introductions/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/sales/introductions/[id]",
+   "module": "CRM",
+   "file": "src/app/api/sales/introductions/[id]/route.js",
+   "methods": [
+    "PATCH"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/sales/meeting",
+   "module": "Dashboards",
+   "file": "src/app/api/sales/meeting/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/sales/meeting/layout",
+   "module": "Dashboards",
+   "file": "src/app/api/sales/meeting/layout/route.js",
+   "methods": [
+    "GET",
+    "PUT",
+    "DELETE"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": true,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/sales/signature",
+   "module": "Automation and bot",
+   "file": "src/app/api/sales/signature/route.js",
+   "methods": [
+    "GET",
+    "PUT"
+   ],
+   "guards": [
+    "requireSalesAdmin",
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/sales/task-tags",
+   "module": "My Desk and tasks",
+   "file": "src/app/api/sales/task-tags/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/sales/tasks",
+   "module": "My Desk and tasks",
+   "file": "src/app/api/sales/tasks/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/sales/tasks/[id]",
+   "module": "My Desk and tasks",
+   "file": "src/app/api/sales/tasks/[id]/route.js",
+   "methods": [
+    "PATCH"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/sales/tasks/lookup",
+   "module": "My Desk and tasks",
+   "file": "src/app/api/sales/tasks/lookup/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/sales/voice",
+   "module": "Automation and bot",
+   "file": "src/app/api/sales/voice/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [
+    "ai"
+   ],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/sales/voice/batches/[id]",
+   "module": "Automation and bot",
+   "file": "src/app/api/sales/voice/batches/[id]/route.js",
+   "methods": [
+    "PATCH"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/sales/voice/rebuild",
+   "module": "Automation and bot",
+   "file": "src/app/api/sales/voice/rebuild/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [
+    "ai"
+   ],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/sales/voice/samples/[id]",
+   "module": "Automation and bot",
+   "file": "src/app/api/sales/voice/samples/[id]/route.js",
+   "methods": [
+    "PATCH"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [
+    "ai"
+   ],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/sales/voice/templates/[id]",
+   "module": "Automation and bot",
+   "file": "src/app/api/sales/voice/templates/[id]/route.js",
+   "methods": [
+    "PATCH"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [
+    "ai"
+   ],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/sales/voice/templates/refill",
+   "module": "Automation and bot",
+   "file": "src/app/api/sales/voice/templates/refill/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [
+    "ai"
+   ],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/search",
+   "module": "Search, archive, knowledge base",
+   "file": "src/app/api/search/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/share/[token]",
+   "module": "Other",
+   "file": "src/app/api/share/[token]/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/share/co/[token]",
+   "module": "Change orders",
+   "file": "src/app/api/share/co/[token]/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/share/docs/[token]",
+   "module": "Sales Docs and campaigns",
+   "file": "src/app/api/share/docs/[token]/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requirePass"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/share/docs/[token]/download",
+   "module": "Sales Docs and campaigns",
+   "file": "src/app/api/share/docs/[token]/download/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requirePass"
+   ],
+   "gates": [
+    "s3"
+   ],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/share/docs/[token]/file",
+   "module": "Sales Docs and campaigns",
+   "file": "src/app/api/share/docs/[token]/file/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requirePass"
+   ],
+   "gates": [
+    "s3"
+   ],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/share/docs/[token]/gate",
+   "module": "Sales Docs and campaigns",
+   "file": "src/app/api/share/docs/[token]/gate/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/share/docs/[token]/ping",
+   "module": "Sales Docs and campaigns",
+   "file": "src/app/api/share/docs/[token]/ping/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requirePass"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/share/docs/[token]/rendered",
+   "module": "Sales Docs and campaigns",
+   "file": "src/app/api/share/docs/[token]/rendered/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requirePass"
+   ],
+   "gates": [
+    "s3"
+   ],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/share/docs/[token]/views",
+   "module": "Sales Docs and campaigns",
+   "file": "src/app/api/share/docs/[token]/views/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requirePass"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/share/fixture/[token]",
+   "module": "Drawings, fixture schedule, compliance",
+   "file": "src/app/api/share/fixture/[token]/route.js",
+   "methods": [
+    "GET",
+    "PATCH"
+   ],
+   "guards": [],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/share/standards/[token]",
+   "module": "Drawings, fixture schedule, compliance",
+   "file": "src/app/api/share/standards/[token]/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/system-config",
+   "module": "Admin and platform",
+   "file": "src/app/api/system-config/route.js",
+   "methods": [
+    "GET",
+    "PATCH"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/tags",
+   "module": "CRM",
+   "file": "src/app/api/tags/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/tags/[id]",
+   "module": "CRM",
+   "file": "src/app/api/tags/[id]/route.js",
+   "methods": [
+    "PATCH",
+    "DELETE"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": true,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/tasks",
+   "module": "My Desk and tasks",
+   "file": "src/app/api/tasks/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/tasks/[id]",
+   "module": "My Desk and tasks",
+   "file": "src/app/api/tasks/[id]/route.js",
+   "methods": [
+    "PATCH",
+    "DELETE"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": true,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/tasks/[id]/attachments",
+   "module": "My Desk and tasks",
+   "file": "src/app/api/tasks/[id]/attachments/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/tasks/attachments/[attachmentId]",
+   "module": "My Desk and tasks",
+   "file": "src/app/api/tasks/attachments/[attachmentId]/route.js",
+   "methods": [
+    "DELETE"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": true,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/unit-selections/responses/[responseId]",
+   "module": "Unit selections",
+   "file": "src/app/api/unit-selections/responses/[responseId]/route.js",
+   "methods": [
+    "GET",
+    "PATCH",
+    "DELETE"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/unit-selections/responses/[responseId]/choices",
+   "module": "Unit selections",
+   "file": "src/app/api/unit-selections/responses/[responseId]/choices/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": true,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/unit-selections/surveys/[surveyId]/responses",
+   "module": "Unit selections",
+   "file": "src/app/api/unit-selections/surveys/[surveyId]/responses/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": true,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/uploads/complete",
+   "module": "Admin and platform",
+   "file": "src/app/api/uploads/complete/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [],
+   "gates": [
+    "s3"
+   ],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/uploads/presign",
+   "module": "Admin and platform",
+   "file": "src/app/api/uploads/presign/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [],
+   "gates": [
+    "s3"
+   ],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/user/preferences",
+   "module": "Admin and platform",
+   "file": "src/app/api/user/preferences/route.js",
+   "methods": [
+    "GET",
+    "PATCH"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": true
+  },
+  {
+   "url": "/api/users",
+   "module": "Admin and platform",
+   "file": "src/app/api/users/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/users/signature",
+   "module": "Automation and bot",
+   "file": "src/app/api/users/signature/route.js",
+   "methods": [
+    "GET",
+    "PATCH"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/users/tone-profile",
+   "module": "Admin and platform",
+   "file": "src/app/api/users/tone-profile/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/verification",
+   "module": "Pricing, QC, verification",
+   "file": "src/app/api/verification/route.js",
+   "methods": [
+    "GET"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/verification/archive",
+   "module": "Search, archive, knowledge base",
+   "file": "src/app/api/verification/archive/route.js",
+   "methods": [
+    "GET",
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  },
+  {
+   "url": "/api/verification/dismiss",
+   "module": "Pricing, QC, verification",
+   "file": "src/app/api/verification/dismiss/route.js",
+   "methods": [
+    "POST"
+   ],
+   "guards": [
+    "requireAuth"
+   ],
+   "gates": [],
+   "dynamic": false,
+   "hardDelete": false,
+   "unguardedJson": false
+  }
+ ]
+}

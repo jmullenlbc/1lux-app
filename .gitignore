@@ -51,3 +51,6 @@ dev-server.log
 /.intake-dev/
 /.salesdocs-dev/
 .env*.local
+
+# Raw output of the local smoke crawl (summarised in docs/testing/smoke-results.md)
+docs/testing/smoke-results.json
